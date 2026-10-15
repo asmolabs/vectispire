@@ -72,6 +72,25 @@ describe('the issue detail', () => {
         decisions: []
     });
 
+    /**
+     * What `PUT /issues/{id}/ticket` answers: the issue as `IssueView`, not the detail — no sightings,
+     * no decisions, no target name. The spec answered the detail spread with the new reference, four
+     * fields the route does not send; the screen takes `ticketRef` and `ticketUrl` from it and nothing else.
+     */
+    const ticketed = (ticketRef: string, ticketUrl: string | null) =>
+        asSchema('IssueView', {
+            id: ISSUE.id,
+            type: ISSUE.type,
+            identifier: ISSUE.identifier,
+            severity: ISSUE.severity,
+            state: ISSUE.state,
+            isKev: ISSUE.isKev,
+            timesSeen: ISSUE.timesSeen,
+            triageStatus: ISSUE.triageStatus,
+            ticketRef,
+            ticketUrl
+        });
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [IssueDetailPage],
@@ -266,7 +285,7 @@ describe('the issue detail', () => {
         // Trimmed here rather than on the server: a reference surrounded by spaces would be found
         // by no webhook.
         expect(call.request.body).toEqual({ reference: 'SEC-1234', url: 'https://tracker.invalid/SEC-1234' });
-        call.flush({ ...ISSUE, ticketRef: 'SEC-1234', ticketUrl: 'https://tracker.invalid/SEC-1234' });
+        call.flush(ticketed('SEC-1234', 'https://tracker.invalid/SEC-1234'));
         fixture.detectChanges();
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
@@ -285,7 +304,7 @@ describe('the issue detail', () => {
 
         const call = http.expectOne('/api/v1/issues/7/ticket');
         expect(call.request.body).toEqual({ reference: '#87', url: null });
-        call.flush({ ...ISSUE, ticketRef: '#87', ticketUrl: null });
+        call.flush(ticketed('#87', null));
     });
 
     it('sends nothing for an empty reference, instead of having the move refused', async () => {

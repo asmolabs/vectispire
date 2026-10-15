@@ -79,13 +79,15 @@ describe('le registre des exceptions', () => {
         // **The row comes back dated**, as the server would return it: the counters are derived
         // from the rows rather than taken from the server, so a data set where the counter moves
         // without the row moving describes nothing real any more.
-        call.flush({
-            ...REGISTER,
-            entries: [
-                { ...REGISTER.entries[0], last_reviewed_at: '2026-09-14T10:00:00Z', last_reviewed_by: 'n.faure' }
-            ],
-            never_reviewed: 0
-        });
+        call.flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [
+                    { ...REGISTER.entries[0], last_reviewed_at: '2026-09-14T10:00:00Z', last_reviewed_by: 'n.faure' }
+                ],
+                never_reviewed: 0
+            })
+        );
 
         expect(component.neverReviewed()).toBe(0);
         expect(component.reviewing()).toBeNull();
@@ -126,7 +128,7 @@ describe('le registre des exceptions', () => {
         component.more();
         const next = http.expectOne((call) => call.url === '/api/v1/exceptions');
         expect(next.request.params.get('cursor')).toBe('1757836800000:41');
-        next.flush({ ...REGISTER, next_cursor: null });
+        next.flush(asSchema('Register', { ...REGISTER, next_cursor: null }));
 
         expect(component.loaded()).toHaveLength(1);
         expect(component.hasMore()).toBe(false);
@@ -137,16 +139,20 @@ describe('le registre des exceptions', () => {
         expect(component.granted()).toBe(1);
 
         component.load();
-        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
-            ...REGISTER,
-            next_cursor: '1757836800000:41'
-        });
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                next_cursor: '1757836800000:41'
+            })
+        );
         component.more();
-        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
-            ...REGISTER,
-            entries: [{ ...REGISTER.entries[0], issue_id: 42 }],
-            next_cursor: null
-        });
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [{ ...REGISTER.entries[0], issue_id: 42 }],
+                next_cursor: null
+            })
+        );
 
         // The counters come from the loaded rows rather than from the server: adding the pages up
         // would give a total that grows as one reads, which is the total of nothing.
@@ -160,14 +166,16 @@ describe('le registre des exceptions', () => {
         useEnglish();
         const component = fixture.componentInstance;
         component.load();
-        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
-            ...REGISTER,
-            entries: [
-                REGISTER.entries[0],
-                { ...REGISTER.entries[0], issue_id: 43, decision: 'will_not_fix', justification: null },
-                { ...REGISTER.entries[0], issue_id: 44, decision: 'pending_approval' }
-            ]
-        });
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [
+                    REGISTER.entries[0],
+                    { ...REGISTER.entries[0], issue_id: 43, decision: 'will_not_fix', justification: null },
+                    { ...REGISTER.entries[0], issue_id: 44, decision: 'pending_approval' }
+                ]
+            })
+        );
         fixture.detectChanges();
 
         expect(component.granted()).toBe(2);
@@ -184,24 +192,26 @@ describe('le registre des exceptions', () => {
         useEnglish();
         const component = fixture.componentInstance;
         component.load();
-        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
-            ...REGISTER,
-            entries: [
-                {
-                    ...REGISTER.entries[0],
-                    issue_id: 45,
-                    decision: 'pending_approval',
-                    requested_status: 'will_not_fix'
-                },
-                {
-                    ...REGISTER.entries[0],
-                    issue_id: 46,
-                    decision: 'pending_approval',
-                    requested_status: 'not_affected'
-                },
-                { ...REGISTER.entries[0], issue_id: 47, decision: 'pending_approval', requested_status: null }
-            ]
-        });
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                ...REGISTER,
+                entries: [
+                    {
+                        ...REGISTER.entries[0],
+                        issue_id: 45,
+                        decision: 'pending_approval',
+                        requested_status: 'will_not_fix'
+                    },
+                    {
+                        ...REGISTER.entries[0],
+                        issue_id: 46,
+                        decision: 'pending_approval',
+                        requested_status: 'not_affected'
+                    },
+                    { ...REGISTER.entries[0], issue_id: 47, decision: 'pending_approval', requested_status: null }
+                ]
+            })
+        );
         fixture.detectChanges();
 
         const requested = [
