@@ -18,6 +18,21 @@ public interface IssueRepository
         extends JpaRepository<IssueEntity, Long>, JpaSpecificationExecutor<IssueEntity>, IssueAggregateQueries {
 
     /**
+     * The issues whose target is among {@code :repoIds} and {@code :containerIds}, the target being the
+     * row's repository when it names one and its image otherwise — {@code IssueEntity.target()}, which
+     * {@code Visibility.permits} is asked of, the rule the scan history applies, and the one {@code
+     * IssueSpecifications.visible} writes for the backlog.
+     *
+     * <p><b>Not {@code repoId in :repoIds or containerId in :containerIds}</b>, which the exceptions
+     * register read with until 0.11.1. The issue sync writes one column, from its scan's target, but its
+     * first version copied both of the scan's and the schema forbids neither; such an issue matched
+     * through the image a reader was granted while it belongs to a repository they were not: the second
+     * lock in the service dropped it from the page, but the cursor is taken from the rows read and named
+     * that exception's instant and id. One spelling, so the first page and the next cannot drift apart.
+     */
+    String WITHIN = "(i.repoId in :repoIds or (i.repoId is null and i.containerId in :containerIds))";
+
+    /**
      * The rows a specification selects, as a projection — only the columns {@code shape} names are
      * read. Spring Data's fluent query, kept here so that a service hands over a specification and a
      * record and never holds the query API itself ({@code ArchitectureTest.servicesHoldNoQueryApi}).
@@ -81,7 +96,7 @@ public interface IssueRepository
     @Query("""
             select i from IssueEntity i
              where i.triageStatus in :statuses
-               and (i.repoId in :repoIds or i.containerId in :containerIds)
+               and\s""" + WITHIN + """
              order by i.triagedAt desc, i.id desc""")
     List<IssueEntity> findWithExceptionWithin(
             @Param("statuses") Collection<String> statuses,
@@ -93,7 +108,7 @@ public interface IssueRepository
     @Query("""
             select i from IssueEntity i
              where i.triageStatus in :statuses
-               and (i.repoId in :repoIds or i.containerId in :containerIds)
+               and\s""" + WITHIN + """
                and (i.triagedAt < :triagedAt or (i.triagedAt = :triagedAt and i.id < :id))
              order by i.triagedAt desc, i.id desc""")
     List<IssueEntity> findWithExceptionAfterWithin(
