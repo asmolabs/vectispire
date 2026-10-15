@@ -20,7 +20,8 @@ import org.testcontainers.utility.DockerImageName;
  *
  * <p>The images are pinned. A campaign that silently moved to a new minor version would turn
  * "this engine changed its behaviour" into "the build broke this morning". MySQL's is also the unit
- * suite's ({@code TestDatabase.IMAGE}) and CI's job services': kept equal by hand.
+ * suite's ({@code TestDatabase.IMAGE}) and CI's job services', and both are the upgrade drill's: moved
+ * by hand, held together by {@code scripts/check-db-pins.py}, which fails CI when they disagree.
  */
 public enum Engine {
     POSTGRES("postgres:17.6-alpine"),

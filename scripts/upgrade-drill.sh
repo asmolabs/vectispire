@@ -82,6 +82,8 @@ HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-420}"
 # different night, and the drill would report the release for it. **Nothing moves these for us** — Dependabot reads neither
 # a script nor a workflow's `services:` — so a change of `Engine.java` moves them by hand, resolved
 # with `docker buildx imagetools inspect <image:tag>`, the index and not one platform's manifest.
+# `scripts/check-db-pins.py` (`docs-consistency`) holds them together: a pin whose tag is not the
+# campaign's tag or a patch of it fails the push, on either side of the move.
 case "$ENGINE" in
   mysql)
     DB_IMAGE="${DB_IMAGE:-mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2}"

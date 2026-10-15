@@ -100,7 +100,8 @@ jobs:
     # below — one address for both, read by both. The image is `TestDatabase.IMAGE`'s and the
     # campaign's `Engine.MYSQL`: one pin in several places, and a difference is a suite running on
     # an engine the campaign does not. Here by patch and index digest, as `scripts/upgrade-drill.sh`
-    # explains — moved by hand with `Engine.java`, since Dependabot does not read `services:`.
+    # explains — moved by hand with `Engine.java`, since Dependabot does not read `services:`, and
+    # held to it by `scripts/check-db-pins.py`.
     services:
       mysql:
         image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2

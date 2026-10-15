@@ -149,6 +149,13 @@ jobs:
       # Underselling costs the same as overselling — a reader who checks is the one who gets it
       # wrong.
       - run: python3 scripts/check-doc-facts.py
+      # **The database pins Dependabot cannot read follow the campaign.** The upgrade drill's
+      # `DB_IMAGE` defaults and the MySQL job services are pinned by patch and digest beside
+      # `Engine.java`'s Testcontainers tags, and a bump of either side left the other on its old
+      # server with nothing to say so — three suites and a drill reporting for an engine the
+      # campaign no longer checks. The rule, and what it deliberately does not compare, is in the
+      # script.
+      - run: python3 scripts/check-db-pins.py
       # **The scripts we ship run in other people's pipelines**, where a defect is found by a
       # stranger's red build rather than by ours. The GitLab template runs the release's gate script
       # only at the digest it pins — edited apart, the next release ships a template that refuses to
@@ -537,7 +544,7 @@ jobs:
     # The image is `TestDatabase.IMAGE`'s and the campaign's `Engine.MYSQL`: three copies of one pin,
     # and a difference is a suite running on an engine the campaign does not. Here by patch and index
     # digest, as `scripts/upgrade-drill.sh` explains — moved by hand with `Engine.java`, since
-    # Dependabot does not read `services:`.
+    # Dependabot does not read `services:`, and held to it by `scripts/check-db-pins.py`.
     services:
       mysql:
         image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2
@@ -1101,7 +1108,8 @@ jobs:
     # below — one address for both, read by both. The image is `TestDatabase.IMAGE`'s and the
     # campaign's `Engine.MYSQL`: one pin in several places, and a difference is a suite running on
     # an engine the campaign does not. Here by patch and index digest, as `scripts/upgrade-drill.sh`
-    # explains — moved by hand with `Engine.java`, since Dependabot does not read `services:`.
+    # explains — moved by hand with `Engine.java`, since Dependabot does not read `services:`, and
+    # held to it by `scripts/check-db-pins.py`.
     services:
       mysql:
         image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2
