@@ -124,8 +124,9 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   ([SIEM](../integrations/siem.md), [report plugins](../administration/report-plugins.md#requesting-a-report)).
 - **The `Dockerfile`, `Dockerfile.agent` and `Dockerfile.cli` name their base images by digest**
   (`image:tag@sha256:…`, the multi-architecture index), so one file builds the same bases until a reviewed
-  update moves them; the `dockerfile-policy` check refuses a base image named by tag alone. The images
-  published with Jib were already pinned.
+  update moves them; the `dockerfile-policy` check refuses a base image named by tag alone, by a digest
+  that is not a whole sha256, or under a stage name of its own line. The images published with Jib were
+  already pinned.
 - **The dashboard's recent scans show a restricted reader only the scans of the targets they may see**: a
   scan naming both an image the reader was granted and a repository they were not is the repository's, as
   in the scan history, and is no longer listed — with that repository's name — on the reader's home page.

@@ -327,8 +327,11 @@ jobs:
             --skip-path node_modules
       # **A base image is named by digest** (`image:tag@sha256:…`, the multi-architecture index's),
       # which checkov does not check: its rule refuses `latest`, not a tag that moves. A `FROM` by
-      # tag alone builds whatever was pushed under that tag last. A stage named earlier in the same
-      # file and `scratch` are not images. The count is printed so that a run reading no file is seen.
+      # tag alone builds whatever was pushed under that tag last. A stage named on an earlier line of
+      # the same file and `scratch` are not images. The line's own `AS` name is registered after the
+      # check, never before: registered first, `FROM node:24 AS node` read its tag as a stage of its
+      # own and passed. A digest is the whole sha256, 64 hex digits — by length rather than `{64}`,
+      # which not every awk reads. The count is printed so that a run reading no file is seen.
       - name: every base image is pinned by digest
         run: |
           set -eu
@@ -339,10 +342,14 @@ jobs:
             toupper($1) == "FROM" {
               image = $2
               if (image ~ /^--platform=/) image = $3
-              for (i = 1; i <= NF; i++) if (toupper($i) == "AS") stages[$(i + 1)] = 1
-              if (image in stages || image == "scratch" || image ~ /@sha256:[0-9a-f]+$/) next
-              printf "%s:%d: %s: a base image by tag alone; pin it as image:tag@sha256:<index digest>\n", FILENAME, FNR, $0
-              bad = 1
+              digest = image
+              sub(/^[^@]*@sha256:/, "", digest)
+              pinned = image ~ /@sha256:[0-9a-f]+$/ && length(digest) == 64
+              if (!(image in stages || image == "scratch" || pinned)) {
+                printf "%s:%d: %s: a base image by tag alone; pin it as image:tag@sha256:<index digest>\n", FILENAME, FNR, $0
+                bad = 1
+              }
+              for (i = 1; i < NF; i++) if (toupper($i) == "AS") stages[$(i + 1)] = 1
             }
             END { n = 0; for (f in checked) n++; printf "%d Dockerfile(s) read\n", n; exit bad }'
 

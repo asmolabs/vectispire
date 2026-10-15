@@ -203,6 +203,12 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
   `no leaks found` and exited 0. When you add or change a CI job that runs a scanner in a
   container, read its log once for the count of what it examined, and make the job refuse a run
   that examined nothing.
+- **A check is run on what it must refuse, not only on the tree it passes.** The digest-pin step of
+  `dockerfile-policy` was green on every Dockerfile here and accepted `FROM node:24 AS node` — it
+  registered the line's own stage name before testing the image against the stage names — and a
+  digest of one hex digit. Before trusting a policy step, run its very text (extracted from the
+  workflow) on fixtures it must refuse and on ones it must pass, under the runner's tools (`mawk` on
+  `ubuntu-latest`, not the macOS `awk`).
 - **A test that plants a secret-shaped value fails `secrets`** once it is pushed (R1's
   `AKIA…` fixture did). Mark the line with a trailing `// gitleaks:allow` comment, which gitleaks
   honours, and say in the comment beside it that the value is invented; a fingerprint in
