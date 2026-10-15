@@ -323,7 +323,7 @@ describe('the attack surface screen', () => {
         const lists = http.match((call) => call.url === '/api/v1/repositories');
         expect(surfaces.map((call) => call.cancelled)).toEqual([true, false]);
         expect(lists.map((call) => call.cancelled)).toEqual([true, false]);
-        surfaces[1].flush({ ...GLOBAL, totalEndpoints: 0 });
+        surfaces[1].flush(asSchema('GlobalAttackSurface', { ...GLOBAL, totalEndpoints: 0 }));
         lists[1].flush([]);
         expect(figures()[0]).toBe('0');
     });

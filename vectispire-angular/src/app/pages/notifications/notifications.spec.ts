@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Notifications } from './notifications';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchemaList } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
@@ -80,12 +80,14 @@ describe('the notification channels screen', () => {
             list();
             testButtons()[0].click();
 
-            http.expectOne({ method: 'POST', url: '/api/v1/notifications/test/scan_delta_slack' }).flush({
-                type: 'scan_delta_slack',
-                success: true,
-                message: 'Delivered (HTTP 200).',
-                testedAt: '2026-10-02T09:00:00Z'
-            });
+            http.expectOne({ method: 'POST', url: '/api/v1/notifications/test/scan_delta_slack' }).flush(
+                asSchema('NotificationTestResult', {
+                    type: 'scan_delta_slack',
+                    success: true,
+                    message: 'Delivered (HTTP 200).',
+                    testedAt: '2026-10-02T09:00:00Z'
+                })
+            );
             fixture.detectChanges();
 
             expect((fixture.nativeElement as HTMLElement).textContent).toContain('Delivered (HTTP 200).');

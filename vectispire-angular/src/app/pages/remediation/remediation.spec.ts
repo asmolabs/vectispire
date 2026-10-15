@@ -4,10 +4,34 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '@/app/core/i18n/i18n.service';
-import type { HighImpactFix, RemediationCoverage } from '@/app/core/api.models';
+import type { HighImpactFix, RemediationCoverage, SecurityDebtReport } from '@/app/core/api.models';
 import { Remediation } from './remediation';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
+
+/**
+ * The debt as `GET /remediation/debt` answers it: every figure present, zero where a case does not set
+ * it. The specs answered `{ totalOpenIssues: 9 }` alone — twelve figures the server always sends missing,
+ * which the page would have drawn as blanks rather than zeros.
+ */
+const debt = (changes: Partial<SecurityDebtReport> = {}): SecurityDebtReport =>
+    asSchema('SecurityDebtReport', {
+        totalOpenIssues: 0,
+        criticalIssues: 0,
+        highIssues: 0,
+        mediumIssues: 0,
+        lowIssues: 0,
+        vulnerabilitiesDebtHours: 0,
+        sastDebtHours: 0,
+        secretsDebtHours: 0,
+        iacDebtHours: 0,
+        licenseDebtHours: 0,
+        eolDebtHours: 0,
+        totalEstimatedHours: 0,
+        totalEstimatedPersonDays: 0,
+        topHighImpactFixes: [],
+        ...changes
+    });
 
 /**
  * The work order.
@@ -82,11 +106,11 @@ describe('the remediation plan', () => {
     /** The plan, the debt, the admission and the two target lists — in the order the page asks for them. */
     function answer(
         fixes: HighImpactFix[],
-        debt: Record<string, unknown> = { totalOpenIssues: 9 },
+        report: SecurityDebtReport = debt({ totalOpenIssues: 9 }),
         coverage: RemediationCoverage | null = null
     ): void {
         plan().flush(fixes);
-        http.expectOne((request) => request.url.includes('/remediation/debt')).flush(debt);
+        http.expectOne((request) => request.url.includes('/remediation/debt')).flush(report);
 
         // The admission is optional in these runs: cases that are not about it must be able to
         // ignore it, exactly as the page does when the server does not answer.
@@ -114,7 +138,7 @@ describe('the remediation plan', () => {
                 fix({ packageName: 'log4j-core', leverageScore: 10.4 }),
                 fix({ packageName: 'openssl', leverageScore: 3.2 })
             ],
-            { totalOpenIssues: 9, criticalIssues: 2 }
+            debt({ totalOpenIssues: 9, criticalIssues: 2 })
         );
 
         // **The order is the information.** A page that ranks by leverage and then reorders by
@@ -129,7 +153,7 @@ describe('the remediation plan', () => {
         // **The defect this closes, one step further along.** The server returned the string
         // "latest-patch" for everybody, and the dashboard showed it behind an arrow. Now that it
         // can return nothing, the screen has to say what.
-        answer([fix({ recommendedVersion: null })], { totalOpenIssues: 1 });
+        answer([fix({ recommendedVersion: null })], debt({ totalOpenIssues: 1 }));
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Aucune version corrigée publiée');
@@ -162,7 +186,7 @@ describe('the remediation plan', () => {
         const second = plan();
         expect(second.request.params.get('limit')).toBe('25');
         second.flush(Array.from({ length: 25 }, (_, index) => fix({ packageName: `pkg-${index}` })));
-        http.expectOne((request) => request.url.includes('/remediation/debt')).flush({ totalOpenIssues: 9 });
+        http.expectOne((request) => request.url.includes('/remediation/debt')).flush(debt({ totalOpenIssues: 9 }));
         http.expectOne((request) => request.url.includes('/remediation/coverage')).error(new ProgressEvent('failed'));
         fixture.detectChanges();
 
@@ -182,7 +206,7 @@ describe('the remediation plan', () => {
         expect(scoped.request.params.get('repoId')).toBe('7');
         expect(scoped.request.params.get('limit')).toBe('10');
         scoped.flush([]);
-        http.expectOne((request) => request.url.includes('/remediation/debt')).flush({ totalOpenIssues: 0 });
+        http.expectOne((request) => request.url.includes('/remediation/debt')).flush(debt());
 
         // **The scope is passed to the admission too.** A whole-estate admission placed under one
         // repository's plan would say "four hundred left" beneath a list covering three.
@@ -198,19 +222,15 @@ describe('the remediation plan', () => {
         // **The usage report that prompted this panel.** One action, hundreds of open findings:
         // the calculation is right and the screen looked broken. It must now name what does not
         // close by a version bump, and by which move it does close.
-        answer(
-            [fix({})],
-            { totalOpenIssues: 412 },
-            {
-                openFindings: 412,
-                addressableByUpgrade: 12,
-                beyondUpgrades: 400,
-                gaps: [
-                    { family: 'secret', findings: 399 },
-                    { family: 'unpackaged', findings: 1 }
-                ]
-            }
-        );
+        answer([fix({})], debt({ totalOpenIssues: 412 }), {
+            openFindings: 412,
+            addressableByUpgrade: 12,
+            beyondUpgrades: 400,
+            gaps: [
+                { family: 'secret', findings: 399 },
+                { family: 'unpackaged', findings: 1 }
+            ]
+        });
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Ce que ce plan ne referme pas');
@@ -222,16 +242,12 @@ describe('the remediation plan', () => {
     });
 
     it('stays quiet when the whole backlog closes by a version bump', () => {
-        answer(
-            [fix({})],
-            { totalOpenIssues: 12 },
-            {
-                openFindings: 12,
-                addressableByUpgrade: 12,
-                beyondUpgrades: 0,
-                gaps: []
-            }
-        );
+        answer([fix({})], debt({ totalOpenIssues: 12 }), {
+            openFindings: 12,
+            addressableByUpgrade: 12,
+            beyondUpgrades: 0,
+            gaps: []
+        });
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).not.toContain('Ce que ce plan ne referme pas');
@@ -241,16 +257,12 @@ describe('the remediation plan', () => {
     it('names a family it does not know rather than showing a key', () => {
         // A ninth finding type shipped by a server newer than this screen: it must be counted and
         // named for want of better, never rendered as `remediation.gap_ninth`.
-        answer(
-            [fix({})],
-            { totalOpenIssues: 5 },
-            {
-                openFindings: 5,
-                addressableByUpgrade: 4,
-                beyondUpgrades: 1,
-                gaps: [{ family: 'runtime_drift', findings: 1 }]
-            }
-        );
+        answer([fix({})], debt({ totalOpenIssues: 5 }), {
+            openFindings: 5,
+            addressableByUpgrade: 4,
+            beyondUpgrades: 1,
+            gaps: [{ family: 'runtime_drift', findings: 1 }]
+        });
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain("constats d'un autre type");
@@ -258,7 +270,7 @@ describe('the remediation plan', () => {
     });
 
     it('shows no admission when the server did not answer, and keeps the plan', () => {
-        answer([fix({})], { totalOpenIssues: 9 });
+        answer([fix({})], debt({ totalOpenIssues: 9 }));
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('log4j-core');
@@ -267,7 +279,7 @@ describe('the remediation plan', () => {
     });
 
     it('tells "nothing to do" apart from "nothing computable"', () => {
-        answer([], { totalOpenIssues: 4 });
+        answer([], debt({ totalOpenIssues: 4 }));
 
         // Four open findings and no plan row: the message must explain that the plan ranks only
         // what a version bump closes, without which the screen looks broken.
@@ -352,7 +364,7 @@ describe('the remediation plan when a read fails', () => {
 
     it('does not keep the previous scope’s debt under a scope whose debt failed', () => {
         answer('/remediation/high-impact-fixes', []);
-        answer('/remediation/debt', { totalOpenIssues: 4242, criticalIssues: 0, totalEstimatedPersonDays: 1 });
+        answer('/remediation/debt', debt({ totalOpenIssues: 4242, totalEstimatedPersonDays: 1 }));
         answer('/remediation/coverage', {}, failure);
         answer('/repositories', []);
         answer('/containers', []);

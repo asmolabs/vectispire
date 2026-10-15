@@ -431,22 +431,24 @@ describe('the failing targets table', () => {
     // A scan's count is of issues; the scan it links to lists occurrences, and under one word the two
     // read as a figure the page contradicts.
     it("heads the recent scans' count as issues, not findings", () => {
-        http.expectOne((call) => call.url === '/api/v1/dashboard').flush({
-            ...failing('severity'),
-            recentScans: [
-                asSchema('RecentScan', {
-                    id: 34,
-                    repoId: 5,
-                    containerId: null,
-                    targetKind: 'repository',
-                    targetName: 'Recently Scanned',
-                    status: 'completed',
-                    findingsCount: 1234,
-                    error: null,
-                    createdAt: '2026-08-21T05:03:00Z'
-                })
-            ]
-        });
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                ...failing('severity'),
+                recentScans: [
+                    asSchema('RecentScan', {
+                        id: 34,
+                        repoId: 5,
+                        containerId: null,
+                        targetKind: 'repository',
+                        targetName: 'Recently Scanned',
+                        status: 'completed',
+                        findingsCount: 1234,
+                        error: null,
+                        createdAt: '2026-08-21T05:03:00Z'
+                    })
+                ]
+            })
+        );
         fixture.detectChanges();
 
         const table = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('table')).find((each) =>
@@ -465,10 +467,12 @@ describe('the failing targets table', () => {
     it("heads a failing target's count as the gate violations it counts, not as findings", () => {
         const overview = failing('kev');
         const kev = overview.failing[0].violations[0];
-        http.expectOne((call) => call.url === '/api/v1/dashboard').flush({
-            ...overview,
-            failing: [{ ...overview.failing[0], violations: [kev, { ...kev, rule: 'severity', issueId: 8 }] }]
-        });
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                ...overview,
+                failing: [{ ...overview.failing[0], violations: [kev, { ...kev, rule: 'severity', issueId: 8 }] }]
+            })
+        );
         fixture.detectChanges();
 
         const table = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('table')).find((each) =>

@@ -197,7 +197,23 @@ describe('the statement of applicability', () => {
         const call = http.expectOne('/api/v1/compliance/soa/ISO_27001/ISO-A.8.8');
         expect(call.request.method).toBe('PUT');
         expect((call.request.body as DeclarationRequest).applicability).toBe('APPLICABLE');
-        call.flush({});
+        // The declaration as recorded — the answer the page does not merge, since it reads the document again.
+        call.flush(
+            asSchema('Declaration', {
+                framework: 'ISO_27001',
+                controlId: 'ISO-A.8.8',
+                applicability: 'APPLICABLE',
+                justification: null,
+                implementation: 'IMPLEMENTED',
+                evidenceSource: 'VECTISPIRE',
+                externalEvidence: null,
+                owner: null,
+                decidedBy: 'c.moreau',
+                decidedAt: '2026-10-15T08:00:00Z',
+                reviewedAt: null,
+                reviewDueAt: null
+            })
+        );
 
         // Recomputing the divergence in the browser would make a second implementation of the
         // rule, which would end up no longer saying the same thing as the evidence bundle.
