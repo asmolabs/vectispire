@@ -126,7 +126,9 @@ describe('the selection table', () => {
             },
             forgeIds: []
         });
-        all.flush({ discoveryId: 12, selected: ['101', '102', '104'], count: 3, dropped: [] });
+        all.flush(
+            asSchema('ForgeSelection', { discoveryId: 12, selected: ['101', '102', '104'], count: 3, dropped: [] })
+        );
         await settle();
         expect(text('[data-testid="selected-count"]')).toBe('3 selected');
 
@@ -140,7 +142,9 @@ describe('the selection table', () => {
         await click(`[data-forge-id="104"] [data-testid="tick"]`);
         const add = selectionChange();
         expect(add.request.body).toMatchObject({ operation: 'add', selected: ['101', '102'], forgeIds: ['104'] });
-        add.flush({ discoveryId: 12, selected: ['101', '102', '104'], count: 3, dropped: [] });
+        add.flush(
+            asSchema('ForgeSelection', { discoveryId: 12, selected: ['101', '102', '104'], count: 3, dropped: [] })
+        );
         await settle();
         expect(tick('104').checked).toBe(true);
 
@@ -159,7 +163,9 @@ describe('the selection table', () => {
 
         const add = selectionChange();
         expect(add.request.body).toMatchObject({ operation: 'add', forgeIds: ['104', '999'] });
-        add.flush({ discoveryId: 12, selected: ['101', '102', '104'], count: 3, dropped: ['999'] });
+        add.flush(
+            asSchema('ForgeSelection', { discoveryId: 12, selected: ['101', '102', '104'], count: 3, dropped: ['999'] })
+        );
         await settle();
 
         const dropped = text('[data-testid="dropped"]');

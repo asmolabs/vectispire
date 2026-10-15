@@ -8,6 +8,7 @@ import { useEnglish } from '@/app/core/testing/english';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { CONNECTION_ID, PREVIEW, RESULT } from '@/app/core/testing/forges.fixtures';
 import type { ForgeImportPreview } from '@/app/core/api.models';
+import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
 
 const TOKEN_ID = '3b1f0c2e-6d4a-4e8b-9f10-2a7c5d9e1b44'; // gitleaks:allow — an invented token id, not a token
 const KEY_ID = '9d0e7c55-1f2a-4b3c-8d4e-5f6a7b8c9d0e';
@@ -78,10 +79,7 @@ describe('the import step', () => {
                 }
             ])
         );
-        http.expectOne('/api/v1/solutions').flush({
-            solutions: [],
-            unfiled: { openIssues: {}, repositories: [] }
-        });
+        http.expectOne('/api/v1/solutions').flush(EMPTY_TREE);
         if (result === null) {
             const first = previewRequest();
             expect(first.request.body).toEqual({
@@ -312,7 +310,7 @@ describe('the import step', () => {
         fixture.detectChanges();
         http.expectOne('/api/v1/ssh-keys').flush([]);
         http.expectOne('/api/v1/git-tokens').flush([]);
-        http.expectOne('/api/v1/solutions').flush({ solutions: [], unfiled: { openIssues: {}, repositories: [] } });
+        http.expectOne('/api/v1/solutions').flush(EMPTY_TREE);
         const preview = previewRequest();
         expect((preview.request.body as { forgeIds: string[] }).forgeIds.length).toBe(1_000);
         preview.flush(PREVIEW);
