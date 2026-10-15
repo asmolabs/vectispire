@@ -48,8 +48,28 @@ PREFIX="${DRILL_PREFIX-drill}"
 [ -n "$PREFIX" ] || { echo "refusing to run without a name prefix: it is the only thing keeping this off a deployment" >&2; exit 1; }
 
 IMAGE="${VECTISPIRE_IMAGE:-vectispire:latest}"
-MYSQL_IMAGE="${MYSQL_IMAGE:-mysql:8}"
-CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1}"
+# **The shipped composition's MySQL, read from `docker-compose.yml`, not written here.** The drill
+# restores onto the server an installation runs, so it takes that pin: name, patch and index digest
+# — `mysql:8` by tag was whatever the registry served that night. One source, and the one
+# Dependabot (`docker-compose`) moves: a copy here would be a digest nobody refreshes, drifting from
+# the server it claims to drill. Read strictly — exactly one `mysql:…@sha256:<64 hex>` image line —
+# and a file the drill cannot read stops it: falling back to a tag would be green on the wrong server.
+compose_mysql_image() {
+  local root found
+  root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  found="$(sed -n 's/^[[:space:]]*image:[[:space:]]*\(mysql:[^[:space:]#]*\).*$/\1/p' "$root/docker-compose.yml")" \
+    || { echo "cannot read $root/docker-compose.yml for the MySQL image" >&2; return 1; }
+  [ "$(printf '%s\n' "$found" | grep -c .)" = 1 ] \
+    || { echo "docker-compose.yml names [$found] as MySQL: expected exactly one image line" >&2; return 1; }
+  printf '%s\n' "$found" | grep -Eq '^mysql:[0-9][0-9.]*@sha256:[0-9a-f]{64}$' \
+    || { echo "docker-compose.yml's MySQL [$found] is not mysql:<version>@sha256:<digest>" >&2; return 1; }
+  printf '%s\n' "$found"
+}
+if [ -z "${MYSQL_IMAGE:-}" ]; then
+  MYSQL_IMAGE="$(compose_mysql_image)" || exit 1
+fi
+# By the digest of its multi-architecture index: the same bytes on the runner and on arm64.
+CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69}"
 
 NET="${PREFIX}-net"
 DB_ORIGIN="${PREFIX}-db-origin"
@@ -239,6 +259,7 @@ for protected in vectispire_mysql_data vectispire_audit; do
   esac
 done
 echo "  image $IMAGE present; no deployment volume is in scope"
+echo "  on    $MYSQL_IMAGE"
 
 docker network create "$NET" >/dev/null
 

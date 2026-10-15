@@ -535,10 +535,12 @@ jobs:
     # database on it as root, and sets the server's `max_connections` and log flushing itself — a
     # service takes no command line, and the fixture is the one place those settings are spelled.
     # The image is `TestDatabase.IMAGE`'s and the campaign's `Engine.MYSQL`: three copies of one pin,
-    # and a difference is a suite running on an engine the campaign does not.
+    # and a difference is a suite running on an engine the campaign does not. Here by patch and index
+    # digest, as `scripts/upgrade-drill.sh` explains — moved by hand with `Engine.java`, since
+    # Dependabot does not read `services:`.
     services:
       mysql:
-        image: mysql:9.4
+        image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2
         env:
           MYSQL_ROOT_PASSWORD: vectispire-ci
         # Healthy only once the real server listens on TCP: the image's first-start server runs with
@@ -794,10 +796,21 @@ jobs:
           ENCRYPTION_KEY: Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=
           VECTISPIRE_BOOTSTRAP_PASSWORD: CiSmoke2026!
         run: |
+          # **The shipped composition's MySQL, read from `docker-compose.yml`** — the pin Dependabot
+          # moves, by patch and index digest. It was `mysql:8` by tag, whatever the registry served
+          # that day. Read as `scripts/restore-drill.sh` reads it: exactly one `mysql:…@sha256:…`
+          # line, or the step stops — a fallback to a tag would smoke-test a server nobody ships.
+          mysql_image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*\(mysql:[^[:space:]#]*\).*$/\1/p' docker-compose.yml)
+          if [ "$(printf '%s\n' "$mysql_image" | grep -c .)" != 1 ] ||
+            ! printf '%s\n' "$mysql_image" | grep -Eq '^mysql:[0-9][0-9.]*@sha256:[0-9a-f]{64}$'; then
+            echo "::error::docker-compose.yml's MySQL image is not one mysql:<version>@sha256:<digest> line: [$mysql_image]"
+            exit 1
+          fi
+          echo "database image: $mysql_image"
           docker network create smoke
           docker run -d --name db --network smoke \
             -e MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=vectispire \
-            -e MYSQL_USER=vectispire -e MYSQL_PASSWORD mysql:8
+            -e MYSQL_USER=vectispire -e MYSQL_PASSWORD "$mysql_image"
           # Waited for before the application starts, not alongside it: Hikari is configured to
           # fail fast, so a control plane that boots one second early does not retry — it exits,
           # and the job reports a broken image when the truth is a slow database.
@@ -1087,10 +1100,11 @@ jobs:
     # helpers (`e2e/support/fixture.ts`, through `mysql2`) both reach `mysql:3306` with the variables
     # below — one address for both, read by both. The image is `TestDatabase.IMAGE`'s and the
     # campaign's `Engine.MYSQL`: one pin in several places, and a difference is a suite running on
-    # an engine the campaign does not.
+    # an engine the campaign does not. Here by patch and index digest, as `scripts/upgrade-drill.sh`
+    # explains — moved by hand with `Engine.java`, since Dependabot does not read `services:`.
     services:
       mysql:
-        image: mysql:9.4
+        image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2
         env:
           MYSQL_ROOT_PASSWORD: vectispire-ci
           MYSQL_DATABASE: vectispire

@@ -60,7 +60,8 @@ PREFIX="vs-up"
 ENGINE="${ENGINE:-mysql}"
 TO_IMAGE="${TO_IMAGE:-vectispire:latest}"
 REGISTRY="${REGISTRY:-ghcr.io/asmolabs/vectispire}"
-CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1}"
+# By the digest of its multi-architecture index, as `restore-drill.sh` names it.
+CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69}"
 # `ImageSignatureVerifier.COSIGN`: v3.1.3, the release workflow's version, by the digest of its
 # multi-architecture index — one pin for the verifier the product runs and the one the drill runs,
 # native on the runner and on arm64. Not overridable: a verifier the environment chooses verifies
@@ -73,13 +74,20 @@ REWRITES="ci/upgrade/accepted-rewrites.txt"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-420}"
 
 # The engines the integration campaign runs (`Engine.java`): one pin in several places, and a
-# difference would be an upgrade checked on a server nothing else checks.
+# difference would be an upgrade checked on a server nothing else checks. Hence MySQL 9.4 and not
+# the composition's 8.4, which `restore-drill.sh` runs — between them the nightly drills both lines,
+# and neither is meant to follow the other. Here each is named by the patch the campaign's tag
+# resolved to on 2026-10-15 and its multi-architecture index digest, as are `ci.yml`'s and
+# `nightly.yml`'s MySQL services: a tag the registry republishes is a different server on a
+# different night, and the drill would report the release for it. **Nothing moves these for us** — Dependabot reads neither
+# a script nor a workflow's `services:` — so a change of `Engine.java` moves them by hand, resolved
+# with `docker buildx imagetools inspect <image:tag>`, the index and not one platform's manifest.
 case "$ENGINE" in
   mysql)
-    DB_IMAGE="${DB_IMAGE:-mysql:9.4}"
+    DB_IMAGE="${DB_IMAGE:-mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2}"
     DB_URL="jdbc:mysql://${PREFIX}-${ENGINE}-db:3306/vectispire" ;;
   postgresql)
-    DB_IMAGE="${DB_IMAGE:-postgres:17.6-alpine}"
+    DB_IMAGE="${DB_IMAGE:-postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94}"
     DB_URL="jdbc:postgresql://${PREFIX}-${ENGINE}-db:5432/vectispire" ;;
   *) echo "ENGINE must be mysql or postgresql, not [$ENGINE]" >&2; exit 1 ;;
 esac
