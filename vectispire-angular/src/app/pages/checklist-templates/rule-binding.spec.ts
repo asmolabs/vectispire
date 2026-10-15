@@ -141,10 +141,12 @@ describe('binding a rule to a template line', () => {
 
     /** The reads a write is followed by: the preview, the version and the template's row. */
     function answerRereads(version: ChecklistVersion): void {
-        http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush({
-            ...CONFIRMED_PREVIEW,
-            version: version.version
-        });
+        http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush(
+            asSchema('ChecklistTemplatePreview', {
+                ...CONFIRMED_PREVIEW,
+                version: version.version
+            })
+        );
         http.expectOne(VERSION_URL).flush(version);
         http.expectOne(`${TEMPLATE_URL}/release`).flush(TEMPLATE);
         fixture.detectChanges();

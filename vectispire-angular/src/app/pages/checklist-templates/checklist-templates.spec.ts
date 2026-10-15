@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { ChecklistPreview } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
+import { settingDefinition } from '@/app/core/testing/settings.fixtures';
 import {
     conflict,
     CONFIRMED_PREVIEW,
@@ -156,7 +157,9 @@ describe('the checklist templates screen', () => {
         fixture.detectChanges();
         const published = { ...CONFIRMED_PREVIEW, version: PUBLISHED };
         http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush(published);
-        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush({ ...VERSION, version: PUBLISHED });
+        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush(
+            asSchema('ChecklistVersionView', { ...VERSION, version: PUBLISHED })
+        );
         fixture.detectChanges();
 
         expect(dom().querySelector('[data-testid="layout-form"]')).toBeNull();
@@ -204,7 +207,11 @@ describe('the checklist templates screen', () => {
         expect(request.request.params.get('name')).toBe('Onboarding checklist');
         expect(request.request.params.get('label')).toBe('first');
         request.flush(
-            { ...VERSION, templateSlug: 'onboarding', version: { ...DRAFT, ordinal: 1, previousOrdinal: null } },
+            asSchema('ChecklistVersionView', {
+                ...VERSION,
+                templateSlug: 'onboarding',
+                version: { ...DRAFT, ordinal: 1, previousOrdinal: null }
+            }),
             { status: 201, statusText: 'Created' }
         );
         fixture.detectChanges();
@@ -337,7 +344,7 @@ describe('the checklist templates screen', () => {
         fixture.componentInstance.showSheet('Lists');
         const request = http.expectOne((call) => call.url === `${VERSION_URL}/preview`);
         expect(request.request.params.get('sheet')).toBe('Lists');
-        request.flush({ ...PREVIEW, sheet: 'Lists', cells: [] });
+        request.flush(asSchema('ChecklistTemplatePreview', { ...PREVIEW, sheet: 'Lists', cells: [] }));
         expect(fixture.componentInstance.layoutDraft()?.sheet).toBe('Lists');
         // What was typed stays: choosing a sheet is not starting over.
         expect(fixture.componentInstance.layoutDraft()?.columns.control).toBe('C');
@@ -495,10 +502,12 @@ describe('the checklist templates screen', () => {
         expect(text('[data-testid="notice"]')).toBe('Proof asked set on 2 items.');
         // The view answered is adopted: its revision is the one the next write names.
         expect(text('[data-testid="shown-revision"]')).toBe('5');
-        http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush({
-            ...CONFIRMED_PREVIEW,
-            version: WITH_EVIDENCE.version
-        });
+        http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush(
+            asSchema('ChecklistTemplatePreview', {
+                ...CONFIRMED_PREVIEW,
+                version: WITH_EVIDENCE.version
+            })
+        );
         http.expectOne(VERSION_URL).flush(WITH_EVIDENCE);
         http.expectOne(`${TEMPLATE_URL}/release`).flush(TEMPLATE);
         await settle();
@@ -603,11 +612,15 @@ describe('the checklist templates screen', () => {
         await start('ADMIN', 'bob');
         button('Open version 1 of release').click();
         fixture.detectChanges();
-        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush({
-            ...CONFIRMED_PREVIEW,
-            version: PUBLISHED
-        });
-        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush({ ...WITH_EVIDENCE, version: PUBLISHED });
+        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush(
+            asSchema('ChecklistTemplatePreview', {
+                ...CONFIRMED_PREVIEW,
+                version: PUBLISHED
+            })
+        );
+        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush(
+            asSchema('ChecklistVersionView', { ...WITH_EVIDENCE, version: PUBLISHED })
+        );
         fixture.detectChanges();
 
         expect(text('[data-testid="item-5"] [data-testid="item-evidence"]')).toBe('None');
@@ -654,7 +667,9 @@ describe('the checklist templates screen', () => {
         const request = publishShown();
 
         expect(request.request.body).toEqual({ revision: 4 });
-        request.flush({ ...VERSION, version: { ...DRAFT, status: 'published', revision: 5 } });
+        request.flush(
+            asSchema('ChecklistVersionView', { ...VERSION, version: { ...DRAFT, status: 'published', revision: 5 } })
+        );
         fixture.detectChanges();
         expect(text('[data-testid="notice"]')).toBe('Version 2 published.');
         answerRereads();
@@ -662,19 +677,21 @@ describe('the checklist templates screen', () => {
 
     /** The settings catalog as the page reads it: only the four-eyes entry matters here. */
     function answerFourEyes(value: 'true' | 'false'): void {
-        http.expectOne({ method: 'GET', url: '/api/v1/settings' }).flush({
-            settings: [
-                {
-                    key: 'triage_four_eyes_required',
-                    type: 'boolean',
-                    section: 'triage',
-                    label: 'Four-eyes',
-                    help: '',
-                    default: 'true',
-                    value
-                }
-            ]
-        });
+        http.expectOne({ method: 'GET', url: '/api/v1/settings' }).flush(
+            asSchema('Catalog', {
+                settings: [
+                    settingDefinition('triage_four_eyes_required', {
+                        type: 'boolean',
+                        section: 'triage',
+                        label: 'Four-eyes',
+                        default: 'true',
+                        value,
+                        configured: true,
+                        governor_only: true
+                    })
+                ]
+            })
+        );
         fixture.detectChanges();
     }
 
@@ -822,10 +839,12 @@ describe('the checklist templates screen', () => {
         expect(text('[data-testid="shown-revision"]')).toBe('4');
 
         button('reload-version').click();
-        http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush({
-            ...CONFIRMED_PREVIEW,
-            version: { ...DRAFT, revision: 6 }
-        });
+        http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush(
+            asSchema('ChecklistTemplatePreview', {
+                ...CONFIRMED_PREVIEW,
+                version: { ...DRAFT, revision: 6 }
+            })
+        );
         http.expectOne(VERSION_URL).flush(VERSION);
         http.expectOne(`${TEMPLATE_URL}/release`).flush(TEMPLATE);
         fixture.detectChanges();
@@ -881,11 +900,15 @@ describe('the checklist templates screen', () => {
         await start('ADMIN', 'bob');
         button('Open version 1 of release').click();
         fixture.detectChanges();
-        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush({
-            ...CONFIRMED_PREVIEW,
-            version: PUBLISHED
-        });
-        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush({ ...VERSION, version: PUBLISHED });
+        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush(
+            asSchema('ChecklistTemplatePreview', {
+                ...CONFIRMED_PREVIEW,
+                version: PUBLISHED
+            })
+        );
+        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush(
+            asSchema('ChecklistVersionView', { ...VERSION, version: PUBLISHED })
+        );
         fixture.detectChanges();
         button('derive-version').click();
 
@@ -901,11 +924,15 @@ describe('the checklist templates screen', () => {
         await start('ADMIN', 'alice');
         button('Open version 1 of release').click();
         fixture.detectChanges();
-        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush({
-            ...CONFIRMED_PREVIEW,
-            version: PUBLISHED
-        });
-        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush({ ...VERSION, version: PUBLISHED });
+        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush(
+            asSchema('ChecklistTemplatePreview', {
+                ...CONFIRMED_PREVIEW,
+                version: PUBLISHED
+            })
+        );
+        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush(
+            asSchema('ChecklistVersionView', { ...VERSION, version: PUBLISHED })
+        );
         fixture.detectChanges();
 
         button('retire-version').click();

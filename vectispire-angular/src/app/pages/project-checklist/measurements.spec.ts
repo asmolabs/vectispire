@@ -99,11 +99,13 @@ describe('the measured lines of a project checklist', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         const revisions = [view.checklist, SIGNED_REVISION];
-        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush({
-            ...CONTEXT,
-            latestRevision: view.checklist.revision,
-            latestEdition: view.checklist.edition
-        });
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush(
+            asSchema('ChecklistProjectContext', {
+                ...CONTEXT,
+                latestRevision: view.checklist.revision,
+                latestEdition: view.checklist.edition
+            })
+        );
         http.expectOne({ method: 'GET', url: BASE }).flush(revisions);
         for (const offered of http.match({ method: 'GET', url: `${BASE}/offered` })) offered.flush([]);
         http.expectOne({ method: 'GET', url: `${BASE}/${view.checklist.revision}` }).flush(view);
@@ -376,10 +378,12 @@ describe('the measured lines of a project checklist', () => {
             reason: 'stale',
             evidenceDigest: '4'.repeat(64)
         });
-        measurementsRead().flush({
-            ...MEASUREMENTS,
-            lines: [measuredLine(MEASURED_READY_LINE, stale), MEASUREMENTS.lines[1]]
-        });
+        measurementsRead().flush(
+            asSchema('ChecklistMeasurementsView', {
+                ...MEASUREMENTS,
+                lines: [measuredLine(MEASURED_READY_LINE, stale), MEASUREMENTS.lines[1]]
+            })
+        );
         fixture.detectChanges();
         expect(text('[data-testid="measurement-1"] [data-testid="reason"]')).toBe(
             'The newest evidence is older than the rule’s maximum age.'
@@ -474,14 +478,16 @@ describe('the measured lines of a project checklist', () => {
             })
         );
         fixture.detectChanges();
-        measurementsRead().flush({
-            ...OFFERED_MEASUREMENTS,
-            lines: [
-                measuredLine(MEASURED_READY_LINE, PASS_MEASUREMENT),
-                OFFERED_MEASUREMENTS.lines[1],
-                OFFERED_MEASUREMENTS.lines[2]
-            ]
-        });
+        measurementsRead().flush(
+            asSchema('ChecklistMeasurementsView', {
+                ...OFFERED_MEASUREMENTS,
+                lines: [
+                    measuredLine(MEASURED_READY_LINE, PASS_MEASUREMENT),
+                    OFFERED_MEASUREMENTS.lines[1],
+                    OFFERED_MEASUREMENTS.lines[2]
+                ]
+            })
+        );
         fixture.detectChanges();
 
         expect(text('[data-testid="line-1"] [data-testid="answer-value"]')).toBe('Yes');
@@ -597,10 +603,10 @@ describe('the measured lines of a project checklist', () => {
             answer: { ...READY_CHECKLIST.lines[0].answer!, id: 604, itemId: 103, value: 'no' },
             problems: []
         };
-        no.flush(
-            { ...AFTER, lines: [MEASURED_READY_LINE, ANSWERED_MET, answeredNo] },
-            { status: 201, statusText: 'Created' }
-        );
+        no.flush(asSchema('ChecklistView', { ...AFTER, lines: [MEASURED_READY_LINE, ANSWERED_MET, answeredNo] }), {
+            status: 201,
+            statusText: 'Created'
+        });
         fixture.detectChanges();
         measurementsRead().flush(OFFERED_MEASUREMENTS);
         fixture.detectChanges();
@@ -623,11 +629,13 @@ describe('the measured lines of a project checklist', () => {
         expect(has('[data-testid="as-measured-summary"]')).toBe(false);
 
         click('reload-checklist');
-        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush({
-            ...CONTEXT,
-            latestRevision: 2,
-            latestEdition: 6
-        });
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush(
+            asSchema('ChecklistProjectContext', {
+                ...CONTEXT,
+                latestRevision: 2,
+                latestEdition: 6
+            })
+        );
         http.expectOne({ method: 'GET', url: BASE }).flush([AFTER.checklist, SIGNED_REVISION]);
         for (const offered of http.match({ method: 'GET', url: `${BASE}/offered` })) offered.flush([]);
         http.expectOne({ method: 'GET', url: `${BASE}/2` }).flush(AFTER);
