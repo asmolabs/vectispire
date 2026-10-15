@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,6 +13,10 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
+import com.asmolabs.vectispire.core.access.AuthenticationFlowService;
+import com.asmolabs.vectispire.core.access.AuthenticationFlowService.FederatedIdentity;
+import com.asmolabs.vectispire.core.access.AuthenticationFlowService.FederatedSignIn;
+import com.asmolabs.vectispire.core.access.ExternalIdentityService;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -58,8 +63,11 @@ class PasswordChangeRequirementRoutesTest extends ApiTestBase {
     @Autowired
     private AccountAdministrationService administration;
 
+    @Autowired
+    private AuthenticationFlowService flows;
+
     @Test
-    @DisplayName("an administrator lifts it for a federated account, which is then served, and the entry names both")
+    @DisplayName("an administrator lifts it for a federated account, its held sessions close, and the entry names both")
     void anAdministratorLiftsItForAFederatedAccount() throws Exception {
         exportTo("127.0.0.1:9");
         String admin = tokenFor("lifting-admin", Role.ADMIN, false);
@@ -76,8 +84,9 @@ class PasswordChangeRequirementRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.federated").value(true));
 
         assertThat(users.findById(account.getId()).orElseThrow().getMustChangePassword()).isFalse();
-        // The session the flag held reaches an ordinary route now, without signing in again.
-        mvc.perform(authenticated(get("/api/v1/issues"), held)).andExpect(status().isOk());
+        // The session the flag held may have been opened with the password somebody else chose: the lift
+        // closes it rather than promoting it to a full one. The owner signs in again through the provider.
+        mvc.perform(authenticated(get("/api/v1/issues"), held)).andExpect(status().isUnauthorized());
 
         assertThat(entriesFor(account)).singleElement().satisfies(entry -> {
             assertThat(entry.getOperationType()).isEqualTo(AuditOperation.USER_UPDATED.wireName());
@@ -87,6 +96,39 @@ class PasswordChangeRequirementRoutesTest extends ApiTestBase {
         });
         // USER_UPDATED is an account change for the SOC, whoever writes it.
         assertThat(queuedSiemTypes()).containsExactly("ACCOUNT_CHANGED");
+    }
+
+    /**
+     * Bound to a provider subject, the account kept the password an administrator typed — the sign-in by
+     * password reads the stored hash and never the binding. Lifting the flag alone left that password
+     * working for good, known to whoever chose it. The lift discards it; the provider still signs it in.
+     */
+    @Test
+    @DisplayName("the lift discards the local password: it no longer signs in, and single sign-on still does")
+    void theLiftDiscardsTheLocalPassword() throws Exception {
+        tokenFor("lifted-password", Role.USER, true);
+        UserEntity account = federate("lifted-password");
+        String before = users.findById(account.getId()).orElseThrow().getPassword();
+        // The password somebody else chose signs in before the lift: what the test removes is real.
+        mvc.perform(passwordSignIn("lifted-password")).andExpect(status().isOk());
+
+        mvc.perform(authenticated(delete(PATH.formatted(account.getId())), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mustChangePassword").value(false));
+
+        assertThat(users.findById(account.getId()).orElseThrow().getPassword())
+                .as("a hash nobody chose replaced it").isNotNull().isNotEqualTo(before);
+        mvc.perform(passwordSignIn("lifted-password")).andExpect(status().isUnauthorized());
+
+        FederatedSignIn signedIn = flows.completeFederatedSignIn(new FederatedIdentity(
+                        "subject-lifted-password", "https://idp.example.invalid/realms/vectispire",
+                        new ExternalIdentityService.Claimed("lifted-password", null, false),
+                        List.of("otp"), null, null),
+                "probe", "198.51.100.7");
+        assertThat(signedIn).isInstanceOfSatisfying(FederatedSignIn.SignedIn.class, session -> {
+            assertThat(session.user().username()).isEqualTo("lifted-password");
+            assertThat(session.user().mustChangePassword()).isFalse();
+        });
     }
 
     @Test
@@ -215,6 +257,16 @@ class PasswordChangeRequirementRoutesTest extends ApiTestBase {
         json.readTree(body).get("users").forEach(user ->
                 federated.put(user.get("username").asText(), user.get("federated").asBoolean()));
         assertThat(federated).containsEntry("listed-federated", true).containsEntry("listed-local", false);
+    }
+
+    /** The password {@code tokenFor} gives every account, at the sign-in route. */
+    private static org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder passwordSignIn(
+            String username) {
+        return post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"username": "%s", "password": "correct horse battery staple", "client_id": "lift-test"}"""
+                        .formatted(username));
     }
 
     private UserEntity flaggedFederated(String username) {

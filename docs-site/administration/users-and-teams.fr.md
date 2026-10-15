@@ -22,11 +22,20 @@ jusque-là, toute route autre que le changement de mot de passe, le profil et la
 `403`. La liste les marque *Doit changer son mot de passe*.
 
 Pour un compte que le fournisseur d'identité connecte — lié à un sujet du fournisseur, par l'annuaire
-SCIM ou par une première connexion unique — l'obligation ne peut pas être remplie : il ne se connecte
-pas avec le mot de passe qu'il a reçu, et l'écran de changement demande ce mot de passe. Les comptes
+SCIM ou par une première connexion unique — l'obligation ne peut pas être remplie : son titulaire ne
+connaît pas le mot de passe qu'il a reçu, et l'écran de changement demande ce mot de passe. Les comptes
 que l'annuaire a créés en 0.10.0 ou en `v0.11.0-rc.1` sont dans cet état. Un administrateur la lève
-par le bouton de déverrouillage de la ligne du compte, après confirmation ; les sessions du compte
-passent dès leur requête suivante, sans nouvelle connexion.
+par le bouton de déverrouillage de la ligne du compte, après confirmation.
+
+- **La levée écarte le mot de passe local.** Lier un compte à un sujet du fournisseur garde le mot de
+  passe qu'il avait, et la connexion par mot de passe l'accepte toujours. Lever l'obligation remplace ce
+  mot de passe par un mot de passe que personne ne connaît, dans la même modification, si bien que le
+  compte ne se connecte plus que par le fournisseur : un mot de passe saisi par un administrateur cesse
+  de fonctionner au lieu de rester valide pour toujours. Pour redonner un mot de passe au compte, le
+  réinitialiser — ce qui rétablit l'obligation.
+- **Ses sessions ouvertes se ferment.** Une session retenue sur l'écran de changement a pu être ouverte
+  avec ce mot de passe ; le compte se reconnecte par le fournisseur. Ses clés d'API restent : aucune n'a
+  pu être émise tant que l'obligation tenait.
 
 - **Seulement pour un compte lié au fournisseur.** Un compte qui se connecte avec son propre mot de
   passe est refusé (`400`) : l'obligation est ce qui fait qu'un mot de passe choisi par quelqu'un

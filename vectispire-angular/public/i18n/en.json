@@ -2765,7 +2765,7 @@
     "must_change_its_password": "Must change its password",
     "lift": "Lift",
     "lift_header": "Lift the password-change requirement?",
-    "lift_consequence": "{{name}} signs in through the identity provider: its sessions will no longer be held on the change-password screen. The audit log records who lifted it.",
+    "lift_consequence": "{{name}} signs in through the identity provider: the password it was given stops working, and its open sessions close — it signs in again through the provider. The audit log records who lifted it.",
     "aria_lift_requirement": "Lift the password-change requirement of {{name}}",
     "error_lift": "The requirement could not be lifted.",
     "empty": "No account.",

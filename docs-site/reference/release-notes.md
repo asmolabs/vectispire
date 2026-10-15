@@ -85,7 +85,9 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 
 - **Administrators lift a federated account's password-change requirement from the Users screen**
   (`DELETE /api/v1/users/{id}/password-change-requirement`). It is refused for an account that signs in
-  with its own password, for one's own account, and for a superuser's unless by a superuser. It replaces
+  with its own password, for one's own account, and for a superuser's unless by a superuser. The lift
+  discards the account's local password and closes its sessions, so the account signs in through the
+  identity provider only: a password an administrator once typed for it does not stay valid. It replaces
   the SQL statement 0.11.0's *Before you upgrade* gave for the accounts the SCIM directory created
   ([users and teams](../administration/users-and-teams.md#the-password-change-requirement)).
 - **A token's change of state is pushed once**, for the tracker token and for each forge connection: an

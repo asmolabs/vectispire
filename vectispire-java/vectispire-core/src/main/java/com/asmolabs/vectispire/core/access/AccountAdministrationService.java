@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -272,8 +273,21 @@ public class AccountAdministrationService {
      * administrator typed at a creation or a reset — stop being a credential. Lifting it on an account that
      * signs in with that password would keep it valid for good, known to whoever chose it, and
      * indistinguishable from its owner's use. That account lifts the flag itself, by changing the password.
-     * An account the provider vouches for does not sign in with the password it was given; one with no
-     * password at all has nothing to keep valid.
+     * One with no password at all has nothing to keep valid.
+     *
+     * <p><b>The lift discards the local password.</b> Being bound to a provider subject does not stop the
+     * password sign-in from accepting the stored hash: binding by single sign-on or by the directory keeps
+     * the password the account had. Lifting the flag alone therefore left the password somebody else chose a
+     * working credential, for good. The same save replaces it with one nobody knows, as the directory does
+     * for the accounts it creates, so the account signs in through the provider only — and an administrator
+     * who wants it to sign in with a password again resets one, which sets the flag again.
+     *
+     * <p><b>Its sessions close; its integration keys stay.</b> A session held on the change-password screen
+     * may have been opened with that password, by whoever chose it, and the lift would turn it into a full
+     * one: the account's owner signs in again through the provider. No key can have been issued under the
+     * flag — the server holds every route but the change-password ones while it is set, and a reset, the
+     * other way to set it, revokes the account's keys — so the keys the account holds are its owner's, issued
+     * before, and revoking them would stop their pipelines for nothing.
      *
      * <p><b>Never on one's own account</b>, as nobody changes their own role: a control is lifted by somebody
      * other than the person it binds. An administrator owing a change cannot reach the route anyway — the
@@ -310,11 +324,15 @@ public class AccountAdministrationService {
         }
 
         user.setMustChangePassword(false);
+        if (user.getPassword() != null) {
+            // 122 random bits, never shown: the hash stays a well-formed one, so the sign-in's constant-time
+            // comparison runs as for any account, and nothing anybody typed matches it.
+            user.setPassword(PasswordHasher.hash(UUID.randomUUID().toString()));
+        }
         user.setUpdatedAt(clock.instant());
-        // No session closes: no credential changed, and the account's sessions are the ones the flag was
-        // holding on the change-password screen.
-        accounts.save(user, false);
-        record(actor, id, "Account " + user.getUsername() + ": password-change requirement lifted");
+        accounts.save(user, true);
+        record(actor, id, "Account " + user.getUsername()
+                + ": password-change requirement lifted, local password discarded");
         return new AccountView(UserView.of(user), activeSessionsByUser().getOrDefault(id, 0L));
     }
 
