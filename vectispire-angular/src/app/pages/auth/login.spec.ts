@@ -59,11 +59,13 @@ describe('the sign-in screen', () => {
         navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
         fixture.detectChanges();
 
-        http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({
-            configured: false,
-            label: null,
-            password: true
-        });
+        http.expectOne((call) => call.url === '/api/v1/auth/methods').flush(
+            asSchema('SignInMethods', {
+                configured: false,
+                label: null,
+                password: true
+            })
+        );
     }, 20_000);
 
     it('shows its own words for a refused sign-on, never the text the link carries', () => {
@@ -77,11 +79,13 @@ describe('the sign-in screen', () => {
             window.history.replaceState({}, '', '/login?sso=refused&reason=' + encodeURIComponent(reason));
             const page = TestBed.createComponent(Login);
             page.detectChanges();
-            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({
-                configured: true,
-                label: null,
-                password: true
-            });
+            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush(
+                asSchema('SignInMethods', {
+                    configured: true,
+                    label: null,
+                    password: true
+                })
+            );
 
             expect(page.componentInstance.error()).toContain(expected);
             expect(page.componentInstance.error()).not.toContain('+33');
@@ -208,7 +212,9 @@ describe('the sign-in screen', () => {
         try {
             const page = TestBed.createComponent(Login);
             page.detectChanges();
-            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({ configured: false, password: true });
+            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush(
+                asSchema('SignInMethods', { configured: false, label: null, password: true })
+            );
             page.componentInstance.username = 'admin';
             page.componentInstance.password = 'whatever';
             page.componentInstance.submit();
@@ -254,7 +260,9 @@ describe('the sign-in screen', () => {
         try {
             const page = TestBed.createComponent(Login);
             page.detectChanges();
-            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({ configured: true, password: true });
+            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush(
+                asSchema('SignInMethods', { configured: true, label: null, password: true })
+            );
             vi.spyOn(window, 'location', 'get').mockReturnValue(sent as Location);
             page.componentInstance.signInWithProvider();
             return sent.href;

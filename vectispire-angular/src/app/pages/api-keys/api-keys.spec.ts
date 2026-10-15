@@ -5,6 +5,22 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { ApiKeys } from './api-keys';
 import { asSchema } from '@/app/core/testing/contract';
 
+/** The key the server issues back: an issue answers the summary with the secret, never a null summary. */
+const KEY = asSchema('ApiKeySummary', {
+    id: '5d0c8e3a-91f2-4b6e-a7d4-3c2b1e0f9a68',
+    name: 'payments-ci',
+    prefix: 'vsp_3f9a',
+    scopes: ['read', 'scan', 'sarif_import'],
+    targetKind: 'repository',
+    targetId: 5,
+    targetLabel: 'Arm Libs Spring',
+    owner: 'alice',
+    createdAt: '2026-09-01T08:00:00Z',
+    lastUsedAt: null,
+    expiresAt: null,
+    isExpired: false
+});
+
 /**
  * The scopes a new key is offered, and which are ticked before anybody chooses.
  *
@@ -26,7 +42,7 @@ describe('the API key form', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         http.expectOne('/api/v1/api-keys').flush([]);
-        http.expectOne('/api/v1/api-keys/targets').flush({ repositories: [], containers: [] });
+        http.expectOne('/api/v1/api-keys/targets').flush(asSchema('Targets', { repositories: [], containers: [] }));
         fixture.detectChanges();
     });
 
@@ -40,7 +56,7 @@ describe('the API key form', () => {
         fixture.componentInstance.submit();
         const request = http.expectOne({ method: 'POST', url: '/api/v1/api-keys' });
         const body = asSchema('ApiKeyCreateRequest', request.request.body) as { scopes: string[] };
-        request.flush({ key: null, secret: 'vsp_secret' });
+        request.flush(asSchema('IssuedKey', { key: KEY, secret: 'vsp_secret' }));
         return body;
     }
 
@@ -91,21 +107,6 @@ describe('the API keys screen', () => {
     let fixture: ComponentFixture<ApiKeys>;
     let http: HttpTestingController;
 
-    const KEY = asSchema('ApiKeySummary', {
-        id: '5d0c8e3a-91f2-4b6e-a7d4-3c2b1e0f9a68',
-        name: 'payments-ci',
-        prefix: 'vsp_3f9a',
-        scopes: ['read', 'scan', 'sarif_import'],
-        targetKind: 'repository',
-        targetId: 5,
-        targetLabel: 'Arm Libs Spring',
-        owner: 'alice',
-        createdAt: '2026-09-01T08:00:00Z',
-        lastUsedAt: null,
-        expiresAt: null,
-        isExpired: false
-    });
-
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [ApiKeys],
@@ -115,7 +116,7 @@ describe('the API keys screen', () => {
         fixture = TestBed.createComponent(ApiKeys);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
-        http.expectOne('/api/v1/api-keys/targets').flush({ repositories: [], containers: [] });
+        http.expectOne('/api/v1/api-keys/targets').flush(asSchema('Targets', { repositories: [], containers: [] }));
     });
 
     function list(keys: unknown[] = [KEY]): void {
@@ -163,7 +164,8 @@ describe('the API keys screen', () => {
 
         const request = http.expectOne({ method: 'POST', url: '/api/v1/api-keys' });
         expect((request.request.body as { name: string }).name).toBe('payments-ci');
-        request.flush({ key: KEY, secret: 'vsp_3f9a_the-whole-secret' });
+        // An invented secret, shaped like none that is issued.
+        request.flush(asSchema('IssuedKey', { key: KEY, secret: 'vsp_3f9a_the-whole-secret' })); // gitleaks:allow
         fixture.detectChanges();
         list();
 

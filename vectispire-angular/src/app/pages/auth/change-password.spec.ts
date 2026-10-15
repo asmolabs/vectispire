@@ -8,6 +8,8 @@ import { appRoutes } from '../../../app.routes';
 import { SessionStore } from '../../core/session.store';
 import { useEnglish } from '../../core/testing/english';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
+import type { AuthApi } from '@/app/core/api/auth.api';
+import type { AnswerOf } from '@/app/core/testing/contract';
 
 /**
  * The password change, through the application's own route table and with the input binding the
@@ -59,7 +61,7 @@ describe('the password change', () => {
             current_password: 'provisioned-password',
             new_password: 'a-long-new-password'
         });
-        request.flush({ mustChangePassword: false });
+        request.flush({ mustChangePassword: false } satisfies AnswerOf<AuthApi['changePassword']>);
         await harness.fixture.whenStable();
     }
 

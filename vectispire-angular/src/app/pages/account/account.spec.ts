@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Account } from './account';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, type AnswerOf } from '@/app/core/testing/contract';
+import type { AuthApi } from '@/app/core/api/auth.api';
 
 /**
  * Enrolling the second factor.
@@ -184,7 +185,7 @@ describe('the account screen', () => {
 
         const call = http.expectOne((request) => request.url === '/api/v1/auth/mfa/disable');
         expect(call.request.body).toEqual({ code: '123456' });
-        call.flush({ mfaEnabled: false });
+        call.flush({ mfaEnabled: false } satisfies AnswerOf<AuthApi['disableMfa']>);
 
         expect(page.mfaEnabled()).toBe(false);
         expect(page.removing()).toBe(false);
