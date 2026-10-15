@@ -10,6 +10,7 @@ import { SettingsModelReview } from './settings-model-review';
 import { SettingsTicketing } from './settings-ticketing';
 import type { SettingDefinition } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
+import { secretState, ticketTokenState } from '@/app/core/testing/settings.fixtures';
 
 /**
  * The settings screen, and the connection test that never appeared.
@@ -47,6 +48,7 @@ describe('the settings screen', () => {
                 key: 'ai_review_model',
                 section: 'OWASP review',
                 label: 'Local model name',
+                help: '',
                 type: 'text',
                 value: 'gemma4:12b-it-qat',
                 default: 'gemma4:12b-it-qat',
@@ -58,6 +60,7 @@ describe('the settings screen', () => {
                 key: 'notification_webhook_url',
                 section: 'Notifications',
                 label: 'Webhook URL',
+                help: '',
                 type: 'text',
                 value: '',
                 default: '',
@@ -97,8 +100,8 @@ describe('the settings screen', () => {
         fixture.detectChanges();
 
         http.expectOne('/api/v1/settings').flush(CATALOGUE);
-        http.expectOne('/api/v1/settings/ticket-token').flush({ configured: false });
-        http.expectOne('/api/v1/settings/webhook-secret').flush({ configured: false });
+        http.expectOne('/api/v1/settings/ticket-token').flush(asSchema('TicketTokenState', ticketTokenState()));
+        http.expectOne('/api/v1/settings/webhook-secret').flush(secretState(false));
         fixture.detectChanges();
     });
 
@@ -157,7 +160,7 @@ describe('the settings screen', () => {
         const ticketing = section(SettingsTicketing);
         ticketing.webhookSecretInput = 'a-signing-key';
         ticketing.saveWebhookSecret();
-        http.expectOne({ method: 'PUT', url: '/api/v1/settings/webhook-secret' }).flush({ configured: true });
+        http.expectOne({ method: 'PUT', url: '/api/v1/settings/webhook-secret' }).flush(secretState(true));
         fixture.detectChanges();
 
         // The server never sends it back, so the field is the only place it could still be read —
@@ -185,7 +188,7 @@ describe('the settings screen', () => {
 
         const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings/webhook-secret' });
         expect(put.request.body).toEqual({ secret: 'a-signing-key' });
-        put.flush({ configured: true });
+        put.flush(secretState(true));
     });
 
     it('treats a failed check as an answer about the configuration', () => {

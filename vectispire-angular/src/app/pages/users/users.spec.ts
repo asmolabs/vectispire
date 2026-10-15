@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Users } from './users';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { settingDefinition } from '@/app/core/testing/settings.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 
 /**
@@ -88,15 +89,7 @@ describe('the accounts screen', () => {
 
     /** Restricted mode, which is a fresh installation's default. */
     const SETTINGS = asSchema('Catalog', {
-        settings: [
-            {
-                key: 'target_visibility',
-                value: 'assigned',
-                configured: true,
-                governor_only: false,
-                administrator_only: false
-            }
-        ]
+        settings: [settingDefinition('target_visibility', { value: 'assigned', configured: true })]
     });
 
     beforeEach(async () => {
@@ -151,7 +144,7 @@ describe('the accounts screen', () => {
         // `is_active: false` for an account that is active. Sending the current value is a
         // deactivation button that does nothing, twice out of two.
         expect(patch.request.body).toEqual({ is_active: false });
-        patch.flush({});
+        patch.flush(asSchema('UserAdminSummary', { ...LIST.users[1], isActive: false }));
         http.expectOne((call) => call.url === '/api/v1/users').flush(LIST);
     });
 
@@ -319,15 +312,7 @@ describe('the accounts screen', () => {
             .expectOne((call) => call.url === '/api/v1/settings')
             .flush(
                 asSchema('Catalog', {
-                    settings: [
-                        {
-                            key: 'target_visibility',
-                            value: 'everyone',
-                            configured: true,
-                            governor_only: false,
-                            administrator_only: false
-                        }
-                    ]
+                    settings: [settingDefinition('target_visibility', { value: 'everyone', configured: true })]
                 })
             );
 

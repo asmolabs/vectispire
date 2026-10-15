@@ -3,7 +3,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
+import type { SettingDefinition } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
+import { secretState, unconfigured } from '@/app/core/testing/settings.fixtures';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { Settings } from './settings';
 
@@ -19,11 +21,12 @@ describe('the model review block of the settings page', () => {
     let fixture: ComponentFixture<Settings>;
     let http: HttpTestingController;
 
-    const setting = (key: string, value: string, extra: Record<string, unknown> = {}) => ({
+    const setting = (key: string, value: string, extra: Partial<SettingDefinition> = {}): SettingDefinition => ({
         key,
         section: 'Model review',
         label: key,
         type: 'text',
+        help: '',
         value,
         default: '',
         configured: true,
@@ -55,14 +58,10 @@ describe('the model review block of the settings page', () => {
                       { title: 'Service Unavailable', status: 503, detail: 'The key store is locked.' },
                       { status: 503, statusText: 'Service Unavailable' }
                   )
-                : call.flush({ configured: keyStored })
+                : call.flush(secretState(keyStored))
         );
-        for (const url of ['ticket-token', 'webhook-secret', 'ticket-webhook-secret']) {
-            http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((call) =>
-                call.flush({ configured: false })
-            );
-        }
-        http.match({ method: 'GET' }).forEach((call) => call.flush({}));
+        // The other cards' reads, as an install where none of them was set up answers them.
+        http.match({ method: 'GET' }).forEach((call) => call.flush(unconfigured(call.request.url)));
         fixture.detectChanges();
     }
 
@@ -146,7 +145,7 @@ describe('the model review block of the settings page', () => {
         keySave().click();
         const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings/ai-openai-key' });
         expect(put.request.body).toEqual({ secret: 'an-api-key' });
-        put.flush({ configured: true });
+        put.flush(secretState(true));
         fixture.detectChanges();
         await fixture.whenStable();
 

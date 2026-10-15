@@ -4,7 +4,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { SessionStore } from '@/app/core/session.store';
+import type { SettingDefinition } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
+import { settingsUpdated, unconfigured } from '@/app/core/testing/settings.fixtures';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { Settings } from './settings';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
@@ -26,12 +28,13 @@ describe('the settings catalogue on the settings page', () => {
         section: string,
         label: string,
         value: string,
-        extra: Record<string, unknown> = {}
-    ) => ({
+        extra: Partial<SettingDefinition> = {}
+    ): SettingDefinition => ({
         key,
         section,
         label,
         type: 'text',
+        help: '',
         value,
         default: '',
         configured: true,
@@ -68,9 +71,10 @@ describe('the settings catalogue on the settings page', () => {
         http.match({ method: 'GET', url: '/api/v1/settings' }).forEach((call) =>
             call.flush(structuredClone(CATALOGUE))
         );
+        // One answer shaped for all five routes used to stand for each of them; each now gets its own.
         for (const url of ['ticket-token', 'webhook-secret', 'ticket-webhook-secret', 'ai-openai-key', 'ticket-ca']) {
             http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((call) =>
-                call.flush({ configured: false, pinned: false, expirySource: 'unknown' })
+                call.flush(unconfigured(call.request.url))
             );
         }
         http.match({ method: 'GET' }).forEach((call) => call.flush(null, { status: 404, statusText: 'Not Found' }));
@@ -161,7 +165,7 @@ describe('the settings catalogue on the settings page', () => {
 
         const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings' });
         expect(put.request.body).toEqual({ notification_webhook_url: 'https://hooks.example.com/b' });
-        put.flush({ updated: 1 });
+        put.flush(settingsUpdated(1));
         answerReads();
 
         expect(text()).toContain('Settings saved.');

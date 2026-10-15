@@ -6,6 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Settings } from './settings';
 import { asSchema } from '@/app/core/testing/contract';
+import { unconfigured } from '@/app/core/testing/settings.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import french from '../../../../public/i18n/fr.json';
@@ -43,7 +44,7 @@ describe('the settings screen, the default rescan interval', () => {
         http.match({ method: 'GET', url: '/api/v1/settings' }).forEach((request) =>
             request.flush(structuredClone(CATALOGUE))
         );
-        http.match({ method: 'GET' }).forEach((request) => request.flush({}));
+        http.match({ method: 'GET' }).forEach((request) => request.flush(unconfigured(request.request.url)));
         harness.detectChanges();
     };
 
