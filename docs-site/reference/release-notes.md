@@ -74,7 +74,8 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   inventory and its conflicts keep their unpaged order, which was never one: a page is cut from the
   inventory ordered by target, package and version, so the pages hold every entry, in that order. The scan
   history keeps its `limit` — 50 by default, brought within 1–200, never refused — and takes an `offset`,
-  zero or a multiple of the limit as read, 400 otherwise. **A restricted reader's scan history is now their
+  zero or a multiple of the limit as read, 400 otherwise; for a reader of more than 1,000 targets, `offset`
+  plus `limit` is 10,000 at most, 400 beyond. **A restricted reader's scan history is now their
   own latest scans**, read with the visibility in the query: it was the estate's latest `limit` narrowed
   afterwards to theirs, often none while their own existed; a reader of the whole estate reads the same
   rows. SCIM pages as RFC 7644 does, out-of-range values interpreted rather than refused

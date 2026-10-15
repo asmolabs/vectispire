@@ -125,7 +125,8 @@ public class ScansController {
             @Parameter(description = "Filter by container ID") @RequestParam(name = "container_id", required = false) Long containerId,
             @Parameter(description = "Maximum results to return") @RequestParam(required = false, defaultValue = "50") int limit,
             @Parameter(description = "Scans to skip, zero or a multiple of limit as read (1 to 200, a value outside "
-                    + "brought within); 400 otherwise.", schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+                    + "brought within); 400 otherwise. For a reader of more than 1,000 targets, offset plus limit is "
+                    + "10,000 at most; 400 beyond.", schema = @Schema(type = "integer", format = "int32", minimum = "0"))
             @RequestParam(required = false) Integer offset) {
 
         ScanQueryService.History history = scans.history(allowed(principal), repoId, containerId, limit, offset);

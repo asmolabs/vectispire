@@ -296,6 +296,44 @@ class ListPagingReadsRoutesTest extends ApiTestBase {
         assertThat(scanIds(wide, 4, 8)).containsExactly(newestFirst.get(8));
     }
 
+    /**
+     * A reader seeing more than a thousand targets is served in several statements, each reading its batch's newest
+     * {@code offset + limit} whole and merged in the JVM: past ten thousand deep, a page is refused rather than the
+     * history of every batch held for it. One statement — a narrower reader, or the whole estate — pages in the
+     * database and goes as deep as asked.
+     */
+    @Test
+    @DisplayName("scans: a history read in several statements reaches ten thousand deep, and refuses deeper in words")
+    void scanHistoryAcrossBatchesHasADepth() throws Exception {
+        List<RepositoryEntity> filed = new ArrayList<>();
+        for (int i = 0; i < 1_001; i++) {
+            RepositoryEntity repository = new RepositoryEntity();
+            repository.setName("scans-deep-" + i);
+            repository.setUrl("https://example.invalid/scans-deep-" + i + "-" + System.nanoTime() + ".git");
+            repository.setBranch("main");
+            filed.add(repository);
+        }
+        List<Long> granted = repositories.saveAll(filed).stream().map(RepositoryEntity::getId).toList();
+        scan(granted.getLast(), null, START);
+        settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+        String wideName = "pager-wide-" + System.nanoTime();
+        String wide = tokenFor(wideName, Role.USER, false);
+        grant(idOf(wideName), granted);
+        String narrowName = "pager-narrow-" + System.nanoTime();
+        String narrow = tokenFor(narrowName, Role.USER, false);
+        grant(idOf(narrowName), List.of(granted.getLast()));
+
+        assertThat(ids(read("/api/v1/scans?limit=200", wide))).hasSize(1);
+        assertThat(read("/api/v1/scans?limit=200&offset=9800", wide)).as("ten thousand deep, exactly").isEmpty();
+        assertThat(refusal("/api/v1/scans?limit=200&offset=10000", wide)).isEqualTo(
+                "For a reader of more than 1000 targets, the history reaches 10000 scans deep: offset plus limit is "
+                        + "10000 at most.");
+        assertThat(refusal("/api/v1/scans?limit=1&offset=10000", wide)).contains("offset plus limit is 10000 at most");
+
+        assertThat(read("/api/v1/scans?limit=200&offset=10000", narrow)).as("one statement").isEmpty();
+        assertThat(read("/api/v1/scans?limit=200&offset=10000", asAdmin())).as("the estate").isEmpty();
+    }
+
     // --- the refusals -----------------------------------------------------------------------------------
 
     @Test

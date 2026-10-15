@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -32,6 +33,9 @@ public class ScanQueryService {
 
     /** Identifiers per statement: far under every engine's bind-parameter ceiling. */
     private static final int LOOKUP_BATCH = 1_000;
+
+    /** How deep a history read in several statements reaches: {@code offset + limit}, at most. */
+    static final int MAX_MERGED_DEPTH = 10_000;
 
     private final ScanRepository scans;
     private final FindingRepository findings;
@@ -87,6 +91,12 @@ public class ScanQueryService {
      * case — pages in the database. Several each read their own newest {@code offset + limit}, which hold the
      * union's, and the page is cut from those merged in the query's order: the batches are disjoint, a scan
      * matching through its repository or, naming none, through its image.
+     *
+     * <p><b>Several statements reach {@link #MAX_MERGED_DEPTH} deep, and no deeper.</b> Each reads its batch's
+     * newest {@code offset + limit} whole and the merge holds them all, so a deep offset loaded the history of
+     * every batch into the JVM for one page of it — for a reader that sees more than a thousand targets, a single
+     * request could hold most of the deployment's scans. Refused past the depth, in words; one statement pages in
+     * the database and is not bounded here.
      */
     private List<ScanEntity> within(Visibility.Only only, Long repoId, Long containerId, ListWindow window) {
         List<Long> repositories = only.targets().stream()
@@ -103,7 +113,11 @@ public class ScanQueryService {
             return scans.findHistoryWithin(repoId, containerId, batch(repositories, 0), batch(images, 0),
                     PageRequest.of(window.page(), window.limit()));
         }
-        PageRequest head = PageRequest.of(0, (int) Math.min((long) window.offset() + window.limit(), Integer.MAX_VALUE));
+        if ((long) window.offset() + window.limit() > MAX_MERGED_DEPTH) {
+            throw new InvalidInputException("For a reader of more than " + LOOKUP_BATCH + " targets, the history "
+                    + "reaches " + MAX_MERGED_DEPTH + " scans deep: offset plus limit is " + MAX_MERGED_DEPTH + " at most.");
+        }
+        PageRequest head = PageRequest.of(0, window.offset() + window.limit());
         List<ScanEntity> candidates = new ArrayList<>();
         for (int statement = 0; statement < statements; statement++) {
             candidates.addAll(scans.findHistoryWithin(

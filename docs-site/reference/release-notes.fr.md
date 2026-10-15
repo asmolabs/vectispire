@@ -82,7 +82,8 @@
   page, qui n'en était pas un : une page est découpée dans l'inventaire trié par cible, paquet et version,
   si bien que les pages contiennent toutes les entrées, dans cet ordre. L'historique des scans garde son
   `limit` — 50 par défaut, ramené entre 1 et 200, jamais refusé — et prend un `offset`, zéro ou un multiple
-  de la limite retenue, 400 sinon. **L'historique des scans d'un lecteur restreint est désormais fait de
+  de la limite retenue, 400 sinon ; pour un lecteur de plus de 1 000 cibles, `offset` plus `limit` vaut
+  10 000 au plus, 400 au-delà. **L'historique des scans d'un lecteur restreint est désormais fait de
   ses propres scans les plus récents**, lus avec la visibilité dans la requête : c'étaient les `limit`
   derniers scans du parc réduits ensuite aux siens, souvent aucun alors que les siens existaient ; un
   lecteur du parc entier lit les mêmes lignes. SCIM pagine comme la RFC 7644, les valeurs hors bornes

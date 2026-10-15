@@ -14545,7 +14545,7 @@ export interface operations {
                 container_id?: number;
                 /** @description Maximum results to return */
                 limit?: number;
-                /** @description Scans to skip, zero or a multiple of limit as read (1 to 200, a value outside brought within); 400 otherwise. */
+                /** @description Scans to skip, zero or a multiple of limit as read (1 to 200, a value outside brought within); 400 otherwise. For a reader of more than 1,000 targets, offset plus limit is 10,000 at most; 400 beyond. */
                 offset?: number;
             };
             header?: never;
