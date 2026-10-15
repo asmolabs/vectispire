@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.access.web.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -46,8 +48,17 @@ public class ScimGroupsController {
     }
 
     @GetMapping
-    public ScimListResponse<ScimGroupDto> listGroups() {
-        return ScimListResponse.of(provisioning.groups().stream().map(ScimGroupsController::toDto).toList());
+    public ScimListResponse<ScimGroupDto> listGroups(
+            @Parameter(description = "The 1-based index of the first resource (RFC 7644 §3.4.2.4); below 1, read as 1. "
+                    + "Absent, with no count, every resource is answered.")
+            @RequestParam(required = false) Integer startIndex,
+            @Parameter(description = "The most resources answered, 0 to " + ScimProvisioningService.Page.MAX_COUNT
+                    + "; negative, read as 0, which answers totalResults alone; past " + ScimProvisioningService.Page.MAX_COUNT
+                    + ", " + ScimProvisioningService.Page.MAX_COUNT + " are answered. Absent, every resource from startIndex.")
+            @RequestParam(required = false) Integer count) {
+        ScimProvisioningService.Page<ScimGroupDto> page =
+                provisioning.groups(startIndex, count).map(ScimGroupsController::toDto);
+        return ScimListResponse.page(page.resources(), page.totalResults(), page.startIndex());
     }
 
     @ApiResponse(responseCode = "200", description = "The group")

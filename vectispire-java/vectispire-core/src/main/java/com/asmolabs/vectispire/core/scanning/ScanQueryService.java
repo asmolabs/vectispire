@@ -2,14 +2,20 @@ package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,6 +29,9 @@ public class ScanQueryService {
 
     private static final int MAX_FINDINGS = 500;
     private static final int MAX_HISTORY = 200;
+
+    /** Identifiers per statement: far under every engine's bind-parameter ceiling. */
+    private static final int LOOKUP_BATCH = 1_000;
 
     private final ScanRepository scans;
     private final FindingRepository findings;
@@ -44,18 +53,76 @@ public class ScanQueryService {
         }
     }
 
-    public History history(Visibility allowed, Long repoId, Long containerId, int limit) {
+    /**
+     * The scans the allowance permits, newest first, optionally narrowed to one target: {@code limit} of
+     * them — clamped to 1 to 200, as it always was — from the {@code offset}-th.
+     *
+     * <p><b>The allowance is in the query, and the page cut after it.</b> The history used to be read for the
+     * estate, capped, and filtered afterwards: a restricted reader was shown whatever share of the
+     * deployment's latest scans happened to be theirs — often none while their own older ones existed — and
+     * an offset counted over those rows would have started their next page among scans they may not see. A
+     * reader of the estate reads the same rows as before.
+     *
+     * @param offset scans to skip, zero or a multiple of the clamped limit, or null for none — the clamp
+     *     predates paging and a client sending a limit past it has always been answered, so the limit is not
+     *     refused where {@link ListWindow} would refuse it; only the offset is
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException an offset the rule refuses
+     */
+    public History history(Visibility allowed, Long repoId, Long containerId, int limit, Integer offset) {
+        ListWindow window = new ListWindow(Math.clamp(limit, 1, MAX_HISTORY), offset == null ? 0 : offset);
         TargetNaming.Names names = naming.all();
-        // Filtered after the query rather than inside it: the history is capped at two hundred
-        // rows, so the cost is a predicate on a short list — and expressing "one of these
-        // (kind, id) pairs" in the query would duplicate `IssueFilters`' predicate for a page
-        // that cannot grow.
-        return new History(
-                scans.findHistory(repoId, containerId, Limit.of(Math.clamp(limit, 1, MAX_HISTORY))).stream()
-                        .filter(scan -> allowed.permits(scan.target()))
-                        .map(ScanView::of)
-                        .toList(),
-                names);
+        List<ScanEntity> page = switch (allowed) {
+            case Visibility.Everything ignored -> scans.findHistoryPage(
+                    repoId, containerId, PageRequest.of(window.page(), window.limit()));
+            case Visibility.Only only -> within(only, repoId, containerId, window);
+        };
+        return new History(page.stream().map(ScanView::of).toList(), names);
+    }
+
+    /**
+     * One page of a restricted reader's history, the allowance bound into the statement.
+     *
+     * <p><b>In batches of {@link #LOOKUP_BATCH} identifiers</b>: the allowance is sized by the estate, and one
+     * bind parameter per target is refused by the PostgreSQL driver past 65,535. One statement — the common
+     * case — pages in the database. Several each read their own newest {@code offset + limit}, which hold the
+     * union's, and the page is cut from those merged in the query's order: the batches are disjoint, a scan
+     * matching through its repository or, naming none, through its image.
+     */
+    private List<ScanEntity> within(Visibility.Only only, Long repoId, Long containerId, ListWindow window) {
+        List<Long> repositories = only.targets().stream()
+                .map(target -> target instanceof ScanTarget.Repository repository ? repository.id() : null)
+                .filter(Objects::nonNull).sorted().toList();
+        List<Long> images = only.targets().stream()
+                .map(target -> target instanceof ScanTarget.Container container ? container.id() : null)
+                .filter(Objects::nonNull).sorted().toList();
+        int statements = Math.max(batches(repositories.size()), batches(images.size()));
+        if (statements == 0) {
+            return List.of();
+        }
+        if (statements == 1) {
+            return scans.findHistoryWithin(repoId, containerId, batch(repositories, 0), batch(images, 0),
+                    PageRequest.of(window.page(), window.limit()));
+        }
+        PageRequest head = PageRequest.of(0, (int) Math.min((long) window.offset() + window.limit(), Integer.MAX_VALUE));
+        List<ScanEntity> candidates = new ArrayList<>();
+        for (int statement = 0; statement < statements; statement++) {
+            candidates.addAll(scans.findHistoryWithin(
+                    repoId, containerId, batch(repositories, statement), batch(images, statement), head));
+        }
+        return window.of(candidates.stream()
+                .sorted(Comparator.comparing(ScanEntity::getCreatedAt, Comparator.reverseOrder())
+                        .thenComparing(ScanEntity::getId, Comparator.reverseOrder()))
+                .toList());
+    }
+
+    private static int batches(int size) {
+        return (size + LOOKUP_BATCH - 1) / LOOKUP_BATCH;
+    }
+
+    /** The {@code index}-th batch, or an identifier no identity column hands out: {@code in ()} is not valid everywhere. */
+    private static List<Long> batch(List<Long> ids, int index) {
+        int from = index * LOOKUP_BATCH;
+        return from < ids.size() ? ids.subList(from, Math.min(from + LOOKUP_BATCH, ids.size())) : List.of(-1L);
     }
 
     public Detail detail(long id, Visibility allowed) {

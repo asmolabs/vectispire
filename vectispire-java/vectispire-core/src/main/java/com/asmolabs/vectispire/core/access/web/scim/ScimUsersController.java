@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.core.access.web.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimUserDto;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -47,17 +48,23 @@ public class ScimUsersController {
         this.provisioning = provisioning;
     }
 
-    @ApiResponse(responseCode = "200", description = "Every account, or the one the filter names")
+    @ApiResponse(responseCode = "200", description = "Every account, or the one the filter names; one page of them with startIndex or count")
     @ApiResponse(responseCode = "400", description = "A filter other than userName eq or externalId eq: scimType invalidFilter",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @GetMapping
     public ScimListResponse<ScimUserDto> listUsers(
             @RequestParam(required = false) String filter,
-            @RequestParam(defaultValue = "1") int startIndex,
-            @RequestParam(defaultValue = "100") int count) {
+            @Parameter(description = "The 1-based index of the first resource (RFC 7644 §3.4.2.4); below 1, read as 1. "
+                    + "Absent, with no count, every resource is answered.")
+            @RequestParam(required = false) Integer startIndex,
+            @Parameter(description = "The most resources answered, 0 to " + ScimProvisioningService.Page.MAX_COUNT
+                    + "; negative, read as 0, which answers totalResults alone; past " + ScimProvisioningService.Page.MAX_COUNT
+                    + ", " + ScimProvisioningService.Page.MAX_COUNT + " are answered. Absent, every resource from startIndex.")
+            @RequestParam(required = false) Integer count) {
 
-        List<ScimUserDto> resources = provisioning.users(filter).stream().map(ScimUsersController::toDto).toList();
-        return ScimListResponse.of(resources);
+        ScimProvisioningService.Page<ScimUserDto> page =
+                provisioning.users(filter, startIndex, count).map(ScimUsersController::toDto);
+        return ScimListResponse.page(page.resources(), page.totalResults(), page.startIndex());
     }
 
     @ApiResponse(responseCode = "200", description = "The user")

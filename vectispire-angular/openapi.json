@@ -12665,8 +12665,30 @@
     },
     "/api/v1/attack-paths/overview" : {
       "get" : {
-        "description" : "Returns multi-target attack path summaries and critical exploit chain counts across all repositories.",
+        "description" : "Returns multi-target attack path summaries and critical exploit chain counts across the repositories visible to the caller, by repository id. With limit, one page of them: the same array, cut from what the caller sees; a page shorter than limit is the last.",
         "operationId" : "getOverview",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -15462,7 +15484,30 @@
     },
     "/api/v1/history/repositories" : {
       "get" : {
+        "description" : "The repositories visible to the caller, most recently scanned first, never-scanned ones last, ties by id: each one's version, scan count, last scan, open issues and decisions. With limit, one page of them: the same array, cut from what the caller sees; a page shorter than limit is the last.",
         "operationId" : "repositories",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -15478,6 +15523,7 @@
             "description" : "OK"
           }
         },
+        "summary" : "List repositories' triage history",
         "tags" : [ "history-controller" ]
       }
     },
@@ -16043,6 +16089,7 @@
     },
     "/api/v1/licenses/conflicts" : {
       "get" : {
+        "description" : "The licence conflicts of a named target, or of the estate for a caller who sees all of it; 404 for a restricted caller naming no target. With limit, one page of them, cut from the conflicts in the inventory's page order (target, package, version); without, every conflict, in no promised order.",
         "operationId" : "getConflicts",
         "parameters" : [ {
           "in" : "query",
@@ -16068,6 +16115,27 @@
             "default" : true,
             "type" : "boolean"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -16084,11 +16152,13 @@
             "description" : "OK"
           }
         },
+        "summary" : "List licence conflicts",
         "tags" : [ "license-controller" ]
       }
     },
     "/api/v1/licenses/inventory" : {
       "get" : {
+        "description" : "The licence of every component of a named target, or of every target visible to the caller. With limit, one page of it, cut from the inventory ordered by target, package and version; without, the whole inventory, in no promised order. A page shorter than limit is the last.",
         "operationId" : "getInventory",
         "parameters" : [ {
           "in" : "query",
@@ -16104,6 +16174,27 @@
           "required" : false,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -16122,6 +16213,7 @@
             "description" : "OK"
           }
         },
+        "summary" : "List licence inventory",
         "tags" : [ "license-controller" ]
       }
     },
@@ -19790,7 +19882,7 @@
     },
     "/api/v1/scans" : {
       "get" : {
-        "description" : "Returns historical security scans with filtering by repository or container target.",
+        "description" : "Returns historical security scans with filtering by repository or container target, newest first, among the targets visible to the caller. With offset, the page that starts there: the same array, cut from what the caller sees; a page shorter than limit is the last.",
         "operationId" : "list_17",
         "parameters" : [ {
           "description" : "Filter by repository ID",
@@ -19818,6 +19910,16 @@
           "schema" : {
             "default" : 50,
             "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Scans to skip, zero or a multiple of limit as read (1 to 200, a value outside brought within); 400 otherwise.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -21773,6 +21875,25 @@
     "/scim/v2/Groups" : {
       "get" : {
         "operationId" : "listGroups",
+        "parameters" : [ {
+          "description" : "The 1-based index of the first resource (RFC 7644 §3.4.2.4); below 1, read as 1. Absent, with no count, every resource is answered.",
+          "in" : "query",
+          "name" : "startIndex",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "The most resources answered, 0 to 500; negative, read as 0, which answers totalResults alone; past 500, 500 are answered. Absent, every resource from startIndex.",
+          "in" : "query",
+          "name" : "count",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -22045,20 +22166,20 @@
             "type" : "string"
           }
         }, {
+          "description" : "The 1-based index of the first resource (RFC 7644 §3.4.2.4); below 1, read as 1. Absent, with no count, every resource is answered.",
           "in" : "query",
           "name" : "startIndex",
           "required" : false,
           "schema" : {
-            "default" : 1,
             "format" : "int32",
             "type" : "integer"
           }
         }, {
+          "description" : "The most resources answered, 0 to 500; negative, read as 0, which answers totalResults alone; past 500, 500 are answered. Absent, every resource from startIndex.",
           "in" : "query",
           "name" : "count",
           "required" : false,
           "schema" : {
-            "default" : 100,
             "format" : "int32",
             "type" : "integer"
           }
@@ -22072,7 +22193,7 @@
                 }
               }
             },
-            "description" : "Every account, or the one the filter names"
+            "description" : "Every account, or the one the filter names; one page of them with startIndex or count"
           },
           "400" : {
             "content" : {

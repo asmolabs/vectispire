@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
@@ -111,7 +112,10 @@ public class ScansController {
             List<com.asmolabs.vectispire.core.scanning.PluginOutcome> plugins,
             List<String> examinedTypes) {}
 
-    @Operation(summary = "List scan history", description = "Returns historical security scans with filtering by repository or container target.")
+    @Operation(summary = "List scan history", description = "Returns historical security scans with filtering by "
+            + "repository or container target, newest first, among the targets visible to the caller. With offset, the "
+            + "page that starts there: the same array, cut from what the caller sees; a page shorter than limit is the "
+            + "last.")
     @ApiResponse(responseCode = "200", description = "Scan history retrieved successfully")
     @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
@@ -119,9 +123,12 @@ public class ScansController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Filter by repository ID") @RequestParam(name = "repo_id", required = false) Long repoId,
             @Parameter(description = "Filter by container ID") @RequestParam(name = "container_id", required = false) Long containerId,
-            @Parameter(description = "Maximum results to return") @RequestParam(required = false, defaultValue = "50") int limit) {
+            @Parameter(description = "Maximum results to return") @RequestParam(required = false, defaultValue = "50") int limit,
+            @Parameter(description = "Scans to skip, zero or a multiple of limit as read (1 to 200, a value outside "
+                    + "brought within); 400 otherwise.", schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
 
-        ScanQueryService.History history = scans.history(allowed(principal), repoId, containerId, limit);
+        ScanQueryService.History history = scans.history(allowed(principal), repoId, containerId, limit, offset);
         return history.scans().stream()
                 .map(scan -> summaryOf(scan, history.names()))
                 .toList();

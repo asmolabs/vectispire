@@ -237,6 +237,16 @@ public class ScanCatalog {
         return List.copyOf(found.values());
     }
 
+    /**
+     * Each repository's newest scan instant, by identifier — a repository never scanned is absent. One grouped
+     * statement for the estate, so a list ordered by it is ordered before any row of it is read in detail.
+     */
+    public Map<Long, Instant> lastScanAtPerRepository() {
+        Map<Long, Instant> last = new HashMap<>();
+        scans.findLastScanInstantPerRepository().forEach(row -> last.put(row.repoId(), row.lastScanAt()));
+        return last;
+    }
+
     public List<LatestScanRow> latestPerRepository() {
         return scans.findLatestPerRepository();
     }

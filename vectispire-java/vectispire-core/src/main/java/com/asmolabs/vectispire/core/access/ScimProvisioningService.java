@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -19,6 +20,7 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -176,13 +179,63 @@ public class ScimProvisioningService {
         record NameTaken() implements GroupChange {}
     }
 
+    // --- Paging --------------------------------------------------------------------------------
+
+    /**
+     * One page of a SCIM list, as RFC 7644 §3.4.2.4 pages it: {@code startIndex} 1-based, {@code count} the
+     * most resources answered, {@code totalResults} every resource the request matched.
+     *
+     * <p><b>SCIM's rule, not {@code ListWindow}'s.</b> The RFC does not let a provider refuse these two: a
+     * {@code startIndex} below 1 "SHALL be interpreted as 1", a negative {@code count} as 0, and a count of 0
+     * answers the total alone. An identity provider sends them as it was built to, and one answered a 400
+     * stops synchronising. A {@code count} past {@link #MAX_COUNT} is answered with {@link #MAX_COUNT} — the
+     * RFC lets a provider return fewer — and the client, reading {@code itemsPerPage} and {@code
+     * totalResults}, asks for the next.
+     *
+     * <p><b>Asked neither, every resource</b>, as before the routes read them: {@code /Users} declared both
+     * and ignored them, {@code /Groups} declared neither, and either answering fewer now would move what a
+     * client written against 0.11.0 reads. A {@code startIndex} alone answers every resource from there.
+     *
+     * @param startIndex the 1-based index of the first resource, as interpreted
+     * @param totalResults every resource the request matched, whatever the page
+     */
+    public record Page<T>(List<T> resources, int totalResults, int startIndex) {
+
+        /** The most resources a page answers: the figure every list route pages by. */
+        public static final int MAX_COUNT = ListWindow.MAX_LIMIT;
+
+        /** @param all every resource the request matched, in the order the pages are cut from */
+        public static <T> Page<T> of(List<T> all, Integer startIndex, Integer count) {
+            int start = startIndex == null ? 1 : Math.max(1, startIndex);
+            int from = (int) Math.min(start - 1L, all.size());
+            int size = count == null ? all.size() : Math.clamp(count, 0, MAX_COUNT);
+            int to = (int) Math.min((long) from + size, all.size());
+            return new Page<>(List.copyOf(all.subList(from, to)), all.size(), start);
+        }
+
+        public <R> Page<R> map(Function<T, R> mapper) {
+            return new Page<>(resources.stream().map(mapper).toList(), totalResults, startIndex);
+        }
+    }
+
     // --- Users ---------------------------------------------------------------------------------
 
-    public List<UserView> users(String filter) {
+    private List<UserView> users(String filter) {
         List<UserEntity> found = filter != null && !filter.isBlank()
                 ? filterUsers(filter.trim())
                 : users.findAllByOrderByUsernameAsc();
         return found.stream().map(UserView::of).toList();
+    }
+
+    /**
+     * The accounts the filter matches — every one without a filter — by username, all of them or the page
+     * {@code startIndex} and {@code count} name ({@link Page}). A username is unique, so the order is one a
+     * page can be cut from.
+     *
+     * @throws InvalidInputException a filter SCIM here does not support
+     */
+    public Page<UserView> users(String filter, Integer startIndex, Integer count) {
+        return Page.of(users(filter), startIndex, count);
     }
 
     public Optional<UserView> user(Long id) {
@@ -462,16 +515,20 @@ public class ScimProvisioningService {
     // --- Groups --------------------------------------------------------------------------------
 
     /**
-     * Every team with its members: two statements whatever the number of teams — the memberships are
-     * read once, with their usernames, and grouped here.
+     * The teams by identifier, with their members, all of them or the page {@code startIndex} and {@code count}
+     * name ({@link Page}): two statements whatever the number of teams — the memberships are read once, with
+     * their usernames, and grouped here. The identifier was the table's order before, which is MySQL's and not
+     * one PostgreSQL promises; a page needs one that is total.
      */
-    public List<GroupView> groups() {
-        List<TeamEntity> allTeams = teams.findAll();
-        Map<Long, List<TeamMembership>> byTeam = members.findAllMemberships().stream()
-                .collect(Collectors.groupingBy(TeamMembership::teamId));
-        return allTeams.stream()
-                .map(t -> viewOf(t, byTeam.getOrDefault(t.getId(), List.of())))
+    public Page<GroupView> groups(Integer startIndex, Integer count) {
+        List<TeamEntity> allTeams = teams.findAll().stream()
+                .sorted(Comparator.comparing(TeamEntity::getId))
                 .toList();
+        Page<TeamEntity> page = Page.of(allTeams, startIndex, count);
+        Map<Long, List<TeamMembership>> byTeam = page.resources().isEmpty()
+                ? Map.of()
+                : members.findAllMemberships().stream().collect(Collectors.groupingBy(TeamMembership::teamId));
+        return page.map(t -> viewOf(t, byTeam.getOrDefault(t.getId(), List.of())));
     }
 
     public Optional<GroupView> group(Long id) {
