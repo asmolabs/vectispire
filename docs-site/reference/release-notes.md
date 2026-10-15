@@ -93,7 +93,8 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 - **A token's change of state is pushed once**, for the tracker token and for each forge connection: an
   audit entry (`INTEGRATION_TOKEN_EXPIRING`, `INTEGRATION_TOKEN_STOPPED`, `INTEGRATION_TOKEN_RESTORED`), a
   SIEM event (`VECTI-SEC-038` at 4, `VECTI-SEC-039` at 7, `VECTI-SEC-040` at 2) and a message on every
-  configured notification channel — never the token itself. Replacing a refused tracker token announces
+  configured notification channel — never the token itself, and for the tracker never its address, which
+  only administrators read: the tracker is named by its kind. Replacing a refused tracker token announces
   it working again ([notifications](../integrations/notifications.md#integration-token-alerts),
   [SIEM](../integrations/siem.md)).
 - **The OWASP Top 10 grid explains each category in the interface's language**, and the OWASP report's PDF
@@ -101,6 +102,10 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   categories with their state and why), and prints the model's text as written.
 
 ### Security {#security-0111}
+
+- **The tracker URL (`ticket_base_url`) is refused when it carries a user name or a token**
+  (`https://user:…@host`), as a forge connection's address already was: the token has its own field,
+  which encrypts it ([ticketing](../integrations/ticketing.md#configuring)).
 
 - **A name a forge returns or a person types no longer changes which forge API endpoint is called.** The
   discovery, the change-review readings and the connection check encode every project, owner, repository,

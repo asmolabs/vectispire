@@ -69,7 +69,10 @@ which read as a defence, but only after the proxy had read it.
 **Secrets and integrity.** A secret returned, logged, audited, exported or sent to the browser; a
 decryption failure that silently disables a check; a signing key that does not survive a restart or
 does not match its published half; a verification route that accepts the caller's own key; DSSE
-without PAE.
+without PAE. **A `Sensitivity.SECRET` setting copied into a message** — an audit description, a SIEM
+event, a chat or mail alert — leaves the screen that withholds it: the tracker token alerts carried the
+tracker's URL into the chained audit log the auditor reads and to every channel. Follow each setting a
+sentence is built from to its sensitivity.
 
 **Deployment.** The compose topology — which service reaches the Docker proxy, with which rights,
 on which network as the database; workflow permissions and third-party code running next to them.

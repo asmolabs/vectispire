@@ -31,7 +31,8 @@ Under [Settings](../administration/settings.md): the tracker type, its URL, the 
 target, and a token. The URL, the project and the Jira account are an administrator's, like the
 token: the token acts wherever they point it. A GitHub project is `owner/repository` and nothing
 else — a path after it is refused when saved, and refused again at the send for a value stored
-before.
+before. The URL is the address alone: one carrying a user name or a token (`https://user:…@host`) is
+refused when saved — the token has a field of its own, which encrypts it.
 
 Give the token the narrowest scope that can create and read issues in the target project.
 It is stored encrypted with your `ENCRYPTION_KEY`, and storing it is refused before that
@@ -109,7 +110,8 @@ is:
 | Expired, or refused by the tracker | `INTEGRATION_TOKEN_STOPPED` | `VECTI-SEC-039` (7) | yes |
 | Working again — accepted again, or replaced — or no longer about to expire | `INTEGRATION_TOKEN_RESTORED` | `VECTI-SEC-040` (2) | yes |
 
-The entry names the tracker and its address (resource `ticket_token`, no actor: nobody did it), says
+The entry names the tracker by its kind — GitLab, GitHub, Jira, ServiceNow — and not its address, which
+only an administrator reads on the settings screen (resource `ticket_token`, no actor: nobody did it); it says
 the date or the status and since when — **never the token**, nor a header — and is forwarded to the
 SIEM by the [usual hook](siem.md#event-catalogue); a SIEM at the factory minimum (High) receives the
 `039` alone. The message reaches every [notification channel](notifications.md#integration-token-alerts)

@@ -59,7 +59,8 @@ is no longer about to expire. Once per change, never once an hour; a restart say
   configured, one outbox row each, as for a scan's delta. A team's own webhook is not told: the token
   is the installation's. The issue threshold does not apply; it is about findings.
 - **The same rules**: the URL read at the send, the private-address switch, the webhook signature.
-- **What it says**: the tracker or the connection by its name, the server and its address, the date or
+- **What it says**: the tracker by its kind (GitLab, Jira…) — never its address, a setting only
+  administrators read — or the connection by its name with its server's address, the date or
   the status and since when, and a link to the screen where the token is replaced when the deployment
   knows its public address. **Never the token**, nor a header.
 - **The webhook's body** is told apart from a scan's delta by `event: "token_state_changed"`, with

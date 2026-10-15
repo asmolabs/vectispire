@@ -170,7 +170,9 @@ class TrackerTokenCheckTest {
             assertThat(alert.credential()).isEqualTo(TokenAlert.Credential.TRACKER_TOKEN);
             assertThat(alert.expiresAt()).isEqualTo(LocalDate.ofInstant(START.plus(Duration.ofDays(10)), ZoneOffset.UTC)
                     .atStartOfDay(ZoneOffset.UTC).toInstant());
-            assertThat(alert.where()).isEqualTo("GitLab at " + tracker.baseUrl());
+            // The provider's kind alone: the tracker's address is a secret setting, and the alert reaches the
+            // audit log every auditor reads, the SIEM and every chat channel.
+            assertThat(alert.where()).isEqualTo("GitLab");
         });
     }
 
@@ -345,6 +347,8 @@ class TrackerTokenCheckTest {
             String said = alert.sentence() + alert.headline() + alert.where() + alert.name() + alert.reference();
             assertThat(said).doesNotContain("glpat").doesNotContainIgnoringCase("private-token")
                     .doesNotContain(rows.get(Setting.TICKET_TOKEN.key()));
+            assertThat(said).as("nor the tracker's address, a secret setting")
+                    .doesNotContain(tracker.baseUrl()).doesNotContain(java.net.URI.create(tracker.baseUrl()).getAuthority());
         });
     }
 

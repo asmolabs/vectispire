@@ -11,6 +11,9 @@ import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -727,7 +730,26 @@ public enum Setting {
 
     /** Empty when the value is acceptable, otherwise the message to show. */
     public Optional<String> validate(String value) {
+        // **The tracker's address carries no credential**, as a forge connection's does not (`ForgeAddress`): a
+        // user name or a token typed into it is a second, unencrypted copy of the token, stored in a column the
+        // token's own route never reaches, and shown back on the settings screen.
+        if (this == TICKET_BASE_URL && value != null && carriesUserInfo(value)) {
+            return Optional.of("the address carries a user name or a token: type the address alone, the token has "
+                    + "a field of its own.");
+        }
         return type.validate(value);
+    }
+
+    private static boolean carriesUserInfo(String value) {
+        if (RepositoryUrl.carriesCredential(value)) {
+            return true;
+        }
+        try {
+            return new URI(value.trim()).getRawUserInfo() != null;
+        } catch (URISyntaxException unreadable) {
+            // Not a URL at all: the outbound guard refuses it at the send, in its own words.
+            return false;
+        }
     }
 
     /** A key's definition, or empty when it is not exposed. */

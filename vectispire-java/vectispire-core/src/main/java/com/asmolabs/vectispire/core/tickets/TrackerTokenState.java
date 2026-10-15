@@ -246,10 +246,16 @@ public class TrackerTokenState {
         };
     }
 
-    /** The tracker, for a reader: its kind and its address — never the token, nor the account it acts as. */
+    /**
+     * The tracker, for a reader: its kind alone — never its address, the token, nor the account it acts as.
+     *
+     * <p><b>Not the address.</b> The tracker's URL is a secret setting, a map of the internal network that only an
+     * administrator reads on the settings screen. The alert is copied where that protection does not follow: a
+     * chained audit entry the CISO and the auditor read, the SIEM, the audit mirror, the evidence bundle, every chat
+     * channel and mail. An installation has one tracker, so its kind says which token is meant.
+     */
     private String where() {
-        String url = settings.get(Setting.TICKET_BASE_URL).trim();
-        return url.isEmpty() ? providerLabel() : providerLabel() + " at " + url;
+        return providerLabel();
     }
 
     private String internal(String key) {
