@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
 
@@ -65,13 +66,17 @@ public final class TriageHistory {
             String type,
             String identifier,
             String severity,
-            String packageName,
-            String packageVersion,
-            String filePath,
+            @Schema(types = {"string", "null"}, description = "Null on a finding that is not about a package.")
+                    String packageName,
+            @Schema(types = {"string", "null"}, description = "Null on a finding that is not about a package.")
+                    String packageVersion,
+            @Schema(types = {"string", "null"}, description = "Null on a finding about a package, and when the report locates none.")
+                    String filePath,
             String state,
             String triageStatus,
             Instant firstSeenAt,
-            Instant resolvedAt,
+            @Schema(types = {"string", "null"}, format = "date-time", description = "Null while the issue is open.")
+                    Instant resolvedAt,
             List<Decision> decisions) {}
 
     /**
@@ -91,15 +96,22 @@ public final class TriageHistory {
     public record Decision(
             String fromStatus,
             String toStatus,
-            String justification,
-            String comment,
-            String actor,
+            @Schema(types = {"string", "null"}, description = "Null unless the decision states one; always null on an expiry or a reopening.")
+                    String justification,
+            @Schema(types = {"string", "null"}, description = "Null unless the decision carries one.")
+                    String comment,
+            @Schema(types = {"string", "null"}, description = "Null when nobody decided: an expiry or a reopening (see origin).")
+                    String actor,
             String origin,
             Instant occurredAt,
-            Instant expiresAt,
-            Long scanId,
-            String version,
-            Instant previousResolvedAt) {}
+            @Schema(types = {"string", "null"}, format = "date-time", description = "Null unless the decision was given a date to be reviewed by.")
+                    Instant expiresAt,
+            @Schema(types = {"integer", "null"}, format = "int64", description = "Null when the target had no scan, on a reopening an import caused, and once that scan is deleted.")
+                    Long scanId,
+            @Schema(types = {"string", "null"}, description = "The project version that scan read. Null when it read none, and always on an issue's detail, which does not resolve it.")
+                    String version,
+            @Schema(types = {"string", "null"}, format = "date-time", description = "On a reopening only: when the resolution it ended began. Null on every other entry.")
+                    Instant previousResolvedAt) {}
 
     /** A whole dossier: one target, its scans, and what was decided. */
     public record Dossier(Repository repository, List<Scan> scans, Instant generatedAt) {}

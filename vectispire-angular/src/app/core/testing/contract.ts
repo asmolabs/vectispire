@@ -36,10 +36,11 @@ type Schemas = components['schemas'];
  *       statuses, an issue's state, severity, type and triage status).
  * </ul>
  *
- * <p><b>`null` is accepted everywhere, and that is not laxity.</b> The document marks nothing
- * nullable while this server sends `displayName: null`, so refusing null here would reject
- * fixtures that are exactly right. Nullability is claimed in `api.models.ts`, per field, where
- * a person can be held to it.
+ * <p><b>`null` is accepted everywhere, and that is not laxity.</b> The document marks a field
+ * nullable only on the records the control plane has audited (`ResponseNullabilityTest`) and says
+ * nothing elsewhere, while this server sends `displayName: null` — so refusing null here would
+ * reject fixtures that are exactly right. Where the document is silent, nullability is claimed in
+ * `api.models.ts`, per field, where a person can be held to it.
  *
  * <p>Unknown schema names fail rather than pass: a fixture pointing at a schema the document does
  * not have is a fixture nobody can check, and silently accepting it would be the failure this

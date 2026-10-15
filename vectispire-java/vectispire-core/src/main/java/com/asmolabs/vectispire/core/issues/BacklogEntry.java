@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.issues;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
 /**
@@ -21,9 +22,8 @@ import java.time.Instant;
  * {@link IssueView}'s and not the entity's — no JPA entity crosses a route — and the drift a
  * second list of fields invites is caught by {@code EntityViewsTest}.
  *
- * @param targetName never null in practice, but not guaranteed: an issue whose target was
- *     deleted in the same request keeps its id and loses its name, and a blank cell is a better
- *     answer there than a crash
+ * @param targetName never null: an issue whose target was deleted in the same request keeps its
+ *     id and reads {@code TargetNaming.DELETED} for a name
  * @param slaDueAt when this issue's remediation window closes, or {@code null} when none applies
  *     — a severity with no window, an issue already settled or closed. <b>Computed on the server
  *     like the gate verdict</b>: a client re-deriving it from the policy would be a second
@@ -37,6 +37,9 @@ public record BacklogEntry(
         @JsonUnwrapped IssueView issue,
         String targetKind,
         String targetName,
-        Instant slaDueAt,
-        String slaState,
-        Long slaDays) {}
+        @Schema(types = {"string", "null"}, format = "date-time", description = "When the remediation window closes; null when none applies.")
+                Instant slaDueAt,
+        @Schema(types = {"string", "null"}, description = "on_time, due_soon or overdue; null with no deadline.")
+                String slaState,
+        @Schema(types = {"integer", "null"}, format = "int64", description = "Days until due, negative when late; null with no deadline.")
+                Long slaDays) {}

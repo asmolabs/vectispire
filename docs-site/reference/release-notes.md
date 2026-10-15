@@ -82,6 +82,17 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   ([SSO](../administration/sso.md#provisioning-from-the-directory-scim)); `/Users` used to accept both
   parameters and ignore them.
 
+- **The OpenAPI document says which response fields the server sends as `null`** on the issues and what
+  carries them: 34 fields of an issue — the triage and ticket routes' `IssueView` (`POST
+  /api/v1/issues/{id}/triage`, `POST /api/v1/issues/triage`, `PUT /api/v1/issues/{id}/ticket`), the
+  backlog's rows (`GET /api/v1/issues`, with `slaDueAt`, `slaState` and `slaDays`) and the detail (`GET
+  /api/v1/issues/{id}`, with a sighting's `version`) — a triage decision's optional fields and an issue's
+  in the triage history (`GET /api/v1/history/repositories/{id}`), and a plugin activation's
+  `projectName`, `solutionId`, `solutionName` and a report plugin's `pluginName`. Each is typed with
+  `"null"` beside its type and a description of when, where the document said `string`, `integer`,
+  `number` or `boolean`; the server already sent these nulls, and no response changed. A client generated
+  from the document now types them `T | null`.
+
 ### New {#new-0111}
 
 - **Administrators lift a federated account's password-change requirement from the Users screen**
