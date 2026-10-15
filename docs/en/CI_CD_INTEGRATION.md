@@ -37,7 +37,7 @@ Configure these environment variables in your CI/CD project settings (e.g. *GitL
 ## 🔏 Getting the CLI
 
 The CLI is a **release asset**, signed like the jar: `vectispire-cli.sh` and its Sigstore bundle
-`vectispire-cli.sh.cosign.bundle`, from the release after 0.10.0 on — 0.10.0 and earlier do not carry
+`vectispire-cli.sh.cosign.bundle`, from 0.11.0 on — 0.10.0 and earlier do not carry
 it. The snippets below download it, compare its SHA-256 with the one the pipeline pins, and only then
 run it. Never pipe it into `sh`, where the bytes execute as they arrive and nothing can be checked
 first. Until 0.10.0 these snippets fetched `scripts/vectispire-cli.sh` from the repository's raw URL

@@ -117,12 +117,12 @@ docker compose --profile with-agent up -d
 La composition tire deux images publiées : rien ici ne demande de JDK ni de cache Gradle.
 
 ```
-ghcr.io/asmolabs/vectispire:0.10.0
-ghcr.io/asmolabs/vectispire-agent:0.10.0
+ghcr.io/asmolabs/vectispire:0.11.0
+ghcr.io/asmolabs/vectispire-agent:0.11.0
 ```
 
 Elles sont publiques — ni identifiant, ni jeton. Pour en tirer une seule,
-`docker pull ghcr.io/asmolabs/vectispire:0.10.0` ; et lisez
+`docker pull ghcr.io/asmolabs/vectispire:0.11.0` ; et lisez
 [Vérifier une release](#verifier-une-release) avant de l'exécuter.
 
 ## Avant le premier démarrage
@@ -280,8 +280,8 @@ chaque jeton que Vectispire détient ; un cluster reconstruit sans elle détient
 personne ne peut lire.
 
 Fixez aussi une **clé de signature** (`secrets.signingKey`, PEM PKCS#8 P-256) : en 0.10.0, une
-installation qui n'en a pas répond 500 à son premier dossier de preuves (corrigé dans la version
-suivante). Gardez-la : la remplacer rend invérifiable chaque document déjà signé.
+installation qui n'en a pas répond 500 à son premier dossier de preuves (corrigé dans la
+0.11.0). Gardez-la : la remplacer rend invérifiable chaque document déjà signé.
 
 La chart refuse de se rendre sans ses valeurs obligatoires, et dit laquelle manque. La liste complète
 est dans le [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md)
@@ -506,16 +506,16 @@ npm --workspace @vectispire/frontend start    # interface sur :4280, /api relay�
 ## Vérifier une release
 
 Chaque release porte le jar, son SBOM, le [script de barrière CI](../integrations/ci-gate.md) et —
-à partir de la version qui suit la 0.10.0 — la CLI `vectispire-cli.sh`, chacun avec un paquet Sigstore
+à partir de la 0.11.0 — la CLI `vectispire-cli.sh`, chacun avec un paquet Sigstore
 vérifié comme le jar ci-dessous. Vérifiez avant d'exécuter quoi que ce soit — un outil de sécurité que vous avez pris sur
 parole est une contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.10.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --bundle vectispire-0.11.0.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.10.0.jar
+  vectispire-0.11.0.jar
 ```
 
 Chaque option épingle quelque chose, et en retirer une seule rend l'essentiel de ce pour quoi
@@ -535,11 +535,11 @@ empreinte : vérifier le tag puis le tirer de nouveau vérifie une image que vou
 pas tourner. Résolvez le tag une fois, avec la commande qu'utilise le workflow de release lui-même :
 
 ```bash
-DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 --format '{{.Manifest.Digest}}')"
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.11.0 --format '{{.Manifest.Digest}}')"
 echo "$DIGEST"   # sha256:…
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -552,7 +552,7 @@ fichier posé à côté d'une image est un fichier que n'importe qui peut rempla
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -590,7 +590,7 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<empreinte> \
 L'image est désignée **par empreinte** — celle qu'indiquent les notes de release, ou celle que
 renvoie `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 — pour la même raison que la signature. L'image de l'agent se vérifie de la même façon sous
-`ghcr.io/asmolabs/vectispire-agent`. À partir de la version qui suit la 0.10.0, une troisième image
+`ghcr.io/asmolabs/vectispire-agent`. À partir de la 0.11.0, une troisième image
 est publiée, `ghcr.io/asmolabs/vectispire-report-demo` — le [plugin de rapport](../administration/report-plugins.fr.md)
 de démonstration, que la composition ne tire pas — et elle se vérifie de la même façon sous son propre nom.
 

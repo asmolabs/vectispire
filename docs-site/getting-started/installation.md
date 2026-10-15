@@ -113,12 +113,12 @@ docker compose --profile with-agent up -d
 The composition pulls two published images, so nothing here needs a JDK or a Gradle cache:
 
 ```
-ghcr.io/asmolabs/vectispire:0.10.0
-ghcr.io/asmolabs/vectispire-agent:0.10.0
+ghcr.io/asmolabs/vectispire:0.11.0
+ghcr.io/asmolabs/vectispire-agent:0.11.0
 ```
 
 They are public — no login, no token. Pull one on its own with
-`docker pull ghcr.io/asmolabs/vectispire:0.10.0`, and see
+`docker pull ghcr.io/asmolabs/vectispire:0.11.0`, and see
 [Verifying a release](#verifying-a-release) before you run it.
 
 ## Before the first start
@@ -269,7 +269,7 @@ below.
 Vectispire holds; a cluster rebuilt without it holds secrets nobody can read.
 
 Also set a **signing key** (`secrets.signingKey`, a P-256 PKCS#8 PEM): on 0.10.0, an installation
-without one answers 500 on its first evidence bundle (fixed in the next release). Keep it: replacing
+without one answers 500 on its first evidence bundle (fixed in 0.11.0). Keep it: replacing
 it makes every document already signed unverifiable.
 
 The chart refuses to render without its required values, and says which is missing. The full list is
@@ -486,15 +486,15 @@ and shares nothing with it but the HTTP contract.
 ## Verifying a release
 
 Each release carries the jar, its SBOM, the [CI gate script](../integrations/ci-gate.md) and —
-from the release after 0.10.0 on — the CLI `vectispire-cli.sh`, each with a Sigstore bundle verified
+from 0.11.0 on — the CLI `vectispire-cli.sh`, each with a Sigstore bundle verified
 as the jar is below. Verify before running anything — a security tool you took on trust is a contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.10.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --bundle vectispire-0.11.0.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.10.0.jar
+  vectispire-0.11.0.jar
 ```
 
 Each flag pins something, and dropping any one of them gives back most of what signing was
@@ -513,11 +513,11 @@ the tag and then pulling it again checks an image you may not be running. Resolv
 with the command the release workflow uses itself:
 
 ```bash
-DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 --format '{{.Manifest.Digest}}')"
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.11.0 --format '{{.Manifest.Digest}}')"
 echo "$DIGEST"   # sha256:…
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -530,7 +530,7 @@ file beside an image is one anybody can swap:
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -568,7 +568,7 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<digest> \
 The image is named **by digest** — the one printed in the release notes, or the one
 `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 returns — for the same reason the signature is. The agent image verifies the same way under
-`ghcr.io/asmolabs/vectispire-agent`. From the release after 0.10.0 on, a third image is published,
+`ghcr.io/asmolabs/vectispire-agent`. From 0.11.0 on, a third image is published,
 `ghcr.io/asmolabs/vectispire-report-demo` — the demonstration [report plugin](../administration/report-plugins.md),
 which the composition does not pull — and it verifies the same way under its own name.
 

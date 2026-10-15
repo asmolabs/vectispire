@@ -167,7 +167,7 @@ deletion.
 
 ## The images
 
-Three are published — the control plane, the agent and, from the release after 0.10.0 on, the
+Three are published — the control plane, the agent and, from 0.11.0 on, the
 demonstration report plugin; 0.10.0 published the first two. **The release ships Jib's images**:
 `release.yml` runs `jibBuildTar`, as every push's `images` job does, because Jib needs no daemon and
 is fast. The `Dockerfile`s are the second route, the one that can `chown` the audit mirror's

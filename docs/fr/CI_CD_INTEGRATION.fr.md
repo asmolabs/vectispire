@@ -37,7 +37,7 @@ Configurez les variables suivantes dans les paramètres de votre projet CI/CD (e
 ## 🔏 Obtenir la CLI
 
 La CLI est un **asset de version**, signé comme le jar : `vectispire-cli.sh` et son bundle Sigstore
-`vectispire-cli.sh.cosign.bundle`, à partir de la version qui suit la 0.10.0 — la 0.10.0 et les
+`vectispire-cli.sh.cosign.bundle`, à partir de la 0.11.0 — la 0.10.0 et les
 précédentes ne le portent pas. Les snippets ci-dessous la téléchargent, comparent son SHA-256 à celui
 que le pipeline épingle, et seulement ensuite l'exécutent. Ne la passez jamais à `sh` par un pipe, où
 les octets s'exécutent à mesure qu'ils arrivent et où rien ne peut être vérifié d'abord. Jusqu'à la
