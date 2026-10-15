@@ -43,6 +43,7 @@ import {
     signOffBlockOf,
     STATUS_KEYS
 } from './project-checklist';
+import { asSchema } from '@/app/core/testing/contract';
 
 /**
  * A project's security checklist (decision 0032 §4, §5, §8), through the DOM.
@@ -509,10 +510,12 @@ describe('the project checklist screen', () => {
             withdrawnAt: '2026-09-22T09:00:00Z',
             inDate: false
         };
-        request.flush({
-            ...after(CHECKLIST, 6),
-            lines: [CHECKLIST.lines[0], { ...CHECKLIST.lines[1], evidence: [withdrawn] }, CHECKLIST.lines[2]]
-        });
+        request.flush(
+            asSchema('ChecklistView', {
+                ...after(CHECKLIST, 6),
+                lines: [CHECKLIST.lines[0], { ...CHECKLIST.lines[1], evidence: [withdrawn] }, CHECKLIST.lines[2]]
+            })
+        );
         fixture.detectChanges();
 
         expect(text('[data-testid="proof-900"] [data-testid="withdrawn"]')).toContain('withdrawn by dave');
@@ -792,20 +795,27 @@ describe('the project checklist screen', () => {
 
         const system = { ...LINE_HISTORY.answers[1], answeredBy: 'Vectispire', answeredByKind: 'system' as const };
         click('History of line 2');
-        http.expectOne({ method: 'GET', url: `${BASE}/2/items/102/history` }).flush({
-            ...LINE_HISTORY,
-            answers: [
-                { ...system, id: 620, answeredAt: '2026-09-21T08:00:00Z' },
-                {
-                    ...system,
-                    id: 621,
-                    withdrawn: true,
-                    comment: 'Withdrawn by Vectispire: the measurement this answer rested on has no data any more.',
-                    answeredAt: '2026-09-22T08:00:00Z'
-                },
-                { ...LINE_HISTORY.answers[1], id: 622, answeredBy: 'Vectispire', answeredAt: '2026-09-23T08:00:00Z' }
-            ]
-        });
+        http.expectOne({ method: 'GET', url: `${BASE}/2/items/102/history` }).flush(
+            asSchema('ChecklistLineHistory', {
+                ...LINE_HISTORY,
+                answers: [
+                    { ...system, id: 620, answeredAt: '2026-09-21T08:00:00Z' },
+                    {
+                        ...system,
+                        id: 621,
+                        withdrawn: true,
+                        comment: 'Withdrawn by Vectispire: the measurement this answer rested on has no data any more.',
+                        answeredAt: '2026-09-22T08:00:00Z'
+                    },
+                    {
+                        ...LINE_HISTORY.answers[1],
+                        id: 622,
+                        answeredBy: 'Vectispire',
+                        answeredAt: '2026-09-23T08:00:00Z'
+                    }
+                ]
+            })
+        );
         fixture.detectChanges();
 
         expect(text('[data-testid="history-row-620"]')).toMatch(/^Yes · automatic — Vectispire, /);
@@ -984,7 +994,9 @@ describe('the project checklist screen', () => {
             'Somebody else wrote on this line since you read it.'
         );
         click('reload-checklist');
-        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush({ ...CONTEXT, latestEdition: 7 });
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush(
+            asSchema('ChecklistProjectContext', { ...CONTEXT, latestEdition: 7 })
+        );
         http.expectOne({ method: 'GET', url: BASE }).flush([DRAFT_REVISION, SIGNED_REVISION]);
         http.expectOne({ method: 'GET', url: `${BASE}/offered` }).flush(OFFERED);
         http.expectOne({ method: 'GET', url: `${BASE}/2` }).flush(after(CHECKLIST, 7));
@@ -1209,7 +1221,9 @@ describe('the project checklist screen', () => {
 
         expect(text('[data-testid="revision-1"]')).toContain('Signed off');
         click('Read revision 1');
-        http.expectOne({ method: 'GET', url: `${BASE}/1` }).flush({ ...SIGNED_CHECKLIST, checklist: SIGNED_REVISION });
+        http.expectOne({ method: 'GET', url: `${BASE}/1` }).flush(
+            asSchema('ChecklistView', { ...SIGNED_CHECKLIST, checklist: SIGNED_REVISION })
+        );
         fixture.detectChanges();
 
         expect(text('[data-testid="shown-revision"]')).toBe('Revision 1');

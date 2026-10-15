@@ -261,13 +261,13 @@ describe('the project checklist client', () => {
         api.answerChecklistAsMeasured(PROJECT_ID, 2, shown, 5).subscribe();
         const act = http.expectOne({ method: 'POST', url: `${BASE}/2/answers/as-measured` });
         expect(asSchema('ChecklistAsMeasuredRequest', act.request.body)).toEqual({ edition: 5, lines: shown });
-        act.flush({ checklist: MEASURED_CHECKLIST, answered: [], skipped: [] });
+        act.flush(asSchema('ChecklistAsMeasuredView', { checklist: MEASURED_CHECKLIST, answered: [], skipped: [] }));
 
         // Empty is a list, not an absence: the server refuses a missing one (400).
         api.answerChecklistAsMeasured(PROJECT_ID, 2, [], 6).subscribe();
         const none = http.expectOne({ method: 'POST', url: `${BASE}/2/answers/as-measured` });
         expect(none.request.body).toEqual({ edition: 6, lines: [] });
-        none.flush({ checklist: MEASURED_CHECKLIST, answered: [], skipped: [] });
+        none.flush(asSchema('ChecklistAsMeasuredView', { checklist: MEASURED_CHECKLIST, answered: [], skipped: [] }));
     });
 
     it('confirms, withdraws and moves the revision through its life naming the edition', () => {
