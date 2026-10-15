@@ -1,4 +1,5 @@
 import document from '../../../../openapi.json';
+import type { Observable } from 'rxjs';
 import type { components } from '../api.generated';
 import type { ModelOf } from './schema-models';
 
@@ -79,6 +80,18 @@ export function asSchema<K extends keyof Schemas, T extends ModelOf<K>>(name: K,
 export function asSchemaList<K extends keyof Schemas, T extends ModelOf<K>>(name: K, fixtures: T[]): T[] {
     return fixtures.map((fixture) => asSchema(name, fixture));
 }
+
+/**
+ * What a client method's answer is read as — for a fixture of a route the document types as a bare map.
+ *
+ * <p>`GET /settings/webhook-secret`, `POST /auth/mfa/disable`, `GET /ai-advisor/status` and a few others
+ * are declared `additionalProperties` objects: there is no schema name to hand `asSchema`, and the
+ * client's own declaration (`http.get<{ configured: boolean }>`) is the only claim about their shape.
+ * `flush({ … } satisfies AnswerOf<SettingsApi['webhookSecretState']>)` holds the fixture to that claim, so a
+ * fixture and the client cannot drift apart while both compile — `{ enabled: false }` answered for a
+ * status the client reads three fields of did, in four specs, until 2026-10-15.
+ */
+export type AnswerOf<M> = M extends (...args: never[]) => Observable<infer T> ? T : never;
 
 /**
  * A word a newer server could send that this client's union does not hold yet — an outcome, a
