@@ -95,8 +95,9 @@
   /api/v1/issues/{id}/triage`, `POST /api/v1/issues/triage`, `PUT /api/v1/issues/{id}/ticket`), les lignes
   du backlog (`GET /api/v1/issues`, avec `slaDueAt`, `slaState` et `slaDays`) et le détail (`GET
   /api/v1/issues/{id}`, avec la `version` d'une observation) —, les champs facultatifs d'une décision de
-  triage et ceux d'un problème dans l'historique de triage (`GET /api/v1/history/repositories/{id}`), et
-  les `projectName`, `solutionId`, `solutionName` d'une activation de plugin et le `pluginName` d'un plugin de
+  triage et ceux d'un problème dans l'historique de triage (`GET /api/v1/history/repositories/{id}`), les
+  `cvssScore`, `epssScore` et `epssPercentile` du classement EPSS (`GET /api/v1/epss/priorities`), et les
+  `projectName`, `solutionId`, `solutionName` d'une activation de plugin et le `pluginName` d'un plugin de
   rapport. Chacun est typé avec `"null"` à côté de son type et une description qui dit quand, là où le
   document disait `string`, `integer`, `number` ou `boolean` ; le serveur envoyait déjà ces `null`, et
   aucune réponse ne change. Un client généré depuis le document les type désormais `T | null`.
@@ -192,6 +193,8 @@
 - **Un rapport OWASP compte les problèmes derrière un identifiant cité comme la liste qu'ouvre son lien les
   liste**, sans tenir compte de la casse : un identifiant que deux scanners écrivaient dans deux casses en
   comptait un, et son lien menait à ce seul problème quand la liste montrait les deux.
+- **Le classement EPSS nomme un dépôt enregistré sans nom par son adresse** (`corp/ledger`), comme tous les
+  autres écrans : ses lignes affichaient une cible vide.
 - **Une action à fort impact qu'aucune version ne corrige affiche « aucune version corrigée publiée » sur
   le tableau de bord**, comme le plan de remédiation le faisait déjà, au lieu d'une flèche qui ne mène à
   rien. Le document OpenAPI déclare désormais `HighImpactFix.recommendedVersion` comme `string` ou `null`,

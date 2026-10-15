@@ -5966,12 +5966,21 @@ export interface components {
             totalVulnerabilities: number;
         };
         EpssPrioritizedIssue: {
-            /** Format: double */
-            cvssScore?: number;
-            /** Format: double */
-            epssPercentile?: number;
-            /** Format: double */
-            epssScore?: number;
+            /**
+             * Format: double
+             * @description Null when no advisory gave one.
+             */
+            cvssScore?: number | null;
+            /**
+             * Format: double
+             * @description Null when the EPSS feed does not list the CVE.
+             */
+            epssPercentile?: number | null;
+            /**
+             * Format: double
+             * @description Null when neither the scan nor the EPSS feed scores the CVE.
+             */
+            epssScore?: number | null;
             identifier?: string;
             isKev: boolean;
             /** Format: int64 */

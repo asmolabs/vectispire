@@ -3723,16 +3723,19 @@
       "EpssPrioritizedIssue" : {
         "properties" : {
           "cvssScore" : {
+            "description" : "Null when no advisory gave one.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "epssPercentile" : {
+            "description" : "Null when the EPSS feed does not list the CVE.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "epssScore" : {
+            "description" : "Null when neither the scan nor the EPSS feed scores the CVE.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "identifier" : {
             "type" : "string"
