@@ -68,7 +68,7 @@ describe('the plugins client', () => {
         api.setPluginEnabled('acme-lint', false).subscribe();
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint/enabled' });
         expect(asSchema('PluginEnabled', request.request.body)).toEqual({ enabled: false });
-        request.flush({ ...PLUGIN, enabled: false });
+        request.flush(asSchema('PluginView', { ...PLUGIN, enabled: false }));
     });
 
     it('lists activations from either side', () => {

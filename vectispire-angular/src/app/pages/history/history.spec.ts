@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { History } from './history';
+import type { HistoryDecision, HistoryDossier } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -44,8 +45,8 @@ describe('the history screen', () => {
         decisions: 0
     });
 
-    function dossier(decisions: unknown[]): Record<string, unknown> {
-        return {
+    function dossier(decisions: HistoryDecision[]): HistoryDossier {
+        return asSchema('Dossier', {
             repository: { ...REPOSITORY, decisions: decisions.length },
             generatedAt: '2026-08-21T09:00:00Z',
             scans: [
@@ -79,7 +80,7 @@ describe('the history screen', () => {
                     ]
                 }
             ]
-        };
+        });
     }
 
     beforeEach(async () => {
@@ -95,7 +96,7 @@ describe('the history screen', () => {
         fixture.detectChanges();
     });
 
-    function load(decisions: unknown[] = []): void {
+    function load(decisions: HistoryDecision[] = []): void {
         http.expectOne('/api/v1/history/repositories').flush([REPOSITORY]);
         fixture.detectChanges();
         // The page opens the most recently scanned target by itself: an empty right-hand side is
@@ -129,7 +130,9 @@ describe('the history screen', () => {
         const openButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody button'));
         (openButtons[1] as HTMLButtonElement).click();
         fixture.detectChanges();
-        http.expectOne('/api/v1/history/repositories/6').flush({ ...dossier([]), repository: OTHER });
+        http.expectOne('/api/v1/history/repositories/6').flush(
+            asSchema('Dossier', { ...dossier([]), repository: OTHER })
+        );
         // A request still open would deliver the old dossier now; a cancelled one cannot.
         if (!slow.cancelled) slow.flush(dossier([]));
         fixture.detectChanges();

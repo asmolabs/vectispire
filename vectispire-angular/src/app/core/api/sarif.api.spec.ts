@@ -45,7 +45,7 @@ describe('the SARIF client', () => {
         api.setSarifSourceEnabled(3, false).subscribe();
         const toggle = http.expectOne({ method: 'PUT', url: '/api/v1/sarif-sources/3/enabled' });
         expect(asSchema('SourceEnabled', toggle.request.body)).toEqual({ enabled: false });
-        toggle.flush({ ...SOURCE, enabled: false });
+        toggle.flush(asSchema('SarifSourceView', { ...SOURCE, enabled: false }));
 
         api.removeSarifSource(3).subscribe();
         http.expectOne({ method: 'DELETE', url: '/api/v1/sarif-sources/3' }).flush(null);

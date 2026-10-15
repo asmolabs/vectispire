@@ -4,9 +4,23 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RuleSets } from './rule-sets';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, type AnswerOf } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { useEnglish } from '@/app/core/testing/english';
+import type { RuleSetsApi } from '@/app/core/api/rule-sets.api';
+
+/** The coverage banner's read, as a covered estate answers it: the three lists are always sent. */
+const COVERED = asSchema('Assessment', {
+    state: 'COVERED',
+    ruleFiles: 0,
+    languagesWithRules: [],
+    ecosystemsInEstate: [],
+    uncovered: []
+});
+
+/** `POST /rule-sets/{id}/activate` and `/deactivate` answer bare maps; the client's declarations are their types. */
+const ACTIVATED = { id: 1, contentHash: 'a1b2' } satisfies AnswerOf<RuleSetsApi['activateRuleSet']>;
+const DEACTIVATED = { active: null } satisfies AnswerOf<RuleSetsApi['deactivateRuleSets']>;
 
 /**
  * What the upstream catalogue's preview says before it is imported.
@@ -49,7 +63,7 @@ describe('the catalogue preview', () => {
         // What the screen asks for on its own at start-up.
         for (const request of http.match(() => true)) {
             request.flush(
-                request.request.url.endsWith('/coverage') ? { state: 'COVERED', ruleFiles: 0 } : { ruleSets: [] }
+                request.request.url.endsWith('/coverage') ? COVERED : asSchema('RuleSetListing', { ruleSets: [] })
             );
         }
         fixture.detectChanges();
@@ -109,8 +123,8 @@ describe('the catalogue preview', () => {
             const request = http.expectOne('/api/v1/rule-sets/catalogue');
             expect(request.request.method).toBe('POST');
             const body = request.request.body as Record<string, unknown>;
-            request.flush({ id: 7, ruleCount: 600, fileCount: 600 });
-            http.expectOne('/api/v1/rule-sets').flush({ ruleSets: [] });
+            request.flush(asSchema('Uploaded', { id: 7, ruleCount: 600, fileCount: 600 }));
+            http.expectOne('/api/v1/rule-sets').flush(asSchema('RuleSetListing', { ruleSets: [] }));
             return body;
         }
 
@@ -218,8 +232,10 @@ describe('a rule-set change', () => {
         for (const request of http.match(() => true)) {
             request.flush(
                 request.request.url.endsWith('/coverage')
-                    ? { state: 'COVERED', ruleFiles: 0 }
-                    : { ruleSets: [summary(1, 'incoming', false), summary(2, 'current', true)] }
+                    ? COVERED
+                    : asSchema('RuleSetListing', {
+                          ruleSets: [summary(1, 'incoming', false), summary(2, 'current', true)]
+                      })
             );
         }
         fixture.detectChanges();
@@ -241,7 +257,7 @@ describe('a rule-set change', () => {
     }
 
     const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
-    const reload = () => http.expectOne('/api/v1/rule-sets').flush({ ruleSets: [] });
+    const reload = () => http.expectOne('/api/v1/rule-sets').flush(asSchema('RuleSetListing', { ruleSets: [] }));
 
     it('activates with the count the preview showed', () => {
         previewActivation(3, ['java.sqli']);
@@ -250,7 +266,7 @@ describe('a rule-set change', () => {
         const request = http.expectOne('/api/v1/rule-sets/1/activate');
         expect(request.request.method).toBe('POST');
         expect(request.request.body).toMatchObject({ acceptLosing: 3 });
-        request.flush({ id: 1, contentHash: 'a1b2' });
+        request.flush(ACTIVATED);
         reload();
     });
 
@@ -260,7 +276,7 @@ describe('a rule-set change', () => {
 
         const request = http.expectOne('/api/v1/rule-sets/1/activate');
         expect(Object.keys(request.request.body as object)).not.toContain('acceptLosing');
-        request.flush({ id: 1, contentHash: 'a1b2' });
+        request.flush(ACTIVATED);
         reload();
     });
 
@@ -281,7 +297,7 @@ describe('a rule-set change', () => {
         click('rule_sets.activate_btn');
         const again = http.expectOne('/api/v1/rule-sets/1/activate');
         expect(again.request.body).toMatchObject({ acceptLosing: 5 });
-        again.flush({ id: 1, contentHash: 'a1b2' });
+        again.flush(ACTIVATED);
         reload();
         fixture.detectChanges();
         expect(text()).not.toContain('Backlog changed');
@@ -317,7 +333,7 @@ describe('a rule-set change', () => {
         click('rule_sets.deactivate_confirm_btn');
         const second = http.expectOne('/api/v1/rule-sets/deactivate');
         expect(second.request.body).toEqual({ acceptLosing: 6 });
-        second.flush({ active: null });
+        second.flush(DEACTIVATED);
         reload();
     });
 
@@ -329,7 +345,7 @@ describe('a rule-set change', () => {
         click('rule_sets.deactivate_confirm_btn');
         const request = http.expectOne('/api/v1/rule-sets/deactivate');
         expect(request.request.body).toEqual({});
-        request.flush({ active: null });
+        request.flush(DEACTIVATED);
         reload();
     });
 });

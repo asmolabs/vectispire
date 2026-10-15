@@ -133,7 +133,8 @@ describe('the SSH keys screen', () => {
             private_key: '-----BEGIN OPENSSH PRIVATE KEY-----\n…\n-----END OPENSSH PRIVATE KEY-----',
             public_key: undefined
         });
-        request.flush({ id: KEY.id });
+        // The key as created: listed whole, and used by nothing yet.
+        request.flush(asSchema('SshKeySummary', { ...KEY, usedByRepositories: 0 }));
         fixture.detectChanges();
         list();
 

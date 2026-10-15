@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Repositories } from './repositories';
-import type { NewRepository } from '@/app/core/api.models';
+import type { MonitoredRepository, NewRepository } from '@/app/core/api.models';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { version as RELEASE } from '../../../../package.json';
@@ -55,9 +55,11 @@ describe('the repository list', () => {
         fixture.detectChanges();
     });
 
-    function load(repository: Record<string, unknown> = REPOSITORY): void {
+    function load(repository: MonitoredRepository = REPOSITORY): void {
         for (const request of http.match(() => true)) {
-            request.flush(request.request.url.endsWith('/repositories') ? [repository] : []);
+            request.flush(
+                request.request.url.endsWith('/repositories') ? asSchemaList('RepositorySummary', [repository]) : []
+            );
         }
         fixture.detectChanges();
     }
@@ -478,12 +480,12 @@ describe('the repository list', () => {
             }
         ]);
 
-        function loadAll(repository: Record<string, unknown> = REPOSITORY): void {
+        function loadAll(repository: MonitoredRepository = REPOSITORY): void {
             for (const request of http.match(() => true)) {
                 const url = request.request.url;
                 request.flush(
                     url.endsWith('/repositories')
-                        ? [repository]
+                        ? asSchemaList('RepositorySummary', [repository])
                         : url.endsWith('/git-tokens')
                           ? TOKENS
                           : url.endsWith('/ssh-keys')

@@ -4,8 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Containers } from './containers';
-import type { NewContainer } from '@/app/core/api.models';
-import { asSchema } from '@/app/core/testing/contract';
+import type { MonitoredContainer, NewContainer } from '@/app/core/api.models';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 
 /**
@@ -44,9 +44,11 @@ describe('the container list', () => {
         fixture.detectChanges();
     });
 
-    function load(container: Record<string, unknown> = CONTAINER): void {
+    function load(container: MonitoredContainer = CONTAINER): void {
         for (const request of http.match(() => true)) {
-            request.flush(request.request.url.endsWith('/containers') ? [container] : []);
+            request.flush(
+                request.request.url.endsWith('/containers') ? asSchemaList('ContainerSummary', [container]) : []
+            );
         }
         fixture.detectChanges();
     }

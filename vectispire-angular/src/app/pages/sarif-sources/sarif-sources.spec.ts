@@ -7,6 +7,8 @@ import { SessionStore } from '@/app/core/session.store';
 import { asSchema, newerServerWord } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { SOURCE } from '@/app/core/testing/plugins.fixtures';
+import { EMPTY_TREE, NO_OPEN_ISSUES } from '@/app/core/testing/scopes.fixtures';
+import { repositorySummary } from '@/app/core/testing/targets.fixtures';
 import { SarifSources, toolsOf } from './sarif-sources';
 
 /**
@@ -56,11 +58,42 @@ describe('the declared sources', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         http.expectOne('/api/v1/sarif-sources').flush([SOURCE]);
-        http.expectOne('/api/v1/solutions').flush({
-            solutions: [{ id: 1, name: 'Payments', projects: [{ id: 12, name: 'Gateway' }] }],
-            unfiled: null
-        });
-        http.expectOne('/api/v1/repositories').flush([{ id: 42, displayName: 'api-gateway' }]);
+        http.expectOne('/api/v1/solutions').flush(
+            asSchema('SolutionTree', {
+                solutions: [
+                    {
+                        id: 1,
+                        name: 'Payments',
+                        description: null,
+                        createdAt: '2026-09-01T00:00:00Z',
+                        partial: false,
+                        repositoryCount: 0,
+                        containerCount: 0,
+                        openIssues: NO_OPEN_ISSUES,
+                        projects: [
+                            {
+                                id: 12,
+                                solutionId: 1,
+                                name: 'Gateway',
+                                description: null,
+                                createdAt: '2026-09-01T00:00:00Z',
+                                partial: false,
+                                checklistsVisible: true,
+                                detectedLanguages: [],
+                                languagesUnknownFor: [],
+                                repositoryCount: 0,
+                                containerCount: 0,
+                                openIssues: NO_OPEN_ISSUES,
+                                repositories: [],
+                                containers: []
+                            }
+                        ]
+                    }
+                ],
+                unfiled: EMPTY_TREE.unfiled
+            })
+        );
+        http.expectOne('/api/v1/repositories').flush([repositorySummary(42, { displayName: 'api-gateway' })]);
         if (role === 'SUPERUSER' || role === 'ADMIN') {
             http.expectOne('/api/v1/api-keys').flush([
                 KEY(SOURCE.apiKeyId, 'payments-ci-key', ['read', 'sarif_import']),
@@ -288,7 +321,7 @@ describe('the declared sources', () => {
         fixture.componentInstance.setEnabled(SOURCE, false);
         const toggle = http.expectOne({ method: 'PUT', url: '/api/v1/sarif-sources/3/enabled' });
         expect(toggle.request.body).toEqual({ enabled: false });
-        toggle.flush({ ...SOURCE, enabled: false });
+        toggle.flush(asSchema('SarifSourceView', { ...SOURCE, enabled: false }));
 
         fixture.componentInstance.askRemove(SOURCE);
         fixture.detectChanges();
