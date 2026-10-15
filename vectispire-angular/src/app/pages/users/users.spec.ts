@@ -89,7 +89,14 @@ describe('the accounts screen', () => {
 
     /** Restricted mode, which is a fresh installation's default. */
     const SETTINGS = asSchema('Catalog', {
-        settings: [settingDefinition('target_visibility', { value: 'assigned', configured: true })]
+        settings: [
+            settingDefinition('target_visibility', {
+                section: 'Access',
+                value: 'assigned',
+                configured: true,
+                governor_only: true
+            })
+        ]
     });
 
     beforeEach(async () => {
@@ -312,7 +319,14 @@ describe('the accounts screen', () => {
             .expectOne((call) => call.url === '/api/v1/settings')
             .flush(
                 asSchema('Catalog', {
-                    settings: [settingDefinition('target_visibility', { value: 'everyone', configured: true })]
+                    settings: [
+                        settingDefinition('target_visibility', {
+                            section: 'Access',
+                            value: 'everyone',
+                            configured: true,
+                            governor_only: true
+                        })
+                    ]
                 })
             );
 
