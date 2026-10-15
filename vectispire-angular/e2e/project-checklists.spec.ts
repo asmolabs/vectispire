@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
+import type { components } from '../src/app/core/api.generated';
 import { resetLoginThrottle } from './support/fixture';
 import {
     BOOTSTRAP_PASSWORD,
@@ -34,8 +35,8 @@ test.describe('Project checklists', () => {
         for (const password of passwords) {
             const response = await page.request.post('/api/v1/auth/login', { data: { username, password } });
             if (response.ok()) {
-                const token = (await response.json())['token'];
-                if (token) return token as string;
+                const { token } = (await response.json()) as components['schemas']['LoginResponse'];
+                if (token) return token;
             }
         }
         throw new Error(`no token for ${username}`);

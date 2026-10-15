@@ -10,7 +10,7 @@
         "watch": "ng build --watch --configuration development",
         "format": "prettier --write \"src/**/*.{ts,html,scss,css}\" --cache",
         "format:check": "prettier --check \"src/**/*.{ts,html,scss,css}\"",
-        "lint": "eslint src",
+        "lint": "eslint src e2e playwright.config.ts && tsc -p tsconfig.e2e.json",
         "test": "node scripts/check-assets.mjs && node scripts/check-i18n-keys.mjs && node scripts/check-dead-api-methods.mjs && node scripts/check-icon-buttons.mjs && node scripts/check-test-floor.mjs",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",

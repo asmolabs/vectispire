@@ -48,12 +48,26 @@ module.exports = tseslint.config(
         // and switching these three on there reported 241 findings of which none was a defect: the
         // assertion that follows is the check. Everything else in the typed set still applies.
         files: ['**/*.spec.ts'],
+        // Not the Playwright specs. Their `any` is a body crossing the wire — a response's `json()`, a
+        // route's `postDataJSON()` — and the suite already types nearly every one, from
+        // `api.generated.ts` where the contract names it: the full set found three that did not.
+        ignores: ['e2e/**'],
         rules: {
             '@typescript-eslint/no-unsafe-member-access': 'off',
             '@typescript-eslint/no-unsafe-call': 'off',
             '@typescript-eslint/no-unsafe-assignment': 'off',
             // `expect(router.navigate).toHaveBeenCalled…` hands a spy to an assertion, never calls it.
             '@typescript-eslint/unbound-method': 'off'
+        }
+    },
+    {
+        // **The Playwright suite, linted since 2026-10-15.** `npm run lint` used to say `eslint src`,
+        // so these files were never read; and the nearest tsconfig, the root one, gives no Node types
+        // under TypeScript 6, so `process`, `Buffer` and the whole `mysql2` connection were `any` —
+        // the unsafe rules could only have reported noise. `tsconfig.e2e.json` types them.
+        files: ['e2e/**/*.ts', 'playwright.config.ts'],
+        languageOptions: {
+            parserOptions: { projectService: false, project: './tsconfig.e2e.json', tsconfigRootDir: __dirname }
         }
     },
     {

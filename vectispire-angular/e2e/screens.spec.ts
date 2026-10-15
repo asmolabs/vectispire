@@ -1290,7 +1290,7 @@ test.describe('documentation screenshots', () => {
             // the very top, the card's title scrolled underneath it.
             await settle(page);
             await page.getByTestId('portfolio-distribution').evaluate((node) => {
-                const card = node.closest('p-card') as HTMLElement | null;
+                const card = node.closest<HTMLElement>('p-card');
                 if (!card) return;
                 card.style.scrollMarginTop = '5rem';
                 card.scrollIntoView({ block: 'start', behavior: 'instant' });
@@ -2591,7 +2591,7 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByTestId('gitleaks-duplicates')).toContainText('38', { timeout: 15_000 });
             await settle(page);
             await page.getByTestId('gitleaks-duplicates').evaluate((node) => {
-                const card = node.closest('p-card') as HTMLElement | null;
+                const card = node.closest<HTMLElement>('p-card');
                 if (!card) return;
                 card.style.scrollMarginTop = '5rem';
                 card.scrollIntoView({ block: 'start', behavior: 'instant' });

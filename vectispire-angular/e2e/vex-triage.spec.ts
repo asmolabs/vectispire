@@ -89,7 +89,7 @@ test.describe('VEX Triage & Backlog Management E2E', () => {
 
         let submitted: Record<string, unknown> | null = null;
         await page.route('**/api/v1/issues/4242/triage', async (route) => {
-            submitted = route.request().postDataJSON();
+            submitted = route.request().postDataJSON() as Record<string, unknown>;
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',

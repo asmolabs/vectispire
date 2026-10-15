@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import type { components } from '../../src/app/core/api.generated';
 
 /**
  * Signing in, including the password change the bootstrap account demands.
@@ -241,7 +242,7 @@ async function tokenFor(page: Page, username: string, ...passwords: string[]): P
     for (const password of passwords) {
         const response = await page.request.post('/api/v1/auth/login', { data: { username, password } });
         if (response.ok()) {
-            const token = (await response.json())['token'];
+            const { token } = (await response.json()) as components['schemas']['LoginResponse'];
             if (token) return token;
         }
         refusals.push(response.status());
