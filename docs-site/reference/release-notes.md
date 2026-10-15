@@ -87,7 +87,8 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   /api/v1/issues/{id}/triage`, `POST /api/v1/issues/triage`, `PUT /api/v1/issues/{id}/ticket`), the
   backlog's rows (`GET /api/v1/issues`, with `slaDueAt`, `slaState` and `slaDays`) and the detail (`GET
   /api/v1/issues/{id}`, with a sighting's `version`) — a triage decision's optional fields and an issue's
-  in the triage history (`GET /api/v1/history/repositories/{id}`), and a plugin activation's
+  in the triage history (`GET /api/v1/history/repositories/{id}`), the EPSS ranking's `cvssScore`,
+  `epssScore` and `epssPercentile` (`GET /api/v1/epss/priorities`), and a plugin activation's
   `projectName`, `solutionId`, `solutionName` and a report plugin's `pluginName`. Each is typed with
   `"null"` beside its type and a description of when, where the document said `string`, `integer`,
   `number` or `boolean`; the server already sent these nulls, and no response changed. A client generated
@@ -176,6 +177,8 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 - **An OWASP report counts the issues behind a cited identifier as the list its link opens lists them**,
   case aside: an identifier two scanners wrote in two cases counted one, and its link led to that issue
   alone while the list showed both.
+- **The EPSS ranking names a repository registered without a name by its address** (`corp/ledger`), as
+  every other screen does: its rows showed an empty target.
 - **A high-impact fix no version fixes says "no fixed version published" on the dashboard**, as the
   remediation plan already did, instead of an arrow pointing at nothing. The OpenAPI document now
   declares `HighImpactFix.recommendedVersion` as `string` or `null`, which is what the server has sent

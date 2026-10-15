@@ -14,6 +14,7 @@ import com.asmolabs.vectispire.core.plugins.persistence.PluginActivationEntity;
 import com.asmolabs.vectispire.core.reportplugins.ReportPluginActivationView;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginActivationEntity;
 import com.asmolabs.vectispire.core.services.EntityViewsTest;
+import com.asmolabs.vectispire.core.threatintel.web.EpssFleetSummaryView;
 import com.asmolabs.vectispire.core.tickets.IssueTicketView;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
@@ -120,7 +121,21 @@ class ResponseNullabilityTest extends ApiTestBase {
                     "branch", false,
                     "version", true,
                     "scannedAt", false,
-                    "severity", false)));
+                    "severity", false)),
+            // A row of the EPSS ranking: only the scores nobody measured are null
+            // (EpssPrioritizationService, "unknown stays unknown").
+            new Audited(EpssFleetSummaryView.EpssPrioritizedIssueView.class, null, Map.of(), Map.ofEntries(
+                    Map.entry("issueId", false),
+                    Map.entry("identifier", false),
+                    Map.entry("title", false),
+                    Map.entry("severity", false),
+                    Map.entry("cvssScore", true),
+                    Map.entry("epssScore", true),
+                    Map.entry("epssPercentile", true),
+                    Map.entry("targetName", false),
+                    Map.entry("targetKind", false),
+                    Map.entry("priorityTier", false),
+                    Map.entry("recommendedAction", false))));
 
     /**
      * The entity views whose nullability nobody has audited yet. **This list only shrinks**: a view

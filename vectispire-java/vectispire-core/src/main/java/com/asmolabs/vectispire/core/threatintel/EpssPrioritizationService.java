@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -138,10 +139,13 @@ public class EpssPrioritizationService {
 
             tierBreakdown.put(tier, tierBreakdown.getOrDefault(tier, 0) + 1);
 
+            // **By the one naming rule** (`TargetNaming`), not by the repository's own `name`: that
+            // column is optional, and a repository registered by its URL alone was ranked under a
+            // null name — a blank cell on the screen, where every other screen shows the URL's path.
             String targetName = issue.repoId() != null && reposMap.containsKey(issue.repoId())
-                    ? reposMap.get(issue.repoId()).name()
+                    ? TargetNaming.of(reposMap.get(issue.repoId()))
                     : (issue.containerId() != null && containersMap.containsKey(issue.containerId())
-                            ? containersMap.get(issue.containerId()).imageName() + ":" + containersMap.get(issue.containerId()).tag()
+                            ? TargetNaming.of(containersMap.get(issue.containerId()))
                             : "target-" + (issue.repoId() != null ? issue.repoId() : issue.containerId()));
 
             String targetKind = issue.repoId() != null ? "REPOSITORY" : "CONTAINER";

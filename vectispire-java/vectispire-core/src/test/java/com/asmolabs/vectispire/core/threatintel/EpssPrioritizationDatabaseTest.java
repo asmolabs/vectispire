@@ -153,6 +153,20 @@ class EpssPrioritizationDatabaseTest extends VectispireContextTest {
                         org.assertj.core.groups.Tuple.tuple("registry.example.invalid/shop:1.4.2", "CONTAINER"));
     }
 
+    @Test
+    @DisplayName("a repository registered without a name is ranked under its address's, never under null")
+    void anUnnamedRepositoryIsNamedByItsAddress() {
+        RepositoryEntity unnamed = new RepositoryEntity();
+        unnamed.setUrl("https://example.invalid/corp/ledger.git");
+        unnamed.setBranch("main");
+        unnamed = repositories.save(unnamed);
+        issue(unnamed.getId(), null, "CVE-2026-6001", 9.0, 0.5, "open");
+
+        assertThat(epss.getFleetSummary(Visibility.everything()).topPriorities())
+                .extracting(EpssPrioritizedIssue::targetName)
+                .containsExactly("corp/ledger");
+    }
+
     private IssueEntity issue(Long repoId, Long containerId, String cve, Double cvss, Double epssScore, String state) {
         IssueEntity issue = new IssueEntity();
         issue.setRepoId(repoId);
