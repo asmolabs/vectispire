@@ -6,7 +6,7 @@ Vectispire's user interface: the screens over the HTTP API that
 ```bash
 npm start                 # from the root, serves on http://localhost:4280
 npm run build
-npm run lint              # ESLint, type-aware: TypeScript, Angular and template accessibility rules
+npm run lint              # ESLint, type-aware, over src/ and the Playwright suite; then tsc over the suite
 npm run format            # Prettier at 120 columns; CI runs `format:check` and fails on unformatted code
 npm test                  # asset, i18n and dead-API checks, then the Vitest suite and its test floor
 ```
@@ -152,6 +152,26 @@ It exists because a run once reported 113 files green and 1287 tests where 1339 
 reproduced. The floor is counted from the source rather than kept in a committed baseline, so
 adding a test moves nothing else. Given any argument (`npm test -- --include=…`), the run may be
 partial and the floor is not checked; the script says so.
+
+## What the lint covers
+
+`npm run lint` reads `src/`, `e2e/` and `playwright.config.ts` — the maintained recommended sets,
+type-aware (`eslint.config.js` gives each exception its reason) — and then type-checks the
+Playwright suite with `tsc -p tsconfig.e2e.json`. CI's `frontend` job runs it; `format:check`
+covers the same files.
+
+**The browser suite was outside both until 2026-10-15**, and nothing else compiles it: Playwright
+strips the types and runs. Linted through the root tsconfig, it gave 105 findings that were nearly
+all noise — TypeScript 6 includes no `@types` unless a config names them, so `process`, `Buffer`
+and `node:*` were unresolved and `mysql2`'s connection, whose declarations build on Node's, had no
+`execute`. `tsconfig.e2e.json` names `node` (`@types/node` is `mysql2`'s required peer, so it is
+installed with it), and the e2e block of `eslint.config.js` lints against that file. Nine findings
+remained, each fixed in the code — two logins now read `LoginResponse` from `api.generated.ts`. The unit
+specs' exemption from the `no-unsafe-*` rules does not reach `e2e/`: there, `any` is a body that
+crossed the wire, and the suite already typed nearly every one.
+
+`eslint-plugin-playwright` is not installed: `forbidOnly` already fails a stray `test.only` in CI,
+and its other rules did not seem worth a dependency (and the `npm audit` that comes with one).
 
 ## Critical CSS inlining is off, and that is a security setting
 
