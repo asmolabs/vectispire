@@ -1,4 +1,5 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
+import { aiAdvisorStatus } from '@/app/core/testing/intel.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -15,6 +16,7 @@ import { backlogEntry } from '@/app/core/testing/issues.fixtures';
 import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
 import { openLink, openedLink, reopenedLink, resolvedLink } from '@/app/shared/owasp-weekly';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
+import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
 
 /**
  * The backlog.
@@ -54,20 +56,18 @@ describe('the issue backlog', () => {
 
         // And the model's availability, which decides whether the explain button exists. A model is
         // configured by default in these runs: its absence has a case of its own.
-        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush({
-            enabled: true,
-            selectedModel: 'llama3',
-            availableModels: ['llama3']
-        });
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush(aiAdvisorStatus(true));
     }, 20_000);
 
     function firstPage(total: number): void {
-        http.expectOne((call) => call.url === '/api/v1/issues').flush({
-            items: [issue(1, 'CVE-2026-1234')],
-            total,
-            limit: 50,
-            offset: 0
-        });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', {
+                items: [issue(1, 'CVE-2026-1234')],
+                total,
+                limit: 50,
+                offset: 0
+            })
+        );
         fixture.detectChanges();
     }
 
@@ -88,28 +88,30 @@ describe('the issue backlog', () => {
         expect(values).toContain('plugin');
         expect(values).toContain('imported');
 
-        http.expectOne((call) => call.url === '/api/v1/issues').flush({
-            items: [
-                {
-                    ...issue(1, 'acme.no-internal-http'),
-                    type: 'plugin',
-                    tool: 'plugin:acme-lint',
-                    toolName: 'acme-lint',
-                    toolVersion: '1.4.0'
-                },
-                {
-                    ...issue(2, 'java:S2076'),
-                    type: 'imported',
-                    tool: 'import:payments-ci/sonarqube',
-                    toolName: 'SonarQube',
-                    toolVersion: '10.6',
-                    importSource: 'payments-ci'
-                }
-            ].map((row) => asSchema('BacklogEntry', row)),
-            total: 2,
-            limit: 50,
-            offset: 0
-        });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', {
+                items: [
+                    {
+                        ...issue(1, 'acme.no-internal-http'),
+                        type: 'plugin',
+                        tool: 'plugin:acme-lint',
+                        toolName: 'acme-lint',
+                        toolVersion: '1.4.0'
+                    },
+                    {
+                        ...issue(2, 'java:S2076'),
+                        type: 'imported',
+                        tool: 'import:payments-ci/sonarqube',
+                        toolName: 'SonarQube',
+                        toolVersion: '10.6',
+                        importSource: 'payments-ci'
+                    }
+                ].map((row) => asSchema('BacklogEntry', row)),
+                total: 2,
+                limit: 50,
+                offset: 0
+            })
+        );
         fixture.detectChanges();
 
         const rows = Array.from(
@@ -152,7 +154,7 @@ describe('the issue backlog', () => {
         fixture.componentInstance.reload(0);
         const request = http.expectOne((call) => call.url === '/api/v1/issues');
         expect(request.request.params.get('type')).toBe('imported');
-        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
     });
 
     it('asks the server for the next window rather than slicing what it holds', () => {
@@ -161,7 +163,7 @@ describe('the issue backlog', () => {
         fixture.componentInstance.reload(50);
         const next = http.expectOne((call) => call.url === '/api/v1/issues');
         expect(next.request.urlWithParams).toContain('offset=50');
-        next.flush({ items: [issue(2, 'CVE-2026-9999')], total: 228, limit: 50, offset: 50 });
+        next.flush(asSchema('IssuePage', { items: [issue(2, 'CVE-2026-9999')], total: 228, limit: 50, offset: 50 }));
         fixture.detectChanges();
 
         expect(fixture.componentInstance.pageLabel()).toBe('51–100 of 228');
@@ -176,7 +178,9 @@ describe('the issue backlog', () => {
     });
 
     it('says "no result" rather than showing an empty frame', () => {
-        http.expectOne((call) => call.url === '/api/v1/issues').flush({ items: [], total: 0, limit: 50, offset: 0 });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+        );
         fixture.detectChanges();
 
         expect(fixture.componentInstance.pageLabel()).toBe('No result');
@@ -258,12 +262,10 @@ describe('the issue backlog', () => {
         offline.detectChanges();
         calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
         calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
-        calls
-            .expectOne((call) => call.url === '/api/v1/ai-advisor/status')
-            .flush({ enabled: false, selectedModel: null, availableModels: [] });
+        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush(aiAdvisorStatus(false));
         calls
             .expectOne((call) => call.url === '/api/v1/issues')
-            .flush({ items: [issue(1, 'CVE-2026-1234')], total: 1, limit: 50, offset: 0 });
+            .flush(asSchema('IssuePage', { items: [issue(1, 'CVE-2026-1234')], total: 1, limit: 50, offset: 0 }));
         offline.detectChanges();
 
         expect(offline.componentInstance.aiEnabled()).toBe(false);
@@ -285,7 +287,9 @@ describe('the issue backlog', () => {
         calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
         calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
         calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status').error(new ProgressEvent('failed'));
-        calls.expectOne((call) => call.url === '/api/v1/issues').flush({ items: [], total: 0, limit: 50, offset: 0 });
+        calls
+            .expectOne((call) => call.url === '/api/v1/issues')
+            .flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
         broken.detectChanges();
 
         expect(broken.componentInstance.aiEnabled()).toBe(false);
@@ -342,7 +346,7 @@ describe('triaging a selection', () => {
         for (const request of http.match(() => true)) {
             request.flush(
                 request.request.url.endsWith('/issues')
-                    ? { items: [row(11), row(22), row(33)], total: 3, limit: 50, offset: 0 }
+                    ? asSchema('IssuePage', { items: [row(11), row(22), row(33)], total: 3, limit: 50, offset: 0 })
                     : []
             );
         }
@@ -393,7 +397,9 @@ describe('triaging a selection', () => {
 
         // A selection outliving its rows is a decision about issues nobody is looking at any more.
         expect(component.selected()).toEqual([]);
-        http.expectOne((call) => call.url === '/api/v1/issues').flush({ items: [], total: 0, limit: 50, offset: 0 });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+        );
     });
 
     it('drops the selection when the filters change under it', () => {
@@ -403,7 +409,9 @@ describe('triaging a selection', () => {
         component.reload(0);
 
         expect(component.selected()).toEqual([]);
-        http.expectOne((call) => call.url === '/api/v1/issues').flush({ items: [], total: 0, limit: 50, offset: 0 });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(
+            asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+        );
     });
 
     it('says the whole batch was refused when one issue is not visible', () => {
@@ -535,7 +543,11 @@ describe('the backlog opened from a dashboard link', () => {
         const http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         for (const request of http.match(() => true)) {
-            request.flush(request.request.url.endsWith('/issues') ? { items: [], total: 0, limit: 50, offset: 0 } : []);
+            request.flush(
+                request.request.url.endsWith('/issues')
+                    ? asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
+                    : []
+            );
         }
         fixture.detectChanges();
         // `ngModel` writes the initial value into the control on a microtask, so a switch asserted
@@ -639,7 +651,7 @@ describe('the backlog narrowed to a project or a solution', () => {
         }
     });
 
-    const EMPTY_PAGE = { items: [], total: 0, limit: 50, offset: 0 };
+    const EMPTY_PAGE = asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 });
     const page = () => harness.routeNativeElement as HTMLElement;
     const button = (name: string) =>
         [...page().querySelectorAll('button')].find((candidate) => candidate.getAttribute('aria-label') === name);
@@ -654,7 +666,7 @@ describe('the backlog narrowed to a project or a solution', () => {
                 issues = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
                 request.flush(EMPTY_PAGE);
             } else if (path === '/api/v1/solutions') request.flush(TREE);
-            else if (path === '/api/v1/ai-advisor/status') request.flush({ enabled: false });
+            else if (path === '/api/v1/ai-advisor/status') request.flush(aiAdvisorStatus(false));
             else request.flush([]);
         }
         await harness.fixture.whenStable();
@@ -855,15 +867,16 @@ describe('the backlog opened from a weekly OWASP figure', () => {
             const path = request.request.url;
             if (path === '/api/v1/issues') {
                 issues = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
-                request.flush({
-                    items: Array.from({ length: total }, (_, index) => issueRow(index + 1)),
-                    total,
-                    limit: 50,
-                    offset: 0
-                });
-            } else if (path === '/api/v1/ai-advisor/status') request.flush({ enabled: false });
-            else if (path === '/api/v1/solutions')
-                request.flush({ solutions: [], unfiled: { repositoryCount: 0, containerCount: 0, repositories: [] } });
+                request.flush(
+                    asSchema('IssuePage', {
+                        items: Array.from({ length: total }, (_, index) => issueRow(index + 1)),
+                        total,
+                        limit: 50,
+                        offset: 0
+                    })
+                );
+            } else if (path === '/api/v1/ai-advisor/status') request.flush(aiAdvisorStatus(false));
+            else if (path === '/api/v1/solutions') request.flush(EMPTY_TREE);
             else request.flush([]);
         }
         await harness.fixture.whenStable();
@@ -935,7 +948,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         await harness.fixture.whenStable();
         const request = http.expectOne((call) => call.url === '/api/v1/issues');
         const params = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
-        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
         expect(params.get('open_at')).toBe('2026-09-27');
         expect(params.get('owasp_category')).toBe('A06');
         expect(params.get('severity')).toBe('critical');
@@ -953,7 +966,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         await harness.fixture.whenStable();
         const request = http.expectOne((call) => call.url === '/api/v1/issues');
         const params = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
-        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
         await harness.fixture.whenStable();
         harness.detectChanges();
 
@@ -1032,7 +1045,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         await harness.fixture.whenStable();
         const request = http.expectOne((call) => call.url === '/api/v1/issues');
         const cleared = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
-        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+        request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
         for (const key of ['reopened_from', 'reopened_to', 'owasp_category']) expect(cleared.has(key)).toBe(false);
     });
 
@@ -1073,7 +1086,9 @@ describe('accepting a risk', () => {
         fixture.detectChanges();
         for (const request of http.match(() => true)) {
             request.flush(
-                request.request.url.endsWith('/issues') ? { items: [ROW], total: 1, limit: 50, offset: 0 } : []
+                request.request.url.endsWith('/issues')
+                    ? asSchema('IssuePage', { items: [ROW], total: 1, limit: 50, offset: 0 })
+                    : []
             );
         }
         fixture.detectChanges();
@@ -1208,7 +1223,9 @@ describe('answering a request awaiting approval', () => {
         fixture.detectChanges();
         for (const request of http.match(() => true)) {
             request.flush(
-                request.request.url.endsWith('/issues') ? { items: ROWS, total: ROWS.length, limit: 50, offset: 0 } : []
+                request.request.url.endsWith('/issues')
+                    ? asSchema('IssuePage', { items: ROWS, total: ROWS.length, limit: 50, offset: 0 })
+                    : []
             );
         }
         fixture.detectChanges();
@@ -1285,16 +1302,18 @@ describe('applying the advisor suggestion', () => {
     function advise(status: string): void {
         const component = fixture.componentInstance;
         component.openAiAdvisor(component.issues()[0]);
-        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/11').flush({
-            identifier: 'CVE-2026-11',
-            title: '',
-            summaryExplanation: 'Remote code execution.',
-            exploitMechanics: '',
-            exposureAssessment: '',
-            remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
-            vexSuggestion: { status, justification: '', impactStatement: 'Reachable.', actionStatement: '' },
-            references: []
-        });
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/11').flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2026-11',
+                title: '',
+                summaryExplanation: 'Remote code execution.',
+                exploitMechanics: '',
+                exposureAssessment: '',
+                remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status, justification: '', impactStatement: 'Reachable.', actionStatement: '' },
+                references: []
+            })
+        );
         component.applySuggestedVex();
     }
 
@@ -1311,10 +1330,12 @@ describe('applying the advisor suggestion', () => {
         fixture.detectChanges();
         for (const request of http.match(() => true)) {
             if (request.request.url.endsWith('/ai-advisor/status')) {
-                request.flush({ enabled: true, selectedModel: 'llama3', availableModels: ['llama3'] });
+                request.flush(aiAdvisorStatus(true));
             } else {
                 request.flush(
-                    request.request.url.endsWith('/issues') ? { items: [ROW], total: 1, limit: 50, offset: 0 } : []
+                    request.request.url.endsWith('/issues')
+                        ? asSchema('IssuePage', { items: [ROW], total: 1, limit: 50, offset: 0 })
+                        : []
                 );
             }
         }
