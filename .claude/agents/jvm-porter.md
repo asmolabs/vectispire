@@ -196,6 +196,13 @@ writer's open transaction can be a deadlock victim or a lock-wait timeout: the a
 again on a lock refusal, and the test forces the writer to hold its transaction open (latches, as
 ever).
 
+**What a scanned repository sizes is bounded, and past the bound it fails, never cuts.** The API
+discovery kept every endpoint and contract path a tree declared, and the synthesized export numbered a
+shared operation name by walking `base_2` … `base_n` from the start for each handler — quadratic in what
+the repository chose. A per-base counter keeps the names and makes it linear; `ApiEndpoint.MAX_PER_REPOSITORY`
+fails the step past 50,000 (a cut list would retire the rest, decision 0007). A loop whose count the
+analysed data decides is read with its worst input in mind.
+
 **An `in (:list)` whose list the data sizes is a query that fails one day.** One bind parameter per
 element, and the PostgreSQL driver refuses a statement past 65,535 (a MySQL server-side prepared
 statement too, though a client-side one accepts it). A test past the limit proves the batching on
