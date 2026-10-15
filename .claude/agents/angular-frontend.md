@@ -134,6 +134,10 @@ e2e selectors (`id`s, test ids) the Playwright specs use; grep `e2e/` before mov
 
 ## Testing
 
+`npm run lint` reads `src`, `e2e` and `playwright.config.ts`, and type-checks the Playwright suite
+(`tsconfig.e2e.json`): the lint script once named `src` only, Playwright strips types and runs, and
+nothing had ever checked that suite — a new directory of TypeScript joins the lint in the same commit.
+
 `npm test` runs the asset check, the i18n check, the dead-method check and Vitest, then the test
 floor: a spec that runs fewer tests than it declares, or is left out of the run, fails `npm test` —
 so a test is removed by deleting it, never by `describe.skip`. A behaviour that
