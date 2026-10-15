@@ -4,7 +4,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
-import type { SettingDefinition } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import { SettingsCatalog } from './settings-catalog';
 import { SettingsState } from './settings-state';
@@ -67,7 +66,7 @@ describe('the tracker CA field', () => {
         fixture.detectChanges();
 
         const state = TestBed.inject(SettingsState);
-        state.catalog.set(CATALOGUE.settings as SettingDefinition[]);
+        state.catalog.set(CATALOGUE.settings);
         state.values.set(Object.fromEntries(CATALOGUE.settings.map((s) => [s.key, s.value ?? ''])));
         fixture.detectChanges();
         await fixture.whenStable();

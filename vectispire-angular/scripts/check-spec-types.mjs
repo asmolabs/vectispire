@@ -23,6 +23,12 @@
  *       why (`-- reason`), and the ones that exist are written in {@link ALLOWED} — file and rule —
  *       so a new one is a decision in the commit that makes it, and one removed asks for its line to
  *       go. A plain count would let a swap through: one fixed, another added, the number unchanged.
+ *   <li><b>That a flushed literal is still refused.</b> `flush` takes `any`, so the server's answer
+ *       written inline was checked by nothing; 175 such literals were wrapped in `asSchema` on
+ *       2026-10-15 and fifty-six of them described an answer the server cannot send. The refusal is
+ *       a `no-restricted-syntax` selector, and an override that redeclares that rule for specs replaces
+ *       its options whole — the rule stays an error and the selectors are gone. So the script asks for
+ *       the selectors themselves ({@link FLUSH_SELECTORS}), not only for the rule's level.
  *   <li><b>That every model is in `schema-models.ts`.</b> `asSchema` holds a fixture to the model the
  *       client reads its schema as, through that map; a model missing from it would leave its
  *       fixtures to the run-time check, which cannot see a field the server always sends as null.
@@ -48,6 +54,11 @@ const GUARDED = [
     '@typescript-eslint/no-unsafe-return',
     'no-restricted-syntax'
 ];
+
+/** The `no-restricted-syntax` selectors that refuse a flushed literal — one per shape it can take. */
+const FLUSH_SELECTORS = 4;
+const isFlushSelector = (option) =>
+    typeof option === 'object' && option !== null && String(option.selector).includes("callee.property.name='flush'");
 
 /**
  * The disable comments a spec may carry for a guarded rule, each with the reason it stays.
@@ -83,6 +94,13 @@ for (const file of specs) {
         if (level !== 2 && level !== 'error') {
             problems.push(`${relative(root, file)}: ${rule} is ${level ?? 'not configured'} here, not an error`);
         }
+    }
+    const restricted = config?.rules?.['no-restricted-syntax'];
+    const flushSelectors = Array.isArray(restricted) ? restricted.slice(1).filter(isFlushSelector).length : 0;
+    if (flushSelectors !== FLUSH_SELECTORS) {
+        problems.push(
+            `${relative(root, file)}: ${flushSelectors} of the ${FLUSH_SELECTORS} selectors refusing a flushed literal apply here`
+        );
     }
 }
 
@@ -135,5 +153,6 @@ if (problems.length > 0) {
 }
 console.log(
     `Spec type check: ${specs.length} spec files, ${GUARDED.length} rules on as errors in each, ` +
-        `${found.length} listed exception(s), ${declared.length} models held to their fixtures.`
+        `${FLUSH_SELECTORS} flushed-literal selectors in each, ${found.length} listed exception(s), ` +
+        `${declared.length} models held to their fixtures.`
 );
