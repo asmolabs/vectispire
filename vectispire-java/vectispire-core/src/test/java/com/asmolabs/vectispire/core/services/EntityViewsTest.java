@@ -31,9 +31,10 @@ import org.junit.jupiter.params.provider.MethodSource;
  * or deciding not to — is a change somebody makes on purpose.
  */
 @DisplayName("views returned by the API")
-class EntityViewsTest {
+public class EntityViewsTest {
 
-    static java.util.stream.Stream<Arguments> pairs() {
+    /** Read by {@code ResponseNullabilityTest} too, which audits what each view says may be null. */
+    public static java.util.stream.Stream<Arguments> pairs() {
         return java.util.stream.Stream.of(
                 Arguments.of(IssueEntity.class, IssueView.class, Set.of()),
                 Arguments.of(IssueTicketEntity.class, IssueTicketView.class, Set.of()),

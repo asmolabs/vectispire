@@ -797,25 +797,31 @@
       "BacklogEntry" : {
         "properties" : {
           "containerId" : {
+            "description" : "The container image the issue was found on; null on a repository's issue.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "cvssScore" : {
+            "description" : "Null when no advisory gave one.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "cvssVector" : {
-            "type" : "string"
+            "description" : "Null when no advisory gave one.",
+            "type" : [ "string", "null" ]
           },
           "description" : {
-            "type" : "string"
+            "description" : "Null when neither an advisory nor the scanner supplies a text.",
+            "type" : [ "string", "null" ]
           },
           "epssScore" : {
+            "description" : "Null until the threat-intelligence feed scores the CVE, and on findings that are not CVEs.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "filePath" : {
-            "type" : "string"
+            "description" : "Null on a finding about a package (vulnerability, licence, end of life), and when the report locates none.",
+            "type" : [ "string", "null" ]
           },
           "fingerprint" : {
             "type" : "string"
@@ -825,14 +831,17 @@
             "type" : "string"
           },
           "firstSeenScanId" : {
+            "description" : "Null on an issue an import created, and once that scan is deleted.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "fixState" : {
-            "type" : "string"
+            "description" : "Null when the scanner says nothing about a fix.",
+            "type" : [ "string", "null" ]
           },
           "fixVersions" : {
-            "type" : "string"
+            "description" : "Null when no fixed version is known.",
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "int64",
@@ -842,10 +851,12 @@
             "type" : "string"
           },
           "importSource" : {
-            "type" : "string"
+            "description" : "The declared SARIF source's slug; null unless an import reported the issue.",
+            "type" : [ "string", "null" ]
           },
           "isDirectDependency" : {
-            "type" : "boolean"
+            "description" : "Null when the scanner cannot tell a direct dependency from a transitive one, which a container image's scan never can, and on findings that are not about a package.",
+            "type" : [ "boolean", "null" ]
           },
           "isKev" : {
             "type" : "boolean"
@@ -855,27 +866,34 @@
             "type" : "string"
           },
           "lastSeenScanId" : {
+            "description" : "Null on an issue an import last reported, and once that scan is deleted.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "line" : {
+            "description" : "Null on a finding about a package, and when the report locates none.",
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "link" : {
-            "type" : "string"
+            "description" : "Null when the scanner gives no reference.",
+            "type" : [ "string", "null" ]
           },
           "owaspCategory" : {
-            "type" : "string"
+            "description" : "Null unless the rule that found the issue declares an OWASP Top 10 category.",
+            "type" : [ "string", "null" ]
           },
           "packageName" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package: a secret, a SAST, IaC, plugin or imported finding.",
+            "type" : [ "string", "null" ]
           },
           "packageVersion" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package.",
+            "type" : [ "string", "null" ]
           },
           "purl" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
+            "type" : [ "string", "null" ]
           },
           "reachability" : {
             "deprecated" : true,
@@ -885,33 +903,39 @@
           "reachableSymbols" : {
             "deprecated" : true,
             "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "repoId" : {
+            "description" : "The repository the issue was found on; null on a container image's issue.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "resolutionSeconds" : {
+            "description" : "Null while the issue is open.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "resolvedAt" : {
+            "description" : "Null while the issue is open.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "severity" : {
             "type" : "string"
           },
           "slaDays" : {
+            "description" : "Days until due, negative when late; null with no deadline.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "slaDueAt" : {
+            "description" : "When the remediation window closes; null when none applies.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "slaState" : {
-            "type" : "string"
+            "description" : "on_time, due_soon or overdue; null with no deadline.",
+            "type" : [ "string", "null" ]
           },
           "source" : {
             "type" : "string"
@@ -926,50 +950,61 @@
             "type" : "string"
           },
           "ticketAttachedBy" : {
-            "type" : "string"
+            "description" : "Who attached the ticket; null while none is, and when the ticketing integration opened it.",
+            "type" : [ "string", "null" ]
           },
           "ticketRef" : {
-            "type" : "string"
+            "description" : "Null while no ticket is attached.",
+            "type" : [ "string", "null" ]
           },
           "ticketUrl" : {
-            "type" : "string"
+            "description" : "Null while no ticket is attached, and when its reference was attached without a URL.",
+            "type" : [ "string", "null" ]
           },
           "timesSeen" : {
             "format" : "int32",
             "type" : "integer"
           },
           "tool" : {
-            "type" : "string"
+            "description" : "The key that scopes a plugin or imported issue's resolution (plugin:<id>, import:<source>/<tool>); null for what Vectispire's own scanners found.",
+            "type" : [ "string", "null" ]
           },
           "toolName" : {
-            "type" : "string"
+            "description" : "The report's driver name; null for what Vectispire's own scanners found.",
+            "type" : [ "string", "null" ]
           },
           "toolVersion" : {
-            "type" : "string"
+            "description" : "The report's driver version; null for what Vectispire's own scanners found, and when the driver states none.",
+            "type" : [ "string", "null" ]
           },
           "triageComment" : {
-            "type" : "string"
+            "description" : "Null unless the triage decision carries one.",
+            "type" : [ "string", "null" ]
           },
           "triageExpiresAt" : {
+            "description" : "Null unless the decision was given a date to be reviewed by.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triageJustification" : {
-            "type" : "string"
+            "description" : "Null unless the triage decision states one.",
+            "type" : [ "string", "null" ]
           },
           "triageRequestedStatus" : {
             "description" : "While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose.",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triageStatus" : {
             "type" : "string"
           },
           "triagedAt" : {
+            "description" : "Null while nobody has decided on the issue.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triagedBy" : {
-            "type" : "string"
+            "description" : "Null while nobody has decided on the issue.",
+            "type" : [ "string", "null" ]
           },
           "type" : {
             "type" : "string"
@@ -3165,20 +3200,24 @@
       "Decision" : {
         "properties" : {
           "actor" : {
-            "type" : "string"
+            "description" : "Null when nobody decided: an expiry or a reopening (see origin).",
+            "type" : [ "string", "null" ]
           },
           "comment" : {
-            "type" : "string"
+            "description" : "Null unless the decision carries one.",
+            "type" : [ "string", "null" ]
           },
           "expiresAt" : {
+            "description" : "Null unless the decision was given a date to be reviewed by.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "fromStatus" : {
             "type" : "string"
           },
           "justification" : {
-            "type" : "string"
+            "description" : "Null unless the decision states one; always null on an expiry or a reopening.",
+            "type" : [ "string", "null" ]
           },
           "occurredAt" : {
             "format" : "date-time",
@@ -3188,18 +3227,21 @@
             "type" : "string"
           },
           "previousResolvedAt" : {
+            "description" : "On a reopening only: when the resolution it ended began. Null on every other entry.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "scanId" : {
+            "description" : "Null when the target had no scan, on a reopening an import caused, and once that scan is deleted.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "toStatus" : {
             "type" : "string"
           },
           "version" : {
-            "type" : "string"
+            "description" : "The project version that scan read. Null when it read none, and always on an issue's detail, which does not resolve it.",
+            "type" : [ "string", "null" ]
           }
         },
         "type" : "object"
@@ -5342,15 +5384,18 @@
       "IssueDetail" : {
         "properties" : {
           "containerId" : {
+            "description" : "The container image the issue was found on; null on a repository's issue.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "cvssScore" : {
+            "description" : "Null when no advisory gave one.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "cvssVector" : {
-            "type" : "string"
+            "description" : "Null when no advisory gave one.",
+            "type" : [ "string", "null" ]
           },
           "decisions" : {
             "items" : {
@@ -5359,14 +5404,17 @@
             "type" : "array"
           },
           "description" : {
-            "type" : "string"
+            "description" : "Null when neither an advisory nor the scanner supplies a text.",
+            "type" : [ "string", "null" ]
           },
           "epssScore" : {
+            "description" : "Null until the threat-intelligence feed scores the CVE, and on findings that are not CVEs.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "filePath" : {
-            "type" : "string"
+            "description" : "Null on a finding about a package (vulnerability, licence, end of life), and when the report locates none.",
+            "type" : [ "string", "null" ]
           },
           "fingerprint" : {
             "type" : "string"
@@ -5376,14 +5424,17 @@
             "type" : "string"
           },
           "firstSeenScanId" : {
+            "description" : "Null on an issue an import created, and once that scan is deleted.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "fixState" : {
-            "type" : "string"
+            "description" : "Null when the scanner says nothing about a fix.",
+            "type" : [ "string", "null" ]
           },
           "fixVersions" : {
-            "type" : "string"
+            "description" : "Null when no fixed version is known.",
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "int64",
@@ -5393,10 +5444,12 @@
             "type" : "string"
           },
           "importSource" : {
-            "type" : "string"
+            "description" : "The declared SARIF source's slug; null unless an import reported the issue.",
+            "type" : [ "string", "null" ]
           },
           "isDirectDependency" : {
-            "type" : "boolean"
+            "description" : "Null when the scanner cannot tell a direct dependency from a transitive one, which a container image's scan never can, and on findings that are not about a package.",
+            "type" : [ "boolean", "null" ]
           },
           "isKev" : {
             "type" : "boolean"
@@ -5406,27 +5459,34 @@
             "type" : "string"
           },
           "lastSeenScanId" : {
+            "description" : "Null on an issue an import last reported, and once that scan is deleted.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "line" : {
+            "description" : "Null on a finding about a package, and when the report locates none.",
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "link" : {
-            "type" : "string"
+            "description" : "Null when the scanner gives no reference.",
+            "type" : [ "string", "null" ]
           },
           "owaspCategory" : {
-            "type" : "string"
+            "description" : "Null unless the rule that found the issue declares an OWASP Top 10 category.",
+            "type" : [ "string", "null" ]
           },
           "packageName" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package: a secret, a SAST, IaC, plugin or imported finding.",
+            "type" : [ "string", "null" ]
           },
           "packageVersion" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package.",
+            "type" : [ "string", "null" ]
           },
           "purl" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
+            "type" : [ "string", "null" ]
           },
           "reachability" : {
             "deprecated" : true,
@@ -5436,19 +5496,22 @@
           "reachableSymbols" : {
             "deprecated" : true,
             "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "repoId" : {
+            "description" : "The repository the issue was found on; null on a container image's issue.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "resolutionSeconds" : {
+            "description" : "Null while the issue is open.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "resolvedAt" : {
+            "description" : "Null while the issue is open.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "severity" : {
             "type" : "string"
@@ -5472,50 +5535,61 @@
             "type" : "string"
           },
           "ticketAttachedBy" : {
-            "type" : "string"
+            "description" : "Who attached the ticket; null while none is, and when the ticketing integration opened it.",
+            "type" : [ "string", "null" ]
           },
           "ticketRef" : {
-            "type" : "string"
+            "description" : "Null while no ticket is attached.",
+            "type" : [ "string", "null" ]
           },
           "ticketUrl" : {
-            "type" : "string"
+            "description" : "Null while no ticket is attached, and when its reference was attached without a URL.",
+            "type" : [ "string", "null" ]
           },
           "timesSeen" : {
             "format" : "int32",
             "type" : "integer"
           },
           "tool" : {
-            "type" : "string"
+            "description" : "The key that scopes a plugin or imported issue's resolution (plugin:<id>, import:<source>/<tool>); null for what Vectispire's own scanners found.",
+            "type" : [ "string", "null" ]
           },
           "toolName" : {
-            "type" : "string"
+            "description" : "The report's driver name; null for what Vectispire's own scanners found.",
+            "type" : [ "string", "null" ]
           },
           "toolVersion" : {
-            "type" : "string"
+            "description" : "The report's driver version; null for what Vectispire's own scanners found, and when the driver states none.",
+            "type" : [ "string", "null" ]
           },
           "triageComment" : {
-            "type" : "string"
+            "description" : "Null unless the triage decision carries one.",
+            "type" : [ "string", "null" ]
           },
           "triageExpiresAt" : {
+            "description" : "Null unless the decision was given a date to be reviewed by.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triageJustification" : {
-            "type" : "string"
+            "description" : "Null unless the triage decision states one.",
+            "type" : [ "string", "null" ]
           },
           "triageRequestedStatus" : {
             "description" : "While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose.",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triageStatus" : {
             "type" : "string"
           },
           "triagedAt" : {
+            "description" : "Null while nobody has decided on the issue.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triagedBy" : {
-            "type" : "string"
+            "description" : "Null while nobody has decided on the issue.",
+            "type" : [ "string", "null" ]
           },
           "type" : {
             "type" : "string"
@@ -5598,25 +5672,31 @@
       "IssueView" : {
         "properties" : {
           "containerId" : {
+            "description" : "The container image the issue was found on; null on a repository's issue.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "cvssScore" : {
+            "description" : "Null when no advisory gave one.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "cvssVector" : {
-            "type" : "string"
+            "description" : "Null when no advisory gave one.",
+            "type" : [ "string", "null" ]
           },
           "description" : {
-            "type" : "string"
+            "description" : "Null when neither an advisory nor the scanner supplies a text.",
+            "type" : [ "string", "null" ]
           },
           "epssScore" : {
+            "description" : "Null until the threat-intelligence feed scores the CVE, and on findings that are not CVEs.",
             "format" : "double",
-            "type" : "number"
+            "type" : [ "number", "null" ]
           },
           "filePath" : {
-            "type" : "string"
+            "description" : "Null on a finding about a package (vulnerability, licence, end of life), and when the report locates none.",
+            "type" : [ "string", "null" ]
           },
           "fingerprint" : {
             "type" : "string"
@@ -5626,14 +5706,17 @@
             "type" : "string"
           },
           "firstSeenScanId" : {
+            "description" : "Null on an issue an import created, and once that scan is deleted.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "fixState" : {
-            "type" : "string"
+            "description" : "Null when the scanner says nothing about a fix.",
+            "type" : [ "string", "null" ]
           },
           "fixVersions" : {
-            "type" : "string"
+            "description" : "Null when no fixed version is known.",
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "int64",
@@ -5643,10 +5726,12 @@
             "type" : "string"
           },
           "importSource" : {
-            "type" : "string"
+            "description" : "The declared SARIF source's slug; null unless an import reported the issue.",
+            "type" : [ "string", "null" ]
           },
           "isDirectDependency" : {
-            "type" : "boolean"
+            "description" : "Null when the scanner cannot tell a direct dependency from a transitive one, which a container image's scan never can, and on findings that are not about a package.",
+            "type" : [ "boolean", "null" ]
           },
           "isKev" : {
             "type" : "boolean"
@@ -5656,27 +5741,34 @@
             "type" : "string"
           },
           "lastSeenScanId" : {
+            "description" : "Null on an issue an import last reported, and once that scan is deleted.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "line" : {
+            "description" : "Null on a finding about a package, and when the report locates none.",
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "link" : {
-            "type" : "string"
+            "description" : "Null when the scanner gives no reference.",
+            "type" : [ "string", "null" ]
           },
           "owaspCategory" : {
-            "type" : "string"
+            "description" : "Null unless the rule that found the issue declares an OWASP Top 10 category.",
+            "type" : [ "string", "null" ]
           },
           "packageName" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package: a secret, a SAST, IaC, plugin or imported finding.",
+            "type" : [ "string", "null" ]
           },
           "packageVersion" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package.",
+            "type" : [ "string", "null" ]
           },
           "purl" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
+            "type" : [ "string", "null" ]
           },
           "reachability" : {
             "deprecated" : true,
@@ -5686,19 +5778,22 @@
           "reachableSymbols" : {
             "deprecated" : true,
             "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "repoId" : {
+            "description" : "The repository the issue was found on; null on a container image's issue.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "resolutionSeconds" : {
+            "description" : "Null while the issue is open.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "resolvedAt" : {
+            "description" : "Null while the issue is open.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "severity" : {
             "type" : "string"
@@ -5710,50 +5805,61 @@
             "type" : "string"
           },
           "ticketAttachedBy" : {
-            "type" : "string"
+            "description" : "Who attached the ticket; null while none is, and when the ticketing integration opened it.",
+            "type" : [ "string", "null" ]
           },
           "ticketRef" : {
-            "type" : "string"
+            "description" : "Null while no ticket is attached.",
+            "type" : [ "string", "null" ]
           },
           "ticketUrl" : {
-            "type" : "string"
+            "description" : "Null while no ticket is attached, and when its reference was attached without a URL.",
+            "type" : [ "string", "null" ]
           },
           "timesSeen" : {
             "format" : "int32",
             "type" : "integer"
           },
           "tool" : {
-            "type" : "string"
+            "description" : "The key that scopes a plugin or imported issue's resolution (plugin:<id>, import:<source>/<tool>); null for what Vectispire's own scanners found.",
+            "type" : [ "string", "null" ]
           },
           "toolName" : {
-            "type" : "string"
+            "description" : "The report's driver name; null for what Vectispire's own scanners found.",
+            "type" : [ "string", "null" ]
           },
           "toolVersion" : {
-            "type" : "string"
+            "description" : "The report's driver version; null for what Vectispire's own scanners found, and when the driver states none.",
+            "type" : [ "string", "null" ]
           },
           "triageComment" : {
-            "type" : "string"
+            "description" : "Null unless the triage decision carries one.",
+            "type" : [ "string", "null" ]
           },
           "triageExpiresAt" : {
+            "description" : "Null unless the decision was given a date to be reviewed by.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triageJustification" : {
-            "type" : "string"
+            "description" : "Null unless the triage decision states one.",
+            "type" : [ "string", "null" ]
           },
           "triageRequestedStatus" : {
             "description" : "While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose.",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triageStatus" : {
             "type" : "string"
           },
           "triagedAt" : {
+            "description" : "Null while nobody has decided on the issue.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "triagedBy" : {
-            "type" : "string"
+            "description" : "Null while nobody has decided on the issue.",
+            "type" : [ "string", "null" ]
           },
           "type" : {
             "type" : "string"
@@ -6343,7 +6449,8 @@
             "type" : "array"
           },
           "filePath" : {
-            "type" : "string"
+            "description" : "Null on a finding about a package, and when the report locates none.",
+            "type" : [ "string", "null" ]
           },
           "firstSeenAt" : {
             "format" : "date-time",
@@ -6357,14 +6464,17 @@
             "type" : "string"
           },
           "packageName" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package.",
+            "type" : [ "string", "null" ]
           },
           "packageVersion" : {
-            "type" : "string"
+            "description" : "Null on a finding that is not about a package.",
+            "type" : [ "string", "null" ]
           },
           "resolvedAt" : {
+            "description" : "Null while the issue is open.",
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "severity" : {
             "type" : "string"
@@ -6850,14 +6960,17 @@
             "type" : "integer"
           },
           "projectName" : {
-            "type" : "string"
+            "description" : "Null only when the project could not be read: its deletion, racing this read.",
+            "type" : [ "string", "null" ]
           },
           "solutionId" : {
+            "description" : "Null only when the project could not be read.",
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "solutionName" : {
-            "type" : "string"
+            "description" : "Null only when the project could not be read.",
+            "type" : [ "string", "null" ]
           }
         },
         "type" : "object"
@@ -8117,7 +8230,8 @@
             "type" : "string"
           },
           "pluginName" : {
-            "type" : "string"
+            "description" : "Null only when the plugin row could not be read; plugins are never deleted.",
+            "type" : [ "string", "null" ]
           },
           "projectId" : {
             "format" : "int64",
@@ -10331,7 +10445,8 @@
             "type" : "string"
           },
           "version" : {
-            "type" : "string"
+            "description" : "Null when the scan read no project version.",
+            "type" : [ "string", "null" ]
           }
         },
         "type" : "object"

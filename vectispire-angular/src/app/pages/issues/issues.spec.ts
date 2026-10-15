@@ -388,7 +388,7 @@ describe('triaging a selection', () => {
                     triageStatus: 'not_affected',
                     isKev: false,
                     timesSeen: 1,
-                    identifier: null,
+                    identifier: 'CVE-2026-11',
                     ticketRef: null,
                     ticketUrl: null
                 }

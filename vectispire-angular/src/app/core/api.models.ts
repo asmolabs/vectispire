@@ -17,8 +17,10 @@
  * primitive — a converter in the control plane does that much, because a Java `boolean` has no
  * absent value and no null one, so it is provable rather than intended. It stops short of reference
  * types: a `String` always sent in practice is a promise about the code, and nothing tells it apart
- * from one genuinely null sometimes. Nor does it mark anything nullable, while this server does
- * send `displayName: null`.
+ * from one genuinely null sometimes. It marks a field nullable (`string | null`) only on the records
+ * whose nullability the control plane has audited against its columns — the issues, their history
+ * and sightings, the plugin activations (`ResponseNullabilityTest`); elsewhere it says nothing,
+ * while this server does send `displayName: null`.
  *
  * `Refine<>` is where each such claim is written down, one field at a time and visibly. A claim
  * must name a key the schema has, and a scalar claim must respect the type it declares — so a
@@ -335,9 +337,9 @@ export type Issue = Refine<
         triageStatus: string;
         repoId: number | null;
         containerId: number | null;
-        targetName: string | null;
-        identifier: string | null;
-        severity: string | null;
+        targetName: string;
+        identifier: string;
+        severity: string;
         packageName: string | null;
         packageVersion: string | null;
         purl: string | null;
@@ -400,8 +402,8 @@ export type TriagedIssue = Refine<
         type: string;
         state: string;
         triageStatus: string;
-        identifier: string | null;
-        severity: string | null;
+        identifier: string;
+        severity: string;
         ticketRef: string | null;
         ticketUrl: string | null;
     }
@@ -1275,13 +1277,13 @@ export type HistoryIssue = Refine<
         type: string;
         /** Where the issue stands **today**, not on the day of the scan. */
         state: string;
-        identifier: string | null;
-        severity: string | null;
+        identifier: string;
+        severity: string;
         packageName: string | null;
         packageVersion: string | null;
         filePath: string | null;
-        triageStatus: string | null;
-        firstSeenAt: string | null;
+        triageStatus: string;
+        firstSeenAt: string;
         resolvedAt: string | null;
         decisions: HistoryDecision[];
     }
@@ -1474,9 +1476,9 @@ export type IssueDetail = Refine<
         triageStatus: string;
         repoId: number | null;
         containerId: number | null;
-        targetName: string | null;
-        identifier: string | null;
-        severity: string | null;
+        targetName: string;
+        identifier: string;
+        severity: string;
         packageName: string | null;
         packageVersion: string | null;
         purl: string | null;
@@ -2455,8 +2457,8 @@ export type PluginActivation = Refine<
         projectName: string | null;
         solutionId: number | null;
         solutionName: string | null;
-        activatedAt: string | null;
-        activatedBy: string | null;
+        activatedAt: string;
+        activatedBy: string;
     }
 >;
 
@@ -3285,8 +3287,8 @@ export type ReportPluginActivation = Refine<
         pluginId: string;
         pluginName: string | null;
         projectId: number;
-        activatedAt: string | null;
-        activatedBy: string | null;
+        activatedAt: string;
+        activatedBy: string;
     }
 >;
 

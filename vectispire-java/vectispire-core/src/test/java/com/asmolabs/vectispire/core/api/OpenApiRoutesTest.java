@@ -59,10 +59,11 @@ class OpenApiRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.components.schemas.SarifImportView.properties.tools.type").value("array"))
                 .andExpect(jsonPath("$.components.schemas.SarifImportView.properties.tools.items.type").value("string"))
                 .andExpect(jsonPath("$.components.schemas.SarifSourceView.properties.apiKeyName.type").value("string"))
-                .andExpect(jsonPath("$.components.schemas.PluginActivationView.properties.projectName.type")
-                        .value("string"))
-                .andExpect(jsonPath("$.components.schemas.PluginActivationView.properties.solutionName.type")
-                        .value("string"));
+                // A string, or null when a deletion races the read (ResponseNullabilityTest).
+                .andExpect(jsonPath("$.components.schemas.PluginActivationView.properties.projectName.type",
+                        Matchers.contains("string", "null")))
+                .andExpect(jsonPath("$.components.schemas.PluginActivationView.properties.solutionName.type",
+                        Matchers.contains("string", "null")));
     }
 
     @Test

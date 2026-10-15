@@ -4805,39 +4805,69 @@ export interface components {
             total: number;
         };
         BacklogEntry: {
-            /** Format: int64 */
-            containerId?: number;
-            /** Format: double */
-            cvssScore?: number;
-            cvssVector?: string;
-            description?: string;
-            /** Format: double */
-            epssScore?: number;
-            filePath?: string;
+            /**
+             * Format: int64
+             * @description The container image the issue was found on; null on a repository's issue.
+             */
+            containerId?: number | null;
+            /**
+             * Format: double
+             * @description Null when no advisory gave one.
+             */
+            cvssScore?: number | null;
+            /** @description Null when no advisory gave one. */
+            cvssVector?: string | null;
+            /** @description Null when neither an advisory nor the scanner supplies a text. */
+            description?: string | null;
+            /**
+             * Format: double
+             * @description Null until the threat-intelligence feed scores the CVE, and on findings that are not CVEs.
+             */
+            epssScore?: number | null;
+            /** @description Null on a finding about a package (vulnerability, licence, end of life), and when the report locates none. */
+            filePath?: string | null;
             fingerprint?: string;
             /** Format: date-time */
             firstSeenAt?: string;
-            /** Format: int64 */
-            firstSeenScanId?: number;
-            fixState?: string;
-            fixVersions?: string;
+            /**
+             * Format: int64
+             * @description Null on an issue an import created, and once that scan is deleted.
+             */
+            firstSeenScanId?: number | null;
+            /** @description Null when the scanner says nothing about a fix. */
+            fixState?: string | null;
+            /** @description Null when no fixed version is known. */
+            fixVersions?: string | null;
             /** Format: int64 */
             id?: number;
             identifier?: string;
-            importSource?: string;
-            isDirectDependency?: boolean;
+            /** @description The declared SARIF source's slug; null unless an import reported the issue. */
+            importSource?: string | null;
+            /** @description Null when the scanner cannot tell a direct dependency from a transitive one, which a container image's scan never can, and on findings that are not about a package. */
+            isDirectDependency?: boolean | null;
             isKev: boolean;
             /** Format: date-time */
             lastSeenAt?: string;
-            /** Format: int64 */
-            lastSeenScanId?: number;
-            /** Format: int32 */
-            line?: number;
-            link?: string;
-            owaspCategory?: string;
-            packageName?: string;
-            packageVersion?: string;
-            purl?: string;
+            /**
+             * Format: int64
+             * @description Null on an issue an import last reported, and once that scan is deleted.
+             */
+            lastSeenScanId?: number | null;
+            /**
+             * Format: int32
+             * @description Null on a finding about a package, and when the report locates none.
+             */
+            line?: number | null;
+            /** @description Null when the scanner gives no reference. */
+            link?: string | null;
+            /** @description Null unless the rule that found the issue declares an OWASP Top 10 category. */
+            owaspCategory?: string | null;
+            /** @description Null on a finding that is not about a package: a secret, a SAST, IaC, plugin or imported finding. */
+            packageName?: string | null;
+            /** @description Null on a finding that is not about a package. */
+            packageVersion?: string | null;
+            /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
+            purl?: string | null;
             /**
              * @deprecated
              * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
@@ -4847,41 +4877,72 @@ export interface components {
              * @deprecated
              * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
              */
-            reachableSymbols?: string;
-            /** Format: int64 */
-            repoId?: number;
-            /** Format: int64 */
-            resolutionSeconds?: number;
-            /** Format: date-time */
-            resolvedAt?: string;
+            reachableSymbols?: string | null;
+            /**
+             * Format: int64
+             * @description The repository the issue was found on; null on a container image's issue.
+             */
+            repoId?: number | null;
+            /**
+             * Format: int64
+             * @description Null while the issue is open.
+             */
+            resolutionSeconds?: number | null;
+            /**
+             * Format: date-time
+             * @description Null while the issue is open.
+             */
+            resolvedAt?: string | null;
             severity?: string;
-            /** Format: int64 */
-            slaDays?: number;
-            /** Format: date-time */
-            slaDueAt?: string;
-            slaState?: string;
+            /**
+             * Format: int64
+             * @description Days until due, negative when late; null with no deadline.
+             */
+            slaDays?: number | null;
+            /**
+             * Format: date-time
+             * @description When the remediation window closes; null when none applies.
+             */
+            slaDueAt?: string | null;
+            /** @description on_time, due_soon or overdue; null with no deadline. */
+            slaState?: string | null;
             source?: string;
             state?: string;
             targetKind?: string;
             targetName?: string;
-            ticketAttachedBy?: string;
-            ticketRef?: string;
-            ticketUrl?: string;
+            /** @description Who attached the ticket; null while none is, and when the ticketing integration opened it. */
+            ticketAttachedBy?: string | null;
+            /** @description Null while no ticket is attached. */
+            ticketRef?: string | null;
+            /** @description Null while no ticket is attached, and when its reference was attached without a URL. */
+            ticketUrl?: string | null;
             /** Format: int32 */
             timesSeen: number;
-            tool?: string;
-            toolName?: string;
-            toolVersion?: string;
-            triageComment?: string;
-            /** Format: date-time */
-            triageExpiresAt?: string;
-            triageJustification?: string;
+            /** @description The key that scopes a plugin or imported issue's resolution (plugin:<id>, import:<source>/<tool>); null for what Vectispire's own scanners found. */
+            tool?: string | null;
+            /** @description The report's driver name; null for what Vectispire's own scanners found. */
+            toolName?: string | null;
+            /** @description The report's driver version; null for what Vectispire's own scanners found, and when the driver states none. */
+            toolVersion?: string | null;
+            /** @description Null unless the triage decision carries one. */
+            triageComment?: string | null;
+            /**
+             * Format: date-time
+             * @description Null unless the decision was given a date to be reviewed by.
+             */
+            triageExpiresAt?: string | null;
+            /** @description Null unless the triage decision states one. */
+            triageJustification?: string | null;
             /** @description While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose. */
-            triageRequestedStatus?: string;
+            triageRequestedStatus?: string | null;
             triageStatus?: string;
-            /** Format: date-time */
-            triagedAt?: string;
-            triagedBy?: string;
+            /**
+             * Format: date-time
+             * @description Null while nobody has decided on the issue.
+             */
+            triagedAt?: string | null;
+            /** @description Null while nobody has decided on the issue. */
+            triagedBy?: string | null;
             type?: string;
         };
         BadgeState: {
@@ -5698,21 +5759,34 @@ export interface components {
             acceptLosing?: number;
         };
         Decision: {
-            actor?: string;
-            comment?: string;
-            /** Format: date-time */
-            expiresAt?: string;
+            /** @description Null when nobody decided: an expiry or a reopening (see origin). */
+            actor?: string | null;
+            /** @description Null unless the decision carries one. */
+            comment?: string | null;
+            /**
+             * Format: date-time
+             * @description Null unless the decision was given a date to be reviewed by.
+             */
+            expiresAt?: string | null;
             fromStatus?: string;
-            justification?: string;
+            /** @description Null unless the decision states one; always null on an expiry or a reopening. */
+            justification?: string | null;
             /** Format: date-time */
             occurredAt?: string;
             origin?: string;
-            /** Format: date-time */
-            previousResolvedAt?: string;
-            /** Format: int64 */
-            scanId?: number;
+            /**
+             * Format: date-time
+             * @description On a reopening only: when the resolution it ended began. Null on every other entry.
+             */
+            previousResolvedAt?: string | null;
+            /**
+             * Format: int64
+             * @description Null when the target had no scan, on a reopening an import caused, and once that scan is deleted.
+             */
+            scanId?: number | null;
             toStatus?: string;
-            version?: string;
+            /** @description The project version that scan read. Null when it read none, and always on an issue's detail, which does not resolve it. */
+            version?: string | null;
         };
         Declaration: {
             /** @enum {string} */
@@ -6505,40 +6579,70 @@ export interface components {
             timestamp?: string;
         };
         IssueDetail: {
-            /** Format: int64 */
-            containerId?: number;
-            /** Format: double */
-            cvssScore?: number;
-            cvssVector?: string;
+            /**
+             * Format: int64
+             * @description The container image the issue was found on; null on a repository's issue.
+             */
+            containerId?: number | null;
+            /**
+             * Format: double
+             * @description Null when no advisory gave one.
+             */
+            cvssScore?: number | null;
+            /** @description Null when no advisory gave one. */
+            cvssVector?: string | null;
             decisions?: components["schemas"]["Decision"][];
-            description?: string;
-            /** Format: double */
-            epssScore?: number;
-            filePath?: string;
+            /** @description Null when neither an advisory nor the scanner supplies a text. */
+            description?: string | null;
+            /**
+             * Format: double
+             * @description Null until the threat-intelligence feed scores the CVE, and on findings that are not CVEs.
+             */
+            epssScore?: number | null;
+            /** @description Null on a finding about a package (vulnerability, licence, end of life), and when the report locates none. */
+            filePath?: string | null;
             fingerprint?: string;
             /** Format: date-time */
             firstSeenAt?: string;
-            /** Format: int64 */
-            firstSeenScanId?: number;
-            fixState?: string;
-            fixVersions?: string;
+            /**
+             * Format: int64
+             * @description Null on an issue an import created, and once that scan is deleted.
+             */
+            firstSeenScanId?: number | null;
+            /** @description Null when the scanner says nothing about a fix. */
+            fixState?: string | null;
+            /** @description Null when no fixed version is known. */
+            fixVersions?: string | null;
             /** Format: int64 */
             id?: number;
             identifier?: string;
-            importSource?: string;
-            isDirectDependency?: boolean;
+            /** @description The declared SARIF source's slug; null unless an import reported the issue. */
+            importSource?: string | null;
+            /** @description Null when the scanner cannot tell a direct dependency from a transitive one, which a container image's scan never can, and on findings that are not about a package. */
+            isDirectDependency?: boolean | null;
             isKev: boolean;
             /** Format: date-time */
             lastSeenAt?: string;
-            /** Format: int64 */
-            lastSeenScanId?: number;
-            /** Format: int32 */
-            line?: number;
-            link?: string;
-            owaspCategory?: string;
-            packageName?: string;
-            packageVersion?: string;
-            purl?: string;
+            /**
+             * Format: int64
+             * @description Null on an issue an import last reported, and once that scan is deleted.
+             */
+            lastSeenScanId?: number | null;
+            /**
+             * Format: int32
+             * @description Null on a finding about a package, and when the report locates none.
+             */
+            line?: number | null;
+            /** @description Null when the scanner gives no reference. */
+            link?: string | null;
+            /** @description Null unless the rule that found the issue declares an OWASP Top 10 category. */
+            owaspCategory?: string | null;
+            /** @description Null on a finding that is not about a package: a secret, a SAST, IaC, plugin or imported finding. */
+            packageName?: string | null;
+            /** @description Null on a finding that is not about a package. */
+            packageVersion?: string | null;
+            /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
+            purl?: string | null;
             /**
              * @deprecated
              * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
@@ -6548,37 +6652,61 @@ export interface components {
              * @deprecated
              * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
              */
-            reachableSymbols?: string;
-            /** Format: int64 */
-            repoId?: number;
-            /** Format: int64 */
-            resolutionSeconds?: number;
-            /** Format: date-time */
-            resolvedAt?: string;
+            reachableSymbols?: string | null;
+            /**
+             * Format: int64
+             * @description The repository the issue was found on; null on a container image's issue.
+             */
+            repoId?: number | null;
+            /**
+             * Format: int64
+             * @description Null while the issue is open.
+             */
+            resolutionSeconds?: number | null;
+            /**
+             * Format: date-time
+             * @description Null while the issue is open.
+             */
+            resolvedAt?: string | null;
             severity?: string;
             sightings?: components["schemas"]["Sighting"][];
             source?: string;
             state?: string;
             targetKind?: string;
             targetName?: string;
-            ticketAttachedBy?: string;
-            ticketRef?: string;
-            ticketUrl?: string;
+            /** @description Who attached the ticket; null while none is, and when the ticketing integration opened it. */
+            ticketAttachedBy?: string | null;
+            /** @description Null while no ticket is attached. */
+            ticketRef?: string | null;
+            /** @description Null while no ticket is attached, and when its reference was attached without a URL. */
+            ticketUrl?: string | null;
             /** Format: int32 */
             timesSeen: number;
-            tool?: string;
-            toolName?: string;
-            toolVersion?: string;
-            triageComment?: string;
-            /** Format: date-time */
-            triageExpiresAt?: string;
-            triageJustification?: string;
+            /** @description The key that scopes a plugin or imported issue's resolution (plugin:<id>, import:<source>/<tool>); null for what Vectispire's own scanners found. */
+            tool?: string | null;
+            /** @description The report's driver name; null for what Vectispire's own scanners found. */
+            toolName?: string | null;
+            /** @description The report's driver version; null for what Vectispire's own scanners found, and when the driver states none. */
+            toolVersion?: string | null;
+            /** @description Null unless the triage decision carries one. */
+            triageComment?: string | null;
+            /**
+             * Format: date-time
+             * @description Null unless the decision was given a date to be reviewed by.
+             */
+            triageExpiresAt?: string | null;
+            /** @description Null unless the triage decision states one. */
+            triageJustification?: string | null;
             /** @description While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose. */
-            triageRequestedStatus?: string;
+            triageRequestedStatus?: string | null;
             triageStatus?: string;
-            /** Format: date-time */
-            triagedAt?: string;
-            triagedBy?: string;
+            /**
+             * Format: date-time
+             * @description Null while nobody has decided on the issue.
+             */
+            triagedAt?: string | null;
+            /** @description Null while nobody has decided on the issue. */
+            triagedBy?: string | null;
             type?: string;
         };
         IssueLink: {
@@ -6611,39 +6739,69 @@ export interface components {
             updatedAt?: string;
         };
         IssueView: {
-            /** Format: int64 */
-            containerId?: number;
-            /** Format: double */
-            cvssScore?: number;
-            cvssVector?: string;
-            description?: string;
-            /** Format: double */
-            epssScore?: number;
-            filePath?: string;
+            /**
+             * Format: int64
+             * @description The container image the issue was found on; null on a repository's issue.
+             */
+            containerId?: number | null;
+            /**
+             * Format: double
+             * @description Null when no advisory gave one.
+             */
+            cvssScore?: number | null;
+            /** @description Null when no advisory gave one. */
+            cvssVector?: string | null;
+            /** @description Null when neither an advisory nor the scanner supplies a text. */
+            description?: string | null;
+            /**
+             * Format: double
+             * @description Null until the threat-intelligence feed scores the CVE, and on findings that are not CVEs.
+             */
+            epssScore?: number | null;
+            /** @description Null on a finding about a package (vulnerability, licence, end of life), and when the report locates none. */
+            filePath?: string | null;
             fingerprint?: string;
             /** Format: date-time */
             firstSeenAt?: string;
-            /** Format: int64 */
-            firstSeenScanId?: number;
-            fixState?: string;
-            fixVersions?: string;
+            /**
+             * Format: int64
+             * @description Null on an issue an import created, and once that scan is deleted.
+             */
+            firstSeenScanId?: number | null;
+            /** @description Null when the scanner says nothing about a fix. */
+            fixState?: string | null;
+            /** @description Null when no fixed version is known. */
+            fixVersions?: string | null;
             /** Format: int64 */
             id?: number;
             identifier?: string;
-            importSource?: string;
-            isDirectDependency?: boolean;
+            /** @description The declared SARIF source's slug; null unless an import reported the issue. */
+            importSource?: string | null;
+            /** @description Null when the scanner cannot tell a direct dependency from a transitive one, which a container image's scan never can, and on findings that are not about a package. */
+            isDirectDependency?: boolean | null;
             isKev: boolean;
             /** Format: date-time */
             lastSeenAt?: string;
-            /** Format: int64 */
-            lastSeenScanId?: number;
-            /** Format: int32 */
-            line?: number;
-            link?: string;
-            owaspCategory?: string;
-            packageName?: string;
-            packageVersion?: string;
-            purl?: string;
+            /**
+             * Format: int64
+             * @description Null on an issue an import last reported, and once that scan is deleted.
+             */
+            lastSeenScanId?: number | null;
+            /**
+             * Format: int32
+             * @description Null on a finding about a package, and when the report locates none.
+             */
+            line?: number | null;
+            /** @description Null when the scanner gives no reference. */
+            link?: string | null;
+            /** @description Null unless the rule that found the issue declares an OWASP Top 10 category. */
+            owaspCategory?: string | null;
+            /** @description Null on a finding that is not about a package: a secret, a SAST, IaC, plugin or imported finding. */
+            packageName?: string | null;
+            /** @description Null on a finding that is not about a package. */
+            packageVersion?: string | null;
+            /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
+            purl?: string | null;
             /**
              * @deprecated
              * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
@@ -6653,34 +6811,58 @@ export interface components {
              * @deprecated
              * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
              */
-            reachableSymbols?: string;
-            /** Format: int64 */
-            repoId?: number;
-            /** Format: int64 */
-            resolutionSeconds?: number;
-            /** Format: date-time */
-            resolvedAt?: string;
+            reachableSymbols?: string | null;
+            /**
+             * Format: int64
+             * @description The repository the issue was found on; null on a container image's issue.
+             */
+            repoId?: number | null;
+            /**
+             * Format: int64
+             * @description Null while the issue is open.
+             */
+            resolutionSeconds?: number | null;
+            /**
+             * Format: date-time
+             * @description Null while the issue is open.
+             */
+            resolvedAt?: string | null;
             severity?: string;
             source?: string;
             state?: string;
-            ticketAttachedBy?: string;
-            ticketRef?: string;
-            ticketUrl?: string;
+            /** @description Who attached the ticket; null while none is, and when the ticketing integration opened it. */
+            ticketAttachedBy?: string | null;
+            /** @description Null while no ticket is attached. */
+            ticketRef?: string | null;
+            /** @description Null while no ticket is attached, and when its reference was attached without a URL. */
+            ticketUrl?: string | null;
             /** Format: int32 */
             timesSeen: number;
-            tool?: string;
-            toolName?: string;
-            toolVersion?: string;
-            triageComment?: string;
-            /** Format: date-time */
-            triageExpiresAt?: string;
-            triageJustification?: string;
+            /** @description The key that scopes a plugin or imported issue's resolution (plugin:<id>, import:<source>/<tool>); null for what Vectispire's own scanners found. */
+            tool?: string | null;
+            /** @description The report's driver name; null for what Vectispire's own scanners found. */
+            toolName?: string | null;
+            /** @description The report's driver version; null for what Vectispire's own scanners found, and when the driver states none. */
+            toolVersion?: string | null;
+            /** @description Null unless the triage decision carries one. */
+            triageComment?: string | null;
+            /**
+             * Format: date-time
+             * @description Null unless the decision was given a date to be reviewed by.
+             */
+            triageExpiresAt?: string | null;
+            /** @description Null unless the triage decision states one. */
+            triageJustification?: string | null;
             /** @description While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose. */
-            triageRequestedStatus?: string;
+            triageRequestedStatus?: string | null;
             triageStatus?: string;
-            /** Format: date-time */
-            triagedAt?: string;
-            triagedBy?: string;
+            /**
+             * Format: date-time
+             * @description Null while nobody has decided on the issue.
+             */
+            triagedAt?: string | null;
+            /** @description Null while nobody has decided on the issue. */
+            triagedBy?: string | null;
             type?: string;
         };
         IssuedKey: {
@@ -6890,16 +7072,22 @@ export interface components {
         };
         ObservedIssue: {
             decisions?: components["schemas"]["Decision"][];
-            filePath?: string;
+            /** @description Null on a finding about a package, and when the report locates none. */
+            filePath?: string | null;
             /** Format: date-time */
             firstSeenAt?: string;
             /** Format: int64 */
             id?: number;
             identifier?: string;
-            packageName?: string;
-            packageVersion?: string;
-            /** Format: date-time */
-            resolvedAt?: string;
+            /** @description Null on a finding that is not about a package. */
+            packageName?: string | null;
+            /** @description Null on a finding that is not about a package. */
+            packageVersion?: string | null;
+            /**
+             * Format: date-time
+             * @description Null while the issue is open.
+             */
+            resolvedAt?: string | null;
             severity?: string;
             state?: string;
             triageStatus?: string;
@@ -7090,10 +7278,15 @@ export interface components {
             pluginId?: string;
             /** Format: int64 */
             projectId?: number;
-            projectName?: string;
-            /** Format: int64 */
-            solutionId?: number;
-            solutionName?: string;
+            /** @description Null only when the project could not be read: its deletion, racing this read. */
+            projectName?: string | null;
+            /**
+             * Format: int64
+             * @description Null only when the project could not be read.
+             */
+            solutionId?: number | null;
+            /** @description Null only when the project could not be read. */
+            solutionName?: string | null;
         };
         PluginEnabled: {
             enabled: boolean;
@@ -7555,7 +7748,8 @@ export interface components {
             /** Format: int64 */
             id?: number;
             pluginId?: string;
-            pluginName?: string;
+            /** @description Null only when the plugin row could not be read; plugins are never deleted. */
+            pluginName?: string | null;
             /** Format: int64 */
             projectId?: number;
         };
@@ -8386,7 +8580,8 @@ export interface components {
             scannedAt?: string;
             severity?: string;
             status?: string;
-            version?: string;
+            /** @description Null when the scan read no project version. */
+            version?: string | null;
         };
         SignInMethods: {
             brandName?: string;

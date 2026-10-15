@@ -9,7 +9,7 @@ import { asSchema } from './contract';
  * <p>The backlog specs wrote rows of a dozen fields and let the rest be `undefined`. Thirty fields of
  * `Issue` were therefore something no server sends, and a template testing `!== null` would have
  * taken each for a value. `changes` holds what a case is about; the rest is a high vulnerability,
- * open and under review, with nothing known of its target or package.
+ * open and under review on a repository, with nothing known of its package.
  */
 export function backlogEntry(id: number, changes: Partial<Issue> = {}): Issue {
     const row: Issue = {
@@ -17,7 +17,7 @@ export function backlogEntry(id: number, changes: Partial<Issue> = {}): Issue {
         repoId: null,
         containerId: null,
         targetKind: 'repository',
-        targetName: null,
+        targetName: 'payments-api',
         type: 'vulnerability',
         identifier: `CVE-2026-${id}`,
         severity: 'high',

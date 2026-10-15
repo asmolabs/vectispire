@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -171,7 +172,13 @@ public class IssueQueryService {
 
     /** @param version what the project called itself when this scan saw the issue */
     public record Sighting(
-            Long scanId, String status, String branch, String version, Instant scannedAt, String severity) {}
+            Long scanId,
+            String status,
+            String branch,
+            @Schema(types = {"string", "null"}, description = "Null when the scan read no project version.")
+                    String version,
+            Instant scannedAt,
+            String severity) {}
 
     /**
      * One page of the backlog, narrowed to what {@code allowed} permits.

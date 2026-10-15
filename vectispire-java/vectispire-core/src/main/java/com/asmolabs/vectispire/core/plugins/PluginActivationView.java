@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.plugins;
 
 import com.asmolabs.vectispire.core.plugins.persistence.PluginActivationEntity;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService.ProjectLabel;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
 /**
@@ -19,9 +20,12 @@ public record PluginActivationView(
         Long id,
         String pluginId,
         Long projectId,
-        String projectName,
-        Long solutionId,
-        String solutionName,
+        @Schema(types = {"string", "null"}, description = "Null only when the project could not be read: its deletion, racing this read.")
+                String projectName,
+        @Schema(types = {"integer", "null"}, format = "int64", description = "Null only when the project could not be read.")
+                Long solutionId,
+        @Schema(types = {"string", "null"}, description = "Null only when the project could not be read.")
+                String solutionName,
         Instant activatedAt,
         String activatedBy) {
 

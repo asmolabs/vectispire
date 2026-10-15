@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.reportplugins;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
 /**
@@ -11,7 +12,8 @@ import java.time.Instant;
 public record ReportPluginActivationView(
         Long id,
         String pluginId,
-        String pluginName,
+        @Schema(types = {"string", "null"}, description = "Null only when the plugin row could not be read; plugins are never deleted.")
+                String pluginName,
         Long projectId,
         Instant activatedAt,
         String activatedBy) {}

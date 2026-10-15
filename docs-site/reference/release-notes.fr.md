@@ -90,6 +90,17 @@
   interprétées plutôt que refusées ([SSO](../administration/sso.fr.md#provisioning-from-the-directory-scim)) ;
   `/Users` acceptait les deux paramètres et les ignorait.
 
+- **Le document OpenAPI dit quels champs de réponse le serveur envoie à `null`** sur les problèmes et ce
+  qui les porte : 34 champs d'un problème — l'`IssueView` des routes de triage et de ticket (`POST
+  /api/v1/issues/{id}/triage`, `POST /api/v1/issues/triage`, `PUT /api/v1/issues/{id}/ticket`), les lignes
+  du backlog (`GET /api/v1/issues`, avec `slaDueAt`, `slaState` et `slaDays`) et le détail (`GET
+  /api/v1/issues/{id}`, avec la `version` d'une observation) —, les champs facultatifs d'une décision de
+  triage et ceux d'un problème dans l'historique de triage (`GET /api/v1/history/repositories/{id}`), et
+  les `projectName`, `solutionId`, `solutionName` d'une activation de plugin et le `pluginName` d'un plugin de
+  rapport. Chacun est typé avec `"null"` à côté de son type et une description qui dit quand, là où le
+  document disait `string`, `integer`, `number` ou `boolean` ; le serveur envoyait déjà ces `null`, et
+  aucune réponse ne change. Un client généré depuis le document les type désormais `T | null`.
+
 ### Nouveautés {#nouveautes-0111}
 
 - **Un administrateur lève l'obligation de changer de mot de passe d'un compte fédéré depuis l'écran
