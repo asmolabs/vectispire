@@ -645,26 +645,6 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("repoId") Long repoId, @Param("containerId") Long containerId, Limit limit);
 
     /**
-     * The most recent scans of the given targets, newest first.
-     *
-     * <p>The allowance as SQL, so the limit applies after it: filtered in memory after
-     * {@link #findHistory}, a restricted reader would have been shown whatever share of the
-     * deployment's last few scans happened to be theirs — often none. Neither list may be empty:
-     * `in ()` is not valid everywhere, so the caller passes a sentinel.
-     *
-     * <p>Both lists bind one parameter per element: {@code ScanCatalog.recentWithin} hands at most a
-     * thousand and merges the batches' newest.
-     */
-    @Query("""
-            select s from ScanEntity s
-             where s.repoId in :repoIds or s.containerId in :containerIds
-             order by s.createdAt desc, s.id desc""")
-    List<ScanEntity> findRecentWithin(
-            @Param("repoIds") java.util.Collection<Long> repoIds,
-            @Param("containerIds") java.util.Collection<Long> containerIds,
-            Limit limit);
-
-    /**
      * One page of {@link #findHistory}, for a reader who sees every target: the offset is the database's,
      * so a deep page reads no row before it.
      */
@@ -686,6 +666,13 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * repository is not let through by the image it also names. Neither list may be empty ({@code in ()} is
      * not valid everywhere: the caller passes a sentinel), and each binds one parameter per element, so the
      * caller hands at most a thousand.
+     *
+     * <p><b>Every read of a restricted reader's scans goes through this predicate</b> — the history and the
+     * home page's recent scans ({@code ScanCatalog.recentWithin}) alike. The recent scans had a query of their
+     * own, {@code repoId in :repoIds or containerId in :containerIds}, which let a scan naming a hidden
+     * repository through the image it also names: the home page then showed that repository's id, its name,
+     * the scan's status, findings count and error to a reader the history refused them to. Two statements
+     * answering one question had drifted; one statement cannot.
      */
     @Query("""
             select s from ScanEntity s

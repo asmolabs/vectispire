@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -119,16 +120,20 @@ public class ScanCatalog {
         // `in ()` is not valid everywhere, so the other column is asked for an identifier no identity
         // column hands out.
         List<Long> none = List.of(-1L);
+        // The history's statement, not one of its own: a scan is its repository's when it names one, so an
+        // image granted does not let through a scan naming a repository that is not — and the batches stay
+        // disjoint, a scan naming both no longer read once through each.
+        PageRequest newest = PageRequest.of(0, limit);
         List<ScanEntity> candidates = new java.util.ArrayList<>();
         List<Long> repositories = List.copyOf(java.util.Set.copyOf(repoIds));
         for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
-            candidates.addAll(scans.findRecentWithin(
-                    repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())), none, Limit.of(limit)));
+            candidates.addAll(scans.findHistoryWithin(null, null,
+                    repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())), none, newest));
         }
         List<Long> images = List.copyOf(java.util.Set.copyOf(containerIds));
         for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
-            candidates.addAll(scans.findRecentWithin(
-                    none, images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())), Limit.of(limit)));
+            candidates.addAll(scans.findHistoryWithin(null, null,
+                    none, images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())), newest));
         }
         return candidates.stream()
                 .sorted(Comparator.comparing(ScanEntity::getCreatedAt, Comparator.reverseOrder())

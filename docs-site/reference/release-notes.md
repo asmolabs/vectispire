@@ -113,6 +113,10 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   (`image:tag@sha256:…`, the multi-architecture index), so one file builds the same bases until a reviewed
   update moves them; the `dockerfile-policy` check refuses a base image named by tag alone. The images
   published with Jib were already pinned.
+- **The dashboard's recent scans show a restricted reader only the scans of the targets they may see**: a
+  scan naming both an image the reader was granted and a repository they were not is the repository's, as
+  in the scan history, and is no longer listed — with that repository's name — on the reader's home page.
+  A reader granted both sees it once, where it was listed twice.
 
 ### Fixed {#fixed-0111}
 
