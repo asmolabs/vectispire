@@ -67,8 +67,8 @@ describe('the gate policy screen', () => {
         created_at: '2026-08-21T09:00:00Z'
     };
 
-    function load(policies: unknown[]): void {
-        http.expectOne('/api/v1/gate/policies').flush({ policies, built_in: BUILT_IN });
+    function load(policies: GatePolicy[]): void {
+        http.expectOne('/api/v1/gate/policies').flush(asSchema('PoliciesResponse', { policies, built_in: BUILT_IN }));
         fixture.detectChanges();
     }
 
@@ -152,7 +152,7 @@ describe('the gate policy screen', () => {
         expect((request.request.body as GatePolicyRequest).include_ai_review).toBe(false);
         expect((request.request.body as GatePolicyRequest).fail_on_uncovered_languages).toBe(false);
         expect((request.request.body as GatePolicyRequest).include_plugins).toBe(false);
-        request.flush({ ...GLOBAL, version: 1 });
+        request.flush(asSchema('GatePolicyView', { ...GLOBAL, version: 1 }));
     });
 
     /**
@@ -169,7 +169,7 @@ describe('the gate policy screen', () => {
 
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
         expect((request.request.body as GatePolicyRequest).include_plugins).toBe(true);
-        request.flush({ ...GLOBAL, include_plugins: true, version: 4 });
+        request.flush(asSchema('GatePolicyView', { ...GLOBAL, include_plugins: true, version: 4 }));
     });
 
     it('offers the plugins switch in the form, off for a new override', () => {
@@ -212,7 +212,7 @@ describe('the gate policy screen', () => {
 
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
         expect((request.request.body as GatePolicyRequest).fail_on_uncovered_languages).toBe(true);
-        request.flush({ ...GLOBAL, version: 1 });
+        request.flush(asSchema('GatePolicyView', { ...GLOBAL, version: 1 }));
     });
 
     it('reloads after a save, so the version on screen is the stored one', () => {
@@ -220,11 +220,15 @@ describe('the gate policy screen', () => {
 
         fixture.componentInstance.editGlobal();
         fixture.componentInstance.save();
-        http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' }).flush({ ...GLOBAL, version: 1 });
+        http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' }).flush(
+            asSchema('GatePolicyView', { ...GLOBAL, version: 1 })
+        );
 
         // Not patched locally: the version number is assigned by the server, and a screen that
         // invented one would be showing a rule nobody can find in the audit log.
-        http.expectOne('/api/v1/gate/policies').flush({ policies: [{ ...GLOBAL, version: 1 }], built_in: BUILT_IN });
+        http.expectOne('/api/v1/gate/policies').flush(
+            asSchema('PoliciesResponse', { policies: [{ ...GLOBAL, version: 1 }], built_in: BUILT_IN })
+        );
         fixture.detectChanges();
         expect(fixture.componentInstance.globalPolicy()?.version).toBe(1);
     });
@@ -234,7 +238,9 @@ describe('the gate policy screen', () => {
 
         fixture.componentInstance.remove(OVERRIDE);
         http.expectOne({ method: 'DELETE', url: '/api/v1/gate/policies/repository/5' }).flush(null);
-        http.expectOne('/api/v1/gate/policies').flush({ policies: [GLOBAL], built_in: BUILT_IN });
+        http.expectOne('/api/v1/gate/policies').flush(
+            asSchema('PoliciesResponse', { policies: [GLOBAL], built_in: BUILT_IN })
+        );
         fixture.detectChanges();
 
         expect(fixture.componentInstance.overrides().length).toBe(0);

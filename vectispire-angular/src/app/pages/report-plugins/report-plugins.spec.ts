@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchemaList } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import {
     APPROVED_DIGEST,
@@ -110,14 +110,16 @@ describe('the report plugin registry', () => {
         http.expectOne({
             method: 'POST',
             url: `/api/v1/report-plugins/quarterly-summary/manifests/${PENDING_DIGEST}/approval`
-        }).flush({
-            ...REPORT_PLUGIN,
-            approvedDigest: PENDING_DIGEST,
-            pendingDigest: null,
-            manifests: [
-                { ...PENDING_MANIFEST, status: 'approved', approvedBy: 'ciso', approvedAt: '2026-10-03T09:00:00Z' }
-            ]
-        });
+        }).flush(
+            asSchema('ReportPluginView', {
+                ...REPORT_PLUGIN,
+                approvedDigest: PENDING_DIGEST,
+                pendingDigest: null,
+                manifests: [
+                    { ...PENDING_MANIFEST, status: 'approved', approvedBy: 'ciso', approvedAt: '2026-10-03T09:00:00Z' }
+                ]
+            })
+        );
         fixture.detectChanges();
 
         expect(text(dom(), '[data-testid="registry-notice"]')).toContain(
@@ -243,20 +245,22 @@ describe('the report plugin registry', () => {
             url: `/api/v1/report-plugins/quarterly-summary/manifests/${APPROVED_DIGEST}/withdrawal`
         });
         expect(request.request.body).toEqual({ justification: 'The renderer dropped every low issue.' });
-        request.flush({
-            ...REPORT_PLUGIN,
-            approvedDigest: null,
-            manifests: [
-                PENDING_MANIFEST,
-                {
-                    ...REPORT_PLUGIN.manifests[1],
-                    status: 'withdrawn',
-                    withdrawnAt: '2026-10-03T10:00:00Z',
-                    withdrawnBy: 'governor',
-                    withdrawalJustification: 'The renderer dropped every low issue.'
-                }
-            ]
-        });
+        request.flush(
+            asSchema('ReportPluginView', {
+                ...REPORT_PLUGIN,
+                approvedDigest: null,
+                manifests: [
+                    PENDING_MANIFEST,
+                    {
+                        ...REPORT_PLUGIN.manifests[1],
+                        status: 'withdrawn',
+                        withdrawnAt: '2026-10-03T10:00:00Z',
+                        withdrawnBy: 'governor',
+                        withdrawalJustification: 'The renderer dropped every low issue.'
+                    }
+                ]
+            })
+        );
         fixture.detectChanges();
 
         expect(text(manifest(APPROVED_DIGEST), '[data-testid="manifest-status"]')).toBe('Withdrawn');
@@ -274,7 +278,7 @@ describe('the report plugin registry', () => {
         button(dom(), '[data-testid="enable-quarterly-summary"]')!.click();
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/report-plugins/quarterly-summary/enabled' });
         expect(request.request.body).toEqual({ enabled: false });
-        request.flush({ ...REPORT_PLUGIN, enabled: false });
+        request.flush(asSchema('ReportPluginView', { ...REPORT_PLUGIN, enabled: false }));
         fixture.detectChanges();
 
         expect(text(dom(), '[data-testid="report-plugin-quarterly-summary"]')).toContain('Disabled');

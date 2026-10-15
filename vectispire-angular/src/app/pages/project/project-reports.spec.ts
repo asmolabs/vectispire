@@ -174,7 +174,9 @@ describe('a project’s reports', () => {
         expect(button('[data-testid="request-risk-pdf"]')!.disabled).toBe(false);
 
         vi.advanceTimersByTime(POLL_MS);
-        http.expectOne({ method: 'GET', url: `${BASE}/reports` }).flush([{ ...PRODUCED_RUN, id: 35 }, PRODUCED_RUN]);
+        http.expectOne({ method: 'GET', url: `${BASE}/reports` }).flush(
+            asSchemaList('ReportRunView', [{ ...PRODUCED_RUN, id: 35 }, PRODUCED_RUN])
+        );
         fixture.detectChanges();
         expect(text('[data-testid="run-state"]', row(35))).toBe('Produced');
 

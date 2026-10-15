@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchemaList } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { ACTIVATION, MANIFEST, PLUGIN, WAIVED_PLUGIN } from '@/app/core/testing/plugins.fixtures';
 import { Plugins, parseExitCodes } from './plugins';
@@ -79,14 +79,16 @@ describe('the plugin registry', () => {
     it('opens the plugin a link names, with every manifest field and its digest', async () => {
         await start('USER', { id: 'acme-lint' });
 
-        http.expectOne('/api/v1/plugins/acme-lint').flush({
-            ...PLUGIN,
-            manifest: {
-                ...MANIFEST,
-                network: true,
-                network_justification: 'Pulls rules from rules.acme.internal daily.'
-            }
-        });
+        http.expectOne('/api/v1/plugins/acme-lint').flush(
+            asSchema('PluginView', {
+                ...PLUGIN,
+                manifest: {
+                    ...MANIFEST,
+                    network: true,
+                    network_justification: 'Pulls rules from rules.acme.internal daily.'
+                }
+            })
+        );
         fixture.detectChanges();
 
         const detail = dom().querySelector('[data-testid="plugin-detail"]')?.textContent ?? '';
@@ -110,11 +112,13 @@ describe('the plugin registry', () => {
 
         fixture.componentInstance.open('acme-lint');
         http.expectOne('/api/v1/plugins/acme-lint').flush(PLUGIN);
-        http.expectOne('/api/v1/plugins/acme-lint/projects').flush([
-            ACTIVATION,
-            // A project deleted between the read and its naming: the id is still the right answer.
-            { ...ACTIVATION, id: 2, projectId: 99, projectName: null, solutionId: null, solutionName: null }
-        ]);
+        http.expectOne('/api/v1/plugins/acme-lint/projects').flush(
+            asSchemaList('PluginActivationView', [
+                ACTIVATION,
+                // A project deleted between the read and its naming: the id is still the right answer.
+                { ...ACTIVATION, id: 2, projectId: 99, projectName: null, solutionId: null, solutionName: null }
+            ])
+        );
         fixture.detectChanges();
 
         const items = Array.from(dom().querySelectorAll('[data-testid="plugin-projects"] li')).map((item) =>
@@ -298,7 +302,7 @@ describe('the plugin registry', () => {
         fixture.componentInstance.setEnabled(PLUGIN, false);
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint/enabled' });
         expect(request.request.body).toEqual({ enabled: false });
-        request.flush({ ...PLUGIN, enabled: false });
+        request.flush(asSchema('PluginView', { ...PLUGIN, enabled: false }));
         fixture.detectChanges();
 
         expect(fixture.componentInstance.plugins()[0].enabled).toBe(false);
@@ -308,10 +312,12 @@ describe('the plugin registry', () => {
     it('shows who must have signed the image, keyless by identity and issuer', async () => {
         await start('USER', { id: 'acme-lint' });
 
-        http.expectOne('/api/v1/plugins/acme-lint').flush({
-            ...PLUGIN,
-            manifest: { ...MANIFEST, signature: { identity: RELEASE, issuer: GITHUB, public_key: null } }
-        });
+        http.expectOne('/api/v1/plugins/acme-lint').flush(
+            asSchema('PluginView', {
+                ...PLUGIN,
+                manifest: { ...MANIFEST, signature: { identity: RELEASE, issuer: GITHUB, public_key: null } }
+            })
+        );
         fixture.detectChanges();
 
         const signer = dom().querySelector('[data-testid="plugin-signer"]')?.textContent ?? '';

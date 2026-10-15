@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Solutions } from './solutions';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { ACTIVATION, PLUGIN } from '@/app/core/testing/plugins.fixtures';
 import type { Plugin } from '@/app/core/api.models';
@@ -761,7 +761,9 @@ describe('the solutions tree', () => {
                 page().querySelector('[data-testid="project-11"] [data-testid="project-plugins"] button') as HTMLElement
             ).click();
             http.expectOne('/api/v1/plugins').flush([PLUGIN, OTHER]);
-            http.expectOne('/api/v1/projects/11/plugins').flush([{ ...ACTIVATION, projectId: 11 }]);
+            http.expectOne('/api/v1/projects/11/plugins').flush(
+                asSchemaList('PluginActivationView', [{ ...ACTIVATION, projectId: 11 }])
+            );
             await fixture.whenStable();
         }
 
@@ -793,11 +795,13 @@ describe('the solutions tree', () => {
             expect(toggle('py-rules')?.disabled).toBe(false);
 
             fixture.componentInstance.togglePlugin(OTHER, true);
-            http.expectOne({ method: 'PUT', url: '/api/v1/projects/11/plugins/py-rules' }).flush({
-                ...ACTIVATION,
-                pluginId: 'py-rules',
-                projectId: 11
-            });
+            http.expectOne({ method: 'PUT', url: '/api/v1/projects/11/plugins/py-rules' }).flush(
+                asSchema('PluginActivationView', {
+                    ...ACTIVATION,
+                    pluginId: 'py-rules',
+                    projectId: 11
+                })
+            );
             fixture.componentInstance.togglePlugin(PLUGIN, false);
             http.expectOne({ method: 'DELETE', url: '/api/v1/projects/11/plugins/acme-lint' }).flush(null);
             await fixture.whenStable();

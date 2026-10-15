@@ -392,7 +392,7 @@ describe('the agents screen, on credentialed scans nobody can take', () => {
         fixture.componentInstance.reload();
         const request = http.expectOne('/api/v1/admin/agents/credentialed-backlog');
         expect(request.request.method).toBe('GET');
-        request.flush({ scans: 2, labels: ['dmz'], keptAgents: ['edge-01'] });
+        request.flush(asSchema('UnservedCredentialedScans', { scans: 2, labels: ['dmz'], keptAgents: ['edge-01'] }));
         flushLoad(NONE);
         expect(banner()).toContain('2 scans');
     });
@@ -409,6 +409,21 @@ describe('the agents screen when a read fails', () => {
 
     const failure = { status: 500, statusText: 'Internal Server Error' };
     const problem = (detail: string) => ({ title: 'Internal Server Error', status: 500, detail });
+    // An idle fleet as the server sends it: the figures are always there, zero rather than null.
+    const IDLE = asSchema('AgentActivitySummary', {
+        runningScans: [],
+        pendingScans: [],
+        stats: {
+            avgScanDurationSeconds: 0,
+            busyAgents: 0,
+            idleAgents: 0,
+            onlineAgents: 0,
+            pendingScansCount: 0,
+            runningScansCount: 0,
+            scansCompleted24h: 0,
+            totalAgents: 0
+        }
+    });
 
     beforeEach(async () => {
         TestBed.resetTestingModule();
@@ -432,7 +447,8 @@ describe('the agents screen when a read fails', () => {
             const url = request.request.url;
             if (url.endsWith('/activity')) request.flush(...activity());
             else if (url === '/api/v1/admin/agents') request.flush(agents, 'status' in agents ? failure : undefined);
-            else if (url.endsWith('/credentialed-backlog')) request.flush({ scans: 0, labels: [], keptAgents: [] });
+            else if (url.endsWith('/credentialed-backlog'))
+                request.flush(asSchema('UnservedCredentialedScans', { scans: 0, labels: [], keptAgents: [] }));
             else request.flush([]);
         }
     }
@@ -445,17 +461,13 @@ describe('the agents screen when a read fails', () => {
         );
 
         fixture.componentInstance.refreshActivity();
-        http.expectOne('/api/v1/admin/agents/activity').flush({
-            runningScans: [],
-            pendingScans: [],
-            stats: null
-        });
+        http.expectOne('/api/v1/admin/agents/activity').flush(IDLE);
 
         expect(page().querySelector('[data-testid="activity-error"]')).toBeNull();
     });
 
     it('shows the agent list’s failure in the server’s words', () => {
-        answer(() => [{ runningScans: [], pendingScans: [], stats: null }], problem('Agent registry locked.'));
+        answer(() => [IDLE], problem('Agent registry locked.'));
 
         expect(page().textContent).toContain('Agent registry locked.');
     });
