@@ -32,7 +32,8 @@ Sous [Réglages](../administration/settings.md) : le type de tracker, son URL, l
 cible, et un jeton. L'URL, le projet et le compte Jira reviennent à un administrateur, comme le
 jeton : le jeton agit là où ils le dirigent. Un projet GitHub s'écrit `propriétaire/dépôt` et rien
 d'autre — un chemin après lui est refusé à l'enregistrement, et de nouveau à l'envoi pour une valeur
-enregistrée avant.
+enregistrée avant. L'URL est l'adresse seule : celle qui porte un nom d'utilisateur ou un jeton
+(`https://utilisateur:…@hôte`) est refusée à l'enregistrement — le jeton a son propre champ, qui le chiffre.
 
 Donnez au jeton la portée la plus étroite permettant de créer et de lire des tickets dans le
 projet visé. Il est stocké chiffré avec votre `ENCRYPTION_KEY`, et son stockage est refusé
@@ -115,8 +116,9 @@ comme celui du jeton d'une connexion de forge :
 | Expiré, ou refusé par le tracker | `INTEGRATION_TOKEN_STOPPED` | `VECTI-SEC-039` (7) | oui |
 | De nouveau en service — accepté de nouveau, ou remplacé — ou plus sur le point d'expirer | `INTEGRATION_TOKEN_RESTORED` | `VECTI-SEC-040` (2) | oui |
 
-L'entrée nomme le tracker et son adresse (ressource `ticket_token`, sans acteur : personne ne l'a fait),
-dit la date ou le statut et depuis quand — **jamais le jeton**, ni un en-tête — et part au SIEM par le
+L'entrée nomme le tracker par sa sorte — GitLab, GitHub, Jira, ServiceNow — et non par son adresse, que
+seul un administrateur lit sur l'écran des réglages (ressource `ticket_token`, sans acteur : personne ne l'a
+fait) ; elle dit la date ou le statut et depuis quand — **jamais le jeton**, ni un en-tête — et part au SIEM par le
 [crochet habituel](siem.md#catalogue-des-evenements) ; un SIEM au minimum d'usine (High) ne reçoit que le `039`.
 Le message atteint chaque [canal de notification](notifications.md#integration-token-alerts) configuré
 pour l'installation — le webhook global, Slack, Teams, Discord, le courriel — sous le même interrupteur

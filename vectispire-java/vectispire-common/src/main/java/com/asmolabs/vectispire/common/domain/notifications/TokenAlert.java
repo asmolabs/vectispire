@@ -22,12 +22,13 @@ import java.util.Optional;
  * {@code SecurityEventRaised}.
  *
  * <p><b>No secret, by construction.</b> Nothing here is the token or a header: the name an administrator gave, the
- * server's label and address, the dates, and the status a server answered. Every message is made of these and of
- * nothing else.
+ * server's label and — for a forge connection — its address, the dates, and the status a server answered. Every
+ * message is made of these and of nothing else.
  *
  * @param reference what the audit entry names: {@code ticket_token}, or the connection's identifier
  * @param name the forge connection's name; for the tracker, the provider's label
- * @param where the server, for a reader: {@code GitLab at https://gitlab.example.com}
+ * @param where the server, for a reader: {@code GitLab at https://gitlab.example.com} for a forge connection, whose
+ *     address is not a secret; the provider's label alone for the tracker, whose address is a secret setting
  * @param notice what there is to say now
  * @param previous what was said before — which tells "works again" from "no longer about to expire"
  * @param expiresAt the known expiry; null when none is known

@@ -139,6 +139,35 @@ class SettingsRoutesTest extends ApiTestBase {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
     }
 
+    /**
+     * The tracker's address is stored as a setting, not through the token's encrypting route: a user name or a
+     * token typed into it would be a second copy of the credential, in the clear. Refused as a forge connection's
+     * address refuses one, and nothing is stored.
+     */
+    @Test
+    @DisplayName("the tracker's address is refused 400 when it carries a user name or a token")
+    void theTrackerAddressCarriesNoCredential() throws Exception {
+        settingsStore.set(Setting.TICKET_BASE_URL, "https://tracker.example.com");
+        for (String typed : new String[] {
+            "https://bot:not-a-real-token@tracker.example.com",
+            "https://bot@tracker.example.com",
+            "HTTP://user:pass@tracker.example.com/jira"
+        }) {
+            MvcResult refused = mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("ticket_base_url", typed))))
+                    .andExpect(status().isBadRequest())
+                    .andReturn();
+            assertThat(detailOf(refused)).as(typed).contains("carries a user name or a token");
+            assertThat(settingsStore.get(Setting.TICKET_BASE_URL)).isEqualTo("https://tracker.example.com");
+        }
+        // An address alone, with a path and a port, is still taken.
+        mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ticket_base_url\":\"https://tracker.example.com:8443/jira\"}"))
+                .andExpect(status().isOk());
+    }
+
     @Test
     @DisplayName("a CISO cannot choose the tracker project or the Jira account the token is used with")
     void aCisoCannotChooseWhereTheTokenActs() throws Exception {

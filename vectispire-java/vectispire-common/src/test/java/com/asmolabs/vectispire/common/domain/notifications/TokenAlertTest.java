@@ -64,7 +64,8 @@ class TokenAlertTest {
 
         TokenAlert alert(Credential credential, String name) {
             return new TokenAlert(credential, credential == Credential.TRACKER_TOKEN ? "ticket_token" : "b7c0-connection",
-                    name, "GitLab at https://gitlab.example.com", notice, previous,
+                    name, credential == Credential.TRACKER_TOKEN ? name : "GitLab at https://gitlab.example.com",
+                    notice, previous,
                     notice == Notice.NONE ? null : EXPIRY,
                     notice == Notice.REFUSED ? 401 : null,
                     notice == Notice.REFUSED ? Instant.parse("2026-10-12T08:00:00Z") : null,
@@ -117,7 +118,9 @@ class TokenAlertTest {
         assertThat(alert.signal().cefSeverity()).isEqualTo(transition.severity);
         // The audit log's hook finds the event by the operation alone: the writer has nothing to name.
         assertThat(SecurityEventType.signalledBy(alert.operation())).contains(alert.signal());
-        assertThat(alert.sentence()).startsWith("The tracker token (GitLab at https://gitlab.example.com)")
+        // The tracker is named by its kind alone (`TrackerTokenState.where`): its address is a secret setting.
+        assertThat(alert.sentence()).startsWith("The tracker token (GitLab)")
+                .doesNotContain("https://")
                 .contains(transition.says);
     }
 

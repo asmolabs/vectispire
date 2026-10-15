@@ -102,7 +102,9 @@
 - **Le changement d'état d'un jeton est signalé une fois**, pour le jeton du gestionnaire de tickets et pour
   chaque connexion de forge : une entrée d'audit (`INTEGRATION_TOKEN_EXPIRING`, `INTEGRATION_TOKEN_STOPPED`,
   `INTEGRATION_TOKEN_RESTORED`), un événement SIEM (`VECTI-SEC-038` à 4, `VECTI-SEC-039` à 7, `VECTI-SEC-040`
-  à 2) et un message sur chaque canal de notification configuré — jamais le jeton lui-même. Remplacer un
+  à 2) et un message sur chaque canal de notification configuré — jamais le jeton lui-même, et pour le
+  gestionnaire de tickets jamais son adresse, que seuls les administrateurs lisent : il est nommé par sa
+  sorte. Remplacer un
   jeton de gestionnaire de tickets refusé annonce qu'il fonctionne de nouveau
   ([notifications](../integrations/notifications.md#integration-token-alerts),
   [SIEM](../integrations/siem.md)).
@@ -111,6 +113,10 @@
   catégories avec leur état et leur raison) et reproduit le texte du modèle tel qu'il l'a écrit.
 
 ### Sécurité {#securite-0111}
+
+- **L'URL du gestionnaire de tickets (`ticket_base_url`) est refusée quand elle porte un nom d'utilisateur
+  ou un jeton** (`https://utilisateur:…@hôte`), comme l'adresse d'une connexion de forge l'était déjà : le
+  jeton a son propre champ, qui le chiffre ([tickets](../integrations/ticketing.md#configurer)).
 
 - **Un nom renvoyé par une forge ou saisi par une personne ne change plus le point d'API de la forge
   appelé.** La découverte, les lectures de revue des changements et la vérification d'une connexion encodent

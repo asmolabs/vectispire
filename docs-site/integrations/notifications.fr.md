@@ -63,7 +63,8 @@ par heure ; un redémarrage ne redit rien.
   il porte sur les constats.
 - **Les mêmes règles** : l'URL lue à l'envoi, l'interrupteur des adresses privées, la signature du
   webhook.
-- **Ce qu'il dit** : le tracker ou la connexion par son nom, le serveur et son adresse, la date ou le
+- **Ce qu'il dit** : le tracker par sa sorte (GitLab, Jira…) — jamais son adresse, un réglage que seuls
+  les administrateurs lisent — ou la connexion par son nom avec l'adresse de son serveur, la date ou le
   statut et depuis quand, et un lien vers l'écran où remplacer le jeton quand le déploiement connaît son
   adresse publique. **Jamais le jeton**, ni un en-tête.
 - **Le corps du webhook** se distingue d'un delta de scan par `event: "token_state_changed"`, avec
