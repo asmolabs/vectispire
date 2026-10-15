@@ -28,6 +28,8 @@ import com.asmolabs.vectispire.core.posture.QualityQueryService;
 import com.asmolabs.vectispire.core.posture.SecurityDebtService;
 import com.asmolabs.vectispire.core.posture.SecurityScorecardService;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanQueryService;
+import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -131,6 +133,9 @@ class WideAllowanceIntegrationTest {
 
     @Autowired
     private AttackPathService attackPaths;
+
+    @Autowired
+    private ScanQueryService scanQueries;
 
     @Autowired
     private ApiInventoryService apiInventory;
@@ -245,6 +250,18 @@ class WideAllowanceIntegrationTest {
         assertThat(epss.getFleetSummary(allowed)).isNotNull();
         assertThat(debt.calculateDebt(null, null, allowed)).isNotNull();
         assertThat(debt.highImpactFixes(null, null, allowed)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("the scan history: the granted repository's scan, paged in the statements, and not the hidden one's")
+    void theScanHistory() {
+        // Seventy-one statements of a thousand identifiers, each its own newest, merged: the hidden
+        // repository's scan is the estate's newest, and a narrowing applied after a cap would show nothing.
+        assertThat(scanQueries.history(allowed, null, null, 50, null).scans()).extracting(ScanView::id)
+                .containsExactly(estate.grantedScan());
+        assertThat(scanQueries.history(allowed, null, null, 1, 0).scans()).extracting(ScanView::id)
+                .containsExactly(estate.grantedScan());
+        assertThat(scanQueries.history(allowed, null, null, 1, 1).scans()).isEmpty();
     }
 
     private static IssueQueryService.BacklogQuery vulnerabilities() {

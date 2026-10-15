@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseSummary;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
@@ -13,6 +14,9 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.access.web.security.Visibilities;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,14 +43,24 @@ public class LicenseController {
         this.visibility = visibility;
     }
 
+    @Operation(summary = "List licence inventory", description = "The licence of every component of a named target, "
+            + "or of every target visible to the caller. With limit, one page of it, cut from the inventory ordered by "
+            + "target, package and version; without, the whole inventory, in no promised order. A page shorter than "
+            + "limit is the last.")
     @GetMapping("/inventory")
     public List<LicenseEntry> getInventory(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(name = "repo_id", required = false) Long repoId,
-            @RequestParam(name = "container_id", required = false) Long containerId) {
+            @RequestParam(name = "container_id", required = false) Long containerId,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
         // A named target must be one the caller may see; an unfiltered call is narrowed to their
         // allowance by the service.
-        return licenseService.getInventory(requireTargetVisible(principal, repoId, containerId), repoId, containerId);
+        return licenseService.getInventory(
+                requireTargetVisible(principal, repoId, containerId), repoId, containerId, limit, offset);
     }
 
     @GetMapping("/summary")
@@ -74,16 +88,24 @@ public class LicenseController {
         return licenseService.updatePolicy(policy, RequestActors.of(principal, request, "system"));
     }
 
+    @Operation(summary = "List licence conflicts", description = "The licence conflicts of a named target, or of the "
+            + "estate for a caller who sees all of it; 404 for a restricted caller naming no target. With limit, one page of them, cut from the conflicts in the "
+            + "inventory's page order (target, package, version); without, every conflict, in no promised order.")
     @GetMapping("/conflicts")
     public List<LicenseConflictMatrix.LicenseConflict> getConflicts(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(name = "repo_id", required = false) Long repoId,
             @RequestParam(name = "container_id", required = false) Long containerId,
-            @RequestParam(name = "proprietary", defaultValue = "true") boolean proprietary) {
+            @RequestParam(name = "proprietary", defaultValue = "true") boolean proprietary,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
         // On the summary's terms: a named target the caller may see, or — for a restricted reader —
         // refused by the service rather than answered with the estate's.
         return licenseService.evaluateConflicts(
-                requireTargetVisible(principal, repoId, containerId), repoId, containerId, proprietary);
+                requireTargetVisible(principal, repoId, containerId), repoId, containerId, proprietary, limit, offset);
     }
 
     @GetMapping("/matrix")

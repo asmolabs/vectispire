@@ -17,12 +17,11 @@ public record ScimListResponse<T>(
 
     public static final String SCHEMA_LIST = "urn:ietf:params:scim:api:messages:2.0:ListResponse";
 
-    public static <T> ScimListResponse<T> of(List<T> resources) {
-        return new ScimListResponse<>(
-                List.of(SCHEMA_LIST),
-                resources.size(),
-                1,
-                resources.size(),
-                resources);
+    /**
+     * A page of the list: {@code itemsPerPage} the resources it holds, {@code totalResults} every resource the
+     * request matched — the figure a client pages against (RFC 7644 §3.4.2).
+     */
+    public static <T> ScimListResponse<T> page(List<T> resources, int totalResults, int startIndex) {
+        return new ScimListResponse<>(List.of(SCHEMA_LIST), totalResults, startIndex, resources.size(), resources);
     }
 }

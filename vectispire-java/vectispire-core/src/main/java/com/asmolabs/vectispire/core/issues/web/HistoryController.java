@@ -1,10 +1,14 @@
 package com.asmolabs.vectispire.core.issues.web;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.issues.HistoryQueryService;
 import com.asmolabs.vectispire.core.issues.TriageHistory;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -49,9 +53,20 @@ public class HistoryController {
         this.visibility = visibility;
     }
 
+    @Operation(summary = "List repositories' triage history", description = "The repositories visible to the caller, "
+            + "most recently scanned first, never-scanned ones last, ties by id: each one's version, scan count, last "
+            + "scan, open issues and decisions. With limit, one page of them: the same array, cut from what the caller "
+            + "sees; a page shorter than limit is the last.")
     @GetMapping("/repositories")
-    public List<TriageHistory.Repository> repositories(@AuthenticationPrincipal VectispirePrincipal principal) {
-        return history.repositories(visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    public List<TriageHistory.Repository> repositories(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return history.repositories(
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()), limit, offset);
     }
 
     @GetMapping("/repositories/{id}")

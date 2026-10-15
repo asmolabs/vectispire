@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNode;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNodeType;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
@@ -386,12 +387,38 @@ public class AttackPathService {
      */
     @Transactional(readOnly = true)
     public List<AttackPathGraph> getOverview(Visibility allowed) {
-        List<RepositoryView> visible = allowed.asFilter()
-                .map(permitted -> this.targets.repositories(permitted.stream()
+        return getOverview(allowed, Optional.empty());
+    }
+
+    /**
+     * The attack paths the caller may see, by repository identifier, all of them or one page.
+     *
+     * <p><b>The page is cut from the repositories the allowance permits, before a graph is built</b>: an
+     * offset counted over the estate would start a restricted reader's second page among repositories they
+     * may not see, and the endpoints and issues a graph is built from are read for the page's repositories
+     * only. By identifier in both forms; it was the table's order for a reader of the estate — the
+     * identifier's on MySQL, whatever the heap holds on PostgreSQL — and the lookup's for a restricted one,
+     * neither an order a page can be cut from.
+     *
+     * @param limit rows per page, or null for every repository ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    @Transactional(readOnly = true)
+    public List<AttackPathGraph> getOverview(Visibility allowed, Integer limit, Integer offset) {
+        return getOverview(allowed, ListWindow.requested(limit, offset));
+    }
+
+    private List<AttackPathGraph> getOverview(Visibility allowed, Optional<ListWindow> window) {
+        List<RepositoryView> permitted = allowed.asFilter()
+                .map(targets -> this.targets.repositories(targets.stream()
                         .filter(ScanTarget.Repository.class::isInstance)
                         .map(target -> ((ScanTarget.Repository) target).id())
                         .toList()))
-                .orElseGet(this.targets::repositories);
+                .orElseGet(this.targets::repositories)
+                .stream()
+                .sorted(Comparator.comparing(RepositoryView::id))
+                .toList();
+        List<RepositoryView> visible = window.map(page -> page.of(permitted)).orElse(permitted);
 
         if (visible.isEmpty()) {
             return List.of();

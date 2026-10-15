@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.issues;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
@@ -18,6 +19,7 @@ import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -25,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -73,12 +76,35 @@ public class HistoryQueryService {
         this.clock = clock;
     }
 
-    public List<TriageHistory.Repository> repositories(Visibility allowed) {
-        return targets.repositories().stream()
+    /**
+     * The repositories the allowance permits, most recently scanned first, all of them or one page.
+     *
+     * <p><b>Ordered before any row is built, and the page cut after the allowance.</b> A row costs three
+     * reads of its own — its last two hundred scans, its open count, its reopenings — so the order is read
+     * for the estate in one grouped statement (each repository's newest scan instant, the very figure the
+     * row shows as {@code lastScanAt}) and only the page's rows are built. The offset counts what the caller
+     * sees: counted over the estate, a restricted reader's second page would start among repositories they
+     * may not see.
+     *
+     * <p>A repository never scanned comes last, and two that share an instant — every never-scanned one —
+     * by identifier: the sort was stable over the table's order before, which is the identifier's on MySQL
+     * and whatever the heap holds on PostgreSQL, and a page needs an order that is total.
+     *
+     * @param limit rows per page, or null for every repository ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<TriageHistory.Repository> repositories(Visibility allowed, Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        Map<Long, Instant> lastScanAt = scans.lastScanAtPerRepository();
+        List<RepositoryView> ordered = targets.repositories().stream()
                 .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.id())))
-                .map(this::rowOf)
                 .sorted(Comparator.comparing(
-                        TriageHistory.Repository::lastScanAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                                (RepositoryView repository) -> lastScanAt.get(repository.id()),
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(RepositoryView::id))
+                .toList();
+        return window.map(page -> page.of(ordered)).orElse(ordered).stream()
+                .map(this::rowOf)
                 .toList();
     }
 

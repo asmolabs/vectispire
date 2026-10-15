@@ -349,7 +349,7 @@ export interface paths {
         };
         /**
          * Get global attack paths overview
-         * @description Returns multi-target attack path summaries and critical exploit chain counts across all repositories.
+         * @description Returns multi-target attack path summaries and critical exploit chain counts across the repositories visible to the caller, by repository id. With limit, one page of them: the same array, cut from what the caller sees; a page shorter than limit is the last.
          */
         get: operations["getOverview"];
         put?: never;
@@ -1811,6 +1811,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * List repositories' triage history
+         * @description The repositories visible to the caller, most recently scanned first, never-scanned ones last, ties by id: each one's version, scan count, last scan, open issues and decisions. With limit, one page of them: the same array, cut from what the caller sees; a page shorter than limit is the last.
+         */
         get: operations["repositories"];
         put?: never;
         post?: never;
@@ -2005,6 +2009,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * List licence conflicts
+         * @description The licence conflicts of a named target, or of the estate for a caller who sees all of it; 404 for a restricted caller naming no target. With limit, one page of them, cut from the conflicts in the inventory's page order (target, package, version); without, every conflict, in no promised order.
+         */
         get: operations["getConflicts"];
         put?: never;
         post?: never;
@@ -2021,6 +2029,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * List licence inventory
+         * @description The licence of every component of a named target, or of every target visible to the caller. With limit, one page of it, cut from the inventory ordered by target, package and version; without, the whole inventory, in no promised order. A page shorter than limit is the last.
+         */
         get: operations["getInventory"];
         put?: never;
         post?: never;
@@ -3634,7 +3646,7 @@ export interface paths {
         };
         /**
          * List scan history
-         * @description Returns historical security scans with filtering by repository or container target.
+         * @description Returns historical security scans with filtering by repository or container target, newest first, among the targets visible to the caller. With offset, the page that starts there: the same array, cut from what the caller sees; a page shorter than limit is the last.
          */
         get: operations["list_17"];
         put?: never;
@@ -9555,7 +9567,12 @@ export interface operations {
     };
     getOverview: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11629,7 +11646,12 @@ export interface operations {
     };
     repositories: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11961,6 +11983,10 @@ export interface operations {
                 repo_id?: number;
                 container_id?: number;
                 proprietary?: boolean;
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -11984,6 +12010,10 @@ export interface operations {
             query?: {
                 repo_id?: number;
                 container_id?: number;
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -14515,6 +14545,8 @@ export interface operations {
                 container_id?: number;
                 /** @description Maximum results to return */
                 limit?: number;
+                /** @description Scans to skip, zero or a multiple of limit as read (1 to 200, a value outside brought within); 400 otherwise. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -16051,7 +16083,12 @@ export interface operations {
     };
     listGroups: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The 1-based index of the first resource (RFC 7644 §3.4.2.4); below 1, read as 1. Absent, with no count, every resource is answered. */
+                startIndex?: number;
+                /** @description The most resources answered, 0 to 500; negative, read as 0, which answers totalResults alone; past 500, 500 are answered. Absent, every resource from startIndex. */
+                count?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -16275,7 +16312,9 @@ export interface operations {
         parameters: {
             query?: {
                 filter?: string;
+                /** @description The 1-based index of the first resource (RFC 7644 §3.4.2.4); below 1, read as 1. Absent, with no count, every resource is answered. */
                 startIndex?: number;
+                /** @description The most resources answered, 0 to 500; negative, read as 0, which answers totalResults alone; past 500, 500 are answered. Absent, every resource from startIndex. */
                 count?: number;
             };
             header?: never;
@@ -16284,7 +16323,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Every account, or the one the filter names */
+            /** @description Every account, or the one the filter names; one page of them with startIndex or count */
             200: {
                 headers: {
                     [name: string]: unknown;

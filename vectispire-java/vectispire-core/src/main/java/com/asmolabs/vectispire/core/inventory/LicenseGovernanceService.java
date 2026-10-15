@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseRiskCategory;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseSummary;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentOrigin;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -37,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -600,6 +602,47 @@ public class LicenseGovernanceService {
     }
 
     /**
+     * {@link #getInventory(Visibility, Long, Long)}, all of it or one page.
+     *
+     * <p><b>Asked nothing, the inventory in the order it has always come in</b>, which is a hash map's: no
+     * client written against 0.11.0 sees a byte move. <b>Asked a page, cut from the inventory ordered by
+     * {@link #PAGE_ORDER}</b> — target, package, version — because the hash map's order is no order a page can
+     * be cut from: one component more and every entry may move, and a client paging through would read some
+     * twice and miss others. The pages of one read are therefore the whole inventory, in another order than
+     * the unpaged answer.
+     *
+     * <p>A page is a cut of the inventory, not a narrower read of it: the entries are built from the scans'
+     * SBOMs, which no query can page. What it shortens is the answer.
+     *
+     * @param limit rows per page, or null for the whole inventory ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses, before anything is read
+     */
+    public List<LicenseEntry> getInventory(
+            Visibility allowed, Long repoIdFilter, Long containerIdFilter, Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<LicenseEntry> inventory = getInventory(allowed, repoIdFilter, containerIdFilter);
+        return window.map(page -> page.of(inventory.stream().sorted(PAGE_ORDER).toList())).orElse(inventory);
+    }
+
+    /**
+     * The order a page of the inventory, or of its conflicts, is cut from: target, package, version, then
+     * every other field, so that two entries it cannot tell apart are equal and their order unseen. Nulls
+     * first — an entry attached to no target, a component with no purl.
+     */
+    private static final Comparator<LicenseEntry> PAGE_ORDER = Comparator
+            .comparing(LicenseEntry::targetKind, Comparator.nullsFirst(Comparator.<String>naturalOrder()))
+            .thenComparing(LicenseEntry::targetId, Comparator.nullsFirst(Comparator.<Long>naturalOrder()))
+            .thenComparing(LicenseEntry::packageName, Comparator.nullsFirst(Comparator.<String>naturalOrder()))
+            .thenComparing(LicenseEntry::packageVersion, Comparator.nullsFirst(Comparator.<String>naturalOrder()))
+            .thenComparing(LicenseEntry::license, Comparator.nullsFirst(Comparator.<String>naturalOrder()))
+            .thenComparing(LicenseEntry::purl, Comparator.nullsFirst(Comparator.<String>naturalOrder()))
+            .thenComparing(LicenseEntry::riskCategory,
+                    Comparator.nullsFirst(Comparator.<LicenseRiskCategory>naturalOrder()))
+            .thenComparing(LicenseEntry::compliant)
+            .thenComparing(LicenseEntry::violationReason, Comparator.nullsFirst(Comparator.<String>naturalOrder()))
+            .thenComparing(LicenseEntry::targetName, Comparator.nullsFirst(Comparator.<String>naturalOrder()));
+
+    /**
      * The inventory a reader may see: a named target's, or the estate's narrowed to their allowance.
      *
      * <p><b>A component inventory is a map of someone's dependencies and their licences.</b> The
@@ -787,7 +830,34 @@ public class LicenseGovernanceService {
     public List<LicenseConflictMatrix.LicenseConflict> evaluateConflicts(
             Visibility allowed, Long repoId, Long containerId, boolean isProprietaryTarget) {
         requireEstateOrTarget(allowed, repoId, containerId);
+        return conflictsOf(getInventory(allowed, repoId, containerId), isProprietaryTarget);
+    }
+
+    /**
+     * {@link #evaluateConflicts(Visibility, Long, Long, boolean)}, all of them or one page — the unpaged answer
+     * in the inventory's own order, a page cut from the conflicts of the inventory ordered by {@link
+     * #PAGE_ORDER}, as {@link #getInventory(Visibility, Long, Long, Integer, Integer)} cuts its own. A conflict
+     * carries no target identifier to be ordered by; the entry it was found on does.
+     *
+     * @param limit rows per page, or null for every conflict ({@link ListWindow#requested})
+     * @throws NotFoundException for a restricted reader naming no target — before the window is read, so a
+     *     refusal of the parameters says nothing the 404 would not
+     * @throws InvalidInputException a window the rule refuses
+     */
+    @Transactional(readOnly = true)
+    public List<LicenseConflictMatrix.LicenseConflict> evaluateConflicts(
+            Visibility allowed, Long repoId, Long containerId, boolean isProprietaryTarget, Integer limit, Integer offset) {
+        requireEstateOrTarget(allowed, repoId, containerId);
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         List<LicenseEntry> inventory = getInventory(allowed, repoId, containerId);
+        if (window.isEmpty()) {
+            return conflictsOf(inventory, isProprietaryTarget);
+        }
+        return window.get().of(conflictsOf(inventory.stream().sorted(PAGE_ORDER).toList(), isProprietaryTarget));
+    }
+
+    private static List<LicenseConflictMatrix.LicenseConflict> conflictsOf(
+            List<LicenseEntry> inventory, boolean isProprietaryTarget) {
         List<LicenseConflictMatrix.LicenseConflict> conflicts = new ArrayList<>();
 
         for (LicenseEntry entry : inventory) {

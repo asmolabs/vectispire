@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -662,6 +663,55 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("repoIds") java.util.Collection<Long> repoIds,
             @Param("containerIds") java.util.Collection<Long> containerIds,
             Limit limit);
+
+    /**
+     * One page of {@link #findHistory}, for a reader who sees every target: the offset is the database's,
+     * so a deep page reads no row before it.
+     */
+    @Query("""
+            select s from ScanEntity s
+             where (:repoId is null or s.repoId = :repoId)
+               and (:containerId is null or s.containerId = :containerId)
+             order by s.createdAt desc, s.id desc""")
+    List<ScanEntity> findHistoryPage(
+            @Param("repoId") Long repoId, @Param("containerId") Long containerId, Pageable page);
+
+    /**
+     * One page of {@link #findHistory} within an allowance, <b>the allowance as SQL so the page is cut
+     * after it</b>: an offset counted over the estate's scans would start a restricted reader's second page
+     * among scans they may not see, and hand them a share of the deployment's latest rather than their own.
+     *
+     * <p>A scan is the repository's when it names one, the image's otherwise — {@code ScanEntity.target()},
+     * which is what {@code Visibility.permits} is asked about everywhere else — so a scan naming a hidden
+     * repository is not let through by the image it also names. Neither list may be empty ({@code in ()} is
+     * not valid everywhere: the caller passes a sentinel), and each binds one parameter per element, so the
+     * caller hands at most a thousand.
+     */
+    @Query("""
+            select s from ScanEntity s
+             where (:repoId is null or s.repoId = :repoId)
+               and (:containerId is null or s.containerId = :containerId)
+               and (s.repoId in :repoIds or (s.repoId is null and s.containerId in :containerIds))
+             order by s.createdAt desc, s.id desc""")
+    List<ScanEntity> findHistoryWithin(
+            @Param("repoId") Long repoId,
+            @Param("containerId") Long containerId,
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("containerIds") Collection<Long> containerIds,
+            Pageable page);
+
+    /**
+     * Each repository's newest scan instant — the greatest {@code created_at}, which is what the triage
+     * history shows as a repository's last scan and orders its list by. Not {@link #findLatestPerRepository}:
+     * that one's newest is the highest identifier, and two instances whose clocks differ can give the higher
+     * identifier the earlier instant.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.LastScanInstantRow(s.repoId, max(s.createdAt))
+              from ScanEntity s
+             where s.repoId is not null
+             group by s.repoId""")
+    List<LastScanInstantRow> findLastScanInstantPerRepository();
 
     /**
      * The scans a worker holds <b>and is still renewing</b>: its lease has not lapsed.
