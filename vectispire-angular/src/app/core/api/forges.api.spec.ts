@@ -2,6 +2,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { asSchema } from '../testing/contract';
+import { CANDIDATE_PAGE, COMPLETED_DISCOVERY, CONNECTION, RUNNING_DISCOVERY, API } from '../testing/forges.fixtures';
 import { ForgesApi } from './forges.api';
 
 /**
@@ -27,22 +29,22 @@ describe('the forge client', () => {
         http.expectOne({ method: 'GET', url: '/api/v1/forge-connections' }).flush([]);
 
         api.forgeConnection(ID).subscribe();
-        http.expectOne({ method: 'GET', url: BASE }).flush({});
+        http.expectOne({ method: 'GET', url: BASE }).flush(CONNECTION);
 
         api.createForgeConnection({ name: 'n', kind: 'gitlab', token: 'glpat-x' }).subscribe(); // gitleaks:allow
         const created = http.expectOne({ method: 'POST', url: '/api/v1/forge-connections' });
         expect(created.request.body).toEqual({ name: 'n', kind: 'gitlab', token: 'glpat-x' }); // gitleaks:allow
-        created.flush({});
+        created.flush(CONNECTION, { status: 201, statusText: 'Created' });
 
         api.updateForgeConnection(ID, { caPem: '' }).subscribe();
         const changed = http.expectOne({ method: 'PATCH', url: BASE });
         expect(changed.request.body).toEqual({ caPem: '' });
-        changed.flush({});
+        changed.flush(CONNECTION);
 
         api.replaceForgeConnectionToken(ID, 'glpat-new').subscribe(); // gitleaks:allow
         const rotated = http.expectOne({ method: 'PUT', url: `${BASE}/token` });
         expect(rotated.request.body).toEqual({ token: 'glpat-new' }); // gitleaks:allow
-        rotated.flush({});
+        rotated.flush(CONNECTION);
 
         api.deleteForgeConnection(ID).subscribe();
         http.expectOne({ method: 'DELETE', url: BASE }).flush(null, { status: 204, statusText: 'No Content' });
@@ -50,19 +52,22 @@ describe('the forge client', () => {
 
     it('requests, lists and reads discoveries, and pages their comparison', () => {
         api.requestForgeDiscovery(ID).subscribe();
-        http.expectOne({ method: 'POST', url: `${BASE}/discoveries` }).flush({});
+        http.expectOne({ method: 'POST', url: `${BASE}/discoveries` }).flush(RUNNING_DISCOVERY, {
+            status: 202,
+            statusText: 'Accepted'
+        });
 
         api.forgeDiscoveries(ID).subscribe();
         http.expectOne({ method: 'GET', url: `${BASE}/discoveries` }).flush([]);
 
         api.forgeDiscovery(ID, 12).subscribe();
-        http.expectOne({ method: 'GET', url: `${BASE}/discoveries/12` }).flush({});
+        http.expectOne({ method: 'GET', url: `${BASE}/discoveries/12` }).flush(COMPLETED_DISCOVERY);
 
         api.discoveredRepositories(ID, 12, 'gone', 50, 100).subscribe();
         http.expectOne({
             method: 'GET',
             url: `${BASE}/discoveries/12/repositories?change=gone&limit=50&offset=100`
-        }).flush({});
+        }).flush(asSchema('RepositoryPage', { items: [API], total: 101, limit: 50, offset: 100 }));
     });
 
     it('sends the filters in the query of the table and in the body of a selection change', () => {
@@ -77,7 +82,7 @@ describe('the forge client', () => {
         http.expectOne({
             method: 'GET',
             url: `${BASE}/discoveries/12/selection?limit=50&offset=0&archived=show&forks=hide&inactiveDays=90`
-        }).flush({});
+        }).flush(CANDIDATE_PAGE);
 
         api.changeImportSelection(ID, 12, 'add', ['101'], { personal: 'hide' }, ['102']).subscribe();
         const change = http.expectOne({ method: 'POST', url: `${BASE}/discoveries/12/selection` });
@@ -87,7 +92,7 @@ describe('the forge client', () => {
             filters: { personal: 'hide' },
             forgeIds: ['102']
         });
-        change.flush({});
+        change.flush(asSchema('ForgeSelection', { discoveryId: 12, count: 1, selected: ['101'], dropped: null }));
     });
 
     it('previews and imports with the same body', () => {

@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForgeDiscoveryPage, POLL_FIRST_MS } from './forge-discovery';
 import { useEnglish } from '@/app/core/testing/english';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import {
     API,
     CANDIDATE_PAGE,
@@ -18,6 +18,7 @@ import {
     repository
 } from '@/app/core/testing/forges.fixtures';
 import type { ForgeConnection, ForgeDiscovery } from '@/app/core/api.models';
+import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
 
 /**
  * A connection's discovery, through the DOM: the run's state and counters while it moves, why it ended short,
@@ -82,22 +83,26 @@ describe('the discovery page', () => {
         http.expectOne({
             method: 'GET',
             url: `${BASE}/discoveries/12/repositories?change=new&limit=50&offset=0`
-        }).flush({
-            items: [API],
-            limit: 50,
-            offset: 0,
-            total: 1
-        });
+        }).flush(
+            asSchema('RepositoryPage', {
+                items: [API],
+                limit: 50,
+                offset: 0,
+                total: 1
+            })
+        );
         fixture.detectChanges();
         expect(text('[data-testid="changed-row"]')).toContain('acme/backend/payments/api');
 
         click('[data-testid="count-changed"]');
-        http.expectOne(`${BASE}/discoveries/12/repositories?change=changed&limit=50&offset=0`).flush({
-            items: [repository('105', 'acme/new-name', { changeSummary: 'renamed or moved from acme/old-name' })],
-            limit: 50,
-            offset: 0,
-            total: 1
-        });
+        http.expectOne(`${BASE}/discoveries/12/repositories?change=changed&limit=50&offset=0`).flush(
+            asSchema('RepositoryPage', {
+                items: [repository('105', 'acme/new-name', { changeSummary: 'renamed or moved from acme/old-name' })],
+                limit: 50,
+                offset: 0,
+                total: 1
+            })
+        );
         fixture.detectChanges();
         expect(text('[data-testid="changed-row"]')).toContain('renamed or moved from acme/old-name');
     });
@@ -164,18 +169,24 @@ describe('the discovery page', () => {
         vi.advanceTimersByTime(POLL_FIRST_MS);
         http.expectNone(`${BASE}/discoveries/13`);
         vi.advanceTimersByTime(POLL_FIRST_MS);
-        http.expectOne(`${BASE}/discoveries/13`).flush({
-            ...RUNNING_DISCOVERY,
-            repositoriesSeen: 30,
-            requestsMade: 20
-        });
+        http.expectOne(`${BASE}/discoveries/13`).flush(
+            asSchema('ForgeDiscoveryView', {
+                ...RUNNING_DISCOVERY,
+                repositoriesSeen: 30,
+                requestsMade: 20
+            })
+        );
         fixture.detectChanges();
         expect(text('[data-testid="repositories"]')).toBe('30');
 
         // A counter moved: back to the first step.
         vi.advanceTimersByTime(POLL_FIRST_MS);
-        http.expectOne(`${BASE}/discoveries/13`).flush({ ...COMPLETED_DISCOVERY, id: 13 });
-        http.expectOne({ method: 'GET', url: `${BASE}/discoveries` }).flush([{ ...COMPLETED_DISCOVERY, id: 13 }]);
+        http.expectOne(`${BASE}/discoveries/13`).flush(
+            asSchema('ForgeDiscoveryView', { ...COMPLETED_DISCOVERY, id: 13 })
+        );
+        http.expectOne({ method: 'GET', url: `${BASE}/discoveries` }).flush(
+            asSchemaList('ForgeDiscoveryView', [{ ...COMPLETED_DISCOVERY, id: 13 }])
+        );
         http.expectOne({ method: 'GET', url: BASE }).flush(CONNECTION);
         fixture.detectChanges();
         expect(text('[data-testid="discovery-state"]')).toBe('Completed');
@@ -225,19 +236,21 @@ describe('the discovery page', () => {
         http.expectOne(`${selection}?limit=50&offset=0&archived=hide&forks=hide&personal=show&present=show`).flush(
             CANDIDATE_PAGE
         );
-        http.expectOne({ method: 'POST', url: selection }).flush({
-            discoveryId: 12,
-            selected: ['101', '102'],
-            count: 2,
-            dropped: []
-        });
+        http.expectOne({ method: 'POST', url: selection }).flush(
+            asSchema('ForgeSelection', {
+                discoveryId: 12,
+                selected: ['101', '102'],
+                count: 2,
+                dropped: []
+            })
+        );
         fixture.detectChanges();
         expect(text('[data-testid="step-import"]')).toBe('3. Place and import (2)');
 
         click('[data-testid="to-import"]');
         http.expectOne('/api/v1/ssh-keys').flush([]);
         http.expectOne('/api/v1/git-tokens').flush([]);
-        http.expectOne('/api/v1/solutions').flush({ solutions: [], unfiled: { openIssues: {}, repositories: [] } });
+        http.expectOne('/api/v1/solutions').flush(EMPTY_TREE);
         const preview = http.expectOne({ method: 'POST', url: `${BASE}/imports/preview` });
         expect(preview.request.body).toMatchObject({ discoveryId: 12, forgeIds: ['101', '102'] });
         preview.flush(PREVIEW);
@@ -247,7 +260,9 @@ describe('the discovery page', () => {
 
         click('[data-testid="import"]');
         http.expectOne({ method: 'POST', url: `${BASE}/imports` }).flush(RESULT);
-        http.expectOne({ method: 'GET', url: BASE }).flush({ ...CONNECTION, importedTargets: 7 });
+        http.expectOne({ method: 'GET', url: BASE }).flush(
+            asSchema('ForgeConnectionView', { ...CONNECTION, importedTargets: 7 })
+        );
         fixture.detectChanges();
 
         expect(text('[data-testid="result-summary"]')).toContain('2 targets created.');
