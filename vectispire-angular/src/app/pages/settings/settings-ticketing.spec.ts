@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { Settings } from './settings';
-import { ticketTokenState } from '@/app/core/testing/settings.fixtures';
+import { secretState, ticketTokenState } from '@/app/core/testing/settings.fixtures';
 
 /**
  * The tracker cards of the Integrations tab, as an operator wires a tracker: the token Vectispire
@@ -24,6 +24,7 @@ describe('the tracker cards of the settings page', () => {
                 key: 'ticket_base_url',
                 section: 'Ticket tracker',
                 label: 'Tracker URL',
+                help: '',
                 type: 'text',
                 value: 'https://tracker.example.com',
                 default: '',
@@ -43,7 +44,7 @@ describe('the tracker cards of the settings page', () => {
         );
         for (const url of ['webhook-secret', 'ticket-webhook-secret']) {
             http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((call) =>
-                call.flush({ configured: false })
+                call.flush(secretState(false))
             );
         }
         // The SIEM card reads its own configuration; with none, it offers an empty form.
@@ -146,7 +147,7 @@ describe('the tracker cards of the settings page', () => {
         await save('ticket-webhook-secret', 'a-shared-secret');
         const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings/ticket-webhook-secret' });
         expect(put.request.body).toEqual({ secret: 'a-shared-secret' });
-        put.flush({ configured: true });
+        put.flush(secretState(true));
         fixture.detectChanges();
         await fixture.whenStable();
 

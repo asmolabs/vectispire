@@ -6,6 +6,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Settings } from './settings';
 import { asSchema } from '@/app/core/testing/contract';
+import { secretState, settingsUpdated, unconfigured } from '@/app/core/testing/settings.fixtures';
 
 /**
  * The AI tab keeps its place and its answers across the actions taken on it.
@@ -29,6 +30,7 @@ describe('the settings screen, on the AI tab', () => {
                 key: 'ai_review_model',
                 section: 'Model review',
                 label: 'Model name',
+                help: '',
                 type: 'text',
                 value: 'gemma4:12b-it-qat',
                 default: 'gemma4:12b-it-qat',
@@ -40,6 +42,7 @@ describe('the settings screen, on the AI tab', () => {
                 key: 'notification_webhook_url',
                 section: 'Notifications',
                 label: 'Webhook URL',
+                help: '',
                 type: 'text',
                 value: '',
                 default: '',
@@ -72,13 +75,9 @@ describe('the settings screen, on the AI tab', () => {
         http.match({ method: 'GET', url: '/api/v1/settings' }).forEach((request) =>
             request.flush(structuredClone(CATALOGUE))
         );
-        for (const url of ['ticket-token', 'webhook-secret', 'ticket-webhook-secret', 'ai-openai-key']) {
-            http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((request) =>
-                request.flush({ configured: false })
-            );
-        }
-        // The SIEM and threat-feed cards read their own state; their answers do not matter here.
-        http.match({ method: 'GET' }).forEach((request) => request.flush({}));
+        // The secrets, the tracker and the SIEM cards read their own state, answered as an install
+        // where none of them was set up answers it.
+        http.match({ method: 'GET' }).forEach((request) => request.flush(unconfigured(request.request.url)));
         harness.detectChanges();
     };
 
@@ -127,7 +126,7 @@ describe('the settings screen, on the AI tab', () => {
         button('settings.save_btn').click();
         const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings' });
         expect(put.request.body).toEqual({ ai_review_model: 'gemma4:26b' });
-        put.flush({ updated: 1 });
+        put.flush(settingsUpdated(1));
         // The save re-reads the catalogue and every section's state: this is the reload. The page
         // redraws while the reads are in flight, as it does in a browser — without this, a reload
         // that emptied the catalogue first would be filled again before anything was drawn.
@@ -149,7 +148,7 @@ describe('the settings screen, on the AI tab', () => {
         saveKey.click();
         const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings/ai-openai-key' });
         expect(put.request.body).toEqual({ secret: 'sk-test' });
-        put.flush({ configured: true });
+        put.flush(secretState(true));
         await harness.fixture.whenStable();
         harness.detectChanges();
 
