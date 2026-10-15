@@ -72,6 +72,23 @@
   et la sélection d'import gardent leurs bornes et leurs phrases, désormais une règle partagée avec ces
   listes.
 
+- **D'autres lectures se paginent à la demande : `limit` et `offset` sur `GET /api/v1/history/repositories`,
+  `/api/v1/attack-paths/overview`, `/api/v1/licenses/inventory` et `/api/v1/licenses/conflicts` ; `offset`
+  sur `GET /api/v1/scans` ; `startIndex` et `count` sur `/Users` et `/Groups` de SCIM.** Sans eux, chacune
+  répond ce qu'elle répondait. Les quatre premières suivent la règle des listes d'inventaire ci-dessus, la
+  visibilité appliquée avant le découpage. Les dépôts de l'historique de triage sont triés du plus
+  récemment scanné au moins récent, ceux jamais scannés en dernier, par `id` à égalité ; la vue d'ensemble
+  des chemins d'attaque par `id` de dépôt. L'inventaire des licences et ses conflits gardent leur ordre sans
+  page, qui n'en était pas un : une page est découpée dans l'inventaire trié par cible, paquet et version,
+  si bien que les pages contiennent toutes les entrées, dans cet ordre. L'historique des scans garde son
+  `limit` — 50 par défaut, ramené entre 1 et 200, jamais refusé — et prend un `offset`, zéro ou un multiple
+  de la limite retenue, 400 sinon. **L'historique des scans d'un lecteur restreint est désormais fait de
+  ses propres scans les plus récents**, lus avec la visibilité dans la requête : c'étaient les `limit`
+  derniers scans du parc réduits ensuite aux siens, souvent aucun alors que les siens existaient ; un
+  lecteur du parc entier lit les mêmes lignes. SCIM pagine comme la RFC 7644, les valeurs hors bornes
+  interprétées plutôt que refusées ([SSO](../administration/sso.fr.md#provisioning-from-the-directory-scim)) ;
+  `/Users` acceptait les deux paramètres et les ignorait.
+
 ### Nouveautés {#nouveautes-0111}
 
 - **Un administrateur lève l'obligation de changer de mot de passe d'un compte fédéré depuis l'écran

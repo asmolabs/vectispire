@@ -114,6 +114,14 @@ the provider's configuration, so what it may do is deliberately bounded:
   that are not a list are `400`. Until 0.11.1 a `replace` was read as an `add`: a person the directory
   took out of the group stayed in the team, with what it grants. An `add` naming an id no account holds
   answered `500`; it is skipped too.
+- **`GET /scim/v2/Users` and `GET /scim/v2/Groups` page on request** (RFC 7644 §3.4.2.4): `startIndex`,
+  1-based, and `count`, at most 500 resources a page. `totalResults` is every resource the request
+  matched, `itemsPerPage` how many the page holds, `startIndex` where it starts. Out-of-range values are
+  read as the RFC says rather than refused — a directory answered `400` stops synchronising: a
+  `startIndex` below 1 is 1, a negative `count` is 0, which answers `totalResults` alone, and a `count`
+  past 500 is 500. Without either, every resource, as before; the users are listed by `userName`, the
+  groups by `id`, and a filter's match pages like the rest. Until 0.11.1 `/Users` accepted both and
+  ignored them, answering every account whatever `count` said, and `/Groups` read neither.
 
 ## The second factor belongs to the provider
 

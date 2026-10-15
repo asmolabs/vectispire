@@ -122,6 +122,15 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
   reçoivent `400`. Jusqu'à la 0.11.1, un `replace` était lu comme un `add` : une personne que l'annuaire
   retirait du groupe restait dans l'équipe, avec ce qu'elle accorde. Un `add` nommant un identifiant
   qu'aucun compte ne porte répondait `500` ; il est ignoré lui aussi.
+- **`GET /scim/v2/Users` et `GET /scim/v2/Groups` se paginent à la demande** (RFC 7644 §3.4.2.4) :
+  `startIndex`, à partir de 1, et `count`, 500 ressources par page au plus. `totalResults` compte toutes
+  les ressources que la requête désigne, `itemsPerPage` celles de la page, `startIndex` dit où elle
+  commence. Les valeurs hors bornes sont lues comme la RFC le dit plutôt que refusées — un annuaire à qui
+  l'on répond `400` cesse de synchroniser : un `startIndex` inférieur à 1 vaut 1, un `count` négatif vaut
+  0, qui ne rend que `totalResults`, et un `count` au-delà de 500 vaut 500. Sans l'un ni l'autre, toutes
+  les ressources, comme avant ; les utilisateurs sont listés par `userName`, les groupes par `id`, et le
+  résultat d'un filtre se pagine comme le reste. Jusqu'à la 0.11.1, `/Users` acceptait les deux et les
+  ignorait, rendant tous les comptes quel que soit `count`, et `/Groups` n'en lisait aucun.
 
 ## Le second facteur relève du fournisseur
 

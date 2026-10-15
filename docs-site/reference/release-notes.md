@@ -65,6 +65,22 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   gains `total`, every account whether or not the page shows them all. The forge discovery's repositories
   and the import selection keep their bounds and their sentences, now one rule shared with these lists.
 
+- **More reads page on request: `limit` and `offset` on `GET /api/v1/history/repositories`,
+  `/api/v1/attack-paths/overview`, `/api/v1/licenses/inventory` and `/api/v1/licenses/conflicts`; `offset`
+  on `GET /api/v1/scans`; `startIndex` and `count` on SCIM's `/Users` and `/Groups`.** Without them each
+  answers what it answered. The first four take the inventory lists' rule above, the visibility applied
+  before the cut. The triage history's repositories are ordered most recently scanned first and
+  never-scanned ones last, by `id` among equals; the attack-path overview by repository `id`. The licence
+  inventory and its conflicts keep their unpaged order, which was never one: a page is cut from the
+  inventory ordered by target, package and version, so the pages hold every entry, in that order. The scan
+  history keeps its `limit` — 50 by default, brought within 1–200, never refused — and takes an `offset`,
+  zero or a multiple of the limit as read, 400 otherwise. **A restricted reader's scan history is now their
+  own latest scans**, read with the visibility in the query: it was the estate's latest `limit` narrowed
+  afterwards to theirs, often none while their own existed; a reader of the whole estate reads the same
+  rows. SCIM pages as RFC 7644 does, out-of-range values interpreted rather than refused
+  ([SSO](../administration/sso.md#provisioning-from-the-directory-scim)); `/Users` used to accept both
+  parameters and ignore them.
+
 ### New {#new-0111}
 
 - **Administrators lift a federated account's password-change requirement from the Users screen**
