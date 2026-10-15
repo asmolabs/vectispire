@@ -13,6 +13,9 @@ const eslint = require('@eslint/js');
 const tseslint = require('typescript-eslint');
 const angular = require('angular-eslint');
 
+const FLUSHED_LITERAL =
+    'A flushed literal is checked against nothing: wrap it in asSchema/asSchemaList with the schema the route answers, or write it `satisfies AnswerOf<…>` for a route the document types as a bare map.';
+
 module.exports = tseslint.config(
     {
         ignores: ['dist/**', 'out-tsc/**', '.angular/**', 'src/app/core/api.generated.ts']
@@ -81,6 +84,33 @@ module.exports = tseslint.config(
                     selector: 'TSAsExpression > TSAsExpression.expression > TSUnknownKeyword.typeAnnotation',
                     message:
                         '`as unknown as` silences the whole value: type the fixture, or use newerServerWord for the one field the client does not know.'
+                },
+                // **A flushed literal is the server's answer, written by hand and checked by nothing.**
+                // `flush` takes `any`, so `{ enabled: false }` answered a status the client reads three
+                // fields of, `{}` a declaration, `{ key: null }` an issued key: 175 of them until
+                // 2026-10-15, fifty-six describing an answer the server cannot send. A success body
+                // goes through `asSchema`/`asSchemaList` (core/testing/contract.ts), or `satisfies
+                // AnswerOf<…>` for a route the document types as a bare map. An error body — a second
+                // argument whose status is 400 or more, or named — is a problem document and stays as it is.
+                {
+                    selector:
+                        "CallExpression[callee.property.name='flush'][arguments.length=1][arguments.0.type='ObjectExpression']",
+                    message: FLUSHED_LITERAL
+                },
+                {
+                    selector:
+                        "CallExpression[callee.property.name='flush'][arguments.0.type='ObjectExpression'][arguments.1.type='ObjectExpression']:has(Property[key.name='status'] > Literal[value<400])",
+                    message: FLUSHED_LITERAL
+                },
+                {
+                    selector:
+                        "CallExpression[callee.property.name='flush'][arguments.0.type='ArrayExpression']:matches([arguments.0.elements.0.type='ObjectExpression'], [arguments.0.elements.1.type='ObjectExpression'])",
+                    message: FLUSHED_LITERAL
+                },
+                {
+                    selector:
+                        "CallExpression[callee.property.name='flush'] > ConditionalExpression > :matches(ObjectExpression, ArrayExpression[elements.0.type='ObjectExpression'])",
+                    message: FLUSHED_LITERAL
                 }
             ],
             // `expect(router.navigate).toHaveBeenCalled…` hands a spy to an assertion, never calls it.

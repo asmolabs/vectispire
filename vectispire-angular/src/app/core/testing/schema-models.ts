@@ -281,6 +281,13 @@ export interface SchemaModels {
     VexSuggestion: Models.AiVexSuggestion;
     ViolationView: Models.GateViolation;
     WeakestTarget: Models.ScorecardWeakestTarget;
+
+    // Envelopes the client reads with a hand-written wrapper around a modelled row — a page, a list
+    // under one key. Not built on a schema, so the guard does not ask for them; listed so a backlog page
+    // or a settings catalogue answered in a spec is held to its rows' claims, not only to the document.
+    Catalog: { settings: Models.SettingDefinition[] };
+    IssuePage: Models.Page<Models.Issue>;
+    RuleSetListing: { ruleSets: Models.RuleSetSummary[] };
 }
 
 /** The model a fixture of schema `K` must be, or `unknown` where the client has none. */

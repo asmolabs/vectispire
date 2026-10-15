@@ -89,7 +89,7 @@ export function asSchemaList<K extends keyof Schemas, T extends ModelOf<K>>(name
  * client's own declaration (`http.get<{ configured: boolean }>`) is the only claim about their shape.
  * `flush({ … } satisfies AnswerOf<SettingsApi['webhookSecretState']>)` holds the fixture to that claim, so a
  * fixture and the client cannot drift apart while both compile — `{ enabled: false }` answered for a
- * status the client reads three fields of did, in four specs, until 2026-10-15.
+ * status the client reads three fields of did, twice in the backlog's spec, until 2026-10-15.
  */
 export type AnswerOf<M> = M extends (...args: never[]) => Observable<infer T> ? T : never;
 

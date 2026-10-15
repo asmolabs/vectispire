@@ -166,6 +166,18 @@ applicability without the `title` its header shows. The builders beside it (`bac
 `repositorySummary`, `containerSummary`, `sessionUser`, `ticketTokenState`) write the fields a case
 does not set as that null. The spec-type check refuses a model missing from the map.
 
+**A flushed answer is a fixture too.** `TestRequest.flush` takes `any`, so the server's answer written
+inline — `req.flush({ enabled: false })` — was checked by nothing; 175 of them were until 2026-10-15,
+and fifty-six described an answer the server cannot send: `{}` for a declaration or a connection,
+`stats: null` for a fleet the server always counts, a status without two of its three fields, one
+object answering every read of a page. A success body goes through `asSchema`/`asSchemaList`, or is
+written `satisfies AnswerOf<Api['method']>` for a route the document leaves as a bare map (the AI
+advisor's status, the `{ configured }` secrets); `no-restricted-syntax` refuses an object or an array of
+objects flushed bare, a body flushed with a `2xx` status included. An error body — a problem document,
+flushed with a status of 400 or more — is left as it is. The spec-type check also refuses a spec file
+where those selectors no longer apply, since an override redeclaring `no-restricted-syntax` would
+replace them while leaving the rule an error.
+
 ## Test floor
 
 `npm test` ends with `scripts/check-test-floor.mjs`, which runs `ng test` itself — one-shot,
