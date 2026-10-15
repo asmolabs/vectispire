@@ -41,7 +41,12 @@ x-required:
 services:
   # --- Database (MySQL) -----------------------------------------------------------------
   db:
-    image: mysql:8
+    # **The data this composition keeps is in this image's hands**, so it is named by the
+    # multi-architecture index digest and not by a tag a registry can republish. `mysql:8` was the
+    # tag; on 2026-10-15 it resolved to 8.4.11, the 8.4 LTS line, and that is what is pinned — not a
+    # move to another line. Dependabot (`docker-compose`) proposes the next 8.4 patch with its
+    # digest, and never MySQL 9: a server major is a one-way upgrade of the volume below.
+    image: mysql:8.4.11@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
     container_name: vectispire-db
     # A report's export is kept in one row and the driver sends it hex-encoded, at twice its size: at
     # the server's default 64 MiB packet an export past about 32 MiB is refused `export_too_large`, and
@@ -349,8 +354,12 @@ services:
   # and named for what they are — **realm import does not substitute `${env.…}`**, which was
   # checked: the marker comes back literal. A production realm therefore carries its own secrets,
   # set some other way.
+  #
+  # Pinned by digest like the other third-party images: this one decides who signs in. `26.0` was
+  # the tag and resolved to 26.0.8, the last release of a line Keycloak no longer patches — moving
+  # to a supported line is a change of its own, with the realm import re-checked against it.
   keycloak:
-    image: quay.io/keycloak/keycloak:26.0
+    image: quay.io/keycloak/keycloak:26.0.8@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858
     container_name: vectispire-keycloak
     profiles:
       - sso

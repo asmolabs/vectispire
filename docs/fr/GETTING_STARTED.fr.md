@@ -48,15 +48,16 @@ Les variables d'environnement qui comptent avant le premier démarrage :
 
 ## 4. Base de données
 
-MySQL 8 par défaut — le moteur que livre `docker-compose.yml` et celui vers lequel pointe
-`VECTISPIRE_DB_URL` quand rien ne la surcharge. PostgreSQL est l'autre moteur supporté ; le moteur
-est lu depuis l'URL et il n'existe aucun réglage de dialecte séparé.
+MySQL 8 par défaut, sur sa branche LTS 8.4 — le moteur que livre `docker-compose.yml`, épinglé par
+digest, et celui vers lequel pointe `VECTISPIRE_DB_URL` quand rien ne la surcharge. PostgreSQL est
+l'autre moteur supporté ; le moteur est lu depuis l'URL et il n'existe aucun réglage de dialecte
+séparé.
 
 ```bash
 docker run -d --name vectispire-db -p 127.0.0.1:3306:3306 \
   -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=vectispire \
   -e MYSQL_USER=vectispire -e MYSQL_PASSWORD=vectispire \
-  mysql:8
+  mysql:8.4
 ```
 
 Pour PostgreSQL à la place, pointez `VECTISPIRE_DB_URL` dessus — rien d'autre ne change :
