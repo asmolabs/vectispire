@@ -9016,9 +9016,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
-                limit?: string;
+                limit?: number;
                 /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
-                offset?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -9480,9 +9480,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
-                limit?: string;
+                limit?: number;
                 /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
-                offset?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -10626,9 +10626,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
-                limit?: string;
+                limit?: number;
                 /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
-                offset?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -13294,9 +13294,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 200 runs are answered, as before paging existed. */
-                limit?: string;
+                limit?: number;
                 /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
-                offset?: string;
+                offset?: number;
             };
             header?: never;
             path: {
@@ -13697,9 +13697,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
-                limit?: string;
+                limit?: number;
                 /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
-                offset?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -15537,9 +15537,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
-                limit?: string;
+                limit?: number;
                 /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
-                offset?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -15854,9 +15854,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
-                limit?: string;
+                limit?: number;
                 /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
-                offset?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
