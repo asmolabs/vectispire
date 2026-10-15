@@ -559,6 +559,7 @@ Two rules the harness enforces on itself:
   - AST-free, regex-based static analysis discovering HTTP endpoints across Spring Boot (`@GetMapping`, `@PostMapping`, `@RequestMapping`), Express / NestJS (`app.get`, `router.post`), FastAPI / Flask (`@app.get`, `@bp.route`), and Go Gin (`r.GET`, `group.POST`).
   - OpenAPI 3.0 / Swagger 2.0 specification parser (`ApiContract`) reading JSON/YAML contracts.
   - Kubernetes Ingress route extractor mapping public hostname paths directly to discovered services.
+  - At most **50,000 endpoints per repository**, and 50,000 paths per contract (`ApiEndpoint.MAX_PER_REPOSITORY`). Past that the discovery step fails with a message saying so, and the repository keeps its previous inventory: a list cut at the ceiling would retire every endpoint beyond it. A remote agent's report past the ceiling is read the same way.
 - **Shadow API & Attack Surface Drift Detection**:
   - Automatically identifies **Shadow APIs** (active HTTP endpoints discovered in source code but missing from OpenAPI specifications).
   - Counts **sensitive unprotected endpoints**: unauthenticated routes whose path contains `/admin`, `/actuator`, `/debug`, `/internal`, `/metrics`, `/env` or `/health` — a path-name match, not a mapping to any OWASP list.

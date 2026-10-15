@@ -61,6 +61,11 @@ public final class ApiDiscoveryScanner {
     }
 
     static Result scan(Path workspaceRoot, Duration deadline, LongSupplier nanoClock) {
+        return scan(workspaceRoot, deadline, nanoClock, ApiEndpoint.MAX_PER_REPOSITORY);
+    }
+
+    /** @param ceiling the most endpoints, and the most paths one contract declares, before the discovery fails */
+    static Result scan(Path workspaceRoot, Duration deadline, LongSupplier nanoClock, int ceiling) {
         long giveUpAt = nanoClock.getAsLong() + deadline.toNanos();
         // A root that is not there — a sub-path absent from this checkout — means nothing was
         // looked at. Answering with empty lists said "looked, found no API".
@@ -91,6 +96,12 @@ public final class ApiDiscoveryScanner {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                     requireTime(nanoClock, giveUpAt, deadline);
+                    // Before reading on, rather than after the walk: the same endpoint may come from a contract
+                    // and from the code, so the list before reconciliation is allowed twice the ceiling, and no
+                    // more — what a repository can make this list hold is otherwise bounded by time alone.
+                    if (endpoints.size() > 2L * ceiling) {
+                        throw tooMany(endpoints.size() + " endpoints, before duplicates are merged", ceiling);
+                    }
                     // Links and oversized files are not read: see SourceFiles for what a committed
                     // `a.js -> /dev/zero` did to the process running this walk.
                     if (!SourceFiles.isReadable(attrs)) {
@@ -142,6 +153,13 @@ public final class ApiDiscoveryScanner {
             throw new java.io.UncheckedIOException("The source tree could not be walked for API discovery.", unwalkable);
         }
 
+        for (ApiContract contract : contracts) {
+            if (contract.endpointsCount() > ceiling) {
+                throw tooMany("a contract declaring " + contract.endpointsCount() + " paths ("
+                        + contract.contractPath() + ")", ceiling);
+            }
+        }
+
         // Reconcile visibility if Ingress paths were found and deduplicate endpoints
         Set<String> seen = new HashSet<>();
         List<ApiEndpoint> adjusted = new ArrayList<>();
@@ -160,7 +178,21 @@ public final class ApiDiscoveryScanner {
             }
         }
 
+        if (adjusted.size() > ceiling) {
+            throw tooMany(adjusted.size() + " endpoints", ceiling);
+        }
         return new Result(List.copyOf(adjusted), List.copyOf(contracts));
+    }
+
+    /**
+     * Failed, not cut, past the ceiling ({@link ApiEndpoint#MAX_PER_REPOSITORY}): the inventory replaces what it had
+     * with what a discovery reports, so a list cut at the ceiling would retire every endpoint beyond it. The step's
+     * failure says so on the scan, and the inventory keeps the previous discovery's.
+     */
+    private static ScannerFailureException tooMany(String found, int ceiling) {
+        return ScannerFailureException.of(STEP, "The API discovery found " + found + ", more than the "
+                + ceiling + " one repository may report; the previous inventory is kept. Narrow the scan to a "
+                + "sub-path, or leave generated or vendored specifications out of the tree.");
     }
 
     private static void requireTime(LongSupplier nanoClock, long giveUpAt, Duration deadline) {

@@ -439,6 +439,57 @@ class ApiDiscoveryScannerTest {
                 .hasSize(2);
     }
 
+    /**
+     * Past the ceiling the discovery fails, as past its deadline: the inventory replaces its endpoints with what a
+     * discovery reports, so a list cut at the ceiling would retire the rest. At the ceiling, it answers.
+     */
+    @Test
+    @DisplayName("more endpoints than the ceiling fail the discovery, in words; as many are answered")
+    void pastTheCeilingTheDiscoveryFails(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("a.py"), "@app.get('/one')\n@app.get('/two')\n@app.get('/three')\n");
+        java.time.Duration deadline = java.time.Duration.ofMinutes(1);
+
+        assertThat(ApiDiscoveryScanner.scan(tempDir, deadline, System::nanoTime, 3).endpoints()).hasSize(3);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> ApiDiscoveryScanner.scan(tempDir, deadline, System::nanoTime, 2))
+                .isInstanceOf(com.asmolabs.vectispire.common.scanning.ScannerFailureException.class)
+                .hasMessageContaining("3 endpoints, more than the 2 one repository may report");
+        assertThat(ApiEndpoint.MAX_PER_REPOSITORY).as("the shipped ceiling").isEqualTo(50_000);
+    }
+
+    @Test
+    @DisplayName("a contract declaring more paths than the ceiling fails the discovery, operations or not")
+    void aContractPastTheCeilingFails(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("openapi.json"), """
+                {"openapi": "3.0.0", "paths": {"/a": {}, "/b": {}, "/c": {}}}""");
+        java.time.Duration deadline = java.time.Duration.ofMinutes(1);
+
+        assertThat(ApiDiscoveryScanner.scan(tempDir, deadline, System::nanoTime, 3).contracts()).hasSize(1);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> ApiDiscoveryScanner.scan(tempDir, deadline, System::nanoTime, 2))
+                .isInstanceOf(com.asmolabs.vectispire.common.scanning.ScannerFailureException.class)
+                .hasMessageContaining("a contract declaring 3 paths (openapi.json)");
+    }
+
+    /**
+     * The list before duplicates are merged is bounded too, at twice the ceiling: four files declaring the same
+     * route twice reconcile to one endpoint, but held eight entries on the way, and only the walk's own check sees it.
+     */
+    @Test
+    @DisplayName("the list before duplicates are merged holds no more than twice the ceiling")
+    void theUnmergedListIsBounded(@TempDir Path tempDir) throws IOException {
+        for (String name : List.of("a.py", "b.py", "c.py", "d.py")) {
+            Files.writeString(tempDir.resolve(name), "@app.get('/one')\n@app.get('/one')\n");
+        }
+        java.time.Duration deadline = java.time.Duration.ofMinutes(1);
+
+        assertThat(ApiDiscoveryScanner.scan(tempDir, deadline, System::nanoTime, 3).endpoints()).hasSize(1);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> ApiDiscoveryScanner.scan(tempDir, deadline, System::nanoTime, 2))
+                .isInstanceOf(com.asmolabs.vectispire.common.scanning.ScannerFailureException.class)
+                .hasMessageContaining("before duplicates are merged");
+    }
+
     /** A clock that stands still for its first {@code readings} readings after the start, then jumps an hour. */
     private static java.util.function.LongSupplier clockAdvancingAfter(int readings) {
         int[] read = {-1};

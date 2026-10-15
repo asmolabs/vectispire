@@ -92,6 +92,68 @@ class SynthesizedOpenApiTest {
         assertThat(document.at("/paths").get("/api/v1/users").get("get").get("operationId").asText()).isEqualTo("list_2");
     }
 
+    /**
+     * The names the walk from {@code base_2} gave, kept: a declared name shaped like a suffix is skipped, and one
+     * that collides takes a suffix of its own. Written out rather than computed, so a change of order shows.
+     */
+    @Test
+    @DisplayName("shared names and declared suffixes are numbered as before")
+    void suffixesAreNumberedAsBefore() throws Exception {
+        JsonNode document = synthesize(
+                endpoint("GET", "/a1", "one", "list"),
+                endpoint("GET", "/a2", "declared", "list_3"),
+                endpoint("GET", "/a3", "two", "list"),
+                endpoint("GET", "/a4", "three", "list"),
+                endpoint("GET", "/a5", "declared twice", "list_2"),
+                endpoint("GET", "/a6", "four", "list"),
+                endpoint("GET", "/a7", "declared again", "list_2"));
+
+        List<String> ids = new ArrayList<>();
+        document.at("/paths").forEach(item -> ids.add(item.get("get").get("operationId").asText()));
+        assertThat(ids).containsExactly("list", "list_3", "list_2", "list_4", "list_2_2", "list_5", "list_2_3");
+    }
+
+    /**
+     * Fifty thousand handlers sharing one name: the n-th tried every suffix below its own, a quadratic count —
+     * over a billion insertions here, minutes on a request thread. Counted, not only timed: the count is the
+     * property, the clock a second witness with a ceiling no machine should reach.
+     */
+    @Test
+    @DisplayName("fifty thousand handlers sharing a name are numbered in a linear number of tries")
+    void manySharedNamesAreLinear() throws Exception {
+        int handlers = 50_000;
+        long[] insertions = {0};
+        ApiInventoryService.OperationIds ids = new ApiInventoryService.OperationIds(new java.util.HashSet<>() {
+            @Override
+            public boolean add(String name) {
+                insertions[0]++;
+                return super.add(name);
+            }
+        });
+        // Declared names on the suffixes' way, as a discovery can report them.
+        for (int n = 2; n < 100; n += 3) {
+            assertThat(ids.claim("list_" + n)).isEqualTo("list_" + n);
+        }
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < handlers; i++) {
+            names.add(ids.claim("list"));
+        }
+
+        assertThat(names).doesNotHaveDuplicates().startsWith("list", "list_3", "list_4", "list_6");
+        assertThat(insertions[0]).as("tries").isLessThan(3L * handlers);
+
+        ApiEndpointEntity[] rows = new ApiEndpointEntity[handlers];
+        for (int i = 0; i < handlers; i++) {
+            rows[i] = endpoint("GET", "/p" + i, "same name", "list");
+        }
+        long start = System.nanoTime();
+        JsonNode document = synthesize(rows);
+        long millis = (System.nanoTime() - start) / 1_000_000;
+
+        assertThat(document.at("/paths").size()).isEqualTo(handlers);
+        assertThat(millis).as("the document of %d handlers took %d ms", handlers, millis).isLessThan(10_000);
+    }
+
     private JsonNode synthesize(ApiEndpointEntity... rows) throws Exception {
         when(endpoints.findByRepositoryIdOrderByPathAsc(REPOSITORY)).thenReturn(List.of(rows));
         ApiInventoryService service =

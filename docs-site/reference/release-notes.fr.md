@@ -114,6 +114,11 @@
 
 ### Sécurité {#securite-0111}
 
+- **La découverte d'API rapporte au plus 50 000 points d'accès par dépôt, et 50 000 chemins par contrat.**
+  Au-delà, l'étape échoue avec un message qui le dit et le dépôt garde son inventaire précédent, plutôt
+  qu'une liste coupée ne retire le reste. L'export OpenAPI synthétisé nomme les opérations qui partagent un
+  nom en un temps linéaire en leur nombre, avec les mêmes noms qu'avant.
+
 - **L'URL du gestionnaire de tickets (`ticket_base_url`) est refusée quand elle porte un nom d'utilisateur
   ou un jeton** (`https://utilisateur:…@hôte`), comme l'adresse d'une connexion de forge l'était déjà : le
   jeton a son propre champ, qui le chiffre ([tickets](../integrations/ticketing.md#configurer)).

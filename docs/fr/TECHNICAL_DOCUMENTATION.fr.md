@@ -571,6 +571,7 @@ Deux règles que le harnais s'impose à lui-même :
   - Analyse statique sans AST, par expressions régulières, découvrant les endpoints HTTP sur Spring Boot (`@GetMapping`, `@PostMapping`, `@RequestMapping`), Express / NestJS (`app.get`, `router.post`), FastAPI / Flask (`@app.get`, `@bp.route`) et Go Gin (`r.GET`, `group.POST`).
   - Analyseur de spécifications OpenAPI 3.0 / Swagger 2.0 (`ApiContract`) lisant les contrats JSON/YAML.
   - Extracteur de routes Kubernetes Ingress associant les chemins d'hôtes publics directement aux services découverts.
+  - Au plus **50 000 endpoints par dépôt**, et 50 000 chemins par contrat (`ApiEndpoint.MAX_PER_REPOSITORY`). Au-delà, l'étape de découverte échoue avec un message qui le dit, et le dépôt garde son inventaire précédent : une liste coupée au plafond retirerait tous les endpoints au-delà. Le rapport d'un agent distant au-delà du plafond est lu de la même façon.
 - **Détection des API fantômes et de la dérive de surface d'attaque** :
   - Identifie automatiquement les **API fantômes** (endpoints HTTP actifs découverts dans le code source mais absents des spécifications OpenAPI).
   - Compte les **endpoints sensibles non protégés** : les routes non authentifiées dont le chemin contient `/admin`, `/actuator`, `/debug`, `/internal`, `/metrics`, `/env` ou `/health` — une correspondance sur le nom du chemin, non un rattachement à une liste OWASP.

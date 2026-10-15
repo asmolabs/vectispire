@@ -103,6 +103,11 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 
 ### Security {#security-0111}
 
+- **The API discovery reports at most 50,000 endpoints per repository, and 50,000 paths per contract.**
+  Past that, the step fails with a message saying so and the repository keeps its previous inventory,
+  rather than a cut list retiring the rest. The synthesized OpenAPI export names operations that share a
+  name in time linear in their number, with the same names as before.
+
 - **The tracker URL (`ticket_base_url`) is refused when it carries a user name or a token**
   (`https://user:…@host`), as a forge connection's address already was: the token has its own field,
   which encrypts it ([ticketing](../integrations/ticketing.md#configuring)).
