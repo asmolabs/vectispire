@@ -226,3 +226,24 @@ export const COMPLETE_COMPONENTS = asSchema('ConsolidatedInventory', {
     complete: true,
     targets: [PROJECT_COMPONENTS.targets[0]]
 });
+
+export const NO_OPEN_ISSUES = asSchema('OpenIssues', {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    negligible: 0,
+    unknown: 0,
+    total: 0
+});
+
+/**
+ * The tree of an estate with nothing filed and nothing loose, as `GET /api/v1/solutions` answers it.
+ * `unfiled` is never null and always carries its figures: the specs that answered
+ * `{ solutions: [], unfiled: { openIssues: {}, repositories: [] } }` — or `unfiled: null` — described
+ * a tree the server cannot send, to screens that read `unfiled.openIssues.total`.
+ */
+export const EMPTY_TREE = asSchema('SolutionTree', {
+    solutions: [],
+    unfiled: { repositoryCount: 0, openIssues: NO_OPEN_ISSUES, repositories: [], containerCount: 0, containers: [] }
+});
