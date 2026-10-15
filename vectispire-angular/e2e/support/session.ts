@@ -111,7 +111,10 @@ async function rotate(page: Page): Promise<void> {
  * which is true there, so nothing ever said so.
  */
 export async function goTo(page: Page, path: string): Promise<void> {
-    await page.getByRole('link', { name: LINKS[path] ?? path, exact: false }).first().click();
+    await page
+        .getByRole('link', { name: LINKS[path] ?? path, exact: false })
+        .first()
+        .click();
     await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}(\\?|$)`), { timeout: 15_000 });
 }
 
@@ -247,6 +250,5 @@ async function tokenFor(page: Page, username: string, ...passwords: string[]): P
         }
         refusals.push(response.status());
     }
-    throw new Error(
-        `no password produced a token for ${username} (responses: ${refusals.join(', ')})`);
+    throw new Error(`no password produced a token for ${username} (responses: ${refusals.join(', ')})`);
 }

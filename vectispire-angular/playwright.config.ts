@@ -8,116 +8,116 @@ process.env['http_proxy'] = '';
 process.env['https_proxy'] = '';
 
 export default defineConfig({
-  testDir: './e2e',
-  // **These suites are not independent, and running them as if they were is what made them
-  // flaky.** They share one account and one client address, so they share both of the server's
-  // anti-brute-force counters: the address bucket in `LoginRateLimitFilter` and the per-account
-  // window in `LoginThrottle`. Eleven browser sign-ins inside a minute is a burst by the only
-  // definition the server has.
-  //
-  // Established by running, not by reading — three runs against one control plane:
-  // parallel with a raised address limit still failed eight; serial with the shipped limit of ten
-  // failed four, every one of them on a 429; serial with the limit raised passed all eleven. Both
-  // variables are real, so both are set here and in the nightly job.
-  //
-  // The cost is wall-clock: the whole set takes about seven seconds serially, which is not a
-  // trade worth thinking about.
-  fullyParallel: false,
-  workers: 1,
-  forbidOnly: !!process.env['CI'],
-  retries: process.env['CI'] ? 2 : 0,
-  reporter: 'html',
-  // **Two minutes, not thirty seconds.** These suites talk to the real server: a case begins with
-  // a full sign-in — bundle load, sign-in page, a forced password change where there is one, then
-  // navigation — and the development server compiles the lazy chunks on the first visit to each
-  // page. The default cut through the middle of that, and the failure read "page closed" inside
-  // the sign-in helper, which teaches nothing about the cause. A timeout that is too short does
-  // not make a suite faster, it makes it a liar.
-  timeout: 120_000,
+    testDir: './e2e',
+    // **These suites are not independent, and running them as if they were is what made them
+    // flaky.** They share one account and one client address, so they share both of the server's
+    // anti-brute-force counters: the address bucket in `LoginRateLimitFilter` and the per-account
+    // window in `LoginThrottle`. Eleven browser sign-ins inside a minute is a burst by the only
+    // definition the server has.
+    //
+    // Established by running, not by reading — three runs against one control plane:
+    // parallel with a raised address limit still failed eight; serial with the shipped limit of ten
+    // failed four, every one of them on a 429; serial with the limit raised passed all eleven. Both
+    // variables are real, so both are set here and in the nightly job.
+    //
+    // The cost is wall-clock: the whole set takes about seven seconds serially, which is not a
+    // trade worth thinking about.
+    fullyParallel: false,
+    workers: 1,
+    forbidOnly: !!process.env['CI'],
+    retries: process.env['CI'] ? 2 : 0,
+    reporter: 'html',
+    // **Two minutes, not thirty seconds.** These suites talk to the real server: a case begins with
+    // a full sign-in — bundle load, sign-in page, a forced password change where there is one, then
+    // navigation — and the development server compiles the lazy chunks on the first visit to each
+    // page. The default cut through the middle of that, and the failure read "page closed" inside
+    // the sign-in helper, which teaches nothing about the cause. A timeout that is too short does
+    // not make a suite faster, it makes it a liar.
+    timeout: 120_000,
 
-  use: {
-    // **Every request in the suites is relative to this**, including `page.request` calls to the
-    // API. They used to name `http://127.0.0.1:3180` outright, which tied the suites to one port
-    // and to one machine: a run against a second instance — or on a developer box already serving
-    // on 3180 — sent fifteen failed logins at whatever happened to be listening.
-    //
-    // Relative paths go through the dev server's proxy (`proxy.conf.json`), so the API's address
-    // is configured in exactly one place.
-    baseURL: 'http://localhost:4280',
+    use: {
+        // **Every request in the suites is relative to this**, including `page.request` calls to the
+        // API. They used to name `http://127.0.0.1:3180` outright, which tied the suites to one port
+        // and to one machine: a run against a second instance — or on a developer box already serving
+        // on 3180 — sent fifteen failed logins at whatever happened to be listening.
+        //
+        // Relative paths go through the dev server's proxy (`proxy.conf.json`), so the API's address
+        // is configured in exactly one place.
+        baseURL: 'http://localhost:4280',
 
-    // **The language is pinned, because it decided the assertions without saying so.** The i18n
-    // service reads `localStorage` and then falls back on `navigator.language`: in a fresh context
-    // there is nothing in store, so the browser's locale chooses. The suites look for "Issues",
-    // "Settings", "Audit log" — they passed only because Playwright's default locale is English,
-    // and a machine set to French would have failed every one of them on labels it could not find,
-    // with nothing naming the cause.
-    locale: 'en-US',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure'
-  },
-  projects: [
-    {
-      name: 'chromium',
-      // The behaviour suites. They exclude the screenshot generator, which writes files into the
-      // documentation rather than asserting anything.
-      testIgnore: /(^|\/)screens\.spec\.ts$/,
-      use: { ...devices['Desktop Chrome'] }
-    },
-
-    // **The documentation's screenshots, one project per language.**
-    //
-    // Separate projects rather than a loop inside one spec: the locale is a context property, and
-    // a context is what a project configures. It also means `--project=screens-fr` regenerates one
-    // edition without touching the other.
-    //
-    // The viewport is fixed and a little narrow on purpose: a 1920-wide capture of a table is
-    // unreadable once the documentation scales it into a column of text.
-    //
-    // **The time zone is fixed too, to the one CI runs in.** The clock is frozen, but every
-    // timestamp is rendered in the browser's zone: captures taken on a machine in Brussels showed
-    // every time two hours later than the same run in the Playwright image, so regenerating them
-    // anywhere else rewrote every image that shows a time.
-    //
-    // **And the pixel density, which a preset only implies.** `Desktop Chrome` happens to carry a
-    // scale factor of 1 today; written out, a preset that changes it — or a reader wondering why a
-    // capture is blurred on a Retina screen — finds the decision here rather than in Playwright.
-    //
-    // **And every tile drawn whole.** With partial raster, Chromium repaints only the part of a
-    // tile that changed, over the pixels it had drawn there before; a rounded corner then blends
-    // with whatever the page showed a moment earlier, and the same button came out one shade
-    // apart from run to run — the "Create" buttons of users, teams and keys, two variants each, by
-    // byte. Rastering the tile whole makes a pixel depend on the final page alone (five runs out of
-    // five identical, against two variants in five without it). The flag changes how the browser
-    // draws, never what the application does.
-    {
-      name: 'screens-en',
-      testMatch: /(^|\/)screens\.spec\.ts$/,
-      use: {
-        ...devices['Desktop Chrome'],
+        // **The language is pinned, because it decided the assertions without saying so.** The i18n
+        // service reads `localStorage` and then falls back on `navigator.language`: in a fresh context
+        // there is nothing in store, so the browser's locale chooses. The suites look for "Issues",
+        // "Settings", "Audit log" — they passed only because Playwright's default locale is English,
+        // and a machine set to French would have failed every one of them on labels it could not find,
+        // with nothing naming the cause.
         locale: 'en-US',
-        timezoneId: 'UTC',
-        viewport: { width: 1280, height: 860 },
-        deviceScaleFactor: 1,
-        launchOptions: { args: ['--disable-partial-raster'] }
-      }
+        trace: 'on-first-retry',
+        screenshot: 'only-on-failure'
     },
-    {
-      name: 'screens-fr',
-      testMatch: /(^|\/)screens\.spec\.ts$/,
-      use: {
-        ...devices['Desktop Chrome'],
-        locale: 'fr-FR',
-        timezoneId: 'UTC',
-        viewport: { width: 1280, height: 860 },
-        deviceScaleFactor: 1,
-        launchOptions: { args: ['--disable-partial-raster'] }
-      }
+    projects: [
+        {
+            name: 'chromium',
+            // The behaviour suites. They exclude the screenshot generator, which writes files into the
+            // documentation rather than asserting anything.
+            testIgnore: /(^|\/)screens\.spec\.ts$/,
+            use: { ...devices['Desktop Chrome'] }
+        },
+
+        // **The documentation's screenshots, one project per language.**
+        //
+        // Separate projects rather than a loop inside one spec: the locale is a context property, and
+        // a context is what a project configures. It also means `--project=screens-fr` regenerates one
+        // edition without touching the other.
+        //
+        // The viewport is fixed and a little narrow on purpose: a 1920-wide capture of a table is
+        // unreadable once the documentation scales it into a column of text.
+        //
+        // **The time zone is fixed too, to the one CI runs in.** The clock is frozen, but every
+        // timestamp is rendered in the browser's zone: captures taken on a machine in Brussels showed
+        // every time two hours later than the same run in the Playwright image, so regenerating them
+        // anywhere else rewrote every image that shows a time.
+        //
+        // **And the pixel density, which a preset only implies.** `Desktop Chrome` happens to carry a
+        // scale factor of 1 today; written out, a preset that changes it — or a reader wondering why a
+        // capture is blurred on a Retina screen — finds the decision here rather than in Playwright.
+        //
+        // **And every tile drawn whole.** With partial raster, Chromium repaints only the part of a
+        // tile that changed, over the pixels it had drawn there before; a rounded corner then blends
+        // with whatever the page showed a moment earlier, and the same button came out one shade
+        // apart from run to run — the "Create" buttons of users, teams and keys, two variants each, by
+        // byte. Rastering the tile whole makes a pixel depend on the final page alone (five runs out of
+        // five identical, against two variants in five without it). The flag changes how the browser
+        // draws, never what the application does.
+        {
+            name: 'screens-en',
+            testMatch: /(^|\/)screens\.spec\.ts$/,
+            use: {
+                ...devices['Desktop Chrome'],
+                locale: 'en-US',
+                timezoneId: 'UTC',
+                viewport: { width: 1280, height: 860 },
+                deviceScaleFactor: 1,
+                launchOptions: { args: ['--disable-partial-raster'] }
+            }
+        },
+        {
+            name: 'screens-fr',
+            testMatch: /(^|\/)screens\.spec\.ts$/,
+            use: {
+                ...devices['Desktop Chrome'],
+                locale: 'fr-FR',
+                timezoneId: 'UTC',
+                viewport: { width: 1280, height: 860 },
+                deviceScaleFactor: 1,
+                launchOptions: { args: ['--disable-partial-raster'] }
+            }
+        }
+    ],
+    webServer: {
+        command: 'npm run start --workspace @vectispire/frontend',
+        url: 'http://localhost:4280',
+        reuseExistingServer: true,
+        timeout: 120 * 1000
     }
-  ],
-  webServer: {
-    command: 'npm run start --workspace @vectispire/frontend',
-    url: 'http://localhost:4280',
-    reuseExistingServer: true,
-    timeout: 120 * 1000
-  }
 });

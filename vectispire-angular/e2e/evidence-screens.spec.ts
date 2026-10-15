@@ -26,14 +26,14 @@ import { goTo, signIn, signInAs } from './support/session';
  * wrong page look like a data problem.
  */
 test.describe('Evidence screens', () => {
-
     // The brute-force budget is global and narrow: see `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
 
     /** A JSON response for a route, without repeating the envelope each time. */
     async function stub(page: Page, pattern: string, body: unknown): Promise<void> {
         await page.route(pattern, (route) =>
-            route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) }));
+            route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+        );
     }
 
     const EXCEPTION = {
@@ -57,7 +57,11 @@ test.describe('Evidence screens', () => {
 
     async function stubExceptions(page: Page): Promise<void> {
         await stub(page, '**/api/v1/exceptions*', {
-            entries: [EXCEPTION], granted: 1, awaiting_approval: 0, lapsed: 1, never_reviewed: 1
+            entries: [EXCEPTION],
+            granted: 1,
+            awaiting_approval: 0,
+            lapsed: 1,
+            never_reviewed: 1
         });
     }
 
@@ -107,14 +111,26 @@ test.describe('Evidence screens', () => {
             oldestOpenSeverity: 'critical',
             bySeverity: [
                 {
-                    severity: 'critical', windowDays: 7, withinSla: 17, late: 11,
-                    percentageWithinSla: 61, medianDays: 4.5, ninetiethDays: 38,
-                    openOverdue: 5, oldestOpenDays: 241
+                    severity: 'critical',
+                    windowDays: 7,
+                    withinSla: 17,
+                    late: 11,
+                    percentageWithinSla: 61,
+                    medianDays: 4.5,
+                    ninetiethDays: 38,
+                    openOverdue: 5,
+                    oldestOpenDays: 241
                 },
                 {
-                    severity: 'low', windowDays: 0, withinSla: 0, late: 0,
-                    percentageWithinSla: null, medianDays: 21, ninetiethDays: 147,
-                    openOverdue: 0, oldestOpenDays: 312
+                    severity: 'low',
+                    windowDays: 0,
+                    withinSla: 0,
+                    late: 0,
+                    percentageWithinSla: null,
+                    medianDays: 21,
+                    ninetiethDays: 147,
+                    openOverdue: 0,
+                    oldestOpenDays: 312
                 }
             ]
         });
@@ -131,8 +147,11 @@ test.describe('Evidence screens', () => {
 
     test('the rule coverage banner speaks only when rules are missing', async ({ page }) => {
         await stub(page, '**/api/v1/rule-sets/coverage', {
-            state: 'COVERED', languagesWithRules: ['java'], ecosystemsInEstate: ['maven'],
-            uncovered: [], ruleFiles: 40
+            state: 'COVERED',
+            languagesWithRules: ['java'],
+            ecosystemsInEstate: ['maven'],
+            uncovered: [],
+            ruleFiles: 40
         });
         await stub(page, '**/api/v1/rule-sets', { ruleSets: [] });
         await signIn(page);
@@ -143,16 +162,20 @@ test.describe('Evidence screens', () => {
         await expect(page.getByText('Code analysis covers one pattern')).toHaveCount(0);
 
         await stub(page, '**/api/v1/rule-sets/coverage', {
-            state: 'UNCONFIGURED', languagesWithRules: ['python'], ecosystemsInEstate: ['maven'],
-            uncovered: ['java'], ruleFiles: 1
+            state: 'UNCONFIGURED',
+            languagesWithRules: ['python'],
+            ecosystemsInEstate: ['maven'],
+            uncovered: ['java'],
+            ruleFiles: 1
         });
         // **No `page.reload()` here.** Vectispire's session lives in memory rather than in a
         // cookie: a full navigation loses it and the guard sends you back to the sign-in form. So
         // we go through the sidebar again, which is a reader's path anyway.
         await goTo(page, '/issues');
         await goTo(page, '/rule-sets');
-        await expect(page.getByText('Code analysis covers one pattern', { exact: false }))
-            .toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('Code analysis covers one pattern', { exact: false })).toBeVisible({
+            timeout: 15000
+        });
     });
 
     test('the statement of applicability opens on its worst divergence', async ({ page }) => {
@@ -160,21 +183,36 @@ test.describe('Evidence screens', () => {
             return {
                 control: { id, name: id, requirement: 'x', category: 'GOVERNANCE' },
                 declaration: {
-                    framework: 'ISO_27001', controlId: id, applicability: 'APPLICABLE',
-                    justification: 'In scope.', implementation: 'IMPLEMENTED',
-                    evidenceSource: 'VECTISPIRE', externalEvidence: null, owner: 'n.faure',
-                    decidedBy: 'c.moreau', decidedAt: '2026-01-01T00:00:00Z',
-                    reviewedAt: '2026-01-01T00:00:00Z', reviewDueAt: null
+                    framework: 'ISO_27001',
+                    controlId: id,
+                    applicability: 'APPLICABLE',
+                    justification: 'In scope.',
+                    implementation: 'IMPLEMENTED',
+                    evidenceSource: 'VECTISPIRE',
+                    externalEvidence: null,
+                    owner: 'n.faure',
+                    decidedBy: 'c.moreau',
+                    decidedAt: '2026-01-01T00:00:00Z',
+                    reviewedAt: '2026-01-01T00:00:00Z',
+                    reviewDueAt: null
                 },
-                measured: 'NON_COMPLIANT', divergence, reviewOverdue: false
+                measured: 'NON_COMPLIANT',
+                divergence,
+                reviewOverdue: false
             };
         }
-        await stub(page, '**/api/v1/compliance/soa', [{
-            framework: 'ISO_27001', total: 2, declared: 2, findings: 1, reviewsOverdue: 0,
-            complete: true,
+        await stub(page, '**/api/v1/compliance/soa', [
+            {
+                framework: 'ISO_27001',
+                total: 2,
+                declared: 2,
+                findings: 1,
+                reviewsOverdue: 0,
+                complete: true,
                 // The server returns the standard's order: consistent first, contradicted after.
-            lines: [line('ISO-A.5.15', 'CONSISTENT'), line('ISO-A.8.8', 'CONTRADICTED')]
-        }]);
+                lines: [line('ISO-A.5.15', 'CONSISTENT'), line('ISO-A.8.8', 'CONTRADICTED')]
+            }
+        ]);
         await signIn(page);
         await goTo(page, '/soa');
 
@@ -186,33 +224,57 @@ test.describe('Evidence screens', () => {
     });
 
     test('the compliance progression does not paint a wider estate as regression', async ({ page }) => {
-        await stub(page, '**/api/v1/compliance/history', [{
-            framework: 'ISO_27001',
-            comparable: false,
-            steps: [
-                {
-                    snapshot: {
-                        period: '2026-07', framework: 'ISO_27001', score: 90, status: 'PARTIAL',
-                        targets: 10, observed: 10, fresh: 10, freshnessDays: 30,
-                        endOfLifeEnabled: true, codeAnalysisReaches: true,
-                        controlsTotal: 4, controlsDeclared: 4, soaFindings: 0,
-                        capturedAt: '2026-07-31T00:00:00Z'
+        await stub(page, '**/api/v1/compliance/history', [
+            {
+                framework: 'ISO_27001',
+                comparable: false,
+                steps: [
+                    {
+                        snapshot: {
+                            period: '2026-07',
+                            framework: 'ISO_27001',
+                            score: 90,
+                            status: 'PARTIAL',
+                            targets: 10,
+                            observed: 10,
+                            fresh: 10,
+                            freshnessDays: 30,
+                            endOfLifeEnabled: true,
+                            codeAnalysisReaches: true,
+                            controlsTotal: 4,
+                            controlsDeclared: 4,
+                            soaFindings: 0,
+                            capturedAt: '2026-07-31T00:00:00Z'
+                        },
+                        delta: 0,
+                        movement: 'FIRST',
+                        because: 'First capture for this framework.'
                     },
-                    delta: 0, movement: 'FIRST', because: 'First capture for this framework.'
-                },
-                {
-                    snapshot: {
-                        period: '2026-08', framework: 'ISO_27001', score: 71, status: 'PARTIAL',
-                        targets: 14, observed: 14, fresh: 14, freshnessDays: 30,
-                        endOfLifeEnabled: true, codeAnalysisReaches: true,
-                        controlsTotal: 4, controlsDeclared: 4, soaFindings: 0,
-                        capturedAt: '2026-08-31T00:00:00Z'
-                    },
-                    delta: -19, movement: 'ESTATE_GREW',
-                    because: '4 target(s) more than last month. A score that falls here is the cost of watching wider, not a regression.'
-                }
-            ]
-        }]);
+                    {
+                        snapshot: {
+                            period: '2026-08',
+                            framework: 'ISO_27001',
+                            score: 71,
+                            status: 'PARTIAL',
+                            targets: 14,
+                            observed: 14,
+                            fresh: 14,
+                            freshnessDays: 30,
+                            endOfLifeEnabled: true,
+                            codeAnalysisReaches: true,
+                            controlsTotal: 4,
+                            controlsDeclared: 4,
+                            soaFindings: 0,
+                            capturedAt: '2026-08-31T00:00:00Z'
+                        },
+                        delta: -19,
+                        movement: 'ESTATE_GREW',
+                        because:
+                            '4 target(s) more than last month. A score that falls here is the cost of watching wider, not a regression.'
+                    }
+                ]
+            }
+        ]);
         await signIn(page);
         await goTo(page, '/compliance-history');
 

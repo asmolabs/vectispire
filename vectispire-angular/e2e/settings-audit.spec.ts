@@ -3,7 +3,6 @@ import { test, expect } from '@playwright/test';
 import { goTo, signIn } from './support/session';
 
 test.describe('Settings Administration & Audit Log E2E', () => {
-
     // The brute-force budget is global and narrow: without this, the case that receives the 429
     // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
@@ -24,8 +23,7 @@ test.describe('Settings Administration & Audit Log E2E', () => {
         // sections — this one and target visibility among them — showed nowhere. So this case was
         // looking for a label no screen rendered.
         await page.getByRole('button', { name: /governance|gouvernance/i }).click();
-        await expect(page.getByText(/double validation|four.eyes/i).first())
-            .toBeVisible({ timeout: 15000 });
+        await expect(page.getByText(/double validation|four.eyes/i).first()).toBeVisible({ timeout: 15000 });
     });
 
     test('verifies audit log entries in Audit Trail page', async ({ page }) => {
@@ -34,8 +32,6 @@ test.describe('Settings Administration & Audit Log E2E', () => {
         await goTo(page, '/audit-log');
         // Une assertion sur le contenu et non sur l'existence d'un `body` : la page d'erreur en a
         // un, la page introuvable aussi.
-        await expect(page.getByRole('heading', { name: /journal|audit/i }).first())
-            .toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('heading', { name: /journal|audit/i }).first()).toBeVisible({ timeout: 15000 });
     });
-
 });

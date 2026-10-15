@@ -19,7 +19,6 @@ import { resetLoginThrottle, seedOneIssue } from './support/fixture';
 // server counts per address.
 test.describe.configure({ mode: 'serial' });
 
-
 /**
  * Waits until the list really has rows, and not merely a table on screen.
  *
@@ -33,7 +32,6 @@ async function listed(page: Page): Promise<void> {
 }
 
 test.describe('what each role sees', () => {
-
     // The brute-force budget is global and narrow: without this, the case that receives the 429
     // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
@@ -63,8 +61,10 @@ test.describe('what each role sees', () => {
         await signInAs(page, 'CISO');
         await goTo(page, '/issues');
         await listed(page);
-        await expect(page.getByRole('button', { name: TRIAGE_BUTTON }),
-            'triage must be offered to a security lead').not.toHaveCount(0);
+        await expect(
+            page.getByRole('button', { name: TRIAGE_BUTTON }),
+            'triage must be offered to a security lead'
+        ).not.toHaveCount(0);
 
         const other = await browser.newContext();
         try {
@@ -78,7 +78,7 @@ test.describe('what each role sees', () => {
         }
     });
 
-    test('un compte ordinaire ne se voit offrir aucune porte qu\'on lui fermerait', async ({ page }) => {
+    test("un compte ordinaire ne se voit offrir aucune porte qu'on lui fermerait", async ({ page }) => {
         // **What this case learnt by failing.** It set out to check the refusal screen by having
         // an ordinary account click "Settings" — the link does not exist for them. The menu mirrors
         // the route guards one by one (`isSecurityLead` for the settings, `canReadGovernance` for
@@ -89,11 +89,20 @@ test.describe('what each role sees', () => {
 
         // None of the guarded paths is offered to them. The selector aims at the `href` attribute
         // rather than at a label, so the check survives a translation.
-        for (const path of ['/settings', '/users', '/teams', '/api-keys', '/agents',
-                            '/ssh-keys', '/git-tokens', '/audit-log', '/gate-policies', '/rule-sets',
-                            '/attestation']) {
-            await expect(page.locator(`a[href="${path}"]`), `${path} must not be offered`)
-                .toHaveCount(0);
+        for (const path of [
+            '/settings',
+            '/users',
+            '/teams',
+            '/api-keys',
+            '/agents',
+            '/ssh-keys',
+            '/git-tokens',
+            '/audit-log',
+            '/gate-policies',
+            '/rule-sets',
+            '/attestation'
+        ]) {
+            await expect(page.locator(`a[href="${path}"]`), `${path} must not be offered`).toHaveCount(0);
         }
 
         // And a real product is left: the list of vulnerabilities opens for them.

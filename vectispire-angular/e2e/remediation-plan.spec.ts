@@ -19,32 +19,44 @@ import { goTo, signIn } from './support/session';
  * <p>The API is stubbed: what is tested is that agreement, not what a scan found.
  */
 test.describe('Remediation plan', () => {
-
     test.beforeEach(() => resetLoginThrottle());
 
     async function stub(page: Page, pattern: string, body: unknown): Promise<void> {
         await page.route(pattern, (route) =>
-            route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) }));
+            route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+        );
     }
 
     async function stubPlan(page: Page, coverage: unknown): Promise<void> {
-        await stub(page, '**/api/v1/remediation/high-impact-fixes*', [{
-            packageName: 'log4j-core',
-            currentVersion: '2.14.1',
-            recommendedVersion: '2.17.1',
-            cveCountResolved: 12,
-            criticalCveCount: 4,
-            highCveCount: 8,
-            estimatedHours: 1.3,
-            leverageScore: 9.2,
-            affectedCves: ['CVE-2021-44228'],
-            affectedTargetNames: ['common-libs']
-        }]);
+        await stub(page, '**/api/v1/remediation/high-impact-fixes*', [
+            {
+                packageName: 'log4j-core',
+                currentVersion: '2.14.1',
+                recommendedVersion: '2.17.1',
+                cveCountResolved: 12,
+                criticalCveCount: 4,
+                highCveCount: 8,
+                estimatedHours: 1.3,
+                leverageScore: 9.2,
+                affectedCves: ['CVE-2021-44228'],
+                affectedTargetNames: ['common-libs']
+            }
+        ]);
         await stub(page, '**/api/v1/remediation/debt*', {
-            totalOpenIssues: 412, criticalIssues: 4, highIssues: 8, mediumIssues: 0, lowIssues: 400,
-            totalEstimatedHours: 812.3, totalEstimatedPersonDays: 101.5,
-            vulnerabilitiesDebtHours: 12.3, secretsDebtHours: 798, sastDebtHours: 0,
-            iacDebtHours: 2, licenseDebtHours: 0, eolDebtHours: 0, topHighImpactFixes: []
+            totalOpenIssues: 412,
+            criticalIssues: 4,
+            highIssues: 8,
+            mediumIssues: 0,
+            lowIssues: 400,
+            totalEstimatedHours: 812.3,
+            totalEstimatedPersonDays: 101.5,
+            vulnerabilitiesDebtHours: 12.3,
+            secretsDebtHours: 798,
+            sastDebtHours: 0,
+            iacDebtHours: 2,
+            licenseDebtHours: 0,
+            eolDebtHours: 0,
+            topHighImpactFixes: []
         });
         await stub(page, '**/api/v1/remediation/coverage*', coverage);
     }
@@ -54,7 +66,10 @@ test.describe('Remediation plan', () => {
             openFindings: 412,
             addressableByUpgrade: 12,
             beyondUpgrades: 400,
-            gaps: [{ family: 'secret', findings: 399 }, { family: 'unpackaged', findings: 1 }]
+            gaps: [
+                { family: 'secret', findings: 399 },
+                { family: 'unpackaged', findings: 1 }
+            ]
         });
         await signIn(page);
         await goTo(page, '/remediation');
@@ -74,7 +89,10 @@ test.describe('Remediation plan', () => {
         // A warning shown when all is well loses its meaning within days, and then the one that
         // matters becomes invisible too.
         await stubPlan(page, {
-            openFindings: 12, addressableByUpgrade: 12, beyondUpgrades: 0, gaps: []
+            openFindings: 12,
+            addressableByUpgrade: 12,
+            beyondUpgrades: 0,
+            gaps: []
         });
         await signIn(page);
         await goTo(page, '/remediation');

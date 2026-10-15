@@ -88,8 +88,13 @@ export async function seedOneIssue(): Promise<void> {
              -- comparison: that is exactly what the plan must not advise.
              values (?, ?, 'vulnerability', 'CVE-2021-44228', 'log4j-core',
                      '2.14.1', 'critical', 10.0, 'open', ?, ?, ?, '2.9.0, 2.17.1, 2.12.4')`,
-            [repo.insertId, 'seed-fingerprint-0000', now, now,
-             'Seeded finding: the list needs a row for the absence of a button to mean anything.']
+            [
+                repo.insertId,
+                'seed-fingerprint-0000',
+                now,
+                now,
+                'Seeded finding: the list needs a row for the absence of a button to mean anything.'
+            ]
         );
     });
 }

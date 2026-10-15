@@ -60,7 +60,9 @@ test.describe('Plugins and SARIF sources', () => {
         await signInAs(page, 'AUDITOR');
         await goTo(page, '/sarif-sources');
 
-        await expect(page.getByRole('heading', { name: 'Declared sources', level: 1 })).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole('heading', { name: 'Declared sources', level: 1 })).toBeVisible({
+            timeout: 15_000
+        });
         await expect(page.getByRole('button', { name: 'Declare a source' })).toHaveCount(0);
     });
 

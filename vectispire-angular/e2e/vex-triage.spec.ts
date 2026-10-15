@@ -14,7 +14,6 @@ import { goTo, signInAs, TRIAGE_BUTTON, TRIAGE_SAVE } from './support/session';
  * Authentication is *not* stubbed — signing in for real is half of what a browser case is for.
  */
 test.describe('VEX Triage & Backlog Management E2E', () => {
-
     // The brute-force budget is global and narrow: without this, the case that receives the 429
     // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());

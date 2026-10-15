@@ -3,7 +3,6 @@ import { test, expect } from '@playwright/test';
 import { signIn } from './support/session';
 
 test.describe('Authentication & Anti-Brute-Force E2E', () => {
-
     // The brute-force budget is global and narrow: without this, the case that receives the 429
     // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
@@ -26,8 +25,9 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
 
         // The token as the application will use it, captured from a request it issues itself: that
         // is the one that must become unusable, not "a" session.
-        const authorized = await page.waitForRequest((request) =>
-            request.url().includes('/api/v1/') && !!request.headers()['authorization']);
+        const authorized = await page.waitForRequest(
+            (request) => request.url().includes('/api/v1/') && !!request.headers()['authorization']
+        );
         const bearer = authorized.headers()['authorization'];
 
         await page.getByRole('button', { name: 'Sign out' }).click();
@@ -94,7 +94,6 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
         expect(rateLimited).toBe(true);
     });
 
-
     test('MFA verification is reachable without a session, because it is what issues one', async ({ page }) => {
         // **The defect this pins, at the layer that had it.** `/api/v1/auth/mfa/verify` carried
         // the annotation that says "open to anonymous callers" and was missing from the filter
@@ -144,5 +143,4 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
             expect([401, 429], 'a guess must never be accepted').toContain(response.status());
         }
     });
-
 });

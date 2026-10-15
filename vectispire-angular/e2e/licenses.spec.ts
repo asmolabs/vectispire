@@ -20,7 +20,6 @@ import { goTo, signIn } from './support/session';
  * depended on what a scan happened to find would make a wrong total look like a data problem.
  */
 test.describe('Licence dashboard figures', () => {
-
     // The brute-force budget is global and narrow: without this, the case that receives the 429
     // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
@@ -50,12 +49,16 @@ test.describe('Licence dashboard figures', () => {
         await signIn(page);
     });
 
-    test('adds strong copyleft and forbidden into one figure, counting an absent category as zero', async ({ page }) => {
+    test('adds strong copyleft and forbidden into one figure, counting an absent category as zero', async ({
+        page
+    }) => {
         await goTo(page, '/licenses');
 
         // 7 + (absent → 0). The unit spec pins the same sum; what is being checked here is that
         // it survives the whole path — sign-in, proxy, layout — and reaches a reader's eyes.
-        const strongCopyleft = page.locator('.text-red-600.dark\\:text-red-400.text-2xl, .text-2xl.text-red-600').first();
+        const strongCopyleft = page
+            .locator('.text-red-600.dark\\:text-red-400.text-2xl, .text-2xl.text-red-600')
+            .first();
         await expect(strongCopyleft).toHaveText('7', { timeout: 15000 });
     });
 

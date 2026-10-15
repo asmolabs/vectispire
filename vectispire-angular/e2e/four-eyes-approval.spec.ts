@@ -20,7 +20,6 @@ import { goTo, signInAs, TRIAGE_BUTTON, TRIAGE_SAVE } from './support/session';
  * the sign-in screen — where, before the session helper existed, they were in fact looking.
  */
 test.describe('Double Validation (Four-Eyes Approval) Workflow E2E', () => {
-
     // The brute-force budget is global and narrow: without this, the case that receives the 429
     // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
@@ -116,7 +115,9 @@ test.describe('Double Validation (Four-Eyes Approval) Workflow E2E', () => {
         await expect(save).toBeDisabled();
     });
 
-    test('a justified exemption leaves as a statement, and comes back pending a second pair of eyes', async ({ page }) => {
+    test('a justified exemption leaves as a statement, and comes back pending a second pair of eyes', async ({
+        page
+    }) => {
         await stubBacklog(page, OPEN_ISSUE);
 
         let submitted: Record<string, unknown> | null = null;

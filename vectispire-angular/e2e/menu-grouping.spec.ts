@@ -14,12 +14,13 @@ import { signInAs } from './support/session';
  * first half alone would pass on a menu that offers them to nobody.
  */
 test.describe('Sidebar grouping', () => {
-
     test.beforeEach(() => resetLoginThrottle());
 
     /** Four of the evidence section's entries reserved to governance read access. */
     const GOVERNANCE_ONLY = [
-        'Compliance progression', 'Statement of applicability', 'Certified scope',
+        'Compliance progression',
+        'Statement of applicability',
+        'Certified scope',
         'Verdict register'
     ];
 
@@ -63,7 +64,8 @@ test.describe('Sidebar grouping', () => {
     });
 
     test('files the plugins and the audit log under Administration, and offers them to no one else', async ({
-        page, browser
+        page,
+        browser
     }) => {
         // The product owner's decision: both are administration entries. The audit log keeps the
         // governance-read condition it had among the evidence; the plugins go to whoever sees the
