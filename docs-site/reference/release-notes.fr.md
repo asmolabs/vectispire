@@ -138,7 +138,8 @@
 - **Le `Dockerfile`, `Dockerfile.agent` et `Dockerfile.cli` nomment leurs images de base par digest**
   (`image:tag@sha256:…`, l'index multi-architecture), si bien qu'un même fichier construit les mêmes bases
   jusqu'à ce qu'une mise à jour relue les déplace ; le contrôle `dockerfile-policy` refuse une image de base
-  nommée par son seul tag. Les images publiées avec Jib l'étaient déjà.
+  nommée par son seul tag, par un digest qui n'est pas un sha256 entier, ou sous un nom d'étape de sa propre
+  ligne. Les images publiées avec Jib l'étaient déjà.
 - **Les derniers scans du tableau de bord ne montrent à un lecteur restreint que ceux des cibles qu'il
   voit** : un scan qui nomme à la fois une image accordée au lecteur et un dépôt qui ne l'est pas est celui
   du dépôt, comme dans l'historique des scans, et n'apparaît plus — avec le nom de ce dépôt — sur sa page
