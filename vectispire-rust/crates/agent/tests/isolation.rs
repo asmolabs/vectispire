@@ -104,7 +104,10 @@ fn no_source_of_the_workspace_names_the_encryption_key() {
     while let Some(path) = pending.pop() {
         if path.is_dir() {
             pending.extend(std::fs::read_dir(&path).unwrap().map(|entry| entry.unwrap().path()));
-        } else if path.extension().is_some_and(|extension| extension == "rs") && !path.ends_with("tests/isolation.rs") {
+        } else if path.extension().is_some_and(|extension| extension == "rs")
+            && !path.ends_with("tests/isolation.rs")
+            && !is_control_plane(&path, crates)
+        {
             let source = std::fs::read_to_string(&path).unwrap();
             if source.contains(&["ENCRYPTION", "_KEY"].concat()) {
                 offenders.push(path.display().to_string());
@@ -112,4 +115,14 @@ fn no_source_of_the_workspace_names_the_encryption_key() {
         }
     }
     assert!(offenders.is_empty(), "only the control plane holds the key that decrypts deployment keys: {offenders:?}");
+}
+
+/// A source of a control-plane crate (`crates/cp-*`): the one place the key is named, because holding it
+/// is what the control plane is for. Everything else in the workspace — the agent's crates and the shared
+/// ones, linked or not — still may not.
+fn is_control_plane(path: &std::path::Path, crates: &std::path::Path) -> bool {
+    path.strip_prefix(crates)
+        .ok()
+        .and_then(|relative| relative.components().next())
+        .is_some_and(|first| first.as_os_str().to_string_lossy().starts_with("cp-"))
 }
