@@ -68,6 +68,10 @@ secrets:
   previousEncryptionKeys:
     secretName: ""
     key: previous-encryption-keys
+  # Optional: the mail relay's password, with `mail.username` set. Read as `vectispire.mail.password`.
+  mailPassword:
+    secretName: ""
+    key: mail-password
 
 bootstrap:
   username: admin
@@ -76,6 +80,26 @@ oidc:
   # Set to switch single sign-on on. The other OIDC settings go in `extraEnv`
   # (docs-site/reference/configuration.md, "Authentication").
   issuer: ""
+
+# **Where people reach Vectispire**, written into links: the weekly checklist reminder's, SARIF's information
+# URI, a VEX document's identifier, a tracker ticket. Empty, it is `https://<ingress.host>` while the Ingress
+# is on — TLS ends there or before it, so the address people use is https either way — and unset without one.
+publicUrl: ""
+
+# **The SMTP relay, off while `host` is empty.** No host renders no mail variable at all: the application
+# builds a sender as soon as `vectispire.mail.host` exists, so an empty one would make every send fail
+# rather than none be attempted. Alerts, the weekly posture digest and the checklist reminders all leave
+# through it; who receives them is a setting, not this. With `networkPolicy.restrictEgress`, list the relay
+# in `networkPolicy.egress`.
+mail:
+  host: ""
+  port: 587
+  # **Required with a host.** Unset, the application signs as vectispire@localhost, which a relay refuses.
+  from: ""
+  # Empty for an anonymous relay; set, it needs `secrets.mailPassword`.
+  username: ""
+  # On unless the relay refuses it: the messages name unfixed vulnerabilities.
+  starttls: true
 
 # **The ingress controller's addresses or CIDR — required with an Ingress.** Left empty, the rate limiter
 # and every audit entry name the controller, and `X-Forwarded-Proto` is ignored, so TLS ending at the

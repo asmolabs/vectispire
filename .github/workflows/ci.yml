@@ -517,6 +517,13 @@ jobs:
           refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.allowTo[0].ports=null
           refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.allowTo[0].ports[0].port=null
           refused -f ci/dind-privileged-values.yaml --set-json 'agents.networkPolicy.allowTo=[{"ports":[{"port":443}]}]'
+          # A relay half set up is refused rather than rendered into sends that all fail.
+          refused -f ci/no-agents-values.yaml --set mail.host=smtp.example.org
+          refused -f ci/no-agents-values.yaml --set mail.host=smtp.example.org:587 --set mail.from=vs@example.org
+          refused -f ci/no-agents-values.yaml --set mail.host=smtp.example.org --set mail.from=vs@example.org \
+            --set mail.username=vectispire
+          refused -f ci/no-agents-values.yaml --set mail.username=vectispire
+          refused -f ci/no-agents-values.yaml --set publicUrl=vectispire.example.org
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |
@@ -547,6 +554,35 @@ jobs:
               grep -A8 'podAntiAffinity' rendered.yaml | grep -q 'namespaceSelector: {}' ||
               { echo "::error::$values: the control plane may share a node with a privileged agent"; exit 1; }
           done
+      # **The relay and the public address reach the pod, and nothing does without them.** The chart passed
+      # neither before 0.11.1, so no alert, digest or checklist reminder could leave a Kubernetes install.
+      # No host must render no mail variable: the application builds a sender as soon as the host exists.
+      - name: the chart renders the mail relay and the public address
+        working-directory: deploy/helm/vectispire
+        run: |
+          helm template vs . -n vectispire -f ci/no-agents-values.yaml -s templates/deployment.yaml > rendered.yaml
+          if grep -qE 'VECTISPIRE_MAIL_|vectispire\.mail\.password' rendered.yaml; then
+            echo "::error::a release without mail.host renders a mail setting"; exit 1
+          fi
+          grep -A1 'name: VECTISPIRE_PUBLIC_URL' rendered.yaml | grep -q 'value: "https://vectispire.example.org"' ||
+            { echo "::error::the public address is not https://<ingress.host> by default"; exit 1; }
+          helm template vs . -n vectispire -f ci/no-agents-values.yaml -s templates/deployment.yaml \
+            --set ingress.enabled=false --set trustedProxies= > rendered.yaml
+          if grep -q 'VECTISPIRE_PUBLIC_URL' rendered.yaml; then
+            echo "::error::without an Ingress or publicUrl the chart invents a public address"; exit 1
+          fi
+          helm template vs . -n vectispire -f ci/no-agents-values.yaml -s templates/deployment.yaml \
+            --set publicUrl=https://vs.example.org/ --set mail.host=smtp.example.org --set mail.from=vs@example.org \
+            --set mail.username=vectispire --set secrets.mailPassword.secretName=vs-mail > rendered.yaml
+          grep -A1 'name: VECTISPIRE_PUBLIC_URL' rendered.yaml | grep -q 'value: "https://vs.example.org"' &&
+            grep -A1 'name: VECTISPIRE_MAIL_HOST' rendered.yaml | grep -q 'value: "smtp.example.org"' &&
+            grep -A1 'name: VECTISPIRE_MAIL_FROM' rendered.yaml | grep -q 'value: "vs@example.org"' &&
+            grep -A1 'name: VECTISPIRE_MAIL_USERNAME' rendered.yaml | grep -q 'value: "vectispire"' &&
+            grep -B4 'path: vectispire.mail.password' rendered.yaml | grep -q 'name: vs-mail' ||
+            { echo "::error::the relay, its password or the public address does not reach the pod"; exit 1; }
+          if grep -q 'VECTISPIRE_MAIL_PASSWORD' rendered.yaml; then
+            echo "::error::the relay's password is rendered as a variable"; exit 1
+          fi
       # **The images the chart pins are the release the chart says it is.** A chart whose appVersion moved
       # and whose digests did not deploys the previous release under the new one's name.
       - name: the pinned images are the chart's appVersion

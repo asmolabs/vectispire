@@ -46,6 +46,7 @@ kubectl -n vectispire create secret tls vectispire-tls --cert=tls.crt --key=tls.
 | `secrets.signingKey` | `signing-key` | `vectispire.signing.key` — optional; set it with two replicas, and keep it |
 | `secrets.oidcClientSecret` | `oidc-client-secret` | `vectispire.oidc.client-secret`, with `oidc.issuer` |
 | `secrets.previousEncryptionKeys` | `previous-encryption-keys` | during a key rotation only |
+| `secrets.mailPassword` | `mail-password` | `vectispire.mail.password`, the relay's password, with `mail.username` |
 
 ## Required values
 
@@ -107,12 +108,38 @@ With `replicaCount: 2`:
 - set `ingress.stickySessions`: single sign-on keeps its state in the servlet session;
 - set `auditMirror.accessMode: ReadWriteMany`.
 
+## E-mail and the public address
+
+**Before 0.11.1 the chart passed neither**, so no alert, weekly digest or checklist reminder could leave a
+Kubernetes installation, and links pointed nowhere.
+
+- `publicUrl` is the address in every link Vectispire writes — the checklist reminders, SARIF's
+  information URI, a VEX document's identifier, tracker tickets. Empty, it is `https://<ingress.host>`
+  while the Ingress is on, and unset without one. It must start with `http://` or `https://`.
+- `mail.host` switches the SMTP relay on; **empty, no mail variable is rendered at all**, because the
+  application builds a sender as soon as the host exists and an empty one would make every send fail.
+  With a host, `mail.from` is required (unset, the application signs as `vectispire@localhost`, which
+  relays refuse), `mail.port` defaults to 587 and `mail.starttls` to `true`. An authenticating relay takes
+  `mail.username` and the password from `secrets.mailPassword`, never from the values:
+
+  ```bash
+  kubectl -n vectispire create secret generic vectispire-mail --from-literal=password='<the relay password>'   # gitleaks:allow
+  ```
+
+  The chart refuses a host with a scheme or a port, a host without `mail.from`, a username without the
+  password's Secret, and a username or password without a host.
+- With `networkPolicy.restrictEgress`, list the relay in `networkPolicy.egress`.
+
+The relay says where messages leave from; who receives them is a setting in the interface
+(notification recipients, the checklist contacts). The checklist reminders also need the setting
+`checklist_reminders_enabled` turned on and an e-mail address on each linked account.
+
 ## The control plane's NetworkPolicy
 
 `networkPolicy.enabled` keeps port 3180 to `networkPolicy.ingressFrom`, the ingress controller.
 `networkPolicy.restrictEgress` also limits what the control plane reaches to DNS and the destinations
 `networkPolicy.egress` lists — the database, the forges, the OIDC issuer, the SIEM collector, the trackers,
-the threat-intelligence feeds.
+the threat-intelligence feeds, the mail relay.
 
 **Leave the Kubernetes API server out of that list.** The application refuses the cluster's API service
 and, on every address, ports 6443 and 10250 — the API server's usual port and the kubelet's — to every
