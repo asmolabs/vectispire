@@ -16,7 +16,8 @@ The costed study behind the port is on branch `docs/rust-agent-study`
 the foundation the rest of the port extends rather than as a throwaway spike.
 
 ```sh
-./check.sh     # fmt, clippy -D warnings, every test (Docker required), cargo deny
+./check.sh     # fmt, clippy -D warnings, every test (Docker required), cargo deny, then the
+               # security checks: unsafe, lint ceilings, cargo vet, semgrep (security/README.md)
 ./measure.sh   # image size, idle memory, Grype — GRYPE_DIGEST=<the digest ScannerImages pins>
 ```
 
@@ -58,9 +59,11 @@ These are what the rest of the port follows.
 - **Logging.** `tracing`. Plain lines by default, JSON with `VECTISPIRE_LOG_FORMAT=json`, level from
   `VECTISPIRE_LOG_LEVEL` or `RUST_LOG`. The Java agent's log sentences are kept where an operator acts
   on them.
-- **Lints.** `unsafe` is denied workspace-wide. Its only uses are the two process-wide libgit2 calls
-  in `git/src/init.rs`, each with its reason. Clippy runs with `-D warnings`, `unwrap` and `expect` are
-  warned outside tests, and lines are 120 columns (`rustfmt.toml`).
+- **Lints.** `unsafe` is denied workspace-wide, and `security/check-unsafe.sh` refuses it anywhere but
+  the two process-wide libgit2 calls in `git/src/init.rs`, each under `// SAFETY:`. Clippy runs with
+  `-D warnings`; `unwrap`, `expect`, `print!`, `dbg!` and `todo!` are denied outside tests, indexing and
+  unchecked arithmetic are held to `security/lint-ceilings.txt`, and lines are 120 columns
+  (`rustfmt.toml`). The security checks and what each refuses: [`security/README.md`](security/README.md).
 - **Tests.**
   - Unit tests sit beside the code; tests needing a server go in each crate's `tests/`.
   - Those start throwaway containers named `vs-rs-*` through `testkit` and **fail without Docker**.

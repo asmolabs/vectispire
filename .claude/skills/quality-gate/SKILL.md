@@ -105,6 +105,28 @@ the release image's signature with cosign before pulling it and stops if that fa
 the network to ghcr.io and Sigstore, and there is no switch to skip it; `FROM_IMAGE` must be a
 digest and comes with its `FROM_TAG`.
 
+## 4b. Rust port — when `vectispire-rust/` changed
+
+```bash
+cd vectispire-rust && ./check.sh
+```
+
+The toolchain is `rust-toolchain.toml`'s. Docker is required: the clone and container suites start
+throwaway `vs-rs-*` containers and fail without a daemon — never skip them. `check.sh` runs fmt, clippy
+with `-D warnings` (and the lints `Cargo.toml` denies), the tests, `cargo deny`, `security/check-unsafe.sh`,
+`security/lint-ceilings.sh`, `cargo vet --locked` and `security/semgrep.sh`; CI's `rust` job runs the same
+steps (`vectispire-rust/security/README.md` lists what each refuses).
+
+**A new dependency is reviewed in three places in the same diff**: its licence in `deny.toml` if it is
+new, its build script in `[bans.build]` if it has one (with what it builds), and an audit or a named
+exemption in `supply-chain/` (`cargo vet` says which is missing). Never `cargo vet regenerate
+exemptions` to make a red run green without reading what it adds. A parser of untrusted input gets a
+fuzz target in `fuzz/` (`fuzz/run.sh 60 <target>` runs it). A ceiling in `security/lint-ceilings.txt` is
+lowered when a use goes away, never raised.
+
+When the image changed: `security/reproducible-image.sh linux/arm64` (or `linux/amd64`, as CI) must say
+`reproducible`.
+
 ## 5. Contract — when a route's shape changed
 
 `ClientContractSpecTest` fails with the command. Regenerate, then the client types, and commit both:

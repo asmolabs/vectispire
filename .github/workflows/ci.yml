@@ -353,6 +353,14 @@ jobs:
             }
             END { n = 0; for (f in checked) n++; printf "%d Dockerfile(s) read\n", n; exit bad }'
 
+      # **The Rust agent's Dockerfile by name**, besides the directory walk above that already reads it:
+      # it is the one image built from `scratch` with a static binary, and a `--skip-path` widened one
+      # day for the walk must not drop it silently. No file is a red step, not a pass.
+      - name: the Rust agent's Dockerfile, named
+        run: |
+          test -f vectispire-rust/Dockerfile.agent
+          checkov --quiet --compact --framework dockerfile --file vectispire-rust/Dockerfile.agent
+
   # **The Dockerfiles are built on push when what they read moved**, not only by the nightly.
   #
   # `images` builds with Jib, which reads none of these files: on 2026-10-04 both `Dockerfile` and
@@ -1254,3 +1262,149 @@ jobs:
             vectispire-angular/playwright-report/
             vectispire-angular/test-results/
           retention-days: 7
+
+  # **The Rust port of the agent, on any change under `vectispire-rust/`** (the port is not shipped yet;
+  # README.md there). Detected like `engines` and `e2e`: this file is in the list so that a change to the
+  # job runs the job, and a range that cannot be resolved counts as changed.
+  rust-changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      touched: ${{ steps.detect.outputs.touched }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "plage non résoluble — les contrôles Rust sont exécutés par défaut"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RUST_PATHS='^\.github/workflows/ci\.yml$|^vectispire-rust/'
+          changed=$(git diff --name-only "$BASE" HEAD | grep -E "$RUST_PATHS" || true)
+          if [ -n "$changed" ]; then
+            echo "le code Rust a changé — ses contrôles sont exécutés :"
+            echo "$changed"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rien sous vectispire-rust/ n'a changé — ses contrôles ne sont pas exécutés"
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # **Every check the Rust code passes, as separate steps so a red one says which** — the same list as
+  # `vectispire-rust/check.sh`, which is what a developer runs. On the runner rather than in a job
+  # container: the clone and container suites start throwaway containers (vs-rs-*) on its daemon, and
+  # they fail without one rather than skipping (AGENTS.md, "Never skip silently").
+  #
+  # **The toolchain is the one `rust-toolchain.toml` names**, installed by the runner's rustup, which
+  # checks every component against the release's signed manifest — the image's own `stable` is never
+  # used. The two cargo tools are installed `--locked` at a written version: crates.io serves one file
+  # per version, checked against the index's checksum, and the tool's own lockfile decides its graph.
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    needs: [rust-changes]
+    if: needs.rust-changes.outputs.touched == 'true'
+    defaults:
+      run:
+        working-directory: vectispire-rust
+    env:
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the pinned toolchain, and the two supply-chain tools at their versions
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustc --version
+          grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
+            || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
+          cargo install --locked cargo-deny@0.20.2
+          cargo install --locked cargo-vet@0.10.2
+      - name: formatting
+        run: cargo fmt --all -- --check
+      # The lints Cargo.toml denies (unwrap and expect in shipped code, print!, todo!, undocumented
+      # unsafe…) plus every warning, on the tests too.
+      - name: clippy, warnings denied
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: unsafe in its one file
+        run: ./security/check-unsafe.sh
+      - name: the lints that panic on input, at their ceilings
+        run: ./security/lint-ceilings.sh
+      # Includes `crates/agent/tests/isolation.rs`: no database client, server framework or test
+      # support in the agent's resolved graph (decision 0003).
+      - name: tests, with Docker
+        run: cargo test --workspace --locked
+      - name: advisories, bans, licences, sources, build scripts (cargo-deny)
+        run: cargo deny --locked check
+      # `--locked`: the audits imported in supply-chain/imports.lock, not today's — a crate not
+      # audited by an imported set nor exempted by name fails.
+      - name: every crate audited or exempted (cargo-vet)
+        run: cargo vet --locked
+      - name: the workspace's own semgrep rules
+        run: ./security/semgrep.sh
+      - if: failure()
+        name: containers left by the suites
+        run: docker ps -a --filter name=vs-rs- --format '{{.Names}} {{.Status}}' || true
+
+  # **The Rust agent's image: reproducible, inventoried, scanned.** Built twice from nothing with the
+  # commit's time as SOURCE_DATE_EPOCH, and refused if the two differ (security/reproducible-image.sh);
+  # then once more into the daemon for grype, which finds the crates through what cargo-auditable wrote
+  # into the binary — a static binary otherwise shows no package, and "no vulnerability" would mean
+  # "nothing looked at" (the step refuses a scan that saw fewer packages than the lockfile holds). The
+  # policy is `vulnerabilities`': a fixable high fails, at the digest `ScannerImages` pins.
+  rust-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    needs: [rust-changes]
+    if: needs.rust-changes.outputs.touched == 'true'
+    defaults:
+      run:
+        working-directory: vectispire-rust
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # SOURCE_DATE_EPOCH is the commit's time, read from the history.
+          fetch-depth: 1
+      - name: built twice, the same image
+        run: ./security/reproducible-image.sh linux/amd64
+      - name: the image, for the scans
+        run: docker buildx build --load -f Dockerfile.agent -t vectispire-agent-rs:verify .
+      # The lockfile's view: every crate the agent's build resolves for the image's target, build-time
+      # crates aside. It is the artifact kept; the binary's own list (cargo-auditable) is what the scan
+      # below reads, and the two are compared so that one cannot silently be much shorter than the other.
+      - name: the CycloneDX SBOM of the agent's crates (cargo-cyclonedx)
+        run: |
+          cargo install --locked cargo-cyclonedx@0.5.9
+          cargo cyclonedx --format json --spec-version 1.5 --target x86_64-unknown-linux-musl \
+            --no-build-deps --manifest-path crates/agent/Cargo.toml
+          mv crates/agent/vectispire-agent.cdx.json ../vectispire-agent-rs.cdx.json
+          find crates -name '*.cdx.json' -delete
+      - name: report, then fail on a fixable high — and refuse a scan that saw too few crates
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan docker:vectispire-agent-rs:verify -o json > syft.json
+          python3 - <<'PY'
+          import json, sys
+          seen = sum(1 for a in json.load(open("syft.json"))["artifacts"] if a.get("type") == "rust-crate")
+          resolved = len(json.load(open("../vectispire-agent-rs.cdx.json"))["components"])
+          print(f"crates the scanners see in the binary: {seen}; crates the build resolves: {resolved}")
+          # The binary links fewer crates than the lockfile resolves (optional features, the target's
+          # cfgs), never a small fraction of them: that is cargo-auditable's list gone missing.
+          if seen < 0.8 * resolved:
+              print("::error::the scanners see too few crates in the binary: a clean scan would mean nothing")
+              sys.exit(1)
+          PY
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            vectispire-agent-rs:verify --only-fixed --fail-on high -o table
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-agent-rs
+          path: vectispire-agent-rs.cdx.json
+          retention-days: 30
