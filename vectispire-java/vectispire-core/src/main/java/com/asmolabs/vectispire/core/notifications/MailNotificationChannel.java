@@ -129,6 +129,37 @@ public class MailNotificationChannel implements NotificationChannel, AlertChanne
         log.info("Mail sent to {} recipient(s): {}", to.size(), subject);
     }
 
+    /**
+     * Whether a relay is configured — the half of {@link #isConfigured} a message to its own addressees
+     * needs, since it does not go to the recipients this channel's setting names.
+     */
+    public boolean hasRelay() {
+        return sender.isPresent();
+    }
+
+    /**
+     * Sends a message to the addresses given rather than to the e-mail recipients: the weekly checklist
+     * reminder, which writes to each contact and each CISO at their account's own address (decision 0044).
+     *
+     * <p>The relay and the sender address are still this class's, for the reason {@link #sendText} gives;
+     * the addressees are the caller's, because they are people's accounts and not a setting. <b>Throws on
+     * failure</b>, like the rest: the caller records a reminder as sent only once it has been.
+     */
+    public void sendTextTo(List<String> to, String subject, String body) {
+        JavaMailSender mailer = sender.orElseThrow(() ->
+                new IllegalStateException("No mail relay is configured on this deployment."));
+        if (to.isEmpty()) {
+            throw new IllegalStateException("A message needs an addressee.");
+        }
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(to.toArray(String[]::new));
+        message.setSubject(subject);
+        message.setText(body);
+        mailer.send(message);
+        log.info("Mail sent to {} addressee(s): {}", to.size(), subject);
+    }
+
     @Override
     public String alertKey() {
         return "mail";

@@ -160,6 +160,22 @@ public enum Setting {
                     + "silent change to what its channels receive.",
             "false"),
 
+    /**
+     * Whether the weekly reminder of the checklist lines still to fill in is sent (decision 0044). Off by
+     * default, like the posture report: an upgraded deployment does not start writing to its people. Filed
+     * with the notifications rather than the checklists' rules: it decides who is told, not who may answer,
+     * so it is the security lead's like the posture report, not the platform governor's.
+     */
+    CHECKLIST_REMINDERS_ENABLED("checklist_reminders_enabled", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Remind checklist contacts weekly",
+            "Once a week, every account a project linked to a profile of its checklist's contact column (PO, BA, "
+                    + "Arch…) receives by e-mail the lines of that profile still unanswered, or waiting for "
+                    + "confirmation, in the project's draft. A profile with such lines and nobody to remind — no "
+                    + "account linked, or one deactivated, without an address or no longer able to fill the "
+                    + "checklist in — is listed to the CISOs instead. Needs the mail relay (`VECTISPIRE_MAIL_HOST`); "
+                    + "the recipients are the accounts' own addresses, not the e-mail recipients above. Off by default.",
+            "false"),
+
     NOTIFICATION_MIN_SEVERITY("notification_min_severity", SettingType.SEVERITY, Section.NOTIFICATIONS,
             "Minimum severity notified",
             "Nothing new above this threshold, no message. One notification per scan teaches people to filter "
@@ -713,7 +729,7 @@ public enum Setting {
                     AI_REVIEW_OLLAMA_URL, CHECKLIST_AUTO_ANSWER, EVIDENCE_RETENTION_DAYS -> true;
             case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, SCAN_DEFAULT_INTERVAL_DAYS, RETENTION_KEEP_PER_TARGET,
                     RETENTION_MAX_AGE_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
-                    SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED,
+                    SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED, CHECKLIST_REMINDERS_ENABLED,
                     NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER, TICKET_TOKEN_EXPIRES_ON,
                     TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_OWASP_AFTER_SCAN,
                     AI_REVIEW_PROVIDER,

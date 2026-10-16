@@ -536,7 +536,24 @@ public enum AuditOperation {
      * An integration token that had been said to expire soon, to have expired or to be refused is no longer: it
      * was replaced, or accepted again. Once per change, like the other two.
      */
-    INTEGRATION_TOKEN_RESTORED;
+    INTEGRATION_TOKEN_RESTORED,
+
+    /**
+     * A project's checklist profile — a value of its template's contact column, "PO", "Arch" — was linked
+     * to an account, linked to another, or unlinked (decision 0044). The entry names the profile and the
+     * account by its id and user name, never its e-mail address.
+     */
+    CHECKLIST_CONTACT_CHANGED,
+
+    /**
+     * The weekly reminder of the checklist lines still to fill in left for one account: a contact's, or a
+     * CISO's list of the profiles nobody is reminded for (decision 0044).
+     *
+     * <p><b>This entry is also the bookkeeping</b>, as {@link #POSTURE_DIGEST_SENT}'s is: its resource is the
+     * week and the recipient, and a reminder whose entry exists for this week is not sent again. One entry per
+     * recipient, so that a relay refusing one address does not resend the others' next hour.
+     */
+    CHECKLIST_REMINDER_SENT;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

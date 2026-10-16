@@ -2428,6 +2428,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/checklists/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List checklist contacts
+         * @description The profiles the contact column of the project's newest checklist version names — every value but AUTO, a cell such as "PO / BA" naming both, compared without case — each with the account linked to it, the lines it still has to fill in in the draft, and a warning when that account would not be reminded: account_gone, account_inactive, no_email, cannot_fill. Empty while the project has no checklist. 404 for a project the caller does not see whole.
+         */
+        get: operations["checklistContacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/contacts/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List checklist contact candidates
+         * @description The accounts a profile of this project may be linked to: active, of a role that answers checklists, and seeing the whole project — each by its id and a name, never an e-mail address. 404 for a project the caller does not see whole.
+         */
+        get: operations["checklistContactCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/contacts/{profile}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Link checklist contact
+         * @description Links the profile — its key or the column's spelling, compared without case — to an account, in place of the one it was linked to; audited. 400 without accountId, or for an account that does not exist, is deactivated or cannot fill in this project's checklist; 404 for a project not seen whole, and for a profile its newest checklist version does not name.
+         */
+        put: operations["linkChecklistContact"];
+        post?: never;
+        /**
+         * Unlink checklist contact
+         * @description Unlinks the profile: its lines are listed to the CISOs until it is linked again. Unlinking a profile linked to nobody changes nothing. 404 for a project the caller does not see whole.
+         */
+        delete: operations["unlinkChecklistContact"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/checklists/context": {
         parameters: {
             query?: never;
@@ -5106,6 +5170,45 @@ export interface components {
             answered?: components["schemas"]["AsMeasuredAnswer"][];
             checklist?: components["schemas"]["ChecklistView"];
             skipped?: components["schemas"]["AsMeasuredSkip"][];
+        };
+        ChecklistContactCandidate: {
+            /** Format: int64 */
+            accountId: number;
+            /** @description The display name, or the user name when that is not an e-mail address; null when neither may be printed. */
+            name?: string | null;
+        };
+        ChecklistContactRequest: {
+            /** Format: int64 */
+            accountId?: number;
+        };
+        ChecklistContactView: {
+            /**
+             * Format: int64
+             * @description The account linked; null while none is.
+             */
+            accountId?: number | null;
+            /** @description The linked account's name, as the candidates name it; null while none is linked, for an account gone, and when neither name may be printed. */
+            accountName?: string | null;
+            label?: string;
+            /** Format: int32 */
+            openLines: number;
+            profile?: string;
+            /**
+             * @description Why the linked account would not be reminded; null when it would, and while none is linked.
+             * @enum {string|null}
+             */
+            warning?: "account_gone" | "account_inactive" | "no_email" | "cannot_fill" | null;
+        };
+        ChecklistContactsView: {
+            draft: boolean;
+            profiles?: components["schemas"]["ChecklistContactView"][];
+            /** Format: int64 */
+            projectId: number;
+            /**
+             * Format: int32
+             * @description The newest revision, whose version named the profiles; null while the project has no checklist.
+             */
+            revision?: number | null;
         };
         ChecklistDeriveRequest: {
             label?: string;
@@ -12876,6 +12979,100 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ChecklistUnrenderableProblem"];
+                };
+            };
+        };
+    };
+    checklistContacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistContactsView"];
+                };
+            };
+        };
+    };
+    checklistContactCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistContactCandidate"][];
+                };
+            };
+        };
+    };
+    linkChecklistContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                profile: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistContactRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistContactsView"];
+                };
+            };
+        };
+    };
+    unlinkChecklistContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                profile: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistContactsView"];
                 };
             };
         };

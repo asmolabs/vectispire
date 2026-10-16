@@ -48,9 +48,15 @@
  *   <li>{@code inventory}: {@code ComponentCatalog} — the components of the newest analysed SBOM, for
  *       the component rule.
  * </ul>
+ *
+ * <p>{@code notifications} (decision 0044): the weekly reminder of the lines still to fill in leaves through
+ * {@code MailNotificationChannel}, the relay and the sender address the deployment configured — never a
+ * relay of its own, which would drift from the one the settings screen tests. Its addressees are the
+ * accounts' own addresses, which the channel is handed rather than reads ({@code sendTextTo}).
  */
 @ApplicationModule(allowedDependencies = {
-        "access", "access::security", "targets", "scanning", "scanning::queries", "issues", "plugins", "inventory"})
+        "access", "access::security", "targets", "scanning", "scanning::queries", "issues", "plugins", "inventory",
+        "notifications"})
 package com.asmolabs.vectispire.core.checklists;
 
 import org.springframework.modulith.ApplicationModule;

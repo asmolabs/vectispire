@@ -436,7 +436,9 @@ public enum SecurityEventType {
                     // A download of what was produced, like CHECKLIST_EXPORTED: the export leaving was the event.
                     // Except for the platform governor, whom the export is refused to: its writer names
                     // PROJECT_EXPORTED itself, since only it knows the downloader's role.
-                    REPORT_DOWNLOADED -> Optional.empty();
+                    REPORT_DOWNLOADED,
+                    // Who is asked to fill a checklist in, and being asked: work, not a security event (§9).
+                    CHECKLIST_CONTACT_CHANGED, CHECKLIST_REMINDER_SENT -> Optional.empty();
         };
     }
 }

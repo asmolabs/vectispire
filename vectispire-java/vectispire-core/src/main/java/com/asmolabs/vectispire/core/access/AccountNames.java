@@ -73,13 +73,29 @@ public class AccountNames {
      * either way it is the one value a document may not carry, so the document names the account by id.
      */
     private static String displayName(UserEntity user) {
-        String stored = user.getDisplayName();
+        return printable(user.getDisplayName(), user.getEmail());
+    }
+
+    /**
+     * An account's display name under the same rule, for a screen or a message that names somebody to
+     * people other than the account itself — the checklist contacts' list and their reminder (decision
+     * 0044).
+     */
+    public static Optional<String> displayNameOf(UserView user) {
+        return Optional.ofNullable(printable(user.displayName(), user.email()));
+    }
+
+    /** Whether a name is shaped like an e-mail address — a user name an identity provider filled in. */
+    public static boolean looksLikeAnAddress(String name) {
+        return name != null && EMAIL.matcher(name).find();
+    }
+
+    private static String printable(String stored, String email) {
         if (stored == null || stored.isBlank()) {
             return null;
         }
         String name = stored.strip();
-        boolean address = EMAIL.matcher(name).find()
-                || (user.getEmail() != null && name.equalsIgnoreCase(user.getEmail().strip()));
+        boolean address = EMAIL.matcher(name).find() || (email != null && name.equalsIgnoreCase(email.strip()));
         return address ? null : name;
     }
 }
