@@ -1,0 +1,16 @@
+200 
+Content-Disposition: attachment; filename="vectispire-signing-key.pub"
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+Content-Type: application/x-pem-file;charset=UTF-8
+Content-Length: 178
+
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEe6/wBL95+T4LF1vm0DEe+vj1FNU/
+76vhHFIytvcnXqhFDVlR4IbAhnqEicuMF1AiXuhlTh67bJIKxCHLgzOfKA==
+-----END PUBLIC KEY-----
