@@ -8,7 +8,7 @@
 resolver = "3"
 # fuzz/ is a workspace of its own, on a nightly compiler: none of it ships (fuzz/Cargo.toml).
 exclude = ["fuzz"]
-members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db"]
+members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db", "crates/cp-http"]
 
 [workspace.package]
 version = "0.12.0-dev"
@@ -51,6 +51,10 @@ mem_forget = "deny"
 # and the parsers that carry them are fuzzed every night (fuzz/).
 
 [workspace.dependencies]
+# The control plane's crates (Phase 0 of docs/analysis/…_rust_control_plane_port_plan): they live in the same
+# workspace as the agent, and the agent's graph never reaches them — deny.toml's `wrappers` say who may link
+# the server stack, and crates/agent/tests/isolation.rs proves the agent does not.
+vectispire-cp-http = { path = "crates/cp-http" }
 vectispire-domain = { path = "crates/domain" }
 vectispire-crypto = { path = "crates/crypto" }
 vectispire-git = { path = "crates/git" }
@@ -90,6 +94,18 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signa
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "json", "env-filter", "std"] }
 uuid = "1"
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query"] }
+bytes = "1"
+http = "1"
+http-body = "1"
+http-body-util = "0.1"
+httpdate = "1"
+ipnet = "2"
+percent-encoding = "2"
+subtle = "2"
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tower-http = { version = "0.6", default-features = false, features = ["fs"] }
+trybuild = "1"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 
 [profile.release]

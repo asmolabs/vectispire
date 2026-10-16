@@ -1,0 +1,134 @@
+//! Who is calling, as the chain sees them: a role, a credential kind, and what the credential may reach.
+//!
+//! The lookups behind it — a session's hash in the table, an API key's prefix and hash, the SCIM token — are
+//! Phase 1's (`cp-access`). This crate decides what a principal *may reach*, and takes the principal from a
+//! [`Credentials`](crate::credentials::Credentials) it is handed.
+
+/// `Role` and its flags, as the Java enum spells them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Role {
+    Superuser,
+    Admin,
+    Ciso,
+    SecurityChampion,
+    Auditor,
+    User,
+}
+
+impl Role {
+    pub fn parse(value: &str) -> Option<Role> {
+        Some(match value {
+            "SUPERUSER" => Role::Superuser,
+            "ADMIN" => Role::Admin,
+            "CISO" => Role::Ciso,
+            "SECURITY_CHAMPION" => Role::SecurityChampion,
+            "AUDITOR" => Role::Auditor,
+            "USER" => Role::User,
+            _ => return None,
+        })
+    }
+
+    /// `Role.isAdministrative()`: the two roles that administer accounts.
+    pub fn is_administrative(self) -> bool {
+        matches!(self, Role::Superuser | Role::Admin)
+    }
+
+    /// `Role.canCauseEffects()`: may start a scan, answer a checklist, change what a project holds.
+    pub fn can_cause_effects(self) -> bool {
+        matches!(self, Role::Admin | Role::Ciso | Role::SecurityChampion | Role::User)
+    }
+}
+
+/// An API key's scope.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ApiKeyScope {
+    Read,
+    Scan,
+    Export,
+    SarifImport,
+    ReportImport,
+    Agent,
+}
+
+impl ApiKeyScope {
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            ApiKeyScope::Read => "read",
+            ApiKeyScope::Scan => "scan",
+            ApiKeyScope::Export => "export",
+            ApiKeyScope::SarifImport => "sarif_import",
+            ApiKeyScope::ReportImport => "report_import",
+            ApiKeyScope::Agent => "agent",
+        }
+    }
+}
+
+/// An account behind a session or an integration key.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Account {
+    pub username: String,
+    /// `None` when the stored role is unreadable: such an account is authorized for nothing, **not** for the
+    /// least privileged role, which would keep a mistyped account working with nobody ever looking.
+    pub role: Option<Role>,
+    pub must_change_password: bool,
+}
+
+/// The credential a request authenticated with.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Credential {
+    /// A session — a browser's or a script's bearer token.
+    Session,
+    /// An integration API key: its id (the budget is per key) and its scopes.
+    Integration { key_id: String, scopes: Vec<ApiKeyScope> },
+    /// An agent's key.
+    Agent { agent: String },
+    /// The identity provider's SCIM token, a principal on `/scim` and nowhere else.
+    Scim,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Principal {
+    /// Absent for an agent and for the SCIM client.
+    pub account: Option<Account>,
+    pub credential: Credential,
+}
+
+impl Principal {
+    pub fn session(account: Account) -> Principal {
+        Principal { account: Some(account), credential: Credential::Session }
+    }
+
+    pub fn integration(account: Account, key_id: &str, scopes: Vec<ApiKeyScope>) -> Principal {
+        Principal { account: Some(account), credential: Credential::Integration { key_id: key_id.to_owned(), scopes } }
+    }
+
+    pub fn agent(agent: &str) -> Principal {
+        Principal { account: None, credential: Credential::Agent { agent: agent.to_owned() } }
+    }
+
+    /// The SCIM client acts as an administrator on `/scim`: its authorities are `ROLE_ADMIN` and `SCOPE_SCIM`.
+    pub fn scim() -> Principal {
+        Principal { account: None, credential: Credential::Scim }
+    }
+
+    /// The roles the principal's authorities carry.
+    pub fn role(&self) -> Option<Role> {
+        match &self.credential {
+            Credential::Scim => Some(Role::Admin),
+            Credential::Agent { .. } => None,
+            _ => self.account.as_ref().and_then(|account| account.role),
+        }
+    }
+
+    pub fn must_change_password(&self) -> bool {
+        self.account.as_ref().is_some_and(|account| account.must_change_password)
+    }
+
+    pub fn is_session(&self) -> bool {
+        matches!(self.credential, Credential::Session)
+    }
+
+    pub fn is_agent(&self) -> bool {
+        matches!(self.credential, Credential::Agent { .. })
+    }
+}

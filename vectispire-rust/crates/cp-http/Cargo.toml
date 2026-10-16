@@ -1,0 +1,46 @@
+[package]
+name = "vectispire-cp-http"
+description = "The control plane's HTTP stack: the filter chain as tower layers in Spring Security's order, problem documents, the security headers, and a route builder that does not compile without a role requirement and a visibility handling."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum.workspace = true
+bytes.workspace = true
+http.workspace = true
+http-body.workspace = true
+http-body-util.workspace = true
+httpdate.workspace = true
+ipnet.workspace = true
+percent-encoding.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+subtle.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+tempfile.workspace = true
+trybuild.workspace = true
+vectispire-testkit = { path = "../testkit" }
+
+# `forbid`, not the workspace's `deny`: no control-plane crate has the agent's libgit2 exception.
+[lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+dbg_macro = "warn"
+indexing_slicing = "warn"
+arithmetic_side_effects = "warn"
