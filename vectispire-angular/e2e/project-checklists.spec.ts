@@ -656,6 +656,8 @@ test.describe('Project checklists', () => {
             'Reminded to the CISOs'
         ]);
 
+        // Named by its display name — the e2e accounts are given their user name as one — never by a user name
+        // the account did not choose to be shown by.
         await contacts.getByRole('combobox', { name: 'Account linked to BA' }).click();
         await page.getByRole('searchbox').fill(cisoName);
         await page.getByRole('option', { name: cisoName }).click();

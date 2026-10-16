@@ -34,7 +34,18 @@ optional e-mail address; and every checklist route refuses a project the caller 
    own account, under the visibility mode in force. Linking is refused otherwise, in one sentence for an
    account that does not exist and one that cannot fill it in. Linking and unlinking are a writer's —
    whoever may answer the checklist — and audited (`CHECKLIST_CONTACT_CHANGED`). The accounts offered are
-   listed by id and a name, never an e-mail address, nor a name that is one.
+   listed by id and display name under `AccountNames`' rule — `null` for none, or one that is an address,
+   and the screen then says *Account #N* — never by user name: it is how the account signs in, and through
+   an identity provider often an address. A caller who may not relink is told only `not_reminded` of an
+   account that would not be reminded; why — deactivated, no address, no longer on the project — is
+   another person's business, and the writers', who fix it.
+8. **The candidates route is a new directory, and that is accepted.** Until now only administrators listed
+   accounts. `GET …/contacts/candidates` gives any writer of a project the ids and display names of the
+   active accounts that can fill its checklist in: under the `everyone` visibility mode that is every writer
+   on the installation, and ADMIN and CISO accounts are always among them, since they see everything. It is
+   accepted because a link has to name somebody, the people offered are those the project's own checklist
+   already shows as its answerers, and nothing else is shown — no e-mail address, no user name, no role, no
+   team, no state. Under the `assigned` mode the directory narrows to the project's own people.
 4. **What remains to fill in is a line of the open draft with no current answer, or a carried answer
    awaiting confirmation.** A submitted revision is nobody's to fill in until it is returned. The other
    problems a line can have — a missing comment or proof, a contradicted measurement — are the
@@ -49,7 +60,13 @@ optional e-mail address; and every checklist route refuses a project the caller 
    with none, nothing is sent and nothing retried.
 7. **The bookkeeping is the audit log, one entry per recipient** (`CHECKLIST_REMINDER_SENT`, its resource
    the week's Monday and the recipient), written after the send: a relay refusing one address is retried
-   the next hour for that address alone. Neither entry is signalled to the SIEM: who is asked to fill a
+   the next hour for that address alone. The mark is written through the audit log's strict call, which
+   says when it failed (`append`, not `record`, which logs and returns): a log refusing writes would
+   otherwise have every recipient written to every hour, 168 times a week. A refused mark stops the run:
+   while the log refuses writes, only the first recipient of a run is written to — once, the instance
+   remembering the send until the log takes its mark — and every other contact and the CISOs wait for the
+   log. An outage spanning a whole week misses that week's reminder for them; a warning names how many
+   wait. Neither entry is signalled to the SIEM: who is asked to fill a
    checklist in is work, not a security event.
 
 ## Consequences

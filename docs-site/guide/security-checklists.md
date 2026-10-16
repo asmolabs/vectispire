@@ -394,8 +394,9 @@ account ([decision 0044](https://github.com/asmolabs/vectispire/blob/main/docs/a
   again.
 - **A profile is linked to an account that can fill the checklist in**: active, of a role that answers
   checklists (not the auditor, not the platform governor), and seeing the whole project. The list offers
-  those accounts only, by name — never by e-mail address. Linking and unlinking is for whoever may answer
-  the checklist, and is written to the audit log.
+  those accounts only, by their display name — or *Account #N* for one that has none — never by user name
+  or e-mail address. Linking and unlinking is for whoever may answer the checklist, and is written to the
+  audit log. A reader who may not link is told only that an account *would not be reminded*, not why.
 - **Once a week**, with **Remind checklist contacts weekly** switched on
   ([settings](../administration/settings.md#notifications)) and the mail relay configured, each linked
   account receives one e-mail, at its own address, naming every line of its profiles still **unanswered or

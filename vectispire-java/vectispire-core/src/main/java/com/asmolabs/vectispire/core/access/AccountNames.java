@@ -85,11 +85,6 @@ public class AccountNames {
         return Optional.ofNullable(printable(user.displayName(), user.email()));
     }
 
-    /** Whether a name is shaped like an e-mail address — a user name an identity provider filled in. */
-    public static boolean looksLikeAnAddress(String name) {
-        return name != null && EMAIL.matcher(name).find();
-    }
-
     private static String printable(String stored, String email) {
         if (stored == null || stored.isBlank()) {
             return null;

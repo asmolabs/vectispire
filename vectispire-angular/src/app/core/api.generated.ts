@@ -2437,7 +2437,7 @@ export interface paths {
         };
         /**
          * List checklist contacts
-         * @description The profiles the contact column of the project's newest checklist version names — every value but AUTO, a cell such as "PO / BA" naming both, compared without case — each with the account linked to it, the lines it still has to fill in in the draft, and a warning when that account would not be reminded: account_gone, account_inactive, no_email, cannot_fill. Empty while the project has no checklist. 404 for a project the caller does not see whole.
+         * @description The profiles the contact column of the project's newest checklist version names — every value but AUTO, a cell such as "PO / BA" naming both, compared without case — each with the account linked to it, the lines it still has to fill in in the draft, and a warning when that account would not be reminded: account_gone, account_inactive, no_email, cannot_fill to a caller who may relink it, not_reminded to one who may not. Empty while the project has no checklist. 404 for a project the caller does not see whole.
          */
         get: operations["checklistContacts"];
         put?: never;
@@ -2457,7 +2457,7 @@ export interface paths {
         };
         /**
          * List checklist contact candidates
-         * @description The accounts a profile of this project may be linked to: active, of a role that answers checklists, and seeing the whole project — each by its id and a name, never an e-mail address. 404 for a project the caller does not see whole.
+         * @description The accounts a profile of this project may be linked to: active, of a role that answers checklists, and seeing the whole project — each by its id and its display name, null when it has none or one that is an e-mail address; never its user name, its address or its role. 404 for a project the caller does not see whole.
          */
         get: operations["checklistContactCandidates"];
         put?: never;
@@ -5174,7 +5174,7 @@ export interface components {
         ChecklistContactCandidate: {
             /** Format: int64 */
             accountId: number;
-            /** @description The display name, or the user name when that is not an e-mail address; null when neither may be printed. */
+            /** @description The display name; null when the account has none, or one that is an e-mail address. */
             name?: string | null;
         };
         ChecklistContactRequest: {
@@ -5187,17 +5187,17 @@ export interface components {
              * @description The account linked; null while none is.
              */
             accountId?: number | null;
-            /** @description The linked account's name, as the candidates name it; null while none is linked, for an account gone, and when neither name may be printed. */
+            /** @description The linked account's display name, as the candidates give it; null while none is linked, for an account gone, and when it has none that may be printed. */
             accountName?: string | null;
             label?: string;
             /** Format: int32 */
             openLines: number;
             profile?: string;
             /**
-             * @description Why the linked account would not be reminded; null when it would, and while none is linked.
+             * @description Why the linked account would not be reminded, to a caller who may relink it; not_reminded alone to one who may not; null when it would, and while none is linked.
              * @enum {string|null}
              */
-            warning?: "account_gone" | "account_inactive" | "no_email" | "cannot_fill" | null;
+            warning?: "account_gone" | "account_inactive" | "no_email" | "cannot_fill" | "not_reminded" | null;
         };
         ChecklistContactsView: {
             draft: boolean;

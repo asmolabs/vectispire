@@ -22,7 +22,8 @@ export const WARNING_KEYS = {
     account_gone: 'checklist_contacts.warning_account_gone',
     account_inactive: 'checklist_contacts.warning_account_inactive',
     no_email: 'checklist_contacts.warning_no_email',
-    cannot_fill: 'checklist_contacts.warning_cannot_fill'
+    cannot_fill: 'checklist_contacts.warning_cannot_fill',
+    not_reminded: 'checklist_contacts.warning_not_reminded'
 } as const satisfies Record<ChecklistContactWarning, string>;
 
 /** One choice of a profile's list: an account, by the name the server sent or by its id. */

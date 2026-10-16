@@ -2971,8 +2971,11 @@ export type ChecklistProjectContext = Refine<
     { projectName: string; latestRevision: number | null; latestEdition: number | null }
 >;
 
-/** Why the account linked to a checklist profile would not be reminded (`ChecklistReminder.Gap`). */
-export type ChecklistContactWarning = 'account_gone' | 'account_inactive' | 'no_email' | 'cannot_fill';
+/**
+ * Why the account linked to a checklist profile would not be reminded (`ChecklistReminder.Gap`) — to a caller
+ * who may relink it; `not_reminded` alone to one who may not, who is not told why of another person's account.
+ */
+export type ChecklistContactWarning = 'account_gone' | 'account_inactive' | 'no_email' | 'cannot_fill' | 'not_reminded';
 
 /**
  * One profile of a project's checklist — a value of its template's contact column — and the account
@@ -2995,7 +2998,7 @@ export type ChecklistContacts = Refine<
     { revision: number | null; profiles: ChecklistContact[] }
 >;
 
-/** An account a profile may be linked to: its id, and a name that is never an address — null when none may be shown. */
+/** An account a profile may be linked to: its id, and its display name — never its user name nor an address; null when none may be shown. */
 export type ChecklistContactCandidate = Refine<Schema<'ChecklistContactCandidate'>, { name: string | null }>;
 
 /**

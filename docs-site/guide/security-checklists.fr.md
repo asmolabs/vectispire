@@ -417,8 +417,10 @@ remplir, et lie chacun à un compte
   garde son lien, inutilisé, jusqu'à ce qu'une version le nomme de nouveau.
 - **Un profil est lié à un compte qui peut remplir la checklist** : actif, d'un rôle qui répond aux
   checklists (ni l'auditeur, ni le gouverneur de plateforme), et qui voit le projet entier. La liste ne
-  propose que ces comptes, par leur nom — jamais par leur adresse e-mail. Lier et délier revient à qui peut
-  répondre à la checklist, et c'est inscrit au journal d'audit.
+  propose que ces comptes, par leur nom d'affichage — ou *Compte n° N* pour un compte qui n'en a pas —
+  jamais par leur identifiant de connexion ni leur adresse e-mail. Lier et délier revient à qui peut
+  répondre à la checklist, et c'est inscrit au journal d'audit. Un lecteur qui ne peut pas lier apprend
+  seulement qu'un compte *ne serait pas rappelé*, pas pourquoi.
 - **Une fois par semaine**, avec **Rappeler chaque semaine les contacts des checklists** activé
   ([paramètres](../administration/settings.fr.md#notifications)) et le relais de messagerie configuré,
   chaque compte lié reçoit un e-mail, à sa propre adresse, qui nomme chaque ligne de ses profils encore
