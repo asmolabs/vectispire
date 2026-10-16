@@ -107,6 +107,14 @@ the roles whose controls that evidence proves do not decide how long it survives
 Webhook, Teams and e-mail destinations, their secrets, and the weekly posture report.
 Covered under [Notifications](../integrations/notifications.md).
 
+**Remind checklist contacts weekly** (`checklist_reminders_enabled`, **off by default**) sends, once a
+week, each account a project linked to a profile of its checklist's contact column the lines of that
+profile still to fill in, and the CISOs the profiles nobody is reminded for
+([security checklists](../guide/security-checklists.md#contacts-and-weekly-reminders)). It needs the mail
+relay (`VECTISPIRE_MAIL_HOST`), and writes to the accounts' own addresses, not to the e-mail recipients
+above. Off by default, like the posture report: a deployment that upgrades does not start writing to its
+people.
+
 ## Tracker
 
 GitLab, GitHub, Jira or ServiceNow: URL, project, token, and the CA a tracker on your own PKI is

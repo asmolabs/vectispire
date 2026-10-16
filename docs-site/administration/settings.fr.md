@@ -114,6 +114,14 @@ de leur durée de vie. Voir [Rotation et purge](maintenance.md).
 Destinations webhook, Teams et courriel, leurs secrets, et le rapport de posture hebdomadaire.
 Couvert sous [Notifications](../integrations/notifications.md).
 
+**Rappeler chaque semaine les contacts des checklists** (`checklist_reminders_enabled`, **désactivé par
+défaut**) envoie, une fois par semaine, à chaque compte qu'un projet a lié à un profil de la colonne de
+contact de sa checklist les lignes de ce profil encore à remplir, et aux CISO les profils que personne ne
+rappelle ([checklists de sécurité](../guide/security-checklists.fr.md#contacts-et-rappels-hebdomadaires)).
+Il nécessite le relais de messagerie (`VECTISPIRE_MAIL_HOST`) et écrit aux adresses des comptes
+eux-mêmes, pas aux destinataires des e-mails ci-dessus. Désactivé par défaut, comme le rapport de posture :
+un déploiement mis à jour ne se met pas à écrire à ses utilisateurs.
+
 ## Tracker
 
 GitLab, GitHub, Jira ou ServiceNow : URL, projet, jeton, et la CA contre laquelle un tracker sur votre

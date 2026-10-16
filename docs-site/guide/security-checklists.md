@@ -381,6 +381,35 @@ there, offered only for the lines still unanswered — with the setting on, that
 **Switched off**, nothing new is answered automatically; the answers already written stay, each marked
 as Vectispire's, until somebody answers over them. Answering as measured in one click remains.
 
+## Contacts and weekly reminders
+
+A template's **contact column** says who each line is to be asked of, as a role — *PO*, *BA*, *Arch*.
+The **Contacts** card of the checklist's page lists each of those **profiles**, as the version the
+checklist is open on names them, with how many of its lines are still to fill in, and links each to an
+account ([decision 0044](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0044-checklist-contacts-are-reminded-weekly.md)):
+
+- **Every value of the column is a profile, but `AUTO`**, which marks a line Vectispire measures. A cell
+  naming two — *PO / BA* — is both profiles' line; *Arch* and *ARCH* are one profile, shown as first
+  written. A profile no longer named by a newer version keeps its link, unused, until a version names it
+  again.
+- **A profile is linked to an account that can fill the checklist in**: active, of a role that answers
+  checklists (not the auditor, not the platform governor), and seeing the whole project. The list offers
+  those accounts only, by name — never by e-mail address. Linking and unlinking is for whoever may answer
+  the checklist, and is written to the audit log.
+- **Once a week**, with **Remind checklist contacts weekly** switched on
+  ([settings](../administration/settings.md#notifications)) and the mail relay configured, each linked
+  account receives one e-mail, at its own address, naming every line of its profiles still **unanswered or
+  waiting for confirmation** in the project's draft, across all its projects. A submitted revision is
+  nobody's to fill in until it is returned, and reminds nobody.
+- **A profile with such lines and nobody to remind is the CISOs'**: linked to nobody, or to an account
+  since deleted, deactivated, unable to fill the checklist in, or without an e-mail address. The card says
+  which beside the profile — *Reminded to the CISOs* — and every active CISO with an address receives,
+  the same week, the list of those profiles and why.
+
+The reminder is plain text, in English like Vectispire's other e-mails, and links to the checklist's page
+when the deployment's public address (`VECTISPIRE_PUBLIC_URL`) is set. A recipient whose message the
+relay refuses is retried the next hour; the others are not sent twice.
+
 ## The document
 
 `GET /api/v1/projects/{id}/checklists/{revision}/document` returns the revision as a document to hand
@@ -467,7 +496,9 @@ Opening, moving, reopening, every answer and confirmation — Vectispire's autom
 withdrawals included, with no user and a description naming Vectispire — every proof attached or withdrawn, the
 submission, the return, the sign-off and a refused sign-off are written to the
 [audit log](../administration/audit-log.md), and so is each download of the document, with its SHA-256. A sign-off is signalled to the SIEM as `VECTI-SEC-025`; a
-refused sign-off and a return as `VECTI-SEC-026`.
+refused sign-off and a return as `VECTI-SEC-026`. A profile linked or unlinked is recorded as
+`CHECKLIST_CONTACT_CHANGED`, and each weekly reminder sent as `CHECKLIST_REMINDER_SENT`, naming its recipient's
+account — neither is signalled to the SIEM.
 
 ## Related
 
