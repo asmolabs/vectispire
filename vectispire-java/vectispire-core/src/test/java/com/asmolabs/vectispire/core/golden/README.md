@@ -30,6 +30,8 @@ a reset of the tables' identity counters before each test.
 ```
 <dir>/manifest.json
 <dir>/<class>/<test>--<NNN>-<METHOD>-<path slug>.json
+<dir>/<class>/<test>--<NNN>-<METHOD>-<path slug>.body.gz       a request body past 64 KiB
+<dir>/<class>/<test>--<NNN>-<METHOD>-<path slug>.response.gz   a binary response body
 ```
 
 - `<class>` is the test class's binary name without `com.asmolabs.vectispire.core.`, `$` written `.`:
@@ -120,8 +122,9 @@ Names depend only on the tree: two recordings of the same commit have the same f
 ```json
 { "contentType": "application/json", "json": <document> }
 { "contentType": "text/csv", "text": "…" }
-{ "contentType": "application/pdf", "length": 1234, "sha256": "…" }          // a response
-{ "contentType": "application/octet-stream", "length": 9, "sha256": "…", "base64": "…" }  // a request
+{ "contentType": "application/pdf", "length": 1234, "sha256": "…", "file": "….response.gz" }   // a binary response
+{ "contentType": "application/octet-stream", "length": 9, "sha256": "…", "base64": "…" }      // a binary request
+{ "contentType": "application/json", "length": 33554433, "sha256": "…", "file": "….body.gz" } // a request past 64 KiB
 ```
 
 - **JSON**, which is anything whose content type contains `json`, or that has no content type and
@@ -136,9 +139,15 @@ Names depend only on the tree: two recordings of the same commit have the same f
     Anything else is shown as `text` and sent byte for byte. A signed webhook's signature covers bytes.
 - **Text** covers `text/*`, `xml`, `yaml`, `csv`, form bodies and `javascript`, as long as the bytes
   decode in the declared charset (UTF-8 by default).
-- **Anything else** is binary: its length and SHA-256, plus the bytes in base64 for a request, because
-  the replay has to send them. A PDF or an xlsx is compared by phase 5's own means, not by its digest.
-  The digest pins only bytes the server produces identically on every run.
+- **Anything else** is binary: its length and SHA-256. A request's bytes are inline in base64, because
+  the replay has to send them. A response's bytes are in a gzip sidecar (`file`), for phase 5, which
+  compares what a PDF or an xlsx says rather than its digest. Many documents embed when they were
+  made, so their length, digest and bytes change between runs (see *Determinism*).
+- **A request body past 64 KiB**, whatever its type, is in a gzip sidecar (`file`) and is not
+  normalised. These are the bounds' tests' padding: 365 MB of the first recording's 414 MB when they
+  were inline. The JSON keeps its length and digest. Send the sidecar's bytes as they are.
+- Sidecars are written by `GZIPOutputStream`, which records no time and no name, so equal bytes give
+  equal files.
 
 ### `seed` and `effect`: the rows
 
@@ -241,8 +250,11 @@ response that minted the token. Collected from:
   backupCodes backupCode` (the elements, for an array). Not when the value is already a stored form
   (an Argon2 hash, a sealed value);
 - anything shaped like an API key, `zsk_` and 43 base64url characters;
-- any 43-character base64url run with upper case, lower case and a digit in it (thirty-two random
-  bytes: a session token, an agent key), outside a stored form.
+- any 43-character base64url run with upper case, lower case and a digit in it, not touching `+`, `/`
+  or `=` (thirty-two random bytes: a session token, an agent key), outside a stored form;
+- any base64 or base64url run of 40 to 200 characters, padded or not, with upper case, lower case and
+  a digit in it: an agent's sealing or signing public key, an ECDSA signature. A signature's DER
+  length varies, and so does its padding.
 
 `correct horse battery staple` is never a secret. It is `ApiTestBase`'s fixture passphrase, in the
 source.
@@ -251,12 +263,15 @@ Then, on every string, in this order:
 
 | rule | placeholder |
 |---|---|
+| a PEM block, whole | `«pem:<label>:N»`, such as `«pem:certificate:1»`. The suites generate their certificate authorities and keys at every run, and no key reaches a golden |
 | an Argon2 or bcrypt hash | `«password-hash(correct horse battery staple)»`, `«password-hash(secret:N)»` when it verifies against that secret (a password sent in this test, or an API key), else `«password-hash(?)»`. A replay seeding the row hashes that value |
 | a sealed value, `v2:` and base64 (`SecretCipher`) | `«sealed»` |
 | the SHA-256 hex of a known secret | `«sha256(secret:N)»`. A session's `token_hash`: the replay mints a token, stores its hash and sends it |
 | a known secret, longest first | `«secret:N»` |
 | the first 12 characters of a known API key (its stored prefix) | `«secret:N:prefix»` |
 | 64 hex digits no secret accounts for | `«sha256:N»`. A document's digest, which names it in a path; many are the same on every run, but a document holding a date is not |
+| `sha256 ` or `sha256:` followed by 8 to 63 hex digits (a digest cut short in a sentence) | `sha256 «sha256-prefix:N»`, numbered with the digests |
+| a loopback address's port, `127.0.0.1:`, `localhost:` or `[::1]:` | `«port:N»`. The tests' stub servers listen wherever the system put them |
 | a UUID, case-insensitive | `«uuid:N»` |
 | an ISO date, date-time or instant from three years back to eleven ahead | `«date»`, `«datetime»` (no zone), `«instant»` (`Z` or an offset). Outside the window it stays literal: `2020-01-01`, the year 9999 |
 | an RFC 1123 date in that window | `«http-date»` |
@@ -269,7 +284,7 @@ field:
 
 | field | rule |
 |---|---|
-| `code`, `totp`, `totpCode`, `mfaCode`, `otp` holding 6 to 8 digits | `«one-time-code»`. Derived from a random secret and the clock |
+| `code`, `totp`, `totpCode`, `mfaCode`, `otp` holding 6 to 8 digits, or a backup code `xxxx-xxxx` | `«one-time-code»`. Derived from a random secret and the clock, or drawn at random |
 | `window_key` | `<limit>:«window»:<digest>`. `RateWindows` numbers windows from the epoch |
 | `totp_last_step` (an integer) | `«clock-step»` |
 | any field whose name contains `hash` and whose value is, after the rules above, 32 to 128 hex digits | `«sha256:N»`, numbered with the digests above. An audit entry's `entry_hash` and `previous_hash` keep their links: entry 2's `previous_hash` is entry 1's `«sha256:N»` |
@@ -290,13 +305,32 @@ the replay could have made, but it never makes a golden unstable.
 
 ## Determinism
 
-Two recordings of the same tree should produce identical files, with these known exceptions. They come
-from the application or the harness, not from the recorder:
+Two recordings of the same tree should give identical files. Compare them with `diff -r`, or a
+comparison that also reports files differing only in object key order. The known differences come
+from the application or the tests, not from the recorder:
 
-- `concurrent` records (rank and content);
-- audit chain links when one request writes several entries in an order the application draws, such
-  as revocations walked in UUID order. The entries are the same and sorted the same, but which
-  `«sha256:N»` chains onto which can differ.
+- **Documents that embed when they were made**: PDFs, evidence bundles, project exports, checklist
+  packages, report documents. Their `.response.gz`, `length`, `sha256` and `Content-Length` change,
+  and so do the rows that store them (`«bytes:…»`, `size_bytes`) and the digests derived from them.
+- **Values the tests draw at random**: `ledger-ci-<random>` slugs (`BuildSbomImportRoutesTest`),
+  `SEC-<random>` ticket keys (`TrackerRefusalRoutesTest`), rule ids with a random suffix
+  (`RuleCatalogueImportRoutesTest`).
+- **Iteration order the JVM draws at start-up** (`Set.of`, `Map.of`, and a `HashMap` keyed by names
+  that end in `nanoTime`): the order of an agent task's `steps`, of blast-radius nodes, of some response
+  objects' fields, and of the routes `ReadCostSweepTest` walks, which numbers its requests in that
+  order so its file names change.
+- **Writes whose order the application draws**: audit entries one request writes in UUID order (which
+  `«sha256:N»` chains onto which), gate verdicts decided in the same second.
+- `concurrent` records (rank and content).
 
 Anything else that differs between two recordings is a defect of the recorder or a nondeterminism of
-the application, and both are worth knowing about. Compare two recordings with `diff -r`.
+the application, and both are worth knowing about.
+
+## Recording changes what the application sees
+
+Ids have nine digits from the first row. A suite running without the recorder reaches a few thousand.
+Two tests fail when recorded and pass otherwise, both in `ReportRunsRoutesTest`. Each asserts on the
+end of an audit description that `AuditLogService` cuts at 255 characters, and with longer ids the
+asserted end is past the cut: "served as withdrawn", and the project and plugin of a governor's
+download. Their goldens are marked `failed` in the manifest. The cut is the product's: an installation
+with large ids loses the same words from the same entries.
