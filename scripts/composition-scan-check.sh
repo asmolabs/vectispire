@@ -80,6 +80,7 @@
 #   scripts/composition-scan-check.sh                        # images vectispire:latest, vectispire-agent:latest
 #   MODE=agent scripts/composition-scan-check.sh             # the scans run on the `with-agent` profile's agent
 #   CONTROL_PLANE_IMAGE=vectispire:x AGENT_IMAGE=vectispire-agent:x scripts/composition-scan-check.sh
+#   AGENT_WORK_DIR_IMAGE=alpine@sha256:… MODE=agent AGENT_IMAGE=vs-rs-agent …  # an agent image with no shell
 #   DAEMON_DIR=/somewhere scripts/composition-scan-check.sh  # the scans' directories, on the daemon's host
 #   KEEP=1 scripts/composition-scan-check.sh                 # leave it up to poke at
 set -euo pipefail
@@ -93,6 +94,15 @@ MODE="${MODE:-embedded}"
 PROJECT="${PROJECT:-vectispire-scan-check}"
 CONTROL_PLANE_IMAGE="${CONTROL_PLANE_IMAGE:-vectispire:latest}"
 AGENT_IMAGE="${AGENT_IMAGE:-vectispire-agent:latest}"
+# The image `agent-work-dir` prepares the agent's directory with: the agent's own by default, as the
+# composition has it. The Rust port's image is a lone static binary with no shell to run that `chmod`,
+# so its runs name another image here (any with `sh`, e.g. the fixture's base).
+AGENT_WORK_DIR_IMAGE="${AGENT_WORK_DIR_IMAGE:-$AGENT_IMAGE}"
+# Steps allowed to fail, by name and comma-separated — empty, so none, unless a run says which. For the
+# Rust port's agent, whose API discovery is not ported yet and which says so as a failed step.
+TOLERATED_STEPS="${TOLERATED_STEPS:-}"
+# A directory to keep each scan's detail in (`scan-<id>.json`), to compare two agents' runs.
+DETAIL_DIR="${DETAIL_DIR:-}"
 # The fixture's servers: `git daemon`, since a repository URL is https, ssh or git — plain http is
 # refused, and a certificate for a throwaway host would be more fixture than check — and `sshd`.
 fixture_dir="$root/scripts/composition-scan-fixture"
@@ -223,7 +233,7 @@ services:
     image: $AGENT_IMAGE
     container_name: !reset null
   agent-work-dir:
-    image: $AGENT_IMAGE
+    image: $AGENT_WORK_DIR_IMAGE
   agent-docker-proxy:
     container_name: !reset null
   # The image's own command: \`git daemon\`, as its unprivileged user.
@@ -404,6 +414,7 @@ scan() {
     [ "$(date +%s)" -lt "$deadline" ] || fail "scan $scan_id still $status after 900s"
     sleep 5
   done
+  [ -z "$DETAIL_DIR" ] || printf '%s' "$detail" > "$DETAIL_DIR/scan-$scan_id.json"
   printf '%s' "$detail" | python3 -c '
 import collections, json, sys
 d = json.load(sys.stdin); s = d["scan"]
@@ -417,7 +428,8 @@ print("steps that failed:", s["error"] or "none")'
 # may fail. In agent mode the control plane's worker is off, so a completed scan is the agent's: a
 # finished scan names no claimant any more, and needs none here.
 scanned_the_tree() {
-  printf '%s' "$detail" | ADVISORY="$ADVISORY" PACKAGE="$PACKAGE" SAST_RULE="$SAST_RULE" python3 -c '
+  printf '%s' "$detail" | ADVISORY="$ADVISORY" PACKAGE="$PACKAGE" SAST_RULE="$SAST_RULE" \
+    TOLERATED_STEPS="$TOLERATED_STEPS" python3 -c '
 import json, os, sys
 d = json.load(sys.stdin); s = d["scan"]; findings = d["findings"]
 def found(kind, identifier=None):
@@ -425,8 +437,9 @@ def found(kind, identifier=None):
 problems = []
 if s["status"] != "completed":
     problems.append("the scan is " + s["status"] + ", not completed")
+tolerated = [name.strip() for name in os.environ["TOLERATED_STEPS"].split(",") if name.strip()]
 for step in (s["error"] or "").split(" | "):
-    if step:
+    if step and not any(step.startswith(name + ":") for name in tolerated):
         problems.append("a step failed: " + step)
 if not d["hasSbom"]:
     problems.append("no SBOM: the cataloguer did not read the tree")

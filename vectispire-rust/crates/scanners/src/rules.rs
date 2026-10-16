@@ -238,8 +238,16 @@ impl Drop for MaterialisedRules {
 /// in the composition the temporary directory is the host's work directory, which outlives every
 /// container.
 pub fn materialise() -> io::Result<MaterialisedRules> {
+    materialise_in(&std::env::temp_dir())
+}
+
+/// As [`materialise`], under `parent` — the agent's work directory, which is `java.io.tmpdir` on the
+/// Java side. **Not `TMPDIR` by default on the agent**: its image is a lone binary with no `/tmp` at
+/// all, and the work directory is the one place the process is given to write.
+pub fn materialise_in(parent: &Path) -> io::Result<MaterialisedRules> {
     let started = SystemTime::now();
-    let directory = tempfile::Builder::new().prefix(PREFIX).tempdir()?.keep();
+    std::fs::create_dir_all(parent)?;
+    let directory = tempfile::Builder::new().prefix(PREFIX).tempdir_in(parent)?.keep();
     let lock = File::create(directory.join(IN_USE))?;
     lock.lock()?;
     if let Some(parent) = directory.parent() {

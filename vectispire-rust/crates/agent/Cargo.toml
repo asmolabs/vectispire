@@ -12,6 +12,9 @@ name = "vectispire-agent"
 path = "src/main.rs"
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -26,7 +29,6 @@ vectispire-tls.workspace = true
 
 [dev-dependencies]
 reqwest.workspace = true
-serde_json.workspace = true
 sha2.workspace = true
 vectispire-testkit = { path = "../testkit" }
 

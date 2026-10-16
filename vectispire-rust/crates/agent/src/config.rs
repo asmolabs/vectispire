@@ -19,6 +19,9 @@ pub struct Config {
     pub heartbeat: Duration,
     /// `VECTISPIRE_AGENT_SIGNING_KEY`: the Ed25519 seed an administrator pinned, or none.
     pub signing_key: Option<Secret>,
+    /// `VECTISPIRE_VULNERABILITY_DB_DIR`: where the matcher's database is kept for every scan; none is a
+    /// directory beside the workspaces.
+    pub vulnerability_db_dir: Option<std::path::PathBuf>,
 }
 
 /// A configuration the agent cannot start with — the Java agent's sentences, with the variable
@@ -34,9 +37,12 @@ pub enum ConfigError {
 }
 
 impl Config {
-    /// From the process environment.
+    /// From the process environment, then from the configuration trees `SPRING_CONFIG_IMPORT` names —
+    /// how the composition and the chart hand the token and the signing key over: as files under
+    /// `/run/secrets/`, never as variables, which any client of the daemon can read.
     pub fn from_environment() -> Result<Config, ConfigError> {
-        Config::from_lookup(|name| std::env::var(name).ok())
+        let trees = config_trees(std::env::var("SPRING_CONFIG_IMPORT").ok().as_deref());
+        Config::from_lookup(|name| std::env::var(name).ok().or_else(|| from_trees(&trees, name)))
     }
 
     /// From any lookup — the tests' own.
@@ -62,8 +68,30 @@ impl Config {
             retry_delay: duration("VECTISPIRE_AGENT_RETRY", secs(10), secs(1), secs(300))?,
             heartbeat: duration("VECTISPIRE_AGENT_HEARTBEAT", secs(60), secs(5), secs(600))?,
             signing_key: text("VECTISPIRE_AGENT_SIGNING_KEY").map(Secret::new),
+            vulnerability_db_dir: text("VECTISPIRE_VULNERABILITY_DB_DIR").map(std::path::PathBuf::from),
         })
     }
+}
+
+/// The directories of `spring.config.import`'s `configtree:` entries (`optional:` or not), in order.
+pub fn config_trees(import: Option<&str>) -> Vec<std::path::PathBuf> {
+    import
+        .unwrap_or("")
+        .split([',', ';'])
+        .map(str::trim)
+        .filter_map(|entry| entry.strip_prefix("optional:").unwrap_or(entry).strip_prefix("configtree:"))
+        .filter(|directory| !directory.is_empty())
+        .map(std::path::PathBuf::from)
+        .collect()
+}
+
+/// A property's file in the first tree holding one — its whole content, as Spring reads it.
+fn from_trees(trees: &[std::path::PathBuf], name: &str) -> Option<String> {
+    // A name is a plain file name: one that is not cannot reach outside the tree.
+    if name.is_empty() || name.contains(['/', '\\']) || name.starts_with('.') {
+        return None;
+    }
+    trees.iter().find_map(|tree| std::fs::read_to_string(tree.join(name)).ok())
 }
 
 fn secs(value: u64) -> Duration {
@@ -149,5 +177,26 @@ mod tests {
             refused.to_string(),
             "VECTISPIRE_AGENT_TOKEN is required: the API key shown once when the agent was created."
         );
+    }
+
+    #[test]
+    fn the_secrets_are_read_from_the_configuration_tree_the_composition_names() {
+        assert_eq!(
+            config_trees(Some("optional:configtree:/run/secrets/, configtree:/other/")),
+            vec![std::path::PathBuf::from("/run/secrets/"), std::path::PathBuf::from("/other/")]
+        );
+        assert!(config_trees(Some("classpath:x.yaml")).is_empty());
+        assert!(config_trees(None).is_empty());
+
+        let tree = tempfile::tempdir().unwrap();
+        std::fs::write(tree.path().join("VECTISPIRE_AGENT_TOKEN"), "vsk_test\n").unwrap();
+        let trees = vec![tree.path().to_owned()];
+        assert_eq!(from_trees(&trees, "VECTISPIRE_AGENT_TOKEN").as_deref(), Some("vsk_test\n"));
+        assert_eq!(from_trees(&trees, "../VECTISPIRE_AGENT_TOKEN"), None);
+        let config = Config::from_lookup(|name| {
+            (name == "VECTISPIRE_URL").then(|| "https://cp.example/".to_owned()).or_else(|| from_trees(&trees, name))
+        })
+        .unwrap();
+        assert_eq!(config.token.expose(), "vsk_test", "trimmed as every variable is");
     }
 }

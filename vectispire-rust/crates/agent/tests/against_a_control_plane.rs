@@ -318,8 +318,9 @@ async fn the_agent_speaks_the_protocol_with_a_real_control_plane() {
     );
     drop(client);
 
-    // ── The binary: its own hello, announcement and loop, with the runner it ships (none yet), take the
-    // requeued scan and report it back.
+    // ── The binary: its own hello, announcement and loop, with the runner it ships, take the requeued
+    // scan, clone — the repository's host does not exist, so the clone is a transient network failure —
+    // and report it back for another attempt.
     let mut binary = Command::new(env!("CARGO_BIN_EXE_vectispire-agent"))
         .env_clear()
         .env("VECTISPIRE_URL", &base)
@@ -334,7 +335,7 @@ async fn the_agent_speaks_the_protocol_with_a_real_control_plane() {
         .unwrap();
     let reported = admin
         .scan_until(second, |state| {
-            state["error"].as_str().is_some_and(|error| error.contains("does not run scans yet"))
+            state["error"].as_str().is_some_and(|error| error.contains("could not reach its host"))
         })
         .await;
     assert!(reported["status"] == "pending" || reported["status"] == "failed", "{reported}");

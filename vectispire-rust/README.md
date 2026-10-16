@@ -4,8 +4,11 @@
 deployment runs it. The agent that ships is `vectispire-java/vectispire-agent`. This binary speaks the
 whole agent protocol — it announces itself and its signed sealing key, claims up to its limit of scans
 at once, opens the credentials they carry, beats for each, and hands back a signed result or a signed,
-scrubbed failure report — but **it does not run scans yet**: no scanner is wired to its loop, so a scan
-it is handed goes back to the queue as a transient failure. Never point it at a control plane whose scans
+scrubbed failure report — and it runs a repository scan: the clone and the four analyses
+(dependencies, secrets, IaC, SAST), as the Java agent does (`crates/agent/src/scan.rs`). **What is not
+ported yet is said, never read as "found nothing"**: the API discovery is recorded as a step that did
+not run, a plugin as an absent step under its name, and an image target goes back to the queue as a
+transient failure for an agent that can export images. Never point it at a control plane whose scans
 matter.
 
 The costed study behind the port is on branch `docs/rust-agent-study`
@@ -23,7 +26,7 @@ The toolchain is pinned by `rust-toolchain.toml`.
 
 | Crate | Owns | Java counterpart |
 |---|---|---|
-| `agent` | the binary: configuration (same variables as the Java agent), logging, `check docker` / `check clone`, and the loop (`serve.rs`: slots, heartbeats, a lost lease, the graceful stop) | `vectispire-agent` (`AgentRunner`, `AgentLoop`, `Slots`) |
+| `agent` | the binary: configuration (same variables as the Java agent, and the secrets read from the `configtree:` it names, as the composition passes them), logging, `check docker` / `check clone`, the loop (`serve.rs`: slots, heartbeats, a lost lease, the graceful stop) and the scan runner (`scan.rs`: workspace, clone, sub-path, the steps, rule placement) | `vectispire-agent` (`AgentRunner`, `AgentLoop`, `Slots`) |
 | `protocol` | every agent route and its bodies (`ScanTask` in, `ScanArtifacts` out), the HTTP client of the control plane, the opening of sealed credentials, the failure reason's scrub, the concurrency limit | `AgentProtocol`, `AgentHttp`, `ScanTask`, `ScanArtifacts`, `FailureReason`, `AgentConcurrency` |
 | `crypto` | result, failure and sealing-key signatures; sealed envelopes | `domain.crypto` |
 | `git` | the clone: SSH (libgit2 and libssh2, host keys pinned or recorded), HTTPS (this crate's own smart-HTTP transport on rustls), failure kinds and sentences | `GitClone`, `RedirectRefusingConnections`, `CloneFailureException` |
@@ -136,8 +139,8 @@ No private key is in any file. Each one is the SHA-256 of a label both sides spe
 | Grype on the image | 91 matches (6 critical, 39 high), almost all Alpine packages and the JRE | **0 matches** over 207 crates |
 
 **Read the Rust figures for what they are.**
-- The binary links the clone, the container runner, the whole protocol with its loop, and the crypto. The other four
-  scanners, plugins and rules are not ported yet.
+- The binary links the clone, the container runner, the whole protocol with its loop, the crypto and four
+  scanners. Plugins, the API discovery and image export are not ported yet.
 - No scan-time figure is claimed: the scanners run in their own containers either way.
 
 ## Against a real control plane
@@ -170,6 +173,14 @@ About two minutes, most of it the control plane starting (an amd64 image, emulat
   running is still waited for, as there.
 - **The hello is retried while the control plane is unreachable** (Phase 0's choice); the Java agent
   fails to start and leaves the restart to its orchestrator. A refusal still stops it at once.
+- **The default database root** is `std::env::temp_dir()`, which reads `TMPDIR`; Java's `java.io.tmpdir`
+  does not. The agent's work directory is where it is put in the composition (`VECTISPIRE_WORK_DIR`, or the
+  `-Djava.io.tmpdir=` of `JDK_JAVA_OPTIONS` the composition sets), since the image has no `/tmp`.
+- **A matcher's SBOM is forwarded byte for byte** (the workspace turns on `serde_json`'s `preserve_order`);
+  a lone surrogate escape, `1e400` and a nesting deeper than 128, which Jackson reads and serde refuses, are
+  not in the reference set: no scanner writes them.
+- **The API discovery and the language census are not ported**: the first is recorded as a failed step
+  ("does not run the API discovery yet"), the second is left absent — "unknown", which resolves nothing.
 - **JSON integers beyond 64 bits** in a scanner report would be read as doubles here, where Jackson
   keeps their low 32 bits. No scanner writes one.
 
@@ -179,26 +190,16 @@ About two minutes, most of it the control plane starting (an amd64 image, emulat
 - **The bundled rules' sweep compares with when this process materialised them**, not when it started
   (Rust has no portable process start time): later, which only ever keeps a leftover for the next sweep.
 
-## A defect the reference set found on the Java side
+## A defect the reference sets found on the Java side — fixed in 0.11.1
 
-**A gitleaks report that is not JSON, or not an array, gives an empty list**
-(`SecretsScanner.parse`). The scan then sends that empty list as "analysed, nothing found", which
-resolves every secret issue of the target — what decision 0007 forbids. The port reproduces it, so
-that the two agents never disagree about a backlog; it is pinned by `secrets/reports/04-not-json.json`.
-Fix it on the Java side and the reference set carries the fix across.
-
-**The same class in the IaC and SAST readings** (decision 0007):
-
-- `IacScanner.findings`: a JSON document that is no checkov report — a scalar, `{}`, a `results` that
-  is not an object — gives an empty list, "analysed, clean". Pinned by `iac/runs/18-` to `20-`. (The
-  real answer for a tree with nothing to check is a summary object, `03-no-infrastructure`, and an empty
-  list is right there: a fix must keep it.)
-- `SastScanner.findings`: a report that covered files but whose `results` is not an array gives an
-  empty list. Pinned by `sast/runs/18-results-not-an-array`.
-
-The port reproduces both; the corrected outcome is asserted by ignored tests named `pending_0007_…`
-in `iac_reference_set.rs` and `sast_reference_set.rs`, to un-ignore when the Java fix regenerates the
-set.
+Five readers took a corrupt or missing report for "ran, found nothing", and so resolved the whole backlog
+of their type (decision 0007): gitleaks (`SecretsScanner.parse`), semgrep, grype, checkov and syft. They
+are fixed on the Java side (`fix(scanning): a corrupt or missing scanner report is absent`), the reference
+sets are regenerated from the fixed code, and this port follows: only each tool's own clean answer reads
+as empty — `[]` for gitleaks, `"results": []` for semgrep, `"matches": []` for grype, a checkov bare
+summary, a catalogue with `"artifacts": []` for syft — and anything else fails the step with the Java
+sentence. Pinned by `secrets/`, `iac/runs/16-` to `20-`, `sast/runs/18-` and `23-`,
+`dependencies/matches/13-` to `18-`, which write `null`, `absent` or `{"failure": …}`.
 
 ## Remaining work, as independent streams
 
@@ -208,10 +209,10 @@ additively.
 | Stream | Owns | Done when |
 |---|---|---|
 | **Protocol client** — *done* (branch `rust/protocol`) | `crates/protocol/**`; `crates/agent/src/serve.rs` and the loop in `main.rs` | Every route typed from `openapi.json`, with slots and claim concurrency, heartbeats, the unsealing of delegated credentials, and a graceful stop that waits for the running scans to be handed back (as the Java agent does: the protocol has no call to give one back unrun). `AgentProtocolTest`, `AgentHttpTest`, `AgentSealingKeyAnnouncementTest`, `AgentLoopTest`, `AgentLoopConcurrencyTest` and `AgentWireFormatTest` are ported against the stub; the end-to-end suite runs against a real control plane. **What a scanner stream plugs in:** `serve::Execute` (one scan in, `ScanArtifacts` or an `ExecutionFailure` with its kind out), `AgentClient::rule_set` for the SAST stream, `AgentClient::plugin` (with the plugins stream's digest function) for the plugins stream. |
-| **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | Their parsers match the Java side's on a reference set of real SBOM and match outputs. The database is downloaded under a lock and mounted read-only. |
+| **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | **Done** — their parsers hold to a reference set of real SBOM and match outputs (polyglot tree, empty tree, an exported Alpine image) and 29 edge cases; the database is downloaded under an `fcntl` lock shared with a Java agent and mounted read-only. **Image export is not implemented** (`ExportImages`: a pull and a save through the daemon, in the container crate). |
 | **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | **Done** — `iac::outcome` holds to `reference/iac/` (27 runs), and a real scan runs through the proxy. |
 | **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | **Done** — `sast::outcome` holds to `reference/sast/` (31 runs); `scanners::rules` places the bundled, operator and uploaded rules, and embeds the jar's. A real scan runs through the proxy. `scanners::output::parse_json` is shared, for the dependency stream. |
-| **Workspace, census, API discovery** | `crates/scanners/src/{workspace,census,api_discovery}.rs` | The workspace layout (`source/`, `rules/`, 0700) is ported, with `LanguageCensus` and `ApiDiscoveryScanner`, which parses repository content in-process and so has its own reference set. |
+| **Workspace, census, API discovery** | `crates/scanners/src/{census,api_discovery}.rs` | The workspace layout (`source/`, `rules/`, 0700) and the sub-path checks are ported in `agent/src/scan.rs`; `LanguageCensus`, `ProjectManifest` and `ApiDiscoveryScanner` — which parse repository content in-process, and so need their own reference set — are not. |
 | **Plugins and bundled rules** | `crates/scanners/src/plugins.rs`, `crates/container/src/bounded_output.rs` | Plugin steps, the bounded output holder (`ContainerRun.BoundedOutput`), registry login, and `ImageSignatureVerifier` through the pinned cosign image. |
 | **Image and side-by-side conformance** | `Dockerfile.agent`, `measure.sh`, a new CI job | Reproducible builds (built twice, same bytes) and both architectures. Then `scripts/composition-scan-check.sh MODE=agent AGENT_IMAGE=vs-rs-agent` runs the five analyses through each agent in the nightly, compares the results, and stays identical for two weeks. Only then does `release.yml` sign this image. |
 

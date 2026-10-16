@@ -368,7 +368,7 @@ fn diagnose(
     }
     let kind = if ssh.identity_refused || error.code() == git2::ErrorCode::Auth {
         Kind::Authentication
-    } else if forge_says_not_found(error) {
+    } else if forge_says_not_found(error) || git_daemon_refused(request, error) {
         Kind::NotFound
     } else {
         match error.class() {
@@ -395,6 +395,18 @@ fn forge_says_not_found(error: &git2::Error) -> bool {
     ["does not appear to be a git repository", "repository not found", "no such repository", "does not exist"]
         .iter()
         .any(|phrase| message.contains(phrase))
+}
+
+/// **git daemon's refusal, on its own transport only.** It answers a path it does not serve — absent,
+/// not exported, a service it does not run — with an `ERR` line, which libgit2 raises as a network error
+/// reading `remote error: …`: the Java side's `RemoteRepositoryException`, which `typedKind` reads as
+/// "not found" for `git://` alone. Unclassified, a missing repository over `git://` was retried three
+/// times, a quarter of an hour, before failing as "the clone failed". Over SSH or HTTPS an `ERR` line is
+/// whatever the forge chose to say, a passing condition among others, and stays unclassified.
+fn git_daemon_refused(request: &CloneRequest, error: &git2::Error) -> bool {
+    request.url.trim().to_ascii_lowercase().starts_with("git://")
+        && error.class() == git2::ErrorClass::Net
+        && error.message().starts_with("remote error:")
 }
 
 /// Between the two transient kinds of a dead socket, the words say which; both retry.
@@ -495,5 +507,44 @@ mod tests {
         assert_eq!(ssh_endpoint("ssh://gitlab.example.org/team/api.git"), (22, None));
         assert_eq!(ssh_endpoint("git@gitlab.example.org:team/api.git"), (22, Some("git".to_owned())));
         assert_eq!(ssh_endpoint("ssh://git@[::1]:2200/x"), (2200, Some("git".to_owned())));
+    }
+
+    fn request(url: &str) -> CloneRequest {
+        CloneRequest {
+            url: url.to_owned(),
+            branch: "main".to_owned(),
+            into: PathBuf::from("/nowhere"),
+            private_key: None,
+            timeout: Duration::from_secs(1),
+            host_keys: HostKeyPolicy::TrustEveryHost,
+            without_key: WithoutKey::None,
+            https: None,
+            trust: TlsTrust::BuiltIn,
+        }
+    }
+
+    #[test]
+    fn a_refusal_of_git_daemon_is_a_missing_repository_on_git_alone() {
+        // What libgit2 raises for the daemon's ERR line, measured against a real `git daemon`.
+        let refusal = git2::Error::new(
+            git2::ErrorCode::GenericError,
+            git2::ErrorClass::Net,
+            "remote error: access denied or repository not exported: /missing.git",
+        );
+        let over_git = diagnose(&request("git://fixture/missing.git"), &refusal, None, &SshObserved::default());
+        assert_eq!(
+            (over_git.kind, over_git.kind.failure_kind()),
+            (Kind::NotFound, vectispire_domain::FailureKind::Permanent)
+        );
+        // The same line from an SSH forge is whatever it chose to say: a passing condition, retried.
+        let over_ssh = diagnose(&request("ssh://git@forge/x.git"), &refusal, None, &SshObserved::default());
+        assert_eq!(over_ssh.kind.failure_kind(), vectispire_domain::FailureKind::Transient);
+        assert_ne!(over_ssh.kind, Kind::NotFound);
+        let timeout =
+            git2::Error::new(git2::ErrorCode::GenericError, git2::ErrorClass::Net, "failed to resolve address");
+        assert_eq!(
+            diagnose(&request("git://nowhere/x.git"), &timeout, None, &SshObserved::default()).kind,
+            Kind::Network
+        );
     }
 }

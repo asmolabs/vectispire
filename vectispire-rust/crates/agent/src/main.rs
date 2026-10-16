@@ -2,26 +2,23 @@
 //!
 //! It speaks the whole agent protocol: it announces itself and its signed sealing key, claims up to its
 //! limit of scans at once, opens the credentials they carry, beats for each while it runs, and hands
-//! back a signed result or a signed, scrubbed failure report (`serve.rs`). **It does not run scans
-//! yet**: no scanner is wired to the loop, so a scan it is handed is reported back as a transient
-//! failure and returns to the queue for an agent that can. Never point it at a control plane whose
-//! scans matter.
+//! back a signed result or a signed, scrubbed failure report (`serve.rs`). It runs a repository scan's
+//! clone and its four analyses — dependencies, secrets, IaC, SAST — as the Java agent does (`scan.rs`);
+//! what is not ported yet (the API discovery, the language census, plugins, image targets) is reported
+//! as such, never as "found nothing". Not shipped: never point it at a control plane whose scans matter.
 
 mod check;
 mod config;
+mod scan;
 mod serve;
 
 use config::Config;
-use serve::{AgentLoop, Execute, ExecutionFailure, Settings};
-use std::future::Future;
+use serve::{AgentLoop, Settings};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use vectispire_crypto::{ResultSigner, SealingKeyPair};
-use vectispire_domain::FailureKind;
-use vectispire_protocol::{
-    AgentClient, CredentialsMode, Description, ProtocolError, ScanArtifacts, ScanTask, SealingKeyOutcome, concurrency,
-};
+use vectispire_protocol::{AgentClient, CredentialsMode, Description, ProtocolError, SealingKeyOutcome, concurrency};
 use vectispire_tls::TlsTrust;
 
 fn main() -> ExitCode {
@@ -74,6 +71,8 @@ enum Fatal {
     SigningKey(String),
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
+    #[error("The scanner could not be prepared: {0}")]
+    Runner(String),
 }
 
 async fn run() -> Result<(), Fatal> {
@@ -137,7 +136,16 @@ async fn run() -> Result<(), Fatal> {
         heartbeat: config.heartbeat,
         secrets,
     };
-    let looping = Arc::new(AgentLoop::new(Arc::new(client), Arc::new(NotPorted), settings, max_concurrent));
+    let client = Arc::new(client);
+    let runner = scan::ScanRunner::new(
+        client.clone(),
+        scan::Images::from_lookup(|name| std::env::var(name).ok()),
+        scan::Places::from_lookup(|name| std::env::var(name).ok()),
+        config.vulnerability_db_dir.clone(),
+        trust,
+    )
+    .map_err(Fatal::Runner)?;
+    let looping = Arc::new(AgentLoop::new(client, Arc::new(runner), settings, max_concurrent));
     let stopper = looping.clone();
     tokio::spawn(async move {
         shutdown_signal().await;
@@ -149,20 +157,6 @@ async fn run() -> Result<(), Fatal> {
     let served = looping.serve().await;
     tracing::info!("Agent stopped.");
     Ok(served?)
-}
-
-/// The runner this build has: **none yet**. A scan is reported back as a transient failure, so it
-/// returns to the queue for an agent that can run it; the scanner streams of the port replace this.
-#[derive(Debug)]
-struct NotPorted;
-
-impl Execute for NotPorted {
-    fn execute(&self, _task: ScanTask) -> impl Future<Output = Result<ScanArtifacts, ExecutionFailure>> + Send {
-        std::future::ready(Err(ExecutionFailure {
-            message: "This build of the agent (the Rust port, in progress) does not run scans yet.".to_owned(),
-            kind: FailureKind::Transient,
-        }))
-    }
 }
 
 /// The hello, retried while the control plane cannot be reached — never while it refuses.

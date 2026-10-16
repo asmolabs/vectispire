@@ -78,6 +78,11 @@ async fn clone(url: &str, branch: &str) -> Result<String, String> {
         .map_err(|error| error.to_string())?;
     let _ = std::fs::remove_dir_all(&into);
     outcome.map(|()| format!("{} cloned: branch {branch}.", vectispire_domain::repository_url::redact(url))).map_err(
-        |error| format!("{} ({}, {})", error.message, error.kind.wire_name(), error.kind.failure_kind().wire_name()),
+        |error| {
+            // The transport's own text beside the sentence: what an operator asks for first, and the
+            // only way to see what a forge answered. Credentials are masked in both.
+            let detail = if error.detail.is_empty() { String::new() } else { format!(" [{}]", error.detail) };
+            format!("{} ({}, {}){detail}", error.message, error.kind.wire_name(), error.kind.failure_kind().wire_name())
+        },
     )
 }
