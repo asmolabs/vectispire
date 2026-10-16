@@ -20,7 +20,7 @@ use vectispire_cp_http::extract::{Caller, JsonBody, Scoped};
 use vectispire_cp_http::interface::Interface;
 use vectispire_cp_http::principal::{Account, ApiKeyScope, Principal, Role};
 use vectispire_cp_http::problem::Problem;
-use vectispire_cp_http::routes::{NoVisibility, Route, Routes, VisibilityOf, require_visible};
+use vectispire_cp_http::routes::{Route, Routes, VisibilityOf, require_visible};
 
 /// A clock a test moves by hand.
 #[derive(Debug, Default)]
@@ -63,7 +63,10 @@ pub fn credentials() -> StaticCredentials {
         .session(CHAMPION, Principal::session(account("champion", Some(Role::SecurityChampion), false)))
         .session(UNREADABLE, Principal::session(account("typo", None, false)))
         .session("tok-unreadable", Principal::session(account("typo", None, false)))
-        .key(READ_KEY, Principal::integration(account("admin", Some(Role::Superuser), false), "key-1", vec![ApiKeyScope::Read]))
+        .key(
+            READ_KEY,
+            Principal::integration(account("admin", Some(Role::Superuser), false), "key-1", vec![ApiKeyScope::Read]),
+        )
         .key(AGENT_KEY, Principal::agent("agent-1"))
         .scim_token(SCIM_TOKEN)
 }
@@ -121,12 +124,13 @@ async fn create_repository(JsonBody(repository): JsonBody<Repository>) -> Proble
     .with("existingRepositoryId", 1)
 }
 
-async fn project(axum::extract::Path(id): axum::extract::Path<u64>, Scoped(_who): Scoped<String>) -> Result<Response<Body>, Problem> {
+async fn project(
+    axum::extract::Path(id): axum::extract::Path<u64>,
+    Scoped(_who): Scoped<String>,
+) -> Result<Response<Body>, Problem> {
     // The row is absent, or not the caller's: the same sentence either way.
-    require_visible(None::<u64>, |_| true, "Project not found.").map(|_| json("{}")).map_err(|problem| {
-        let _ = id;
-        problem
-    })
+    let _ = id;
+    require_visible(None::<u64>, |_| true, "Project not found.").map(|_| json("{}"))
 }
 
 async fn whoami(Caller(principal): Caller) -> Response<Body> {
@@ -147,7 +151,10 @@ async fn drain(body: Body) -> Result<Response<Body>, Problem> {
     match body.collect().await {
         Ok(collected) => Ok(Response::new(Body::from(format!("{} bytes", collected.to_bytes().len())))),
         Err(error) => match vectispire_cp_http::limits::find_too_large(&error) {
-            Some(too_large) => Err(Problem::handler(http::StatusCode::PAYLOAD_TOO_LARGE, vectispire_cp_http::limits::too_large_detail(too_large.ceiling))),
+            Some(too_large) => Err(Problem::handler(
+                http::StatusCode::PAYLOAD_TOO_LARGE,
+                vectispire_cp_http::limits::too_large_detail(too_large.ceiling),
+            )),
             None => Err(Problem::handler(http::StatusCode::BAD_REQUEST, "unreadable")),
         },
     }
@@ -179,10 +186,33 @@ async fn pem() -> Response<Body> {
 pub fn routes() -> Routes<String> {
     Routes::new(NameOf)
         .route(Route::post("/api/v1/auth/login").requires(Access::Anonymous).names_no_target().handler(login))
-        .route(Route::get("/api/v1/auth/me").requires(Access::Account).names_no_target().allows_pending_password_change().handler(whoami))
-        .route(Route::get("/api/v1/repositories").requires(Access::Account).scoped().accepts_api_key(ApiKeyScope::Read).handler(empty_list))
-        .route(Route::post("/api/v1/repositories").requires(Access::SecurityLead).names_no_target().handler(create_repository))
-        .route(Route::post("/api/v1/repositories/{id}/scan").requires(Access::WriteAccount).scoped().accepts_api_key(ApiKeyScope::Scan).handler(nothing))
+        .route(
+            Route::get("/api/v1/auth/me")
+                .requires(Access::Account)
+                .names_no_target()
+                .allows_pending_password_change()
+                .handler(whoami),
+        )
+        .route(
+            Route::get("/api/v1/repositories")
+                .requires(Access::Account)
+                .scoped()
+                .accepts_api_key(ApiKeyScope::Read)
+                .handler(empty_list),
+        )
+        .route(
+            Route::post("/api/v1/repositories")
+                .requires(Access::SecurityLead)
+                .names_no_target()
+                .handler(create_repository),
+        )
+        .route(
+            Route::post("/api/v1/repositories/{id}/scan")
+                .requires(Access::WriteAccount)
+                .scoped()
+                .accepts_api_key(ApiKeyScope::Scan)
+                .handler(nothing),
+        )
         .route(Route::get("/api/v1/users").requires(Access::Administrator).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/projects/{id}").requires(Access::Account).scoped().handler(project))
         .route(Route::get("/api/v1/agent/jobs").requires(Access::AgentKey).names_no_target().handler(nothing))
@@ -192,16 +222,33 @@ pub fn routes() -> Routes<String> {
         .route(Route::get("/v3/api-docs").requires(Access::Anonymous).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/whoami").requires(Access::Account).names_no_target().handler(whoami))
         .route(Route::get("/api/v1/scoped").requires(Access::Account).scoped().handler(who_scoped))
-        .route(Route::post("/api/v1/tickets/webhook/{token}").requires(Access::Anonymous).names_no_target().handler(nothing))
+        .route(
+            Route::post("/api/v1/tickets/webhook/{token}")
+                .requires(Access::Anonymous)
+                .names_no_target()
+                .handler(nothing),
+        )
         .route(Route::post("/api/v1/drain").requires(Access::Account).names_no_target().handler(drain))
         .route(Route::post("/api/v1/rule-sets").requires(Access::SecurityLead).names_no_target().handler(drain))
         .route(Route::post("/api/v1/open-for-keys").requires(Access::Anonymous).names_no_target().handler(nothing))
         .route(Route::get("/scim/v2/Users").requires(Access::Administrator).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/_t/anonymous").requires(Access::Anonymous).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/_t/account").requires(Access::Account).names_no_target().handler(nothing))
-        .route(Route::get("/api/v1/_t/administrator").requires(Access::Administrator).names_no_target().handler(nothing))
-        .route(Route::get("/api/v1/_t/governance-read").requires(Access::GovernanceRead).names_no_target().handler(nothing))
-        .route(Route::get("/api/v1/_t/platform-governor").requires(Access::PlatformGovernor).names_no_target().handler(nothing))
+        .route(
+            Route::get("/api/v1/_t/administrator").requires(Access::Administrator).names_no_target().handler(nothing),
+        )
+        .route(
+            Route::get("/api/v1/_t/governance-read")
+                .requires(Access::GovernanceRead)
+                .names_no_target()
+                .handler(nothing),
+        )
+        .route(
+            Route::get("/api/v1/_t/platform-governor")
+                .requires(Access::PlatformGovernor)
+                .names_no_target()
+                .handler(nothing),
+        )
         .route(Route::get("/api/v1/_t/security-lead").requires(Access::SecurityLead).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/_t/write").requires(Access::WriteAccount).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/agent/_t").requires(Access::AgentKey).names_no_target().handler(nothing))
@@ -217,7 +264,9 @@ pub fn app_with(config: ChainConfig, interface_dir: Option<&Path>) -> App {
     let audit = Arc::new(RecordingAudit::default());
     let trace = Trace::new();
     let clock = Arc::new(ManualClock::default());
-    let chain = Arc::new(Chain::with_clock(config, Arc::new(credentials()), audit.clone(), clock.clone()).with_trace(trace.clone()));
+    let chain = Arc::new(
+        Chain::with_clock(config, Arc::new(credentials()), audit.clone(), clock.clone()).with_trace(trace.clone()),
+    );
     let router = routes().build(&chain, interface_dir.and_then(interface)).expect("no route twice");
     App { router, audit, trace, clock, chain }
 }

@@ -30,8 +30,11 @@ pub fn routed_path(raw_path: &str) -> String {
 pub enum Refusal {
     /// The firewall's: `//`, an encoded or doubled traversal, a `;`, a control character.
     Firewall,
-    /// The container's, before the application: a `%` not followed by two hex digits, an encoded `/`.
+    /// The container's, before the application: a `%` not followed by two hex digits, an encoded `/` or `\`.
     Container,
+    /// The container's too, but for a target it could not even parse (a raw `\`): it has no path to name, so the
+    /// problem carries no `instance` (`firewall-raw-backslash`).
+    Unparsed,
 }
 
 const FIREWALL: &str = "The request was refused: its URL contains a sequence this server does not accept — a doubled or encoded separator, an encoded traversal, a ';' or a control character.";
@@ -43,16 +46,21 @@ impl Refusal {
     pub fn problem(self, raw_path: &str) -> Problem {
         let detail = match self {
             Refusal::Firewall => FIREWALL,
-            Refusal::Container => CONTAINER,
+            Refusal::Container | Refusal::Unparsed => CONTAINER,
         };
-        Problem::chain(StatusCode::BAD_REQUEST, detail).at(raw_path)
+        let problem = Problem::chain(StatusCode::BAD_REQUEST, detail);
+        if self == Refusal::Unparsed { problem } else { problem.at(raw_path) }
     }
 }
 
 /// Judges a raw request path. `None` is accepted.
 pub fn judge(raw_path: &str) -> Option<Refusal> {
     let bytes = raw_path.as_bytes();
-    // The container first: it sees the bytes before the firewall does.
+    // The container first: it sees the bytes before the firewall does. A raw backslash is refused there too
+    // (`firewall-raw-backslash`), with the container's sentence and not the firewall's.
+    if bytes.contains(&b'\\') {
+        return Some(Refusal::Unparsed);
+    }
     let mut index = 0;
     while let Some(&byte) = bytes.get(index) {
         if byte == b'%' {
@@ -76,13 +84,13 @@ pub fn judge(raw_path: &str) -> Option<Refusal> {
     firewall(raw_path)
 }
 
-/// Spring Security's `StrictHttpFirewall`, with its defaults.
+/// Spring Security's `StrictHttpFirewall`, with its defaults — as far as they were measured: a `%01` or a UTF-8 escape is *not*
+/// refused (`firewall-control-character`, `firewall-non-ascii`: both reach the chain and are answered 401).
 fn firewall(raw_path: &str) -> Option<Refusal> {
     let lower = raw_path.to_ascii_lowercase();
     // Doubled separator, a path parameter, an encoded period / semicolon / percent, a backslash.
     if raw_path.contains("//")
         || raw_path.contains(';')
-        || raw_path.contains('\\')
         || lower.contains("%2e")
         || lower.contains("%3b")
         || lower.contains("%25")
@@ -90,9 +98,6 @@ fn firewall(raw_path: &str) -> Option<Refusal> {
         return Some(Refusal::Firewall);
     }
     let decoded = percent_decode_str(raw_path).decode_utf8_lossy();
-    if decoded.chars().any(|c| (c as u32) < 0x20 || c as u32 == 0x7f) {
-        return Some(Refusal::Firewall);
-    }
     // Not normalised: a `.` or `..` segment.
     if decoded.split('/').any(|segment| segment == "." || segment == "..") {
         return Some(Refusal::Firewall);
@@ -132,8 +137,13 @@ mod tests {
     fn what_the_strict_firewall_refuses_by_default_is_refused() {
         assert_eq!(judge("/api/v1/a%25b"), Some(Refusal::Firewall));
         assert_eq!(judge("/api/v1/a%3Bb"), Some(Refusal::Firewall));
-        assert_eq!(judge("/api/v1/a\\b"), Some(Refusal::Firewall));
-        assert_eq!(judge("/api/v1/a%01b"), Some(Refusal::Firewall));
+        assert_eq!(
+            judge("/api/v1/a\\b"),
+            Some(Refusal::Unparsed),
+            "a raw backslash is the container's, with no path to name"
+        );
+        assert_eq!(judge("/api/v1/a%01b"), None, "a decoded control character is not refused, measured");
+        assert_eq!(judge("/api/v1/a%C3%A9b"), None, "nor a UTF-8 escape");
         assert_eq!(judge("/api/v1/./projects"), Some(Refusal::Firewall));
         assert_eq!(judge("/api/v1/../projects"), Some(Refusal::Firewall));
     }

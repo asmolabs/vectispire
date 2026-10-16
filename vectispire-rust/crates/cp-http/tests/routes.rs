@@ -1,5 +1,7 @@
 //! The route table a coverage test walks, the duplicate refusal, and the 404 that must not tell an absent row from a hidden one.
 
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+
 mod common;
 
 use axum::body::Body;
@@ -15,7 +17,8 @@ use vectispire_cp_http::routes::{NoVisibility, Route, Routes, Visibility, requir
 fn every_registered_route_is_in_the_table_with_the_two_answers_it_gave() {
     let table = routes().table();
     assert!(table.len() > 20);
-    let repositories = table.iter().find(|decl| decl.method == "GET" && decl.path == "/api/v1/repositories").expect("declared");
+    let repositories =
+        table.iter().find(|decl| decl.method == "GET" && decl.path == "/api/v1/repositories").expect("declared");
     assert_eq!(repositories.access, Access::Account);
     assert_eq!(repositories.visibility, Visibility::Scoped);
     assert_eq!(repositories.accepts_api_key, Some(ApiKeyScope::Read));
@@ -41,7 +44,11 @@ fn a_route_registered_twice_is_refused_when_the_router_is_built() {
     let routes = Routes::<()>::new(NoVisibility)
         .route(Route::get("/x").requires(Access::Account).names_no_target().handler(handler))
         .route(Route::get("/x").requires(Access::Administrator).names_no_target().handler(handler));
-    let chain = std::sync::Arc::new(Chain::new(ChainConfig::default(), std::sync::Arc::new(credentials()), std::sync::Arc::new(RecordingAudit::default())));
+    let chain = std::sync::Arc::new(Chain::new(
+        ChainConfig::default(),
+        std::sync::Arc::new(credentials()),
+        std::sync::Arc::new(RecordingAudit::default()),
+    ));
     let error = routes.build(&chain, None).expect_err("two routes for one method and path");
     assert_eq!(error.to_string(), "GET /x is registered twice");
 }
@@ -52,7 +59,11 @@ fn two_methods_on_one_path_are_not_a_duplicate() {
     let routes = Routes::<()>::new(NoVisibility)
         .route(Route::get("/x").requires(Access::Account).names_no_target().handler(handler))
         .route(Route::post("/x").requires(Access::Account).names_no_target().handler(handler));
-    let chain = std::sync::Arc::new(Chain::new(ChainConfig::default(), std::sync::Arc::new(credentials()), std::sync::Arc::new(RecordingAudit::default())));
+    let chain = std::sync::Arc::new(Chain::new(
+        ChainConfig::default(),
+        std::sync::Arc::new(credentials()),
+        std::sync::Arc::new(RecordingAudit::default()),
+    ));
     assert!(routes.build(&chain, None).is_ok());
 }
 
@@ -75,7 +86,9 @@ fn a_refusal_is_a_404_never_a_403() {
 #[tokio::test]
 async fn through_the_chain_a_hidden_row_and_an_absent_one_answer_the_same_bytes() {
     let app = app();
-    let ask = |id: u64| request("GET", &format!("/api/v1/projects/{id}"), &[("authorization", &bearer(ADMIN))], Body::empty());
+    let ask = |id: u64| {
+        request("GET", &format!("/api/v1/projects/{id}"), &[("authorization", &bearer(ADMIN))], Body::empty())
+    };
     let (status_a, _, body_a) = text(send(&app, ask(1)).await).await;
     let (status_b, _, body_b) = text(send(&app, ask(987_654_321)).await).await;
     assert_eq!((status_a.as_u16(), status_b.as_u16()), (404, 404));

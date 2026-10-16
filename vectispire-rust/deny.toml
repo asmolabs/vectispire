@@ -73,7 +73,6 @@ deny = [
     # The agent opens no port: the server stack is linkable by the control plane's crates only. A wrapper is a
     # crate allowed to depend on it; any other dependent — the agent above all — fails the check.
     { crate = "axum", wrappers = ["vectispire-cp-http"], reason = "the agent opens no port" },
-    { crate = "tower-http", wrappers = ["vectispire-cp-http"], reason = "the agent opens no port" },
     { crate = "actix-web", reason = "the agent opens no port" },
     { crate = "warp", reason = "the agent opens no port" },
     { crate = "rocket", reason = "the agent opens no port" },

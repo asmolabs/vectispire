@@ -9,4 +9,3 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 Content-Type: application/problem+json;charset=UTF-8
 Content-Length: 159
 
-<0 bytes>

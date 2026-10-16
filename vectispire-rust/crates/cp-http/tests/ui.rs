@@ -4,6 +4,8 @@
 //!
 //! Rewrite the expectations on purpose, with `TRYBUILD=overwrite`, and read the diff: a toolchain bump moves the wording.
 
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+
 #[test]
 fn a_route_must_declare_its_marker_and_its_visibility_before_it_has_a_handler() {
     let cases = trybuild::TestCases::new();

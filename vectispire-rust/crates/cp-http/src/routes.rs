@@ -27,12 +27,13 @@ use crate::interface::Interface;
 use crate::principal::{ApiKeyScope, Credential, Principal};
 use crate::problem::Problem;
 use axum::Router;
+use axum::body::Body;
 use axum::extract::{Request, State};
 use axum::handler::Handler;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{MethodFilter, MethodRouter, on};
-use http::{Method, StatusCode};
+use http::{HeaderValue, Method, StatusCode, header};
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -282,13 +283,35 @@ impl<V: Clone + Send + Sync + 'static> Routes<V> {
             if let Some(merged) = merged {
                 // Another method on this path: Spring answers 405 with an `Allow` header naming the ones it has.
                 let allow = allowed.join(", ");
-                let merged = merged.fallback(move |method: Method| {
+                let mut merged = merged.fallback(move |method: Method| {
                     let allow = allow.clone();
                     async move {
                         Problem::handler(StatusCode::METHOD_NOT_ALLOWED, format!("Method '{method}' is not supported."))
                             .header("Allow", allow)
                     }
                 });
+                // `OPTIONS`, as Spring answers it: 200, no body, `Allow` listing the methods (and `HEAD` beside a `GET`), and an
+                // empty `Accept-Patch`. Not gated: Spring's handler for it is not a controller method, so no interceptor runs.
+                if !allowed.iter().any(|method| method == "OPTIONS") {
+                    let mut listed: Vec<&str> = allowed.iter().map(String::as_str).collect();
+                    if listed.contains(&"GET") {
+                        listed.push("HEAD");
+                    }
+                    listed.push("OPTIONS");
+                    listed.sort_unstable();
+                    let allow = listed.join(",");
+                    merged = merged.options(move || {
+                        let allow = allow.clone();
+                        async move {
+                            let mut response = Response::new(Body::empty());
+                            if let Ok(value) = HeaderValue::from_str(&allow) {
+                                response.headers_mut().insert(header::ALLOW, value);
+                            }
+                            response.headers_mut().insert("accept-patch", HeaderValue::from_static(""));
+                            response
+                        }
+                    });
+                }
                 router = router.route(&path, merged);
             }
         }

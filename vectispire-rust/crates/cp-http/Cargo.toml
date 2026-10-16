@@ -27,6 +27,7 @@ tracing.workspace = true
 vectispire-domain.workspace = true
 
 [dev-dependencies]
+regex.workspace = true
 futures-util.workspace = true
 tempfile.workspace = true
 trybuild.workspace = true
