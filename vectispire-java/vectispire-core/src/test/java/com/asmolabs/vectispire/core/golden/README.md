@@ -308,6 +308,14 @@ is therefore the Java tree at a named commit: the Rust replay job records at the
 against, or downloads that commit's recording as a CI artifact, and the commit is part of the cache
 key. What is committed is this format and the code that implements it.
 
+**Secrets.** Every credential the suites mint or generate is a placeholder: tokens, keys, PEM blocks,
+password hashes, sealed values. A scan of a whole recording with the repository's `.gitleaks.toml`
+(`gitleaks detect --no-git --source <dir>`) finds one value only: `AKIAPLANTEDSECRET7781`, an invented
+fixture `ProjectExportRoutesTest` plants in a finding to prove that the project export never carries
+it (rule `generic-api-key`, 10 files). It stays literal because the replay has to seed it to check the
+same thing. A CI job that scans recordings allows that value and nothing else. The goldens hold no
+`gitleaks:allow` marker, since generated files cannot carry one.
+
 ## What is not recorded
 
 - **Classes that build no `MockMvc`**: `platform.web.ServerRefusalsTest` (a real socket, because the
