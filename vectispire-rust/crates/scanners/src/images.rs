@@ -7,3 +7,9 @@
 /// The secret scanner.
 pub const GITLEAKS: &str =
     "zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f";
+
+/// The cataloguer, which takes the SBOM.
+pub const SYFT: &str = "anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026";
+
+/// The vulnerability matcher, which also downloads and checks its own database.
+pub const GRYPE: &str = "anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db";

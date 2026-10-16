@@ -13,9 +13,18 @@ pub enum ScannerError {
     /// The container itself did not run to completion.
     #[error(transparent)]
     Runner(#[from] RunnerError),
+    /// A step that failed for a reason of its own — `ScannerFailureException.of(label, message)`, and the
+    /// `UncheckedIOException`s whose message reaches the scan's error the same way: the sentence as is.
+    #[error("{message}")]
+    Failed { label: String, message: String },
 }
 
 impl ScannerError {
+    /// `ScannerFailureException.of`: the message, word for word, is what the scan's error says.
+    pub fn of(label: &str, message: impl Into<String>) -> ScannerError {
+        ScannerError::Failed { label: label.to_owned(), message: message.into() }
+    }
+
     pub fn exited(label: &str, code: i64, stderr: &str) -> ScannerError {
         let output = stderr.trim_matches(crate::jackson::is_java_whitespace);
         // `String.substring` counts UTF-16 units; so does this, without splitting a pair.

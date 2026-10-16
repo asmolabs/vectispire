@@ -141,6 +141,51 @@ pub fn java_double_to_string(value: f64) -> String {
     format!("{mantissa}E{exponent}")
 }
 
+/// JSON as the agent's Jackson mapper writes it — the wire form a finding travels in.
+///
+/// Two differences from `serde_json`'s compact writer, both found by `reference/dependencies/`: a
+/// control character is escaped with **upper-case** hex (`\u001F`, where serde writes `\u001f`), and a
+/// double is written by `Double.toString` (`1.0E10`, where serde writes `10000000000.0`). Object keys
+/// keep the order the value holds, which for a `Value` read without `serde_json`'s `preserve_order` is
+/// sorted — so this is byte-faithful for structs, and only value-faithful for a forwarded document.
+pub fn to_wire_string<T: serde::Serialize + ?Sized>(value: &T) -> String {
+    let mut out = Vec::new();
+    let mut serializer = serde_json::Serializer::with_formatter(&mut out, WireFormatter);
+    // A `Serialize` of plain data into memory does not fail; an `Err` here is a type that refuses itself.
+    if value.serialize(&mut serializer).is_err() {
+        return String::new();
+    }
+    String::from_utf8(out).unwrap_or_default()
+}
+
+struct WireFormatter;
+
+impl serde_json::ser::Formatter for WireFormatter {
+    fn write_char_escape<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        char_escape: serde_json::ser::CharEscape,
+    ) -> std::io::Result<()> {
+        use serde_json::ser::CharEscape;
+        let short = match char_escape {
+            CharEscape::Quote => b'"',
+            CharEscape::ReverseSolidus => b'\\',
+            CharEscape::Solidus => b'/',
+            CharEscape::Backspace => b'b',
+            CharEscape::FormFeed => b'f',
+            CharEscape::LineFeed => b'n',
+            CharEscape::CarriageReturn => b'r',
+            CharEscape::Tab => b't',
+            CharEscape::AsciiControl(byte) => return write!(writer, "\\u{byte:04X}"),
+        };
+        writer.write_all(&[b'\\', short])
+    }
+
+    fn write_f64<W: ?Sized + std::io::Write>(&mut self, writer: &mut W, value: f64) -> std::io::Result<()> {
+        writer.write_all(java_double_to_string(value).as_bytes())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

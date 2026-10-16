@@ -46,6 +46,9 @@ hkdf = "0.12"
 hmac = "0.12"
 rand_core = { version = "0.6", features = ["getrandom"] }
 regex = { version = "1", default-features = false, features = ["std", "unicode-perl"] }
+# `fcntl` record locks, the ones Java's `FileChannel.lock` takes: the vulnerability database's lock has
+# to exclude a Java agent on the same cache directory, and an `flock` lock would not.
+rustix = { version = "1", default-features = false, features = ["std", "fs"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

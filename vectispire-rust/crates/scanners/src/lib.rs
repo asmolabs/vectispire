@@ -11,7 +11,9 @@
 //! depend on: what a number in a text field becomes, what a text in a number field becomes.
 
 pub mod container_paths;
+pub mod dependencies;
 pub mod failure;
 pub mod images;
 pub mod jackson;
 pub mod secrets;
+pub mod vulnerability_database;

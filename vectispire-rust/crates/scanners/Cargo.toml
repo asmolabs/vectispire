@@ -8,9 +8,15 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+rand_core.workspace = true
+rustix.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+uuid.workspace = true
 vectispire-container.workspace = true
 
 [dev-dependencies]
