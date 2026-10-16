@@ -1,11 +1,23 @@
 # Notes de version
 
-## 0.11.1 — en préparation
+## 0.11.1 — 25 octobre 2026
 
-À la suite de la 0.11.0 ; pas encore publiée. Ce qui suit est ce que contiendra la 0.11.1, par rapport à la 0.11.0.
+La 0.11.1 lie les profils de contact d'une checklist à des comptes et leur rappelle chaque semaine leurs
+lignes ouvertes, pagine sur demande les listes de l'inventaire et de l'historique, dit dans le document
+OpenAPI quels champs de réponse le serveur envoie à `null`, et corrige les défauts de sécurité et de
+fonctionnement trouvés après la 0.11.0. Ce qui suit est par rapport à la 0.11.0.
 
 ### Avant la mise à jour {#avant-la-mise-a-jour-0111}
 
+- **Sauvegardez la base.** La migration V91 s'exécute au démarrage et n'a pas de retour arrière : revenir
+  à 0.11.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
+  ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
+- **Les rappels hebdomadaires des checklists restent coupés tant que personne ne les active**
+  (`checklist_reminders_enabled`, [paramètres](../administration/settings.fr.md#notifications)). Avant de les
+  activer, configurez le relais de messagerie, renseignez `VECTISPIRE_PUBLIC_URL` pour les liens, et donnez
+  une adresse e-mail à chaque compte lié à un profil : un compte qui se connecte par SSO n'en reçoit pas du
+  fournisseur d'identité — seuls l'écran Utilisateurs et SCIM en écrivent une — et les lignes de ses profils
+  vont alors aux CISO ([contacts et rappels hebdomadaires](../guide/security-checklists.fr.md#contacts-et-rappels-hebdomadaires)).
 - **Une valeur de configuration manifestement erronée arrête désormais le démarrage avec un message qui la
   nomme :** `VECTISPIRE_SCAN_MAX_CONCURRENT` inférieur à 1 (lu en silence comme 2 ; pour couper le worker,
   `VECTISPIRE_EMBEDDED_WORKER=false`), et une durée de session, de bail du leader ou de file inférieure à une

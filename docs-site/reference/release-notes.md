@@ -1,11 +1,23 @@
 # Release notes
 
-## 0.11.1 — in preparation
+## 0.11.1 — 2026-10-25
 
-To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, against 0.11.0.
+0.11.1 links a checklist's contact profiles to accounts and reminds them of their open lines weekly,
+pages the inventory and history lists on request, says in the OpenAPI document which response fields
+the server sends as `null`, and closes the security and correctness defects found after 0.11.0. What
+follows is against 0.11.0.
 
 ### Before you upgrade {#before-you-upgrade-0111}
 
+- **Back up the database.** Migration V91 runs at startup and has no way back: going back to 0.11.0
+  means restoring that backup and the previous image digest
+  ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
+- **The weekly checklist reminders stay off until someone switches them on**
+  (`checklist_reminders_enabled`, [settings](../administration/settings.md#notifications)). Before
+  switching them on, configure the mail relay, set `VECTISPIRE_PUBLIC_URL` for the links, and give an
+  e-mail address to every account a profile is linked to: an account signing in through SSO gets none from
+  the identity provider — only the Users screen and SCIM write one — and its profiles' lines go to the
+  CISOs instead ([contacts and weekly reminders](../guide/security-checklists.md#contacts-and-weekly-reminders)).
 - **A configuration value that is surely a mistake now stops the start with a message naming it:**
   `VECTISPIRE_SCAN_MAX_CONCURRENT` below 1 (it was silently read as 2; to switch the worker off, use
   `VECTISPIRE_EMBEDDED_WORKER=false`), and a session, leader or queue duration under one second, such as
