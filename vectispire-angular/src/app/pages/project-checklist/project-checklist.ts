@@ -52,6 +52,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
 import { describeUnrenderableCells, unrenderableCellsOf } from '../../shared/unrenderable-cells';
+import { ChecklistContactsPanel } from './checklist-contacts';
 import { LineMeasurement } from './line-measurement';
 import {
     changedSinceSubmission,
@@ -263,6 +264,7 @@ export interface DomainGroup {
         TagModule,
         TextareaModule,
         TranslatePipe,
+        ChecklistContactsPanel,
         LineMeasurement
     ],
     changeDetection: ChangeDetectionStrategy.Eager,

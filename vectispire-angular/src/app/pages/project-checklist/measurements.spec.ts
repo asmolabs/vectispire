@@ -1,7 +1,9 @@
+import { Component, input } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { ChecklistContactsPanel } from './checklist-contacts';
 import { afterEach, describe, expect, it } from 'vitest';
 import type {
     AsMeasuredSkipReason,
@@ -52,6 +54,18 @@ import {
 import { AS_MEASURED_SKIP_KEYS, ProjectChecklist } from './project-checklist';
 
 /**
+ * The contacts panel stands in for itself here: it reads its own routes, which `checklist-contacts.spec.ts`
+ * pins, and this suite's requests are the page's. What the page owes it is the project, the role and the
+ * edition on screen.
+ */
+@Component({ selector: 'app-checklist-contacts', template: '' })
+class ContactsPanelStub {
+    readonly projectId = input.required<number>();
+    readonly writes = input(false);
+    readonly edition = input<number | null>(null);
+}
+
+/**
  * A project checklist's measured lines (decision 0032 §6), through the DOM.
  *
  * What it must get right: every bound line shows what its rule found — met, not met, or no data and
@@ -85,7 +99,12 @@ describe('the measured lines of a project checklist', () => {
         await TestBed.configureTestingModule({
             imports: [ProjectChecklist],
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
-        }).compileComponents();
+        })
+            .overrideComponent(ProjectChecklist, {
+                remove: { imports: [ChecklistContactsPanel] },
+                add: { imports: [ContactsPanelStub] }
+            })
+            .compileComponents();
         TestBed.inject(SessionStore).open('token', {
             username,
             displayName: null,

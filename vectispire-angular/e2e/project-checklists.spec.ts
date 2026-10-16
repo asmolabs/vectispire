@@ -592,6 +592,85 @@ test.describe('Project checklists', () => {
         await expect(history.locator('li')).toHaveCount(2);
     });
 
+    /**
+     * The contact column's profiles linked to accounts on the checklist's page (decision 0044): read from
+     * the version the checklist is open on — "PO / BA" both, AUTO none — one linked through the screen to
+     * the CISO, who has no address and is told so, and the link kept by the server.
+     */
+    test('a CISO links a profile of the contact column to an account, and the page says who is reminded', async ({
+        page
+    }) => {
+        const run = Date.now().toString(36);
+        const slug = `e2e-contacts-${run}`;
+        const name = `E2E contacts ${run}`;
+        const cisoName = await signInAs(page, 'CISO');
+        const adminName = await signInAs(page, 'ADMIN');
+        const ciso = await tokenOf(page, cisoName);
+        const admin = await tokenOf(page, adminName);
+
+        const imported = await page.request.post(`/api/v1/checklist-templates/${slug}/versions`, {
+            params: { name: `E2E contacts ${run}` },
+            headers: {
+                ...bearer(ciso),
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            },
+            data: checklistWorkbook(['PO', 'PO / BA', 'AUTO'])
+        });
+        expect(imported.status(), await imported.text()).toBe(201);
+        const draft = (await imported.json()) as { version: { revision: number } };
+        const laidOut = await page.request.put(
+            `/api/v1/checklist-templates/${slug}/versions/1/layout?revision=${draft.version.revision}`,
+            {
+                headers: bearer(ciso),
+                data: {
+                    sheet: 'Checklist',
+                    columns: { domain: 'A', control: 'B', answer: 'C', comment: 'D', contact: 'E' },
+                    firstItemRow: 4,
+                    lastItemRow: 6,
+                    header: { product: { label: 'A1', value: 'B1' } },
+                    answers: { yes: 'Done', no: 'Not done', notApplicable: null }
+                }
+            }
+        );
+        expect(laidOut.status(), await laidOut.text()).toBe(200);
+        await publish(
+            page,
+            slug,
+            admin,
+            ((await laidOut.json()) as { version: { revision: number } }).version.revision
+        );
+        const projectId = await project(page, name, admin);
+        const opened = await page.request.post(`/api/v1/projects/${projectId}/checklists`, {
+            headers: bearer(ciso),
+            data: { template: slug, version: 1 }
+        });
+        expect(opened.status(), await opened.text()).toBe(201);
+
+        await signInAs(page, 'CISO');
+        await openFromSolutions(page, name);
+        const contacts = page.getByTestId('contacts');
+        await expect(contacts.getByTestId('contact-profile')).toHaveText(['PO', 'BA']);
+        await expect(contacts.getByTestId('contact-open-lines')).toHaveText(['2', '1']);
+        await expect(contacts.getByTestId('contact-ciso')).toHaveText([
+            'Reminded to the CISOs',
+            'Reminded to the CISOs'
+        ]);
+
+        await contacts.getByRole('combobox', { name: 'Account linked to BA' }).click();
+        await page.getByRole('searchbox').fill(cisoName);
+        await page.getByRole('option', { name: cisoName }).click();
+
+        const ba = contacts.getByTestId('contact-row').nth(1);
+        await expect(ba.getByTestId('contact-warning')).toHaveText('No e-mail address');
+        const listed = (await (
+            await page.request.get(`/api/v1/projects/${projectId}/checklists/contacts`, { headers: bearer(ciso) })
+        ).json()) as { profiles: { profile: string; accountName: string | null; warning: string | null }[] };
+        expect(listed.profiles.find((profile) => profile.profile === 'BA')).toMatchObject({
+            accountName: cisoName,
+            warning: 'no_email'
+        });
+    });
+
     test('an auditor reads a project checklist and is offered no write', async ({ page }) => {
         const run = Date.now().toString(36);
         const adminName = await signInAs(page, 'ADMIN');

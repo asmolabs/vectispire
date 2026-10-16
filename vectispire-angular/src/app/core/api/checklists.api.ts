@@ -3,6 +3,8 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Observable } from 'rxjs';
 import type {
     ChecklistAnswerValue,
+    ChecklistContactCandidate,
+    ChecklistContacts,
     ChecklistAsMeasured,
     ChecklistItemEvidence,
     ChecklistItemPair,
@@ -209,6 +211,33 @@ export class ChecklistsApi {
      */
     projectChecklistContext(projectId: number): Observable<ChecklistProjectContext> {
         return this.http.get<ChecklistProjectContext>(`${projectPath(projectId)}/context`);
+    }
+
+    /**
+     * The project's checklist profiles — the values of its contact column but `AUTO` — each with the
+     * account linked to it and the lines it still has to fill in (decision 0044).
+     */
+    checklistContacts(projectId: number): Observable<ChecklistContacts> {
+        return this.http.get<ChecklistContacts>(`${projectPath(projectId)}/contacts`);
+    }
+
+    /** The accounts a profile may be linked to: active, writing, seeing the whole project. A writer's route. */
+    checklistContactCandidates(projectId: number): Observable<ChecklistContactCandidate[]> {
+        return this.http.get<ChecklistContactCandidate[]>(`${projectPath(projectId)}/contacts/candidates`);
+    }
+
+    /** Links a profile, by its key, to an account, in place of the one it was linked to. */
+    linkChecklistContact(projectId: number, profile: string, accountId: number): Observable<ChecklistContacts> {
+        const body: Schema<'ChecklistContactRequest'> = { accountId };
+        return this.http.put<ChecklistContacts>(
+            `${projectPath(projectId)}/contacts/${encodeURIComponent(profile)}`,
+            body
+        );
+    }
+
+    /** Unlinks a profile: its lines go to the CISOs until it is linked again. */
+    unlinkChecklistContact(projectId: number, profile: string): Observable<ChecklistContacts> {
+        return this.http.delete<ChecklistContacts>(`${projectPath(projectId)}/contacts/${encodeURIComponent(profile)}`);
     }
 
     /** The published versions the checklist may be opened on or moved to. */

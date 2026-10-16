@@ -457,7 +457,9 @@
       "report_downloaded": "Rapport téléchargé",
       "integration_token_expiring": "Jeton d’intégration bientôt expiré",
       "integration_token_stopped": "Jeton d’intégration hors service",
-      "integration_token_restored": "Jeton d’intégration de nouveau en service"
+      "integration_token_restored": "Jeton d’intégration de nouveau en service",
+      "checklist_contact_changed": "Contact de checklist modifié",
+      "checklist_reminder_sent": "Rappel hebdomadaire de checklist envoyé"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",
@@ -2392,6 +2394,10 @@
         "label": "Envoyer un rapport hebdomadaire de posture",
         "help": "Toutes les autres notifications partent quand quelque chose apparaît, ce qui convient à une alerte et pas à un rapport : une semaine calme, personne n'est prévenu de rien — et une semaine calme est aussi celle où une cible n'a pas été analysée depuis vingt jours sans que personne le voie. Ce rapport dit combien il y en a, dans quel sens cela évolue et ce qui n'a jamais été examiné, une fois par semaine, au webhook global et aux destinataires des e-mails. Désactivé par défaut : l'activer sur un déploiement existant changerait sans prévenir ce que reçoivent ses canaux."
       },
+      "checklist_reminders_enabled": {
+        "label": "Rappeler chaque semaine les contacts des checklists",
+        "help": "Une fois par semaine, chaque compte qu'un projet a lié à un profil de la colonne de contact de sa checklist (PO, BA, Arch…) reçoit par e-mail les lignes de ce profil encore sans réponse, ou en attente de confirmation, dans le brouillon du projet. Un profil qui a de telles lignes et personne à rappeler — aucun compte lié, ou un compte désactivé, sans adresse ou qui ne peut plus remplir la checklist — est signalé aux CISO à la place. Nécessite le relais de messagerie (`VECTISPIRE_MAIL_HOST`) ; les destinataires sont les adresses des comptes eux-mêmes, pas les destinataires des e-mails ci-dessus. Désactivé par défaut."
+      },
       "notification_min_severity": {
         "label": "Sévérité minimale notifiée",
         "help": "Rien de nouveau au-dessus de ce seuil, aucun message. Une notification par scan apprend aux gens à filtrer le canal."
@@ -3477,6 +3483,25 @@
     "subtitle": "Sur les dépôts et images classés dans les projets de la solution.",
     "not_found": "Cette solution n’existe pas, ou vous ne voyez aucun de ses dépôts ni de ses images.",
     "error_load": "La conformité de la solution n’a pas pu être calculée."
+  },
+  "checklist_contacts": {
+    "title": "Contacts",
+    "intro": "Chaque profil de la colonne de contact du modèle — PO, BA, Arch… — lié au compte qui remplit ses lignes. Une fois par semaine, rappels activés, ce compte reçoit par e-mail ses lignes encore sans réponse ou en attente de confirmation ; un profil lié à personne, ou à un compte qui ne serait pas rappelé, est signalé aux CISO à la place.",
+    "none": "La colonne de contact de la checklist ne nomme aucun profil.",
+    "profile": "Profil",
+    "open_lines": "Lignes à remplir",
+    "account": "Compte",
+    "nobody": "Personne",
+    "account_n": "Compte {{id}}",
+    "choose": "Compte lié à {{profile}}",
+    "ciso_fallback": "Rappelé aux CISO",
+    "warning_account_gone": "Compte supprimé",
+    "warning_account_inactive": "Compte désactivé",
+    "warning_no_email": "Pas d'adresse e-mail",
+    "warning_cannot_fill": "Ne peut plus remplir cette checklist",
+    "load_failed": "Les contacts n'ont pas pu être lus.",
+    "candidates_failed": "Les comptes pouvant être liés n'ont pas pu être lus.",
+    "link_failed": "Le contact n'a pas pu être modifié."
   },
   "project_checklist": {
     "title": "Checklist de sécurité",

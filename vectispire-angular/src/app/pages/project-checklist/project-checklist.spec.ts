@@ -1,7 +1,10 @@
+import { Component, input } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
+import { ChecklistContactsPanel } from './checklist-contacts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
     ChecklistOfferedVersion,
@@ -44,6 +47,18 @@ import {
     STATUS_KEYS
 } from './project-checklist';
 import { asSchema } from '@/app/core/testing/contract';
+
+/**
+ * The contacts panel stands in for itself here: it reads its own routes, which `checklist-contacts.spec.ts`
+ * pins, and this suite's requests are the page's. What the page owes it is the project, the role and the
+ * edition on screen.
+ */
+@Component({ selector: 'app-checklist-contacts', template: '' })
+class ContactsPanelStub {
+    readonly projectId = input.required<number>();
+    readonly writes = input(false);
+    readonly edition = input<number | null>(null);
+}
 
 /**
  * A project's security checklist (decision 0032 §4, §5, §8), through the DOM.
@@ -89,7 +104,12 @@ describe('the project checklist screen', () => {
         await TestBed.configureTestingModule({
             imports: [ProjectChecklist],
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
-        }).compileComponents();
+        })
+            .overrideComponent(ProjectChecklist, {
+                remove: { imports: [ChecklistContactsPanel] },
+                add: { imports: [ContactsPanelStub] }
+            })
+            .compileComponents();
         TestBed.inject(SessionStore).open('token', {
             username,
             displayName: null,
@@ -189,6 +209,25 @@ describe('the project checklist screen', () => {
     // ------------------------------------------------------------------ roles
 
     it.each([
+        ['USER', true],
+        ['AUDITOR', false]
+    ])('hands the contacts panel the project, whether a %s writes, and the edition on screen', async (role, writes) => {
+        await start(role);
+
+        const panel = fixture.debugElement.query(By.directive(ContactsPanelStub))
+            .componentInstance as ContactsPanelStub;
+        expect(panel.projectId()).toBe(PROJECT_ID);
+        expect(panel.writes()).toBe(writes);
+        expect(panel.edition()).toBe(CHECKLIST.checklist.edition);
+    });
+
+    it('shows no contacts panel before the project has a checklist', async () => {
+        await start('USER', 'someone', { revisions: [] });
+
+        expect(fixture.debugElement.query(By.directive(ContactsPanelStub))).toBeNull();
+    });
+
+    it.each([
         ['AUDITOR', 'reads everything and writes nothing'],
         ['SUPERUSER', 'governs the platform and fills no checklist']
     ])('shows the %s — who %s — every line and no write control', async (role) => {
@@ -223,7 +262,12 @@ describe('the project checklist screen', () => {
         await TestBed.configureTestingModule({
             imports: [ProjectChecklist],
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
-        }).compileComponents();
+        })
+            .overrideComponent(ProjectChecklist, {
+                remove: { imports: [ChecklistContactsPanel] },
+                add: { imports: [ContactsPanelStub] }
+            })
+            .compileComponents();
         TestBed.inject(SessionStore).open('token', {
             username: 'erin',
             displayName: null,

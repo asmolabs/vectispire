@@ -120,6 +120,8 @@ const OPERATION_KEYS: Record<string, string> = {
     INTEGRATION_TOKEN_EXPIRING: 'audit_log.operations.integration_token_expiring',
     INTEGRATION_TOKEN_STOPPED: 'audit_log.operations.integration_token_stopped',
     INTEGRATION_TOKEN_RESTORED: 'audit_log.operations.integration_token_restored',
+    CHECKLIST_CONTACT_CHANGED: 'audit_log.operations.checklist_contact_changed',
+    CHECKLIST_REMINDER_SENT: 'audit_log.operations.checklist_reminder_sent',
     // Named by no `AuditOperation`: kept so that an entry recorded under one still reads.
     LOGIN: 'audit_log.operations.login',
     LOGOUT: 'audit_log.operations.logout',
