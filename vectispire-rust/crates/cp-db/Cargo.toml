@@ -1,0 +1,27 @@
+[package]
+name = "vectispire-cp-db"
+description = "The control plane's database layer: pools per engine, transactions, Visibility-gated queries, schema parity."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "postgres", "macros", "time"] }
+sea-query = { version = "1", default-features = false, features = ["backend-mysql", "backend-postgres"] }
+sea-query-sqlx = { version = "0.9", default-features = false, features = ["sqlx-mysql", "sqlx-postgres", "runtime-tokio", "with-time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tokio.workspace = true
+vectispire-domain.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+trybuild = "1"
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true
