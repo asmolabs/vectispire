@@ -228,3 +228,37 @@ Two pieces are shared and owned by nobody in particular, so they change only add
 stream, and `crates/container`'s runner, from the plugins stream for bounded outputs. Every scanner
 stream adds its parser beside `secrets.rs` and its reference set beside `reference/secrets/`, with a
 Java writer like `SecretsReferenceSetTest`.
+
+## The control plane's crates (`cp-*`) — Phase 0 of the control plane's port
+
+The same workspace holds the control plane's crates, whose plan is `docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md`.
+**They are the one place the encryption key is named**, and `crates/agent/tests/isolation.rs` exempts `crates/cp-*` from the
+test that no source names it — and from nothing else: the agent's graph still links no database client and no server, and the
+shared crates (`domain`, `crypto`, …) still may not name the key.
+
+| Crate | What it holds | Held to |
+|---|---|---|
+| `cp-outbound` | `PinnedHttpSender`, `OutboundUrlGuard`, `ReservedEndpoints`, the address classes | the Java classes, by `reference/outbound/` (202 URLs and 30 endpoints × 3 policies × 2 reservation sets, 114 reserved-endpoint readings, 68 addresses); local servers for the pin, the redirect, the ceiling, the deadline, a pinned CA over TLS |
+| `cp-runtime` | the settings (108 properties under their Java names and defaults), `/run/secrets`, the logs, the audit mirror, the meters and the actuator's answers, graceful shutdown | `application.yaml` and the Java sources, read by `tests/java_parity.rs`; the actuator's bytes, recorded from rc.3 (`reference/actuator/`) |
+| `cp-app` | the binary: `--check-config`, serve, stop gracefully — the HTTP stack and the database are not wired yet | the binary, run, by `tests/binary.rs` |
+
+**Where the Rust side differs from the Java one, on purpose** (each is in the code beside the reason):
+
+- **`figment` is not used.** A property's variable is not derived from its key (`vectispire.worker.max-concurrent` ← `VECTISPIRE_SCAN_MAX_CONCURRENT`,
+  the brand name ← the first of three), a secret may be a file named after the variable it replaces, and Boot's relaxed binding reads
+  `VECTISPIRE_BRANDING_NAME` *before* the chain `application.yaml` gives the brand name — a quirk **kept**, because a deployment that sets
+  both sees the name it sees today. What `figment` would add is the layering into a struct, which is the simple part.
+- **Not ported, because there is no JVM:** `jvm.*`, `hikaricp.*`, `http.server.*`, `process.*`, `logback.*` and the other Spring/Micrometer meters
+  (`/actuator/metrics` lists what Vectispire registers). `prometheus` was never exposed, so it is not offered.
+- **Logs:** the plain line is Spring's console format; the instant is **UTC**; the level is `RUST_LOG`, or `LOGGING_LEVEL_ROOT`
+  (Spring's variable for the root logger), or `info` — the per-package `LOGGING_LEVEL_*` are not mapped. `VECTISPIRE_LOG_FORMAT=json` is new.
+- **Read where used, not in the settings:** `VECTISPIRE_SEMGREP_RULES_DIR`, `HOSTNAME`, `XDG_RUNTIME_DIR` (scanning's own); `spring.datasource.hikari.*`,
+  Flyway's and JPA's (`cp-db`, `cp-migrate`); `management.*` and `server.shutdown` are constants of the crate.
+- **A duration is never negative here**, and the Java probing of a developer's own Docker socket paths (`~/.orbstack/…`) is not ported.
+- **`PinnedCa`** carries the form checks (PEM only, ≤ 16 384 characters, ≤ 8 certificates, nothing but certificates); the X.509 reading
+  (CA flag, key usage, validity) needs a parser this workspace does not carry and comes with the forge connections.
+- **The sender** sends `User-Agent: Vectispire`, does not ask for `gzip` and does not decode it, and honours no proxy.
+- **One URL the guard reads differently:** `http://[fe80::1%eth0]/`, whose answer under the JDK depends on the host's interfaces — here it is
+  unreadable everywhere, the safe side (the agent's `java_uri` port takes no scope id).
+
+`cp-runtime`'s tests that name the control plane's own files (`tests/java_parity.rs`) read `../../../vectispire-java`: they run in a full checkout.

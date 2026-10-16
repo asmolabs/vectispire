@@ -3714,6 +3714,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-app"
+version = "0.12.0-dev"
+dependencies = [
+ "thiserror",
+ "tokio",
+ "tracing",
+ "vectispire-cp-outbound",
+ "vectispire-cp-runtime",
+]
+
+[[package]]
 name = "vectispire-cp-contract"
 version = "0.12.0-dev"
 dependencies = [
@@ -3789,6 +3800,20 @@ dependencies = [
  "vectispire-domain",
  "vectispire-testkit",
  "vectispire-tls",
+]
+
+[[package]]
+name = "vectispire-cp-runtime"
+version = "0.12.0-dev"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "vectispire-domain",
+ "vectispire-testkit",
 ]
 
 [[package]]
