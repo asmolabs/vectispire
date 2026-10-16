@@ -13,3 +13,9 @@ pub const SYFT: &str = "anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e
 
 /// The vulnerability matcher, which also downloads and checks its own database.
 pub const GRYPE: &str = "anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db";
+
+/// The infrastructure checker.
+pub const CHECKOV: &str = "bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144";
+
+/// The source analyser.
+pub const SEMGREP: &str = "semgrep/semgrep@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8";

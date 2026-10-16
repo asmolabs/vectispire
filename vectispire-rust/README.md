@@ -76,6 +76,10 @@ answers for fixed inputs, and the Rust tests read them:
 | `secrets/` | `SecretsReferenceSetTest` | `scanners/tests/reference_set.rs` | gitleaks reports in, findings out, **byte for byte** as the agent's mapper writes them — fingerprint material |
 | `repository-url/` | `RepositoryUrlReferenceSetTest` | `domain/tests/reference_set.rs` | `validate`, `host`, `redact`, `isHttps`, `hasHost` for 90 URLs chosen to tell parsers apart |
 | `container/` | `ContainerReferenceSetTest` | `scanners/tests/create_request.rs` | the secrets scan's container-create request, captured off the wire by a stub daemon |
+| `iac/` | `IacReferenceSetTest` | `scanners/tests/iac_reference_set.rs` | checkov container results in (`runs/`: stdout, optional `.stderr` and `.case` with `exit=` and `subPath=`), the step's **outcome** out (`outcomes/`): `findings` and the wire JSON, `absent`, or `failure` and its sentence. Runs 01–04 are the pinned image's real output, `iac/regenerate.sh` |
+| `sast/` | `SastReferenceSetTest` | `scanners/tests/sast_reference_set.rs` | the same for semgrep — runs 01–06 real, with the bundled rule and an operator rule set (`sast/regenerate.sh`): coverage that makes a report "did not run", the refusal read off stdout, the OWASP edition, the severity table |
+| `sast/bundled-rules/` | `BundledRulesReferenceSetTest` | `scanners/tests/rule_placement.rs` | the rules the jar ships, byte for byte — **embedded in the binary from these files** (`scanners::rules::BUNDLED`), so the two agents scan with the same rules |
+| `container/{iac,sast}-scan-create.json` | `ScannerCreateReferenceSetTest` | `scanners/tests/scanner_create_requests.rs` | the IaC and SAST scans' container-create requests, with a sub-path |
 | `crypto/` | `CryptoReferenceSetTest` | `crypto/tests/reference_set.rs` | both directions: Java's signatures reproduced bit for bit, envelopes sealed by Java opened here; Rust's signatures and announced key verified by Java |
 | `failure-reason/` | `FailureReasonReferenceSetTest` | `protocol/tests/failure_reason_reference_set.rs` | `FailureReason.scrub` for 27 reasons chosen to tell two regex engines apart (`\s`, `\b` and `(?i)` are ASCII-only on JDK 19+), lengths in UTF-16 units |
 | `artifacts/` | `protocol/tests/artifacts_reference_set.rs` (**the Rust side writes**) | `ScanArtifactsReferenceSetTest` | result bodies the Rust agent sends, read by the agent's mapper and written back: the tree must be the one sent, so a step sent absent cannot arrive empty (decision 0007) |
@@ -169,6 +173,12 @@ About two minutes, most of it the control plane starting (an amd64 image, emulat
 - **JSON integers beyond 64 bits** in a scanner report would be read as doubles here, where Jackson
   keeps their low 32 bits. No scanner writes one.
 
+- **An uploaded rule file whose last path component is not a plain name** (`..`, `/`, `x/.`) is
+  refused with the "could not be written into the workspace" sentence; the Java side resolves it and
+  fails on the write — or, for `/`, with a `NullPointerException`. Same outcome: the step fails.
+- **The bundled rules' sweep compares with when this process materialised them**, not when it started
+  (Rust has no portable process start time): later, which only ever keeps a leftover for the next sweep.
+
 ## A defect the reference set found on the Java side
 
 **A gitleaks report that is not JSON, or not an array, gives an empty list**
@@ -176,6 +186,19 @@ About two minutes, most of it the control plane starting (an amd64 image, emulat
 resolves every secret issue of the target — what decision 0007 forbids. The port reproduces it, so
 that the two agents never disagree about a backlog; it is pinned by `secrets/reports/04-not-json.json`.
 Fix it on the Java side and the reference set carries the fix across.
+
+**The same class in the IaC and SAST readings** (decision 0007):
+
+- `IacScanner.findings`: a JSON document that is no checkov report — a scalar, `{}`, a `results` that
+  is not an object — gives an empty list, "analysed, clean". Pinned by `iac/runs/18-` to `20-`. (The
+  real answer for a tree with nothing to check is a summary object, `03-no-infrastructure`, and an empty
+  list is right there: a fix must keep it.)
+- `SastScanner.findings`: a report that covered files but whose `results` is not an array gives an
+  empty list. Pinned by `sast/runs/18-results-not-an-array`.
+
+The port reproduces both; the corrected outcome is asserted by ignored tests named `pending_0007_…`
+in `iac_reference_set.rs` and `sast_reference_set.rs`, to un-ignore when the Java fix regenerates the
+set.
 
 ## Remaining work, as independent streams
 
@@ -186,8 +209,8 @@ additively.
 |---|---|---|
 | **Protocol client** — *done* (branch `rust/protocol`) | `crates/protocol/**`; `crates/agent/src/serve.rs` and the loop in `main.rs` | Every route typed from `openapi.json`, with slots and claim concurrency, heartbeats, the unsealing of delegated credentials, and a graceful stop that waits for the running scans to be handed back (as the Java agent does: the protocol has no call to give one back unrun). `AgentProtocolTest`, `AgentHttpTest`, `AgentSealingKeyAnnouncementTest`, `AgentLoopTest`, `AgentLoopConcurrencyTest` and `AgentWireFormatTest` are ported against the stub; the end-to-end suite runs against a real control plane. **What a scanner stream plugs in:** `serve::Execute` (one scan in, `ScanArtifacts` or an `ExecutionFailure` with its kind out), `AgentClient::rule_set` for the SAST stream, `AgentClient::plugin` (with the plugins stream's digest function) for the plugins stream. |
 | **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | Their parsers match the Java side's on a reference set of real SBOM and match outputs. The database is downloaded under a lock and mounted read-only. |
-| **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | The same, for Checkov. |
-| **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | The same, for Semgrep. Its rule placement comes with it (`RulePlacement`, `BundledRules`). |
+| **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | **Done** — `iac::outcome` holds to `reference/iac/` (27 runs), and a real scan runs through the proxy. |
+| **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | **Done** — `sast::outcome` holds to `reference/sast/` (31 runs); `scanners::rules` places the bundled, operator and uploaded rules, and embeds the jar's. A real scan runs through the proxy. `scanners::output::parse_json` is shared, for the dependency stream. |
 | **Workspace, census, API discovery** | `crates/scanners/src/{workspace,census,api_discovery}.rs` | The workspace layout (`source/`, `rules/`, 0700) is ported, with `LanguageCensus` and `ApiDiscoveryScanner`, which parses repository content in-process and so has its own reference set. |
 | **Plugins and bundled rules** | `crates/scanners/src/plugins.rs`, `crates/container/src/bounded_output.rs` | Plugin steps, the bounded output holder (`ContainerRun.BoundedOutput`), registry login, and `ImageSignatureVerifier` through the pinned cosign image. |
 | **Image and side-by-side conformance** | `Dockerfile.agent`, `measure.sh`, a new CI job | Reproducible builds (built twice, same bytes) and both architectures. Then `scripts/composition-scan-check.sh MODE=agent AGENT_IMAGE=vs-rs-agent` runs the five analyses through each agent in the nightly, compares the results, and stays identical for two weeks. Only then does `release.yml` sign this image. |

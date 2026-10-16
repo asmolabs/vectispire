@@ -51,7 +51,11 @@ regex = { version = "1", default-features = false, features = ["std", "unicode-p
 rustix = { version = "1", default-features = false, features = ["std", "fs"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# `preserve_order`, for the whole workspace: Jackson keeps an object's members in document order. A
+# parser iterating an object's values (checkov's `failed_checks` written as one) reads them in that
+# order, and the SBOM the agent forwards keeps the cataloguer's member order. Cargo unifies features
+# across one binary anyway, so a crate-level switch would have applied everywhere without saying so.
+serde_json = { version = "1", features = ["preserve_order"] }
 sha1 = "0.10"
 sha2 = "0.10"
 # Parsing only — ECDSA needs its curves to be read; no `rsa` feature, which would link a crate with an open timing advisory

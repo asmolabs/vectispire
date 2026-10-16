@@ -13,7 +13,11 @@
 pub mod container_paths;
 pub mod dependencies;
 pub mod failure;
+pub mod iac;
 pub mod images;
 pub mod jackson;
+pub mod output;
+pub mod rules;
+pub mod sast;
 pub mod secrets;
 pub mod vulnerability_database;
