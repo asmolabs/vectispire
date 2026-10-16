@@ -81,6 +81,9 @@ public final class TrafficRecorder {
     static final int FORMAT = 1;
 
     private static final String PENDING = TrafficRecorder.class.getName() + ".pending";
+
+    /** A request body past this is written beside its golden, gzipped ({@code <golden>.body.gz}). */
+    static final int SIDECAR_THRESHOLD = 64 * 1024;
     private static final String CORE_PACKAGE = "com.asmolabs.vectispire.core.";
 
     private static final Optional<Path> OUTPUT = Optional.ofNullable(System.getProperty(PROPERTY))
@@ -353,6 +356,14 @@ public final class TrafficRecorder {
                 Path file = OUTPUT.orElseThrow().resolve(directoryOf(classKey)).resolve(name);
                 try {
                     Files.createDirectories(file.getParent());
+                    if (golden.path("request").path("body").has("file")) {
+                        String sidecar = name.substring(0, name.length() - ".json".length()) + ".body.gz";
+                        // GZIPOutputStream writes no time and no name: the same bytes give the same file.
+                        try (var out = new java.util.zip.GZIPOutputStream(Files.newOutputStream(file.resolveSibling(sidecar)))) {
+                            out.write(request.getContentAsByteArray());
+                        }
+                        ((ObjectNode) golden.path("request").path("body")).put("file", sidecar);
+                    }
                     Files.writeString(file, PRETTY.writeValueAsString(golden) + "\n", StandardCharsets.UTF_8);
                 } catch (IOException failed) {
                     throw new UncheckedIOException(failed);
@@ -508,7 +519,17 @@ public final class TrafficRecorder {
             node.put("scheme", request.getScheme());
         }
         byte[] content = request.getContentAsByteArray();
-        if (content != null && content.length > 0) {
+        if (content != null && content.length > SIDECAR_THRESHOLD) {
+            // The bounds' tests send megabytes of padding, most of the suite's bytes once inline: kept beside
+            // the golden, compressed, and sent as they are — no placeholder is applied to them.
+            ObjectNode body = node.putObject("body");
+            if (request.getContentType() != null) {
+                body.put("contentType", request.getContentType());
+            }
+            body.put("length", content.length);
+            body.put("sha256", HexFormat.of().formatHex(Digests.sha256(content)));
+            body.putNull("file");
+        } else if (content != null && content.length > 0) {
             node.set("body", body(content, request.getContentType(), request.getCharacterEncoding(), true));
         }
         return node;

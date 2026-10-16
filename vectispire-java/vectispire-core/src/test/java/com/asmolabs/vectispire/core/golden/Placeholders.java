@@ -72,6 +72,19 @@ final class Placeholders {
     /** Thirty-two random bytes, base64url without padding: a session token, an agent key, a hand-off. */
     private static final Pattern RANDOM_TOKEN = Pattern.compile("(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])");
 
+    /**
+     * Base64 of random bytes, padded: an agent's sealing or signing public key. Bounded at 200 characters:
+     * a registered value is looked for in every string the test renders after it.
+     */
+    private static final Pattern RANDOM_BASE64 =
+            Pattern.compile("(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{40,198}={1,2}(?![A-Za-z0-9+/=])");
+
+    /** A PEM block: the suites generate their certificate authorities and keys at every run. */
+    private static final Pattern PEM = Pattern.compile("-----BEGIN ([A-Z0-9 ]+)-----[\\s\\S]*?-----END \\1-----");
+
+    /** A loopback port: the stub servers the tests stand up listen wherever the system put them. */
+    private static final Pattern LOOPBACK_PORT = Pattern.compile("(127\\.0\\.0\\.1|localhost|\\[::1\\]):(\\d{2,5})(?![0-9])");
+
     private static final Pattern UUID = Pattern.compile(
             "(?i)(?<![0-9a-f])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![0-9a-f])");
 
@@ -119,6 +132,8 @@ final class Placeholders {
     private final Map<String, Integer> uuids = new HashMap<>();
     private final Map<String, Integer> longNumbers = new HashMap<>();
     private final Map<String, Integer> digests = new HashMap<>();
+    private final Map<String, Integer> pems = new HashMap<>();
+    private final Map<String, Integer> ports = new HashMap<>();
     private List<String> secretsLongestFirst = List.of();
 
     /** A table's identities: its base, and the first one this test may create. */
@@ -226,10 +241,16 @@ final class Placeholders {
     /** Credentials recognised by their shape alone. */
     void collectPatterns(String raw) {
         // Not inside a stored form: an Argon2 hash or a sealed value is random, not a credential presented.
-        String text = SEALED.matcher(PASSWORD_HASH.matcher(raw).replaceAll(" ")).replaceAll(" ");
+        String text = SEALED.matcher(PASSWORD_HASH.matcher(PEM.matcher(raw).replaceAll(" ")).replaceAll(" ")).replaceAll(" ");
         Matcher keys = API_KEY.matcher(text);
         while (keys.find()) {
             registerSecret(keys.group());
+        }
+        Matcher padded = RANDOM_BASE64.matcher(text);
+        while (padded.find()) {
+            if (looksRandom(padded.group())) {
+                registerSecret(padded.group());
+            }
         }
         Matcher tokens = RANDOM_TOKEN.matcher(text);
         while (tokens.find()) {
@@ -318,8 +339,11 @@ final class Placeholders {
         if (text == null || text.isEmpty()) {
             return text;
         }
-        // Stored forms first: an Argon2 hash carries 43 base64 characters that would otherwise read as a token.
-        String out = replace(text, PASSWORD_HASH, match -> passwordHash(match.group()));
+        // A PEM block whole, before anything inside it is read as a token.
+        String out = replace(text, PEM, match -> "«pem:" + match.group(1).toLowerCase(Locale.ROOT).replace(' ', '-') + ":"
+                + pems.computeIfAbsent(match.group(), key -> pems.size() + 1) + "»");
+        // Stored forms next: an Argon2 hash carries 43 base64 characters that would otherwise read as a token.
+        out = replace(out, PASSWORD_HASH, match -> passwordHash(match.group()));
         out = replace(out, SEALED, match -> "«sealed»");
         out = replaceHashesOfSecrets(out);
         for (String secret : secretsLongestFirst) {
@@ -336,6 +360,8 @@ final class Placeholders {
         // every run, but a document holding a date is not, and its digest names it in a path.
         out = replace(out, HEX_64, match -> "«sha256:" + digests.computeIfAbsent(
                 match.group().toLowerCase(Locale.ROOT), key -> digests.size() + 1) + "»");
+        out = replace(out, LOOPBACK_PORT, match -> match.group(1) + ":«port:"
+                + ports.computeIfAbsent(match.group(2), key -> ports.size() + 1) + "»");
         out = replace(out, UUID, match -> "«uuid:" + uuids.computeIfAbsent(
                 match.group().toLowerCase(Locale.ROOT), key -> uuids.size() + 1) + "»");
         out = replace(out, ISO_DATE_TIME, Placeholders::isoDateTime);

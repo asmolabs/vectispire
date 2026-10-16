@@ -70,7 +70,7 @@ Names depend only on the tree: two recordings of the same commit have the same f
   replay starts each test from this state.
 - `notes` lists what the recorder could not do for this test, such as a table whose identity counter
   it could not reset or a request it could not record. `recorderFailures` gathers the same across the run.
-- `idBases` gives each table's identity base (see *Identities*). The replay applies the same bases.
+- `idBases` gives each table's identity base (see *Identities*).
 
 ## One request
 
@@ -159,8 +159,7 @@ The recorder reads **every table** except `flyway_schema_history`:
 
 - Tables are in name order. Columns are in their declared order and lower case. A table, or a kind
   of change, with nothing in it is omitted.
-- Rows of a table whose key is its identity column are in id order, which is creation order (see
-  *Identities*). Rows keyed by anything else (a random UUID, a hash) are sorted by their content with
+- Rows of a table whose key is its identity column are in id order, which is creation order. Rows keyed by anything else (a random UUID, a hash) are sorted by their content with
   every random part masked (`Placeholders.mask`). Sorted by the raw key, two such rows swapped places
   between runs.
 - A table without a primary key uses the whole row as its key. A repeated row is ranked.
@@ -185,27 +184,40 @@ the union of the two effects.
 
 ## Identities
 
-Ids are **literal** in the goldens and made deterministic by construction. Before each test, once the
-harness has emptied the tables, the recorder sets every identity column's `auto_increment` to the
-table's base plus one. So the first repository a test creates is `3709000001` on every run and in
-every order, and no two tables share an id. The base is
-`(1000 + CRC32(table name) mod 9000) × 1 000 000`, probed upward on a collision, with tables taken in
-name order. That gives ten digits at most, exact in JavaScript. A new table moves only the tables it
-collides with. `manifest.json` lists the bases.
+Once per database, the recorder sets each table's identity counter to a base of its own:
+`(100 + CRC32(table name) mod 900) × 1 000 000`, probed upward on a collision, with tables taken in
+name order. That gives nine digits and a million ids per table, and no two tables share a range. A
+new table moves only the tables it collides with. `manifest.json` lists the bases. After that the
+counters only grow, as they do in production.
 
-The replay does the same: set each table's next identity to `base + 1` before the test (`alter table …
-auto_increment = …` on MySQL, `alter table … alter column id restart with …` on PostgreSQL). Then
-seed the baseline and the `seed` rows **with their recorded ids**. The server's own inserts then get
-the recorded numbers, provided it consumes identities the way Java does. MySQL consumes an
-`auto_increment` value on an insert that fails or rolls back. Expect a Rust handler that validates
-before it inserts, where Java inserted and rolled back, to number the next row differently. That is a
-known source of difference: compare those ids by rank, not by value.
+A golden writes an id as **its table's rank in the test**: `«t_repository#1»` is the first
+repository the test created, whatever number the server gave it. This applies to a JSON integer, and
+to a nine-digit run with no letter or digit beside it in a string (a path, a description). The range
+says which table the number belongs to. A JSON integer id becomes the string placeholder. An id
+created before the test, which should not happen once the harness has emptied the tables, is
+`«t_repository#prior»`. A test's starting point is each table's counter when the test begins, read
+after the harness empties the tables.
 
-A table whose counter could not be reset is named in the test's `notes`, and its ids are as unstable
-as they always were.
+**Why not literal ids, reset before each test.** That was the first design, and it changed what the
+application did. A test then rebuilt the previous test's ids, and a cache keyed by a target and
+stamped by its scans' count and newest id (`LicenseGovernanceService`'s tallies) served the previous
+test's counts. Production never reuses an id.
 
-UUID keys (`t_audit_log`, `t_api_key`, `t_agent`, `t_login_attempt`…) are random. They are replaced,
-like everything below.
+The replay ranks the ids it observes the same way, by order of creation per table within the test,
+and substitutes them into the requests it sends: `«t_repository#1»` in a path is whatever id the
+Rust server gave the first repository it created. Seeds are inserted with ids of the replay's
+choosing, ranked in seed order.
+
+MySQL consumes an `auto_increment` value on an insert that fails or rolls back. Expect a Rust handler
+that validates before it inserts, where Java inserted and rolled back, to give the next row a
+different number. It keeps the same rank only if neither side created another row in between. That
+is a known source of difference. Compare ranks, not numbers.
+
+A table that ran out of its million, or whose counter could not be moved, is named in the test's
+`notes` and in `recorderFailures`.
+
+UUID keys (`t_audit_log`, `t_api_key`, `t_agent`, `t_login_attempt`…) are random. They are replaced
+like everything else, below.
 
 ## Placeholders
 
@@ -242,20 +254,24 @@ Then, on every string, in this order:
 | the SHA-256 hex of a known secret | `«sha256(secret:N)»`. A session's `token_hash`: the replay mints a token, stores its hash and sends it |
 | a known secret, longest first | `«secret:N»` |
 | the first 12 characters of a known API key (its stored prefix) | `«secret:N:prefix»` |
+| 64 hex digits no secret accounts for | `«sha256:N»`. A document's digest, which names it in a path; many are the same on every run, but a document holding a date is not |
 | a UUID, case-insensitive | `«uuid:N»` |
 | an ISO date, date-time or instant from three years back to eleven ahead | `«date»`, `«datetime»` (no zone), `«instant»` (`Z` or an offset). Outside the window it stays literal: `2020-01-01`, the year 9999 |
 | an RFC 1123 date in that window | `«http-date»` |
 | a compact stamp in that window, `20261016T101500Z` or `20261016-1015` | `«stamp»` |
-| a run of 12 to 19 digits with no letter or digit beside it | `«n:N»`. These are `System.nanoTime()` and `currentTimeMillis()` suffixes: `ApiTestBase` names accounts `admin-<nanoTime>`. Identities have ten digits and stay literal |
+| an identity, nine digits in a table's range (see *Identities*) | `«t_<table>#N»` |
+| a run of 12 to 19 digits with no letter or digit beside it | `«n:N»`. These are `System.nanoTime()` and `currentTimeMillis()` suffixes: `ApiTestBase` names accounts `admin-<nanoTime>` |
 
-And by field name, a row's column or a JSON field:
+And by field name: a row's column (an updated row's `from` and `to` count as their column's), or a JSON
+field:
 
 | field | rule |
 |---|---|
 | `code`, `totp`, `totpCode`, `mfaCode`, `otp` holding 6 to 8 digits | `«one-time-code»`. Derived from a random secret and the clock |
 | `window_key` | `<limit>:«window»:<digest>`. `RateWindows` numbers windows from the epoch |
 | `totp_last_step` (an integer) | `«clock-step»` |
-| any field whose name contains `hash` and whose value is, after the rules above, 32 to 128 hex digits | `«digest:N»`. An audit entry's `entry_hash` and `previous_hash` keep their links: entry 2's `previous_hash` is entry 1's `«digest:N»` |
+| any field whose name contains `hash` and whose value is, after the rules above, 32 to 128 hex digits | `«sha256:N»`, numbered with the digests above. An audit entry's `entry_hash` and `previous_hash` keep their links: entry 2's `previous_hash` is entry 1's `«sha256:N»` |
+| a JSON integer in a table's range | the string `«t_<table>#N»` |
 | a JSON integer of 12 to 19 digits | the string `«n:N»` |
 
 Placeholders do not escape anything. A value the test wrote that matches a rule, such as a fixed date
@@ -278,7 +294,7 @@ from the application or the harness, not from the recorder:
 - `concurrent` records (rank and content);
 - audit chain links when one request writes several entries in an order the application draws, such
   as revocations walked in UUID order. The entries are the same and sorted the same, but which
-  `«digest:N»` chains onto which can differ.
+  `«sha256:N»` chains onto which can differ.
 
 Anything else that differs between two recordings is a defect of the recorder or a nondeterminism of
 the application, and both are worth knowing about. Compare two recordings with `diff -r`.
