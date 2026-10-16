@@ -42,6 +42,9 @@ pub const ADMIN: &str = "tok-admin";
 pub const PENDING: &str = "tok-pending";
 pub const USER: &str = "tok-user";
 pub const AUDITOR: &str = "tok-auditor";
+pub const CISO: &str = "tok-ciso";
+pub const CHAMPION: &str = "tok-champion";
+pub const UNREADABLE: &str = "tok-typo";
 pub const READ_KEY: &str = "zsk_read-key";
 pub const AGENT_KEY: &str = "zsk_agent-key";
 pub const SCIM_TOKEN: &str = "scim-token-invented";
@@ -56,6 +59,9 @@ pub fn credentials() -> StaticCredentials {
         .session(PENDING, Principal::session(account("admin", Some(Role::Superuser), true)))
         .session(USER, Principal::session(account("vs-rs-http-user", Some(Role::User), false)))
         .session(AUDITOR, Principal::session(account("auditor", Some(Role::Auditor), false)))
+        .session(CISO, Principal::session(account("ciso", Some(Role::Ciso), false)))
+        .session(CHAMPION, Principal::session(account("champion", Some(Role::SecurityChampion), false)))
+        .session(UNREADABLE, Principal::session(account("typo", None, false)))
         .session("tok-unreadable", Principal::session(account("typo", None, false)))
         .key(READ_KEY, Principal::integration(account("admin", Some(Role::Superuser), false), "key-1", vec![ApiKeyScope::Read]))
         .key(AGENT_KEY, Principal::agent("agent-1"))
@@ -191,6 +197,15 @@ pub fn routes() -> Routes<String> {
         .route(Route::post("/api/v1/rule-sets").requires(Access::SecurityLead).names_no_target().handler(drain))
         .route(Route::post("/api/v1/open-for-keys").requires(Access::Anonymous).names_no_target().handler(nothing))
         .route(Route::get("/scim/v2/Users").requires(Access::Administrator).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/anonymous").requires(Access::Anonymous).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/account").requires(Access::Account).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/administrator").requires(Access::Administrator).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/governance-read").requires(Access::GovernanceRead).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/platform-governor").requires(Access::PlatformGovernor).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/security-lead").requires(Access::SecurityLead).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/write").requires(Access::WriteAccount).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/agent/_t").requires(Access::AgentKey).names_no_target().handler(nothing))
+        .route(Route::get("/api/v1/_t/misuse").requires(Access::Account).names_no_target().handler(who_scoped))
         .route(Route::get("/api/v1/typo").requires(Access::Administrator).names_no_target().handler(nothing))
 }
 

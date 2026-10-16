@@ -476,7 +476,7 @@ async fn bearer_limit(State(chain): State<Arc<Chain>>, request: Request, next: N
     let denial = chain.denial(
         &request,
         &format!(
-            "{} bearer tokens refused from this address within {:?}. Further credentialed requests from it are answered 429 until the window refills.",
+            "{} bearer tokens refused from this address within {}. Further credentialed requests from it are answered 429 until the window refills.",
             chain.config.bearer_failures,
             iso_duration(chain.config.bearer_window)
         ),
@@ -588,5 +588,36 @@ async fn problems(State(chain): State<Arc<Chain>>, request: Request, next: Next)
     match response.extensions().get::<Problem>() {
         Some(problem) if problem.instance().is_none() => problem.clone().at(path).into_response(),
         _ => response,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_window_is_printed_as_java_prints_a_duration() {
+        assert_eq!(iso_duration(Duration::from_secs(300)), "PT5M");
+        assert_eq!(iso_duration(Duration::from_secs(60)), "PT1M");
+        assert_eq!(iso_duration(Duration::from_secs(5400)), "PT1H30M");
+        assert_eq!(iso_duration(Duration::from_secs(45)), "PT45S");
+        assert_eq!(iso_duration(Duration::from_millis(500)), "PT0.5S");
+        assert_eq!(iso_duration(Duration::ZERO), "PT0S");
+    }
+
+    #[test]
+    fn a_caller_is_never_told_to_wait_zero_seconds() {
+        assert_eq!(seconds(Duration::from_millis(400)), 1);
+        assert_eq!(seconds(Duration::from_millis(1900)), 1);
+        assert_eq!(seconds(Duration::from_secs(6)), 6);
+    }
+
+    #[test]
+    fn the_bearer_scheme_and_its_token_are_read_as_the_java_filter_reads_them() {
+        assert_eq!(bearer_token("Bearer abc"), Some("abc"));
+        assert_eq!(bearer_token("bEaReR   abc"), Some("abc"));
+        assert_eq!(bearer_token("Bearer"), None);
+        assert_eq!(bearer_token("Basic abc"), None);
+        assert_eq!(bearer_token("Bearer "), None);
     }
 }
