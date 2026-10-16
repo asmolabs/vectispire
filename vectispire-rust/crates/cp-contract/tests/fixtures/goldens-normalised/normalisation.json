@@ -1,0 +1,5 @@
+{
+  "stringPatterns": [ { "regex": "\\bitem-[0-9]+\\b", "placeholder": "<item>" } ],
+  "keyPlaceholders": [ { "key": "^(id|.*Id)$", "placeholder": "<id>" } ],
+  "volatileHeaders": [ "x-served-by" ]
+}

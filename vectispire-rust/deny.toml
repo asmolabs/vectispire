@@ -43,6 +43,7 @@ allow = [
     "CDLA-Permissive-2.0", # webpki-roots: Mozilla's CA list, compiled in
     "ISC",
     "MIT",
+    "MIT-0", # borrow-or-share, which jsonschema's URI reader (fluent-uri) uses: no attribution required
     "Unicode-3.0",
 ]
 
@@ -71,8 +72,9 @@ deny = [
     { crate = "rusqlite", reason = "decision 0003: the agent holds no database connection" },
     { crate = "sea-orm", reason = "decision 0003: the agent holds no database connection" },
     # The agent opens no port: the server stack is linkable by the control plane's crates only. A wrapper is a
-    # crate allowed to depend on it; any other dependent — the agent above all — fails the check.
-    { crate = "axum", wrappers = ["vectispire-cp-http"], reason = "the agent opens no port" },
+    # crate allowed to depend on it directly; any other dependent — the agent above all — fails the check, and
+    # crates/agent/tests/isolation.rs forbids it in the agent's graph whatever this says.
+    { crate = "axum", wrappers = ["vectispire-cp-http", "vectispire-cp-contract"], reason = "the agent opens no port; the control plane's crates may" },
     { crate = "actix-web", reason = "the agent opens no port" },
     { crate = "warp", reason = "the agent opens no port" },
     { crate = "rocket", reason = "the agent opens no port" },
