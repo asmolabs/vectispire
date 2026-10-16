@@ -403,6 +403,36 @@ réponse — le réglage activé, il n'y en a le plus souvent aucune.
 marquée comme étant de Vectispire, jusqu'à ce que quelqu'un y réponde par-dessus. La réponse « comme
 mesuré » en un clic demeure.
 
+## Contacts et rappels hebdomadaires
+
+La **colonne de contact** d'un modèle dit à qui chaque ligne doit être demandée, sous la forme d'un rôle —
+*PO*, *BA*, *Arch*. La carte **Contacts** de la page de la checklist liste chacun de ces **profils**, tels
+que les nomme la version sur laquelle la checklist est ouverte, avec le nombre de ses lignes encore à
+remplir, et lie chacun à un compte
+([décision 0044](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0044-checklist-contacts-are-reminded-weekly.md)) :
+
+- **Chaque valeur de la colonne est un profil, sauf `AUTO`**, qui marque une ligne que Vectispire mesure.
+  Une cellule qui en nomme deux — *PO / BA* — est la ligne des deux profils ; *Arch* et *ARCH* sont un seul
+  profil, affiché comme il a été écrit la première fois. Un profil qu'une version plus récente ne nomme plus
+  garde son lien, inutilisé, jusqu'à ce qu'une version le nomme de nouveau.
+- **Un profil est lié à un compte qui peut remplir la checklist** : actif, d'un rôle qui répond aux
+  checklists (ni l'auditeur, ni le gouverneur de plateforme), et qui voit le projet entier. La liste ne
+  propose que ces comptes, par leur nom — jamais par leur adresse e-mail. Lier et délier revient à qui peut
+  répondre à la checklist, et c'est inscrit au journal d'audit.
+- **Une fois par semaine**, avec **Rappeler chaque semaine les contacts des checklists** activé
+  ([paramètres](../administration/settings.fr.md#notifications)) et le relais de messagerie configuré,
+  chaque compte lié reçoit un e-mail, à sa propre adresse, qui nomme chaque ligne de ses profils encore
+  **sans réponse ou en attente de confirmation** dans le brouillon du projet, pour tous ses projets. Une
+  révision soumise n'est à remplir par personne tant qu'elle n'est pas renvoyée, et ne rappelle personne.
+- **Un profil qui a de telles lignes et personne à rappeler revient aux CISO** : lié à personne, ou à un
+  compte supprimé depuis, désactivé, qui ne peut plus remplir la checklist, ou sans adresse e-mail. La carte
+  le dit à côté du profil — *Rappelé aux CISO* — et chaque CISO actif qui a une adresse reçoit, la même
+  semaine, la liste de ces profils et la raison.
+
+Le rappel est en texte brut, en anglais comme les autres e-mails de Vectispire, et renvoie à la page de la
+checklist quand l'adresse publique du déploiement (`VECTISPIRE_PUBLIC_URL`) est définie. Un destinataire
+dont le relais refuse le message est réessayé l'heure suivante ; les autres ne reçoivent rien deux fois.
+
 ## Le document
 
 `GET /api/v1/projects/{id}/checklists/{revision}/document` renvoie la révision comme un document à
@@ -494,7 +524,9 @@ description qui nomme Vectispire —, chaque
 preuve jointe ou retirée, la soumission, le renvoi, l'approbation et une approbation refusée sont
 inscrits au [journal d'audit](../administration/audit-log.fr.md), de même que chaque téléchargement
 du document, avec son SHA-256. Une approbation est signalée au SIEM
-comme `VECTI-SEC-025` ; une approbation refusée et un renvoi comme `VECTI-SEC-026`.
+comme `VECTI-SEC-025` ; une approbation refusée et un renvoi comme `VECTI-SEC-026`. Un profil lié ou délié
+est consigné comme `CHECKLIST_CONTACT_CHANGED`, et chaque rappel hebdomadaire envoyé comme
+`CHECKLIST_REMINDER_SENT`, qui nomme le compte destinataire — ni l'un ni l'autre n'est signalé au SIEM.
 
 ## À lire aussi
 

@@ -466,7 +466,10 @@ is the one that was signed. A draft or submitted revision renders on request, un
 - Container images in a checklist: they are not filed into projects (0023).
 - Checklists per repository, per solution, or organisation-wide (that is the SoA).
 - Legacy `.xls`, `.ods`, macro-enabled workbooks, and formulas evaluated by the product.
-- Assigning items to accounts from the contact column, reminders, due dates, notifications.
+- Assigning items to accounts from the contact column, reminders, due dates, notifications. *Since
+  [0044](0044-checklist-contacts-are-reminded-weekly.md) (2026-10-16): each profile the column names is
+  linked to an account per project, and reminded weekly of its lines still to fill in; due dates remain
+  out.*
 - Running DAST or a penetration test: the product records that one was done.
 - Coverage per file, individual test cases, trends.
 - Signed checklists in the compliance evidence bundle — a later step, which will make `compliance`
@@ -571,7 +574,8 @@ Each with the recommendation this proposal makes.
 15. **Signed checklists in the evidence bundle.** *Recommended: a later lot, once a signed-off
     revision exists to include.*
 16. **The contact column.** *Recommended: text only in v1; mapping roles to teams for assignment is a
-    later step.*
+    later step.* — Taken up by [0044](0044-checklist-contacts-are-reminded-weekly.md): roles are linked
+    to one account per project, not to teams.
 
 ## Implementation
 

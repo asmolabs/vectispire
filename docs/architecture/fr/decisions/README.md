@@ -47,6 +47,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0041](0041-will-not-fix-is-not-not-affected.md) | « Ne sera pas corrigé » n'est pas « non affecté » : un risque accepté reste exposé dans le VEX, et chaque format lit le même triage | acceptée |
 | [0042](0042-a-report-document-is-read-by-who-sees-what-it-carried.md) | Un document de rapport est lu par qui voit ce qu'il contient, pas seulement par qui voit le projet aujourd'hui | acceptée |
 | [0043](0043-what-1-0-promises.md) | Ce que promet 1.0 : une API additive, des agents d'une version en retard, deux moteurs, une instance, une ligne maintenue | proposée |
+| [0044](0044-checklist-contacts-are-reminded-weekly.md) | Les contacts d'une checklist sont liés à des comptes et rappelés chaque semaine | acceptée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes

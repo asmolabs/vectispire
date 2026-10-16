@@ -47,6 +47,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0041](0041-will-not-fix-is-not-not-affected.md) | "Will not fix" is not "not affected": an accepted risk stays exposed in VEX, and every format reads the same triage | accepted |
 | [0042](0042-a-report-document-is-read-by-who-sees-what-it-carried.md) | A report document is read by who sees what it carried, not only who sees the project now | accepted |
 | [0043](0043-what-1-0-promises.md) | What 1.0 promises: an additive API, agents one version behind, two engines, one instance, a supported line | proposed |
+| [0044](0044-checklist-contacts-are-reminded-weekly.md) | A checklist's contacts are linked to accounts and reminded weekly | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short

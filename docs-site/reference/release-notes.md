@@ -114,6 +114,18 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   follows the reader's language for its own words, includes the repository's coverage grid (the ten
   categories with their state and why), and prints the model's text as written.
 
+- **A checklist's contacts are linked to accounts and reminded weekly.** The profiles a template's contact
+  column names — *PO*, *BA*, *Arch*, every value but `AUTO`, a cell such as *PO / BA* naming both — are
+  listed on the checklist's page under **Contacts**, each linked to an account that can fill the checklist
+  in (`GET`, `PUT`, `DELETE /api/v1/projects/{id}/checklists/contacts/{profile}`, and `/candidates` for the
+  accounts offered). With the new setting **Remind checklist contacts weekly** (`checklist_reminders_enabled`,
+  off by default) and the mail relay configured, each linked account receives once a week the lines of its
+  profiles still unanswered or waiting for confirmation, and the CISOs the profiles nobody is reminded for —
+  linked to nobody, or to an account deleted, deactivated, unable to fill the checklist in or without an
+  address. Audited as `CHECKLIST_CONTACT_CHANGED` and `CHECKLIST_REMINDER_SENT`; migration V91 adds
+  `t_checklist_contact` ([security checklists](../guide/security-checklists.md#contacts-and-weekly-reminders),
+  decision 0044).
+
 ### Security {#security-0111}
 
 - **The API discovery reports at most 50,000 endpoints per repository, and 50,000 paths per contract.**

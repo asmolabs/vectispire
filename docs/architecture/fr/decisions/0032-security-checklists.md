@@ -501,7 +501,9 @@ sans signature, sa feuille `Evidence` s'ouvrant sur *« Brouillon — non valid�
 - Les checklists par dépôt, par solution, ou pour toute l'organisation (c'est la DdA).
 - Les `.xls` anciens, les `.ods`, les classeurs à macros, et les formules évaluées par le produit.
 - L'affectation des lignes à des comptes depuis la colonne de contact, les rappels, les échéances, les
-  notifications.
+  notifications. *Depuis [0044](0044-checklist-contacts-are-reminded-weekly.md) (2026-10-16) : chaque profil
+  que nomme la colonne est lié à un compte par projet, et rappelé chaque semaine de ses lignes encore à
+  remplir ; les échéances restent hors périmètre.*
 - Exécuter un DAST ou un test de pénétration : le produit enregistre qu'il a été fait.
 - La couverture par fichier, les cas de test individuels, les tendances.
 - Les checklists signées dans le dossier de preuves de conformité — une étape ultérieure, qui fera
@@ -620,7 +622,8 @@ Chacune avec la recommandation de cette proposition.
 15. **Les checklists signées dans le dossier de preuves.** *Recommandé : un lot ultérieur, une fois
     qu'une révision validée existe pour y figurer.*
 16. **La colonne de contact.** *Recommandé : texte seul en v1 ; associer les rôles à des équipes pour
-    l'affectation est une étape ultérieure.*
+    l'affectation est une étape ultérieure.* — Repris par [0044](0044-checklist-contacts-are-reminded-weekly.md) :
+    les rôles sont liés à un compte par projet, pas à des équipes.
 
 ## Mise en œuvre
 

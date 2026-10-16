@@ -125,6 +125,18 @@
   OWASP suit la langue du lecteur pour ses propres mots, contient la grille de couverture du dépôt (les dix
   catégories avec leur état et leur raison) et reproduit le texte du modèle tel qu'il l'a écrit.
 
+- **Les contacts d'une checklist sont liés à des comptes et rappelés chaque semaine.** Les profils que nomme
+  la colonne de contact d'un modèle — *PO*, *BA*, *Arch*, chaque valeur sauf `AUTO`, une cellule comme
+  *PO / BA* nommant les deux — sont listés sur la page de la checklist sous **Contacts**, chacun lié à un
+  compte qui peut remplir la checklist (`GET`, `PUT`, `DELETE /api/v1/projects/{id}/checklists/contacts/{profile}`,
+  et `/candidates` pour les comptes proposés). Avec le nouveau paramètre **Rappeler chaque semaine les
+  contacts des checklists** (`checklist_reminders_enabled`, désactivé par défaut) et le relais de messagerie
+  configuré, chaque compte lié reçoit une fois par semaine les lignes de ses profils encore sans réponse ou
+  en attente de confirmation, et les CISO les profils que personne ne rappelle — liés à personne, ou à un
+  compte supprimé, désactivé, qui ne peut plus remplir la checklist ou sans adresse. Consigné comme
+  `CHECKLIST_CONTACT_CHANGED` et `CHECKLIST_REMINDER_SENT` ; la migration V91 ajoute `t_checklist_contact`
+  ([checklists de sécurité](../guide/security-checklists.fr.md#contacts-et-rappels-hebdomadaires), décision 0044).
+
 ### Sécurité {#securite-0111}
 
 - **La découverte d'API rapporte au plus 50 000 points d'accès par dépôt, et 50 000 chemins par contrat.**
