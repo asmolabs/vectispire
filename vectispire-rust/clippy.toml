@@ -1,3 +1,6 @@
 # A test that unwraps fails, which is the point; shipped code reaches neither (see Cargo.toml lints).
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
+# A test may print what it saw when it fails; shipped code writes through `tracing` (Cargo.toml lints).
+allow-print-in-tests = true
+allow-dbg-in-tests = true

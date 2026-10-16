@@ -6,6 +6,8 @@
 # reads the resolved graph to prove it.
 [workspace]
 resolver = "3"
+# fuzz/ is a workspace of its own, on a nightly compiler: none of it ships (fuzz/Cargo.toml).
+exclude = ["fuzz"]
 members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls"]
 
 [workspace.package]
@@ -19,13 +21,34 @@ publish = false
 # Denied, not forbidden: libgit2's global options and transport registry are reached through two
 # `unsafe` calls, each allowed where it is made, with the reason beside it (crates/git/src/init.rs).
 unsafe_code = "deny"
+# An `unsafe fn`'s body is not one big unsafe block: each operation in it is marked and justified.
+unsafe_op_in_unsafe_fn = "deny"
 missing_debug_implementations = "warn"
 
+# **Denied, not warned**: `check.sh` and CI run clippy with `-D warnings`, so a warning already fails —
+# but a lint at `deny` also fails a plain `cargo build`, where nobody passes the flag. The set is what
+# matters for an agent that reads hostile input and holds credentials (security/README.md):
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
-unwrap_used = "warn"
-expect_used = "warn"
-dbg_macro = "warn"
+# A panic on a scanner's output ends that scan: on input the agent does not control, an unwrap is a
+# denial of service waiting for its report. Tests may: clippy.toml allows them there.
+unwrap_used = "deny"
+expect_used = "deny"
+# Unfinished code does not ship: `todo!()` is a panic with a plan.
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+# The agent writes through `tracing`, whose fields are typed — a `println!` of a request, a credential
+# or a scanner's stderr would bypass the one place that knows what a `Secret` is.
+print_stdout = "deny"
+print_stderr = "deny"
+# The libgit2 calls in crates/git/src/init.rs are the only `unsafe`; each says why it is sound.
+undocumented_unsafe_blocks = "deny"
+mem_forget = "deny"
+# Indexing, slicing (of a `str` too, which panics inside a character) and arithmetic are not denied:
+# the URL and known-hosts parsers use them on bounds they check first, and rewriting them is the
+# owning stream's work. They are held to a ceiling that only goes down (security/lint-ceilings.txt),
+# and the parsers that carry them are fuzzed every night (fuzz/).
 
 [workspace.dependencies]
 vectispire-domain = { path = "crates/domain" }
@@ -76,3 +99,7 @@ codegen-units = 1
 lto = "fat"
 opt-level = "s"
 strip = "symbols"
+# **An overflow panics in the shipped binary too**, rather than wrapping. Release builds wrap by
+# default, and a length or an offset computed from a scanner's output that wraps is a wrong answer
+# given silently; a panic ends that one scan, which reports a failure — absent, never wrong.
+overflow-checks = true

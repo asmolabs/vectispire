@@ -1,0 +1,6 @@
+# lint                    ceiling   — counted by security/lint-ceilings.sh over --lib --bins
+# Lower a ceiling in the commit that removes a use; never raise one to make the check pass.
+indexing_slicing          29        # mostly crates/domain/src/repository_url.rs and crates/git/src/known_hosts.rs
+string_slice              7         # crates/domain/src/repository_url.rs, on ASCII positions it found itself
+arithmetic_side_effects   44        # offsets in the same two parsers; release builds now panic on overflow
+cast_possible_truncation  9         # crates/scanners/src/jackson.rs (Jackson's number model), net.rs, testkit
