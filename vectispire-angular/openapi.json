@@ -1443,6 +1443,83 @@
         },
         "type" : "object"
       },
+      "ChecklistContactCandidate" : {
+        "properties" : {
+          "accountId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "description" : "The display name, or the user name when that is not an e-mail address; null when neither may be printed.",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "accountId" ],
+        "type" : "object"
+      },
+      "ChecklistContactRequest" : {
+        "properties" : {
+          "accountId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistContactView" : {
+        "properties" : {
+          "accountId" : {
+            "description" : "The account linked; null while none is.",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "accountName" : {
+            "description" : "The linked account's name, as the candidates name it; null while none is linked, for an account gone, and when neither name may be printed.",
+            "type" : [ "string", "null" ]
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "openLines" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "warning" : {
+            "description" : "Why the linked account would not be reminded; null when it would, and while none is linked.",
+            "enum" : [ "account_gone", "account_inactive", "no_email", "cannot_fill" ],
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "openLines" ],
+        "type" : "object"
+      },
+      "ChecklistContactsView" : {
+        "properties" : {
+          "draft" : {
+            "type" : "boolean"
+          },
+          "profiles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistContactView"
+            },
+            "type" : "array"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "revision" : {
+            "description" : "The newest revision, whose version named the profiles; null while the project has no checklist.",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "draft", "projectId" ],
+        "type" : "object"
+      },
       "ChecklistDeriveRequest" : {
         "properties" : {
           "label" : {
@@ -17195,6 +17272,147 @@
           }
         },
         "summary" : "Open project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/contacts" : {
+      "get" : {
+        "description" : "The profiles the contact column of the project's newest checklist version names — every value but AUTO, a cell such as \"PO / BA\" naming both, compared without case — each with the account linked to it, the lines it still has to fill in in the draft, and a warning when that account would not be reminded: account_gone, account_inactive, no_email, cannot_fill. Empty while the project has no checklist. 404 for a project the caller does not see whole.",
+        "operationId" : "checklistContacts",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistContactsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List checklist contacts",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/contacts/candidates" : {
+      "get" : {
+        "description" : "The accounts a profile of this project may be linked to: active, of a role that answers checklists, and seeing the whole project — each by its id and a name, never an e-mail address. 404 for a project the caller does not see whole.",
+        "operationId" : "checklistContactCandidates",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChecklistContactCandidate"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List checklist contact candidates",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/contacts/{profile}" : {
+      "delete" : {
+        "description" : "Unlinks the profile: its lines are listed to the CISOs until it is linked again. Unlinking a profile linked to nobody changes nothing. 404 for a project the caller does not see whole.",
+        "operationId" : "unlinkChecklistContact",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "profile",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistContactsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Unlink checklist contact",
+        "tags" : [ "Project checklists" ]
+      },
+      "put" : {
+        "description" : "Links the profile — its key or the column's spelling, compared without case — to an account, in place of the one it was linked to; audited. 400 without accountId, or for an account that does not exist, is deactivated or cannot fill in this project's checklist; 404 for a project not seen whole, and for a profile its newest checklist version does not name.",
+        "operationId" : "linkChecklistContact",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "profile",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistContactRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistContactsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Link checklist contact",
         "tags" : [ "Project checklists" ]
       }
     },

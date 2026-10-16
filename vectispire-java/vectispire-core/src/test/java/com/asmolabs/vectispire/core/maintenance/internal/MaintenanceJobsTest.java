@@ -37,6 +37,8 @@ import com.asmolabs.vectispire.core.maintenance.MaintenanceTask;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.outbox.internal.NotificationRelayTask;
 import com.asmolabs.vectispire.core.outbox.internal.SentMessagesTask;
+import com.asmolabs.vectispire.core.checklists.ChecklistReminderService;
+import com.asmolabs.vectispire.core.checklists.internal.ChecklistReminderTask;
 import com.asmolabs.vectispire.core.posture.PostureDigestService;
 import com.asmolabs.vectispire.core.posture.internal.WeeklyDigestTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportQueue;
@@ -117,6 +119,7 @@ class MaintenanceJobsTest {
             TriageExpiryTask.class,
             SlaBreachTask.class,
             WeeklyDigestTask.class,
+            ChecklistReminderTask.class,
             ComplianceHistoryTask.class,
             OwaspWeeklyCoverageTask.class,
             SessionCleanupTask.class,
@@ -143,6 +146,7 @@ class MaintenanceJobsTest {
     private IssueTriageService triage;
     private SlaBreachSignals breaches;
     private PostureDigestService digest;
+    private ChecklistReminderService reminders;
     private TargetDeletionService targetDeletion;
     private ComplianceHistoryService complianceHistory;
     private OwaspWeeklyCoverageService owaspWeekly;
@@ -173,6 +177,7 @@ class MaintenanceJobsTest {
         triage = mock(IssueTriageService.class);
         breaches = mock(SlaBreachSignals.class);
         digest = mock(PostureDigestService.class);
+        reminders = mock(ChecklistReminderService.class);
         targetDeletion = mock(TargetDeletionService.class);
         complianceHistory = mock(ComplianceHistoryService.class);
         owaspWeekly = mock(OwaspWeeklyCoverageService.class);
@@ -211,6 +216,7 @@ class MaintenanceJobsTest {
                 new TriageExpiryTask(triage),
                 new SlaBreachTask(breaches),
                 new WeeklyDigestTask(digest),
+                new ChecklistReminderTask(reminders),
                 new ComplianceHistoryTask(complianceHistory),
                 new OwaspWeeklyCoverageTask(owaspWeekly),
                 new SessionCleanupTask(sessions),
@@ -257,7 +263,7 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, trackerToken, forgeTokens, backfill, identities, triage, breaches, digest,
-                complianceHistory, owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, buildSboms, reviews, feed,
+                reminders, complianceHistory, owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, buildSboms, reviews, feed,
                 forgeReviews,
                 targetDeletion);
         turn.verify(retention).prune();
@@ -278,6 +284,9 @@ class MaintenanceJobsTest {
         // which deadlines have passed, so without this call no SLA breach reaches the SOC.
         turn.verify(breaches).signalCrossings();
         turn.verify(digest).runOnce();
+        // The only caller of the checklist reminder: without it the contacts a project links are a list nobody is
+        // ever written to.
+        turn.verify(reminders).runOnce();
         turn.verify(complianceHistory).capture();
         // The only caller of the weekly OWASP record: a week it does not run in is a week whose state
         // nobody can recover afterwards. After the expiry, like the compliance capture.

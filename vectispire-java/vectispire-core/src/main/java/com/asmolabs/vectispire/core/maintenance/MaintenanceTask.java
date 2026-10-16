@@ -82,6 +82,8 @@ public interface MaintenanceTask {
         /** After the expiry: an acceptance that lapsed puts its issue back among those whose deadline counts. */
         public static final int SLA_BREACHES = 510;
         public static final int WEEKLY_DIGEST = 600;
+        /** Beside the posture report, after the expiry: the checklist lines still to fill in, to their contacts. */
+        public static final int CHECKLIST_REMINDERS = 610;
         public static final int COMPLIANCE_HISTORY = 700;
         /** Beside the compliance capture, and after the expiry for the same reason. */
         public static final int OWASP_WEEKLY_COVERAGE = 710;

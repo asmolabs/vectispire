@@ -76,6 +76,7 @@ workspace "Vectispire Architecture" "C4 Model Architecture diagrams for Vectispi
         m_checklists -> m_access "uses"
         m_checklists -> m_inventory "uses"
         m_checklists -> m_issues "uses"
+        m_checklists -> m_notifications "uses"
         m_checklists -> m_plugins "uses"
         m_checklists -> m_scanning "uses"
         m_checklists -> m_targets "uses"

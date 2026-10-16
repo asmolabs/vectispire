@@ -26,6 +26,9 @@ public interface ChecklistRepository extends JpaRepository<ChecklistEntity, Long
 
     Optional<ChecklistEntity> findFirstByProjectIdOrderByRevisionDesc(Long projectId);
 
+    /** Every revision in one status, by project — the weekly reminder reads the drafts (decision 0044). */
+    List<ChecklistEntity> findByStatusOrderByProjectIdAsc(String status);
+
     /** A write to a draft's lines — an answer, a proof — counted, if it is still the draft read. */
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)
