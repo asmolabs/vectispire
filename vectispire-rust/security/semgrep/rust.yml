@@ -1,0 +1,105 @@
+# The Rust code's own rules, run by security/semgrep.sh with the semgrep image ScannerImages pins.
+#
+# Kept here rather than pulled from the registry: a ruleset fetched at run time is whatever was
+# published that morning, and these rules say what *this* agent must never do — each one is a
+# property the README or a decision states, turned into something a diff cannot slip past.
+# Tests and the test support crate are out of scope: they start containers and print on purpose.
+rules:
+  - id: vs-rust-tls-verification-disabled
+    message: >-
+      Certificate or host-name verification is switched off. The agent trusts the authorities
+      vectispire-tls builds (the compiled-in roots, or VECTISPIRE_TLS_CA_BUNDLE) and nothing else; a
+      private CA goes in the bundle, never past the check.
+    severity: ERROR
+    languages: [rust]
+    pattern-either:
+      - pattern: $B.danger_accept_invalid_certs(...)
+      - pattern: $B.danger_accept_invalid_hostnames(...)
+      - pattern: $C.dangerous()
+      # A verifier of one's own is how rustls is told to accept anything; semgrep's Rust grammar
+      # reads `impl Trait for T` loosely, so this one is matched as text.
+      - pattern-regex: impl\s*(<[^>]*>)?\s*([A-Za-z_][A-Za-z0-9_]*::)*(ServerCertVerifier|ClientCertVerifier)\s+for\b
+
+  - id: vs-rust-http-client-outside-tls
+    message: >-
+      An HTTP client built outside vectispire-tls. That crate is the one place that sets the trust,
+      refuses every redirect and requires HTTPS; a client built here has none of the three.
+    severity: ERROR
+    languages: [rust]
+    paths:
+      exclude: [/crates/tls/, /crates/testkit/, "**/tests/**"]
+    patterns:
+      # The in-file unit tests, by the name the workspace gives them (semgrep's Rust grammar does not
+      # match the `#[cfg(test)]` attribute itself).
+      - pattern-not-inside: |
+          mod tests { ... }
+      - pattern-either:
+          - pattern: reqwest::Client::new()
+          - pattern: reqwest::Client::builder()
+          - pattern: reqwest::blocking::Client::new()
+          - pattern: reqwest::blocking::Client::builder()
+          - pattern: reqwest::get(...)
+          - pattern: reqwest::blocking::get(...)
+
+  - id: vs-rust-redirect-followed
+    message: >-
+      A redirect policy that follows. A redirect is refused to any host (GitClone's and the control
+      plane client's rule): following one walks a request to an address nobody validated.
+    severity: ERROR
+    languages: [rust]
+    pattern-either:
+      - pattern: reqwest::redirect::Policy::limited(...)
+      - pattern: reqwest::redirect::Policy::custom(...)
+      - pattern: reqwest::redirect::Policy::default()
+
+  - id: vs-rust-process-spawned
+    message: >-
+      The agent starts a program. It is built without `git`, `ssh` or a shell on purpose (Dockerfile.agent):
+      a clone is libgit2 in-process and a scanner is a container started through the Docker API, so that
+      no configuration file on the host can bypass a host-key check or run something else.
+    severity: ERROR
+    languages: [rust]
+    paths:
+      exclude: [/crates/testkit/, "**/tests/**", /fuzz/]
+    patterns:
+      # The in-file unit tests, by the name the workspace gives them (semgrep's Rust grammar does not
+      # match the `#[cfg(test)]` attribute itself).
+      - pattern-not-inside: |
+          mod tests { ... }
+      - pattern-either:
+          - pattern: std::process::Command::new(...)
+          - pattern: Command::new(...)
+          - pattern: tokio::process::Command::new(...)
+
+  - id: vs-rust-secret-logged
+    message: >-
+      A secret's value is handed to a log line. `Secret` prints `***` everywhere it is formatted;
+      `expose()` is for the one call that sends it, never for tracing.
+    severity: ERROR
+    languages: [rust]
+    pattern-either:
+      - pattern: tracing::$LEVEL!(..., <... $S.expose() ...>, ...)
+      - pattern: $LEVEL!(..., <... $S.expose() ...>, ...)
+    # The macro name alone is not enough to tell a log from anything else: restrict to tracing's.
+    metavariable-regex:
+      metavariable: $LEVEL
+      regex: ^(trace|debug|info|warn|error|event)$
+
+  - id: vs-rust-weak-randomness
+    message: >-
+      A non-cryptographic or seeded random generator. Keys and nonces come from the operating system
+      (rand_core::OsRng), as crates/crypto draws them.
+    severity: ERROR
+    languages: [rust]
+    paths:
+      exclude: [/crates/testkit/, "**/tests/**", /fuzz/]
+    patterns:
+      # The in-file unit tests, by the name the workspace gives them (semgrep's Rust grammar does not
+      # match the `#[cfg(test)]` attribute itself).
+      - pattern-not-inside: |
+          mod tests { ... }
+      - pattern-either:
+          - pattern: rand::thread_rng()
+          - pattern: rand::rng()
+          - pattern: $R::seed_from_u64(...)
+          - pattern: SmallRng::$F(...)
