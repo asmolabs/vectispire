@@ -56,6 +56,9 @@ final class Placeholders {
     private static final Set<String> ONE_TIME_CODE_FIELDS = Set.of("code", "totp", "totpcode", "mfacode", "otp");
     private static final Pattern ONE_TIME_CODE = Pattern.compile("\\d{6,8}");
 
+    /** Integers counted from the epoch: the TOTP step a code was last accepted at. */
+    private static final Set<String> CLOCK_COUNTERS = Set.of("totp_last_step", "totplaststep");
+
     /** A digest left once the known secrets' have been named: a chain link, a hash of something random. */
     private static final Pattern HEX_DIGEST = Pattern.compile("(?i)[0-9a-f]{32,128}");
 
@@ -145,6 +148,24 @@ final class Placeholders {
             passwordCandidates.putIfAbsent(value, passwordCandidates.size());
         }
     }
+
+    /**
+     * A value with everything random masked and nothing numbered: the order rows keyed by a random UUID
+     * are shown in. Sorted by their raw key, two such rows swapped places from one run to the next, and
+     * the ordinals their values were given in that order swapped with them.
+     */
+    static String mask(String text) {
+        String out = PASSWORD_HASH.matcher(text).replaceAll("P");
+        out = SEALED.matcher(out).replaceAll("S");
+        out = API_KEY.matcher(out).replaceAll("K");
+        out = UUID.matcher(out).replaceAll("U");
+        out = ISO_DATE_TIME.matcher(out).replaceAll("D");
+        out = HEX_ANY.matcher(out).replaceAll("H");
+        out = RANDOM_TOKEN.matcher(out).replaceAll("T");
+        return LONG_NUMBER.matcher(out).replaceAll("N");
+    }
+
+    private static final Pattern HEX_ANY = Pattern.compile("(?i)(?<![0-9a-z])[0-9a-f]{32,}(?![0-9a-z])");
 
     /** The first pass: registers every credential a record carries, before any of it is rendered. */
     void collect(JsonNode node, String fieldName) {
@@ -245,6 +266,9 @@ final class Placeholders {
                         key -> digests.size() + 1) + "»";
             }
             return JsonNodeFactory.instance.textNode(rendered);
+        }
+        if (node.isIntegralNumber() && CLOCK_COUNTERS.contains(fieldName == null ? "" : fieldName.toLowerCase(Locale.ROOT))) {
+            return JsonNodeFactory.instance.textNode("«clock-step»");
         }
         if (node.isIntegralNumber() && LONG_NUMBER.matcher(node.asText()).matches()) {
             return JsonNodeFactory.instance.textNode(longNumber(node.asText()));

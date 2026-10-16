@@ -268,6 +268,11 @@ final class RowSnapshots {
                     updated.add(update);
                 }
             }
+            if (!numericKey(table)) {
+                inserted = byMaskedContent(inserted);
+                updated = byMaskedContent(updated);
+                deleted = byMaskedContent(deleted);
+            }
             if (!inserted.isEmpty() || !updated.isEmpty() || !deleted.isEmpty()) {
                 ObjectNode tableChanges = JsonNodeFactory.instance.objectNode();
                 if (!inserted.isEmpty()) {
@@ -293,12 +298,32 @@ final class RowSnapshots {
             if (rows == null || rows.count() == 0) {
                 continue;
             }
-            ArrayNode array = dump.putArray(table.name());
+            ArrayNode array = JsonNodeFactory.instance.arrayNode();
             Map<List<Object>, List<Object>> sorted = new TreeMap<>(RowSnapshots::compareKeys);
             sorted.putAll(rows.byKey());
             sorted.values().forEach(row -> array.add(row(table, row)));
+            dump.set(table.name(), numericKey(table) ? array : byMaskedContent(array));
         }
         return dump;
+    }
+
+    /**
+     * Whether the table's key is its identity column, which {@link #resetIdentities} makes the same on
+     * every run: rows then keep the order they were created in. Any other key — a random UUID, a hash —
+     * orders rows by chance, so they are shown in the order of their content with the random parts
+     * masked ({@link Placeholders#mask}), the raw key breaking a tie between rows nothing tells apart.
+     */
+    private static boolean numericKey(Table table) {
+        return table.autoIncrement() && table.key().size() == 1;
+    }
+
+    private static ArrayNode byMaskedContent(ArrayNode rows) {
+        List<JsonNode> list = new ArrayList<>();
+        rows.forEach(list::add);
+        list.sort(java.util.Comparator.comparing(row -> Placeholders.mask(row.toString())));
+        ArrayNode sorted = JsonNodeFactory.instance.arrayNode();
+        list.forEach(sorted::add);
+        return sorted;
     }
 
     private static ObjectNode row(Table table, List<Object> values) {
