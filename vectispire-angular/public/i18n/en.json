@@ -457,7 +457,9 @@
       "report_downloaded": "Report downloaded",
       "integration_token_expiring": "Integration token expires soon",
       "integration_token_stopped": "Integration token stopped working",
-      "integration_token_restored": "Integration token working again"
+      "integration_token_restored": "Integration token working again",
+      "checklist_contact_changed": "Checklist contact changed",
+      "checklist_reminder_sent": "Weekly checklist reminder sent"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",
@@ -3263,6 +3265,25 @@
     "subtitle": "Over the repositories and images filed in the solution’s projects.",
     "not_found": "This solution does not exist, or you see none of its repositories and images.",
     "error_load": "The solution’s compliance could not be computed."
+  },
+  "checklist_contacts": {
+    "title": "Contacts",
+    "intro": "Each profile of the template's contact column — PO, BA, Arch… — linked to the account that fills in its lines. Once a week, with reminders switched on, that account receives by e-mail its lines still unanswered or waiting for confirmation; a profile linked to nobody, or to an account that would not be reminded, is listed to the CISOs instead.",
+    "none": "The checklist's contact column names no profile.",
+    "profile": "Profile",
+    "open_lines": "Lines to fill in",
+    "account": "Account",
+    "nobody": "Nobody",
+    "account_n": "Account {{id}}",
+    "choose": "Account linked to {{profile}}",
+    "ciso_fallback": "Reminded to the CISOs",
+    "warning_account_gone": "Account deleted",
+    "warning_account_inactive": "Account deactivated",
+    "warning_no_email": "No e-mail address",
+    "warning_cannot_fill": "Can no longer fill in this checklist",
+    "load_failed": "The contacts could not be read.",
+    "candidates_failed": "The accounts that may be linked could not be read.",
+    "link_failed": "The contact could not be changed."
   },
   "project_checklist": {
     "title": "Security checklist",

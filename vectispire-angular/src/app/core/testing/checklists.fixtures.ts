@@ -1,5 +1,7 @@
 import type {
     ChecklistAnswer,
+    ChecklistContactCandidate,
+    ChecklistContacts,
     ChecklistEvidence,
     ChecklistItem,
     ChecklistLayout,
@@ -338,6 +340,49 @@ export const EMPTY_CONTEXT: ChecklistProjectContext = asSchema('ChecklistProject
     latestRevision: null,
     latestEdition: null
 });
+
+/**
+ * Gateway's profiles as its contact column names them (decision 0044): PO linked and reachable, Arch
+ * linked to an account with no address, BA linked to nobody — and AUTO, which is no profile, absent.
+ */
+/** A profile's key and the column's spelling — the organisation's words, which no bundle translates. */
+const named = (profile: string, label: string) => ({ profile, label });
+
+export const CONTACTS: ChecklistContacts = asSchema('ChecklistContactsView', {
+    projectId: PROJECT_ID,
+    revision: 2,
+    draft: true,
+    profiles: [
+        asSchema('ChecklistContactView', {
+            ...named('PO', 'PO'),
+            openLines: 2,
+            accountId: 41,
+            accountName: 'Product owner',
+            warning: null
+        }),
+        asSchema('ChecklistContactView', {
+            ...named('ARCH', 'Arch'),
+            openLines: 1,
+            accountId: 42,
+            accountName: null,
+            warning: 'no_email'
+        }),
+        asSchema('ChecklistContactView', {
+            ...named('BA', 'BA'),
+            openLines: 0,
+            accountId: null,
+            accountName: null,
+            warning: null
+        })
+    ]
+});
+
+/** The accounts the profiles may name: one by its name, one that has none a screen may show. */
+export const CONTACT_CANDIDATES: ChecklistContactCandidate[] = [
+    asSchema('ChecklistContactCandidate', { accountId: 41, name: 'Product owner' }),
+    asSchema('ChecklistContactCandidate', { accountId: 42, name: null }),
+    asSchema('ChecklistContactCandidate', { accountId: 43, name: 'Analyst' })
+];
 
 const answer = (itemId: number, extra: Partial<ChecklistAnswer> = {}): ChecklistAnswer =>
     asSchema('ChecklistAnswerView', {

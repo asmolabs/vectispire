@@ -6,19 +6,30 @@ import { crc32, deflateRawSync } from 'node:zlib';
  *
  * <p>The smallest the reader accepts: a workbook part, one sheet, inline strings. A product header
  * in A1/B1, the column heads in row 3, three items in rows 4 to 6, the domain filled down.
+ *
+ * @param contacts each item's contact, in column E headed "Contact" — the profiles a project links to its
+ *     accounts (decision 0044); no column without them
  */
-export function checklistWorkbook(): Buffer {
+export function checklistWorkbook(contacts?: readonly [string, string, string]): Buffer {
     const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
     const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
     const PACKAGE_REL = 'http://schemas.openxmlformats.org/package/2006/relationships';
     const text = (ref: string, value: string) => `<c r="${ref}" t="inlineStr"><is><t>${value}</t></is></c>`;
     const row = (number: number, cells: string) => `<row r="${number}">${cells}</row>`;
+    const contact = (index: number) => (contacts ? text(`E${index + 4}`, contacts[index]) : '');
     const rows =
         row(1, text('A1', 'Product')) +
-        row(3, text('A3', 'Domain') + text('B3', 'Control') + text('C3', 'Answer') + text('D3', 'Comment')) +
-        row(4, text('A4', 'Identity') + text('B4', 'Every account belongs to one named person.')) +
-        row(5, text('B5', 'Shared accounts are disabled.')) +
-        row(6, text('A6', 'Supply chain') + text('B6', 'Every build publishes an SBOM.'));
+        row(
+            3,
+            text('A3', 'Domain') +
+                text('B3', 'Control') +
+                text('C3', 'Answer') +
+                text('D3', 'Comment') +
+                (contacts ? text('E3', 'Contact') : '')
+        ) +
+        row(4, text('A4', 'Identity') + text('B4', 'Every account belongs to one named person.') + contact(0)) +
+        row(5, text('B5', 'Shared accounts are disabled.') + contact(1)) +
+        row(6, text('A6', 'Supply chain') + text('B6', 'Every build publishes an SBOM.') + contact(2));
 
     return zip({
         '[Content_Types].xml':

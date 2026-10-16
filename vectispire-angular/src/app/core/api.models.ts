@@ -2971,6 +2971,33 @@ export type ChecklistProjectContext = Refine<
     { projectName: string; latestRevision: number | null; latestEdition: number | null }
 >;
 
+/** Why the account linked to a checklist profile would not be reminded (`ChecklistReminder.Gap`). */
+export type ChecklistContactWarning = 'account_gone' | 'account_inactive' | 'no_email' | 'cannot_fill';
+
+/**
+ * One profile of a project's checklist — a value of its template's contact column — and the account
+ * linked to it (decision 0044). `openLines` counts the lines still to fill in in the draft.
+ */
+export type ChecklistContact = Refine<
+    Schema<'ChecklistContactView'>,
+    {
+        profile: string;
+        label: string;
+        accountId: number | null;
+        accountName: string | null;
+        warning: ChecklistContactWarning | null;
+    }
+>;
+
+/** A project's checklist profiles, read from its newest revision's version; none while it has no checklist. */
+export type ChecklistContacts = Refine<
+    Schema<'ChecklistContactsView'>,
+    { revision: number | null; profiles: ChecklistContact[] }
+>;
+
+/** An account a profile may be linked to: its id, and a name that is never an address — null when none may be shown. */
+export type ChecklistContactCandidate = Refine<Schema<'ChecklistContactCandidate'>, { name: string | null }>;
+
 /**
  * One line a `checklist-incomplete` refusal names, in the problem's `lines` extension member
  * (`ChecklistIncompleteProblem`). `problems` are a line's own tokens — never `measurement_contradicted`,

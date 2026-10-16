@@ -6,6 +6,8 @@ import {
     BOUND_VERSION,
     CHECKLIST,
     CONFIRMED_PREVIEW,
+    CONTACT_CANDIDATES,
+    CONTACTS,
     CONTEXT,
     DRAFT_REVISION,
     LAYOUT,
@@ -200,6 +202,22 @@ describe('the project checklist client', () => {
 
         api.checklistLineHistory(PROJECT_ID, 2, 102).subscribe();
         http.expectOne({ method: 'GET', url: `${BASE}/2/items/102/history` }).flush(LINE_HISTORY);
+    });
+
+    it('reads the contacts and their candidates, links a profile by its key and unlinks it', () => {
+        api.checklistContacts(PROJECT_ID).subscribe();
+        http.expectOne({ method: 'GET', url: `${BASE}/contacts` }).flush(CONTACTS);
+
+        api.checklistContactCandidates(PROJECT_ID).subscribe();
+        http.expectOne({ method: 'GET', url: `${BASE}/contacts/candidates` }).flush(CONTACT_CANDIDATES);
+
+        api.linkChecklistContact(PROJECT_ID, 'TEAM LEAD', 43).subscribe();
+        const linked = http.expectOne({ method: 'PUT', url: `${BASE}/contacts/TEAM%20LEAD` });
+        expect(asSchema('ChecklistContactRequest', linked.request.body)).toEqual({ accountId: 43 });
+        linked.flush(CONTACTS);
+
+        api.unlinkChecklistContact(PROJECT_ID, 'BA').subscribe();
+        http.expectOne({ method: 'DELETE', url: `${BASE}/contacts/BA` }).flush(CONTACTS);
     });
 
     it('opens with no edition when none is given, and moves naming the newest revision edition', () => {

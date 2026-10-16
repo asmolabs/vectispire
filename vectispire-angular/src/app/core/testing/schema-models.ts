@@ -52,6 +52,9 @@ export interface SchemaModels {
     ChecklistItemEvidence: Models.ChecklistItemEvidence;
     ChecklistItemPair: Models.ChecklistItemPair;
     ChecklistItemRule: Models.ChecklistItemRule;
+    ChecklistContactCandidate: Models.ChecklistContactCandidate;
+    ChecklistContactView: Models.ChecklistContact;
+    ChecklistContactsView: Models.ChecklistContacts;
     ChecklistItemView: Models.ChecklistItem;
     ChecklistLayoutForm: Models.ChecklistLayout;
     ChecklistLineHistory: Models.ChecklistLineHistory;

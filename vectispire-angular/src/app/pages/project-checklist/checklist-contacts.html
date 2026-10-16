@@ -1,0 +1,66 @@
+<p-card styleClass="mb-4" data-testid="contacts">
+    <ng-template #title>{{ 'checklist_contacts.title' | translate }}</ng-template>
+    <p class="text-muted-color mt-0">{{ 'checklist_contacts.intro' | translate }}</p>
+    @if (error(); as message) {
+        <p-message severity="error" styleClass="mb-3" data-testid="contacts-error">{{ message }}</p-message>
+    }
+    @if (contacts(); as list) {
+        @if (list.profiles.length === 0) {
+            <p class="m-0" data-testid="contacts-none">{{ 'checklist_contacts.none' | translate }}</p>
+        } @else {
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left">
+                        <th class="py-2">{{ 'checklist_contacts.profile' | translate }}</th>
+                        <th class="py-2">{{ 'checklist_contacts.open_lines' | translate }}</th>
+                        <th class="py-2">{{ 'checklist_contacts.account' | translate }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (profile of list.profiles; track profile.profile) {
+                        <tr data-testid="contact-row">
+                            <td class="py-2 font-medium" data-testid="contact-profile">{{ profile.label }}</td>
+                            <td class="py-2" data-testid="contact-open-lines">{{ profile.openLines }}</td>
+                            <td class="py-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if (writes()) {
+                                        <p-select
+                                            [options]="options()[profile.profile]"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            [filter]="true"
+                                            [showClear]="true"
+                                            [ngModel]="profile.accountId"
+                                            (ngModelChange)="choose(profile, $event ?? null)"
+                                            [placeholder]="'checklist_contacts.nobody' | translate"
+                                            [ariaLabel]="
+                                                'checklist_contacts.choose' | translate: { profile: profile.label }
+                                            "
+                                            [disabled]="busy()"
+                                            styleClass="min-w-64"
+                                            data-testid="contact-select"
+                                        />
+                                    } @else {
+                                        <span data-testid="contact-account">{{ accountLabel(profile) }}</span>
+                                    }
+                                    @if (profile.warning; as warning) {
+                                        <p-tag
+                                            severity="warn"
+                                            [value]="warningKeys[warning] | translate"
+                                            data-testid="contact-warning"
+                                        />
+                                    }
+                                    @if (profile.accountId === null || profile.warning) {
+                                        <span class="text-muted-color text-sm" data-testid="contact-ciso">{{
+                                            'checklist_contacts.ciso_fallback' | translate
+                                        }}</span>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+</p-card>
