@@ -44,7 +44,11 @@ fn small_set(extra: &[(&str, &str, &str)]) -> MigrationSet {
         bytes: b"create table probe (id ${id}, at ${ts});\n".to_vec(),
     });
     for (directory, name, sql) in extra {
-        files.push(File { directory: (*directory).to_owned(), name: (*name).to_owned(), bytes: sql.as_bytes().to_vec() });
+        files.push(File {
+            directory: (*directory).to_owned(),
+            name: (*name).to_owned(),
+            bytes: sql.as_bytes().to_vec(),
+        });
     }
     MigrationSet::of(files)
 }
@@ -185,10 +189,8 @@ async fn two_runners_together(engine: Engine) {
     let server = Server::start(engine);
     let database = server.database().await;
     let options = Options { set: small_set(&[]), ..Options::default() };
-    let (first, second) = tokio::join!(
-        vectispire_migrate::run(&database, &options),
-        vectispire_migrate::run(&database, &options)
-    );
+    let (first, second) =
+        tokio::join!(vectispire_migrate::run(&database, &options), vectispire_migrate::run(&database, &options));
     let (first, second) = (first.unwrap(), second.unwrap());
     let mut applied: Vec<String> = first.applied.iter().chain(&second.applied).cloned().collect();
     let total = applied.len();

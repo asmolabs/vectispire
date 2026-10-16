@@ -21,7 +21,16 @@ targets = [
 # written here, with its reason, by whoever accepts it.
 yanked = "deny"
 unmaintained = "all"
-ignore = []
+ignore = [
+    # RUSTSEC-2023-0071 (the Marvin attack: a timing side channel in RSA *private-key* operations), reached
+    # through sqlx-mysql, which MySQL's caching_sha2_password needs. sqlx-mysql uses `rsa` for one thing:
+    # OAEP-encrypting the password with the server's **public** key (sqlx-mysql 0.8.6, src/connection/auth.rs,
+    # `RsaPublicKey` and `Oaep` only). It holds no private key and decrypts nothing, so there is no private-key
+    # operation to time. Reached only by `vectispire-migrate` and the control-plane crates that follow it: the
+    # agent's isolation test and the `sqlx` ban above keep it out of the agent's graph. Revisit when sqlx moves
+    # to an `rsa` release that carries the fix, or drops the crate; remove this entry then.
+    { id = "RUSTSEC-2023-0071", reason = "sqlx-mysql only encrypts with the server's public key; no private-key operation exists to time" },
+]
 
 [licenses]
 # Exactly the licences the graph carries on the platforms above: one nobody uses is removed rather than
