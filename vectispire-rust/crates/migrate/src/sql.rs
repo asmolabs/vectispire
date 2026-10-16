@@ -284,38 +284,40 @@ mod tests {
 
     #[test]
     fn statements_end_at_the_delimiter_and_comments_alone_are_dropped() {
-        assert_eq!(mysql("create table a (id int);\n-- a note;\ninsert into a values (1);\n"), [
-            "create table a (id int)",
-            "-- a note;\ninsert into a values (1)"
-        ]);
+        assert_eq!(
+            mysql("create table a (id int);\n-- a note;\ninsert into a values (1);\n"),
+            ["create table a (id int)", "-- a note;\ninsert into a values (1)"]
+        );
         assert_eq!(postgres("/* only a comment; */\n-- and another;\n"), Vec::<String>::new());
     }
 
     #[test]
     fn a_delimiter_inside_a_string_or_identifier_does_not_end_a_statement() {
-        assert_eq!(mysql("insert into a values ('x;y', 'it''s; fine', \"q;\", 'a\\';b');\nselect `w;x`;"), [
-            "insert into a values ('x;y', 'it''s; fine', \"q;\", 'a\\';b')",
-            "select `w;x`"
-        ]);
-        assert_eq!(postgres("insert into \"a;b\" values ('x;y', 'it''s');"), ["insert into \"a;b\" values ('x;y', 'it''s')"]);
+        assert_eq!(
+            mysql("insert into a values ('x;y', 'it''s; fine', \"q;\", 'a\\';b');\nselect `w;x`;"),
+            ["insert into a values ('x;y', 'it''s; fine', \"q;\", 'a\\';b')", "select `w;x`"]
+        );
+        assert_eq!(
+            postgres("insert into \"a;b\" values ('x;y', 'it''s');"),
+            ["insert into \"a;b\" values ('x;y', 'it''s')"]
+        );
     }
 
     #[test]
     fn mysql_reads_the_delimiter_directive_and_never_sends_it() {
         let sql = "drop procedure if exists p;\n-- why a procedure\nDELIMITER //\ncreate procedure p()\nbegin\n  select 1;\n  select 2;\nend //\nDELIMITER ;\n\ncall p();\n";
-        assert_eq!(mysql(sql), [
-            "drop procedure if exists p",
-            "create procedure p()\nbegin\n  select 1;\n  select 2;\nend",
-            "call p()"
-        ]);
+        assert_eq!(
+            mysql(sql),
+            ["drop procedure if exists p", "create procedure p()\nbegin\n  select 1;\n  select 2;\nend", "call p()"]
+        );
     }
 
     #[test]
     fn postgres_keeps_a_dollar_quoted_body_whole_and_nests_comments() {
-        assert_eq!(postgres("do $body$ begin perform 1; end $body$;\n/* a /* nested; */ comment; */ select 1;"), [
-            "do $body$ begin perform 1; end $body$",
-            "/* a /* nested; */ comment; */ select 1"
-        ]);
+        assert_eq!(
+            postgres("do $body$ begin perform 1; end $body$;\n/* a /* nested; */ comment; */ select 1;"),
+            ["do $body$ begin perform 1; end $body$", "/* a /* nested; */ comment; */ select 1"]
+        );
     }
 
     #[test]

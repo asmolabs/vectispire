@@ -39,7 +39,12 @@ fn checksums(history: &[String]) -> String {
         .collect()
 }
 
-async fn java_migrates_then_rust_continues(engine: Engine, set: MigrationSet, root: Option<&std::path::Path>, line: &str) {
+async fn java_migrates_then_rust_continues(
+    engine: Engine,
+    set: MigrationSet,
+    root: Option<&std::path::Path>,
+    line: &str,
+) {
     let server = Server::start(engine);
     let database = server.database().await;
     server.oracle("migrate", root, None).unwrap();
@@ -66,7 +71,12 @@ async fn java_migrates_then_rust_continues(engine: Engine, set: MigrationSet, ro
     assert_eq!(history(&database).await, java_history);
 }
 
-async fn rust_migrates_then_java_accepts(engine: Engine, set: MigrationSet, root: Option<&std::path::Path>, line: &str) {
+async fn rust_migrates_then_java_accepts(
+    engine: Engine,
+    set: MigrationSet,
+    root: Option<&std::path::Path>,
+    line: &str,
+) {
     let server = Server::start(engine);
     let database = server.database().await;
     let options = Options { set, ..Options::default() };
@@ -78,7 +88,10 @@ async fn rust_migrates_then_java_accepts(engine: Engine, set: MigrationSet, root
     // The schema is the one Flyway itself produces from the same files…
     assert_eq!(schema(&database).await, vectispire_testkit::read(&reference_name(engine, "schema", line)));
     // …and the history holds the checksums Flyway records.
-    assert_eq!(checksums(&history(&database).await), vectispire_testkit::read(&reference_name(engine, "checksums", line)));
+    assert_eq!(
+        checksums(&history(&database).await),
+        vectispire_testkit::read(&reference_name(engine, "checksums", line))
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -400,7 +400,8 @@ impl Conn {
                 // `MySQLNamedLockTemplate.lock`: GET_LOCK with a 10-second wait, again every 100 ms, forever.
                 let name = mysql_lock_name(schema);
                 loop {
-                    let got: Option<i64> = sqlx::query_scalar("SELECT GET_LOCK(?,10)").bind(&name).fetch_one(&mut *conn).await?;
+                    let got: Option<i64> =
+                        sqlx::query_scalar("SELECT GET_LOCK(?,10)").bind(&name).fetch_one(&mut *conn).await?;
                     if got == Some(1) {
                         return Ok(());
                     }

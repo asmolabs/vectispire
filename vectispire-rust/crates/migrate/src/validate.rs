@@ -55,11 +55,8 @@ pub fn validate(resolved: &[Resolved], applied: &[Applied]) -> Validation {
     let mut future = Vec::new();
 
     // Flyway's `context.lastApplied`: the newest version among the rows, failed ones included.
-    let last_applied: Option<Version> = applied
-        .iter()
-        .filter(|row| row.kind == "SQL")
-        .filter_map(Applied::parsed_version)
-        .max();
+    let last_applied: Option<Version> =
+        applied.iter().filter(|row| row.kind == "SQL").filter_map(Applied::parsed_version).max();
     let latest_resolved: Option<&Version> = resolved.iter().map(|migration| &migration.version).max();
 
     for row in applied {

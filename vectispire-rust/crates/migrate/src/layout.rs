@@ -98,7 +98,8 @@ pub fn check(set: &MigrationSet) -> Vec<String> {
     // V1 to V39 stay in the vendor directories, where their checksums were recorded.
     for v in 1..=LAST_VERSION_BEFORE_THE_RULE {
         for vendor in &vendors {
-            let present = by_directory.get(vendor).is_some_and(|files| files.iter().any(|file| version(file) == Some(v)));
+            let present =
+                by_directory.get(vendor).is_some_and(|files| files.iter().any(|file| version(file) == Some(v)));
             if !present {
                 violations.push(format!(
                     "V{v} is missing from {vendor}: rewriting an applied migration changes its checksum, and Flyway \
@@ -185,16 +186,14 @@ fn common_names_no_engine(set: &MigrationSet) -> Vec<String> {
     let mut violations = Vec::new();
     let known: BTreeSet<&str> = Engine::MySql.placeholders().iter().map(|(name, _)| *name).collect();
     let placeholder = Regex::new(r"\$\{([^}]*)\}").unwrap_or_else(|_| unreachable!("a constant pattern"));
-    let id_with_key = Regex::new(r"(?i-u)\$\{id\}\s+primary\s+key").unwrap_or_else(|_| unreachable!("a constant pattern"));
+    let id_with_key =
+        Regex::new(r"(?i-u)\$\{id\}\s+primary\s+key").unwrap_or_else(|_| unreachable!("a constant pattern"));
     let block = Regex::new(r"(?s)/\*.*?\*/").unwrap_or_else(|_| unreachable!("a constant pattern"));
     let line = Regex::new(r"--[^\n]*").unwrap_or_else(|_| unreachable!("a constant pattern"));
     let tokens = engine_tokens();
 
-    let commons: Vec<_> = set
-        .files()
-        .iter()
-        .filter(|file| file.directory == COMMON && file.name.ends_with(".sql"))
-        .collect();
+    let commons: Vec<_> =
+        set.files().iter().filter(|file| file.directory == COMMON && file.name.ends_with(".sql")).collect();
     if commons.is_empty() {
         violations.push("no common migration was read: the rule would pass having looked at nothing".to_owned());
     }
@@ -207,7 +206,8 @@ fn common_names_no_engine(set: &MigrationSet) -> Vec<String> {
             }
         }
         if id_with_key.is_match(&statements) {
-            violations.push(format!("common/{}: ${{id}} already carries `primary key` — write `id ${{id}},`", file.name));
+            violations
+                .push(format!("common/{}: ${{id}} already carries `primary key` — write `id ${{id}},`", file.name));
         }
         let bare = placeholder.replace_all(&statements, " ");
         for (token, instead) in &tokens {

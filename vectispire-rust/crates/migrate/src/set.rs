@@ -105,8 +105,8 @@ impl MigrationSet {
                 }
                 let Some((version, description)) = parse_name(stem) else { continue };
                 let checksum = checksum::of(&file.name, &file.bytes)?;
-                let sql = String::from_utf8(file.bytes.clone())
-                    .map_err(|_| Error::NotUtf8 { script: file.name.clone() })?;
+                let sql =
+                    String::from_utf8(file.bytes.clone()).map_err(|_| Error::NotUtf8 { script: file.name.clone() })?;
                 resolved.push(Resolved {
                     version,
                     description,

@@ -14,8 +14,7 @@ use sqlx::Row as _;
 use vectispire_migrate::{Database, Engine};
 use vectispire_testkit::docker::Container;
 
-pub const MYSQL_IMAGE: &str =
-    "mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2";
+pub const MYSQL_IMAGE: &str = "mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2";
 pub const POSTGRES_IMAGE: &str =
     "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94";
 pub const USER: &str = "vectispire";
@@ -79,10 +78,9 @@ impl Server {
 
     pub fn jdbc_url(&self) -> String {
         match self.engine {
-            Engine::MySql => format!(
-                "jdbc:mysql://127.0.0.1:{}/vectispire?allowPublicKeyRetrieval=true&useSSL=false",
-                self.port
-            ),
+            Engine::MySql => {
+                format!("jdbc:mysql://127.0.0.1:{}/vectispire?allowPublicKeyRetrieval=true&useSSL=false", self.port)
+            }
             Engine::PostgreSql => format!("jdbc:postgresql://127.0.0.1:{}/vectispire", self.port),
         }
     }
@@ -110,9 +108,9 @@ impl Server {
 
     async fn connect(&self) -> Result<Database, sqlx::Error> {
         Ok(match self.engine {
-            Engine::MySql => Database::MySql(
-                sqlx::mysql::MySqlPoolOptions::new().max_connections(4).connect(&self.url()).await?,
-            ),
+            Engine::MySql => {
+                Database::MySql(sqlx::mysql::MySqlPoolOptions::new().max_connections(4).connect(&self.url()).await?)
+            }
             Engine::PostgreSql => Database::PostgreSql(
                 sqlx::postgres::PgPoolOptions::new().max_connections(4).connect(&self.url()).await?,
             ),
@@ -159,8 +157,19 @@ pub async fn execute(database: &Database, sql: &str) {
 pub async fn history(database: &Database) -> Vec<String> {
     let sql = "SELECT installed_rank, version, description, type, script, checksum, installed_by, success \
                FROM flyway_schema_history ORDER BY installed_rank";
-    let line = |rank: i32, version: Option<String>, description: String, kind: String, script: String, checksum: Option<i32>, by: String, success: bool| {
-        format!("{rank}\t{}\t{description}\t{kind}\t{script}\t{}\t{by}\t{success}", version.unwrap_or_default(), checksum.map_or("null".to_owned(), |c| c.to_string()))
+    let line = |rank: i32,
+                version: Option<String>,
+                description: String,
+                kind: String,
+                script: String,
+                checksum: Option<i32>,
+                by: String,
+                success: bool| {
+        format!(
+            "{rank}\t{}\t{description}\t{kind}\t{script}\t{}\t{by}\t{success}",
+            version.unwrap_or_default(),
+            checksum.map_or("null".to_owned(), |c| c.to_string())
+        )
     };
     match database {
         Database::MySql(pool) => sqlx::query(sql)
@@ -203,7 +212,9 @@ pub async fn schema(database: &Database) -> String {
                     // depending on the columns' collations; either is read as text.
                     let value = row
                         .try_get::<String, _>(0)
-                        .or_else(|_| row.try_get::<Vec<u8>, _>(0).map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
+                        .or_else(|_| {
+                            row.try_get::<Vec<u8>, _>(0).map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+                        })
                         .unwrap();
                     lines.push(value);
                 }
@@ -240,13 +251,18 @@ pub fn migrations_at(commit: &str) -> tempfile::TempDir {
         .args(["ls-tree", "-r", "--name-only", commit, path])
         .output()
         .expect("git runs");
-    assert!(listing.status.success(), "{commit} is not in this repository: {}", String::from_utf8_lossy(&listing.stderr));
+    assert!(
+        listing.status.success(),
+        "{commit} is not in this repository: {}",
+        String::from_utf8_lossy(&listing.stderr)
+    );
     let directory = tempfile::tempdir().unwrap();
     for file in String::from_utf8(listing.stdout).unwrap().lines() {
         let relative = file.strip_prefix(&format!("{path}/")).unwrap();
         let destination = directory.path().join(relative);
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
-        let bytes = Command::new("git").current_dir(&repo).args(["show", &format!("{commit}:{file}")]).output().unwrap();
+        let bytes =
+            Command::new("git").current_dir(&repo).args(["show", &format!("{commit}:{file}")]).output().unwrap();
         assert!(bytes.status.success());
         std::fs::write(destination, bytes.stdout).unwrap();
     }

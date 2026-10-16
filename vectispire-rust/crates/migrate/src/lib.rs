@@ -66,7 +66,7 @@ pub enum Error {
     )]
     NonTransactional { script: String, statement: String },
     #[error("{}", .0.message())]
-    Validation(Validation),
+    Validation(Box<Validation>),
     #[error(
         "Found non-empty schema(s) {schema} but no schema history table. Use baseline() or set baselineOnMigrate to true \
          to initialize the schema history table."
@@ -75,7 +75,13 @@ pub enum Error {
     #[error("Schema {schema} contains a failed migration to version {version} !")]
     FailedMigrationPresent { schema: String, version: String },
     #[error("Migration of schema {schema} to version \"{version} - {description}\" failed! {outcome}\n{cause}")]
-    MigrationFailed { schema: String, version: String, description: String, outcome: &'static str, cause: sqlx::Error },
+    MigrationFailed {
+        schema: String,
+        version: String,
+        description: String,
+        outcome: &'static str,
+        cause: Box<sqlx::Error>,
+    },
     #[error("Unable to determine the current schema: the connection names no database")]
     NoCurrentSchema,
     #[error(
@@ -86,7 +92,13 @@ pub enum Error {
     #[error("the migration layout is broken:\n{}", .0.join("\n"))]
     Layout(Vec<String>),
     #[error(transparent)]
-    Database(#[from] sqlx::Error),
+    Database(#[from] Box<sqlx::Error>),
+}
+
+impl From<sqlx::Error> for Error {
+    fn from(error: sqlx::Error) -> Self {
+        Error::Database(Box::new(error))
+    }
 }
 
 /// A pool of either engine — what the control plane's database layer hands this crate.
@@ -165,7 +177,7 @@ pub async fn run(database: &Database, options: &Options) -> Result<Report, Error
     let applied = if exists { lock.applied(&schema).await? } else { Vec::new() };
     let validation = validate::validate(&resolved, &applied);
     if !validation.is_valid() {
-        return Err(Error::Validation(validation));
+        return Err(Error::Validation(Box::new(validation)));
     }
     let future = validation.future.clone();
 
@@ -272,7 +284,12 @@ async fn apply_next(
     let Some(next) = validation.pending.first() else { return Ok(None) };
 
     let statements = sql::statements(engine, &next.script, &next.sql)?;
-    tracing::info!("Migrating schema {} to version \"{} - {}\"", quote_schema(engine, schema), next.version, next.description);
+    tracing::info!(
+        "Migrating schema {} to version \"{} - {}\"",
+        quote_schema(engine, schema),
+        next.version,
+        next.description
+    );
     let started = Instant::now();
     let outcome: Result<(), sqlx::Error> = async {
         migrator.begin().await?;
@@ -291,8 +308,17 @@ async fn apply_next(
             Engine::PostgreSql => "Changes successfully rolled back.",
             // MySQL committed every DDL statement as it ran: the row says so, and the next start refuses.
             Engine::MySql => {
-                lock.record(schema, &next.version, &next.description, &next.script, next.checksum, installed_by, elapsed, false)
-                    .await?;
+                lock.record(
+                    schema,
+                    &next.version,
+                    &next.description,
+                    &next.script,
+                    next.checksum,
+                    installed_by,
+                    elapsed,
+                    false,
+                )
+                .await?;
                 "Please restore backups and roll back database and code!"
             }
         };
@@ -301,10 +327,11 @@ async fn apply_next(
             version: next.version.to_string(),
             description: next.description.clone(),
             outcome,
-            cause,
+            cause: Box::new(cause),
         });
     }
-    lock.record(schema, &next.version, &next.description, &next.script, next.checksum, installed_by, elapsed, true).await?;
+    lock.record(schema, &next.version, &next.description, &next.script, next.checksum, installed_by, elapsed, true)
+        .await?;
     Ok(Some(next.version.to_string()))
 }
 

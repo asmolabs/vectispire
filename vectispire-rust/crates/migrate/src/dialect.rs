@@ -94,7 +94,10 @@ fn placeholders(
 /// **A configured value cannot redefine a type.** Overriding `ts` with `datetime` would truncate the
 /// audit chain's timestamps on MySQL through a setting nobody reviews as schema; it is refused with
 /// `MigrationPlaceholders`' sentence. A configured value equal to the engine's is accepted, as in Java.
-pub fn placeholders_for(engine: Engine, configured: &BTreeMap<String, String>) -> Result<BTreeMap<String, String>, Error> {
+pub fn placeholders_for(
+    engine: Engine,
+    configured: &BTreeMap<String, String>,
+) -> Result<BTreeMap<String, String>, Error> {
     let mut placeholders = configured.clone();
     for (name, value) in engine.placeholders() {
         if let Some(previous) = placeholders.insert(name.to_owned(), value.to_owned())
