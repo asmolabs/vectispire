@@ -295,6 +295,19 @@ Placeholders do not escape anything. A value the test wrote that matches a rule,
 inside the window or a deterministic digest under a `hash` field, is replaced too. That loses a check
 the replay could have made, but it never makes a golden unstable.
 
+## Committed or generated
+
+**Generated in CI, not committed.** A recording of the core suite at 0.11.1 is about 7,200 files and
+66 MB (7,148 goldens, 88 sidecars). That is too much churn to commit. Any change to a response, a
+column or an audit sentence would rewrite hundreds of files in a diff nobody reads, and about 3.5% of
+the files change between two runs of the same tree for the reasons listed under *Determinism*. A
+committed copy would also drift from the Java tree it claims to describe.
+
+Recording costs one run of the core test task, about six and a half minutes on a laptop. The oracle
+is therefore the Java tree at a named commit: the Rust replay job records at the commit it replays
+against, or downloads that commit's recording as a CI artifact, and the commit is part of the cache
+key. What is committed is this format and the code that implements it.
+
 ## What is not recorded
 
 - **Classes that build no `MockMvc`**: `platform.web.ServerRefusalsTest` (a real socket, because the
@@ -317,8 +330,14 @@ from the application or the tests, not from the recorder:
   (`RuleCatalogueImportRoutesTest`).
 - **Iteration order the JVM draws at start-up** (`Set.of`, `Map.of`, and a `HashMap` keyed by names
   that end in `nanoTime`): the order of an agent task's `steps`, of blast-radius nodes, of some response
-  objects' fields, and of the routes `ReadCostSweepTest` walks, which numbers its requests in that
-  order so its file names change.
+  objects' fields, and of the routes and settings that `ReadCostSweepTest`, `RouteAuthorizationTest`,
+  `SettingsRoutesTest`, `SettingLengthRoutesTest` and `TriageGovernorRoutesTest` walk. Those tests
+  number their requests in that order, so their file names change. A replay should compare an agent
+  task's `steps` as a set.
+- **The wall clock inside a window**: `Retry-After` and the "try again in N seconds" of a rate refusal
+  (`TicketWebhookInputTest`).
+- **The network**: `AiReviewConsentTest` resolves a public host name, and its refusal quotes whatever
+  address the resolver answered.
 - **Writes whose order the application draws**: audit entries one request writes in UUID order (which
   `«sha256:N»` chains onto which), gate verdicts decided in the same second.
 - `concurrent` records (rank and content).
