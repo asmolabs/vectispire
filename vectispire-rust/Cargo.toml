@@ -1,0 +1,71 @@
+# The Rust port of the remote agent — in progress, not shipped (see README.md).
+#
+# **The workspace holds the agent and nothing of the control plane.** That is decision 0003's
+# property restated for Cargo: no crate here can reach a database or `ENCRYPTION_KEY`, because no
+# crate here depends on one — `deny.toml` bans the drivers and `crates/agent/tests/isolation.rs`
+# reads the resolved graph to prove it.
+[workspace]
+resolver = "3"
+members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls"]
+
+[workspace.package]
+version = "0.12.0-dev"
+edition = "2024"
+rust-version = "1.99"
+license = "Apache-2.0"
+publish = false
+
+[workspace.lints.rust]
+# Denied, not forbidden: libgit2's global options and transport registry are reached through two
+# `unsafe` calls, each allowed where it is made, with the reason beside it (crates/git/src/init.rs).
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+dbg_macro = "warn"
+
+[workspace.dependencies]
+vectispire-domain = { path = "crates/domain" }
+vectispire-crypto = { path = "crates/crypto" }
+vectispire-git = { path = "crates/git" }
+vectispire-container = { path = "crates/container" }
+vectispire-scanners = { path = "crates/scanners" }
+vectispire-protocol = { path = "crates/protocol" }
+vectispire-tls = { path = "crates/tls" }
+
+aes-gcm = "0.10"
+base64 = "0.22"
+bollard = { version = "0.19", default-features = false, features = ["http", "pipe"] }
+ed25519-dalek = "2"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+git2 = { version = "0.21", default-features = false, features = ["ssh", "vendored-libgit2", "vendored-openssl"] }
+hkdf = "0.12"
+hmac = "0.12"
+rand_core = { version = "0.6", features = ["getrandom"] }
+regex = { version = "1", default-features = false, features = ["std", "unicode-perl"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha1 = "0.10"
+sha2 = "0.10"
+# Parsing only — ECDSA needs its curves to be read; no `rsa` feature, which would link a crate with an open timing advisory
+# (RUSTSEC-2023-0071) for nothing, since libssh2 does the signing.
+ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ecdsa", "p256", "p384", "p521"] }
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal", "net", "io-util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "json", "env-filter", "std"] }
+uuid = "1"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+
+[profile.release]
+# Small and reproducible rather than fast to build: the binary is what an agent host pulls. Unwinding
+# stays on: one scan's panic must end that scan, not every other scan the agent is running.
+codegen-units = 1
+lto = "fat"
+opt-level = "s"
+strip = "symbols"

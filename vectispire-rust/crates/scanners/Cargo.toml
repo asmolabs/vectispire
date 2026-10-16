@@ -1,0 +1,22 @@
+[package]
+name = "vectispire-scanners"
+description = "The scanners the agent runs and the parsers that read their output — the findings an issue's fingerprint is computed from."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+vectispire-container.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

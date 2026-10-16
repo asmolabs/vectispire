@@ -1,0 +1,60 @@
+# What the agent may link — `cargo deny check`, run by check.sh.
+#
+# The Rust side of `gradle/verification-metadata.xml` and the npm audit: every crate comes from
+# crates.io under a licence listed here, none carries a known advisory, and the crates that would
+# break decision 0003 are banned outright.
+
+[graph]
+all-features = false
+
+[advisories]
+# Every advisory fails the check, including unmaintained crates and yanked versions: an exception is
+# written here, with its reason, by whoever accepts it.
+yanked = "deny"
+unmaintained = "all"
+ignore = []
+
+[licenses]
+confidence-threshold = 0.9
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CDLA-Permissive-2.0", # webpki-roots: Mozilla's CA list, compiled in
+    "ISC",
+    "MIT",
+    "OpenSSL", # the OpenSSL libssh2 uses for SSH's cryptography, vendored
+    "Unicode-3.0",
+    "Zlib",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# The workspace's own crates, by path: nothing here is published, so a path is the version.
+allow-wildcard-paths = true
+deny = [
+    # Decision 0003: the agent holds no database connection, so no crate here may be a client of one.
+    { crate = "sqlx", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "postgres", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "tokio-postgres", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "mysql", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "mysql_async", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "rusqlite", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sea-orm", reason = "decision 0003: the agent holds no database connection" },
+    # The agent opens no port.
+    { crate = "axum", reason = "the agent opens no port" },
+    { crate = "actix-web", reason = "the agent opens no port" },
+    { crate = "warp", reason = "the agent opens no port" },
+    { crate = "rocket", reason = "the agent opens no port" },
+    # Git is libgit2 in-process: a crate that runs the `git` or `ssh` binaries would bring back what
+    # the image was built without, so that a configuration file could not bypass a host-key check.
+    { crate = "gix-transport", reason = "its SSH transport runs the system ssh binary" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
