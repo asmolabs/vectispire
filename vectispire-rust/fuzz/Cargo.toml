@@ -1,0 +1,64 @@
+# The parsers that read what the agent does not control, fuzzed every night (nightly.yml, `rust-fuzz`).
+#
+# A workspace of its own: libFuzzer needs a nightly compiler and sanitizer flags the shipped crates are
+# never built with, and none of this ships — so it stays out of the agent's graph (deny.toml,
+# supply-chain/, the isolation test) and out of its toolchain pin. Its own toolchain is pinned below.
+[package]
+name = "vectispire-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+tempfile = "3"
+vectispire-crypto = { path = "../crates/crypto" }
+vectispire-domain = { path = "../crates/domain" }
+vectispire-git = { path = "../crates/git" }
+vectispire-scanners = { path = "../crates/scanners" }
+
+[profile.release]
+debug = 1
+overflow-checks = true
+
+# One binary per input format: a crash names the parser, and each gets its own time budget.
+[[bin]]
+name = "repository_url"
+path = "fuzz_targets/repository_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "secrets_report"
+path = "fuzz_targets/secrets_report.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sealed_envelope"
+path = "fuzz_targets/sealed_envelope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "signatures"
+path = "fuzz_targets/signatures.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "known_hosts"
+path = "fuzz_targets/known_hosts.rs"
+test = false
+doc = false
+bench = false
