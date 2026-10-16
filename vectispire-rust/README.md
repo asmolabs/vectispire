@@ -133,8 +133,8 @@ No private key is in any file. Each one is the SHA-256 of a label both sides spe
 
 | | Java agent 0.11.0-rc.3 (amd64, emulated) | Rust agent, this commit |
 |---|---|---|
-| Image, compressed | 111 MB | **4.5 MB** (4.4 MB before the whole protocol and the loop) |
-| Idle on a long poll, resident | 300 MB (`VmRSS`) | **3.2 MB** (`VmRSS`, peak the same) |
+| Image, compressed | 111 MB | **4.7 MB** (4.4 MB with the protocol alone; the clone, the four scanners and the runner added 0.3 MB) |
+| Idle on a long poll, resident | 300 MB (`VmRSS`) | **3.7 MB** (`VmRSS`, peak the same) |
 | Threads | 26 | 3 |
 | Grype on the image | 91 matches (6 critical, 39 high), almost all Alpine packages and the JRE | **0 matches** over 207 crates |
 
@@ -176,6 +176,10 @@ About two minutes, most of it the control plane starting (an amd64 image, emulat
 - **The default database root** is `std::env::temp_dir()`, which reads `TMPDIR`; Java's `java.io.tmpdir`
   does not. The agent's work directory is where it is put in the composition (`VECTISPIRE_WORK_DIR`, or the
   `-Djava.io.tmpdir=` of `JDK_JAVA_OPTIONS` the composition sets), since the image has no `/tmp`.
+- **It starts only when a Docker daemon answers.** The Java agent starts without one and then fails each
+  scan it claims, which spends the scan's attempts; this one exits with "No Docker daemon could be reached"
+  and leaves the restart to its orchestrator, so a queue is not drained into failures by a host that cannot
+  scan.
 - **A matcher's SBOM is forwarded byte for byte** (the workspace turns on `serde_json`'s `preserve_order`);
   a lone surrogate escape, `1e400` and a nesting deeper than 128, which Jackson reads and serde refuses, are
   not in the reference set: no scanner writes them.

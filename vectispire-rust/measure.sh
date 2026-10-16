@@ -17,8 +17,13 @@ echo "image, unpacked:     $(docker image inspect vs-rs-agent:measure --format '
 docker network create "$run" >/dev/null
 docker run -d --name "$run-stub" --network "$run" --entrypoint python3 \
   -v "$PWD/crates/testkit/stub/control_plane.py:/stub.py:ro" vs-rs-forge:test /stub.py >/dev/null
+# A work directory and a daemon, as the composition gives the agent (the socket here stands for its proxy;
+# the agent starts only when one answers): the image is a lone binary with no /tmp, and the
+# bundled rules are unpacked under the directory the workspaces live in.
 docker run -d --name "$run-agent" --network "$run" -e VECTISPIRE_URL="http://$run-stub:8080" \
-  -e VECTISPIRE_AGENT_TOKEN=invented -e VECTISPIRE_AGENT_WAIT=30s vs-rs-agent:measure >/dev/null
+  -e VECTISPIRE_AGENT_TOKEN=invented -e VECTISPIRE_AGENT_WAIT=30s -e VECTISPIRE_WORK_DIR=/work \
+  --tmpfs /work:uid=1000,gid=1000,mode=0700,size=64m \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro vs-rs-agent:measure >/dev/null
 sleep 45
 echo "idle memory (cgroup): $(docker stats --no-stream --format '{{.MemUsage}}' "$run-agent")"
 echo "threads:              $(docker stats --no-stream --format '{{.PIDs}}' "$run-agent")"
