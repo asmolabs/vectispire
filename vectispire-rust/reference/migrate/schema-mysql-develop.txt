@@ -1,0 +1,1550 @@
+check|ck_checklist_answer_author|(((`answered_by_kind` = _utf8mb4\'person\') and (`answered_by_id` is not null) and (`withdrawn` = 0x00)) or ((`answered_by_kind` = _utf8mb4\'system\') and (`answered_by_id` is null)))
+column|flyway_schema_history|10|success|tinyint(1)|NO|<null>||-
+column|flyway_schema_history|1|installed_rank|int|NO|<null>||-
+column|flyway_schema_history|2|version|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|flyway_schema_history|3|description|varchar(200)|NO|<null>||utf8mb4_0900_ai_ci
+column|flyway_schema_history|4|type|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|flyway_schema_history|5|script|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|flyway_schema_history|6|checksum|int|YES|<null>||-
+column|flyway_schema_history|7|installed_by|varchar(100)|NO|<null>||utf8mb4_0900_ai_ci
+column|flyway_schema_history|8|installed_on|timestamp|NO|CURRENT_TIMESTAMP|DEFAULT_GENERATED|-
+column|flyway_schema_history|9|execution_time|int|NO|<null>||-
+column|t_agent|10|hostname|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|11|platform|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|12|version|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|13|scanner_engine|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|14|capabilities|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|15|contract_version|varchar(20)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|16|sealing_public_key|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|17|last_seen_at|datetime(6)|YES|<null>||-
+column|t_agent|18|created_at|datetime(6)|NO|<null>||-
+column|t_agent|19|signing_public_key|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_agent|20|sealing_key_generation|bigint|YES|<null>||-
+column|t_agent|2|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_agent|3|description|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|4|kind|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_agent|5|labels|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_agent|6|credentials_mode|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_agent|7|enabled|bit(1)|NO|<null>||-
+column|t_agent|8|max_concurrent|int|YES|<null>||-
+column|t_agent|9|api_key_id|char(36)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_ai_review_result|10|deadline_at|datetime(6)|YES|<null>||-
+column|t_ai_review_result|11|repo_id|bigint|YES|<null>||-
+column|t_ai_review_result|12|evidence_identifiers|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_ai_review_result|1|id|bigint|NO|<null>|auto_increment|-
+column|t_ai_review_result|2|scan_id|bigint|NO|<null>||-
+column|t_ai_review_result|3|model|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_ai_review_result|4|prompt|text|NO|<null>||utf8mb4_0900_ai_ci
+column|t_ai_review_result|5|response|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_ai_review_result|6|status|varchar(50)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_ai_review_result|7|error|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_ai_review_result|8|created_at|datetime(6)|NO|<null>||-
+column|t_ai_review_result|9|inputs|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_contract|1|id|bigint|NO|<null>|auto_increment|-
+column|t_api_contract|2|repository_id|bigint|NO|<null>||-
+column|t_api_contract|3|scan_id|bigint|YES|<null>||-
+column|t_api_contract|4|contract_path|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_api_contract|5|format|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_contract|6|title|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_contract|7|version|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_contract|8|endpoints_count|int|NO|0||-
+column|t_api_contract|9|created_at|datetime(6)|NO|<null>||-
+column|t_api_endpoint|10|line_number|int|YES|<null>||-
+column|t_api_endpoint|11|framework|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_endpoint|12|operation_id|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_endpoint|13|summary|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_endpoint|14|tags|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_endpoint|15|created_at|datetime(6)|NO|<null>||-
+column|t_api_endpoint|1|id|bigint|NO|<null>|auto_increment|-
+column|t_api_endpoint|2|scan_id|bigint|NO|<null>||-
+column|t_api_endpoint|3|repository_id|bigint|YES|<null>||-
+column|t_api_endpoint|4|http_method|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_api_endpoint|5|path|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_api_endpoint|6|auth_required|bit(1)|NO|b'0'||-
+column|t_api_endpoint|7|auth_type|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_endpoint|8|visibility|varchar(20)|NO|UNKNOWN||utf8mb4_0900_ai_ci
+column|t_api_endpoint|9|file_path|varchar(1000)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_key|10|expires_at|datetime(6)|YES|<null>||-
+column|t_api_key|11|owner_user_id|bigint|YES|<null>||-
+column|t_api_key|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_api_key|2|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_api_key|3|key_hash|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_api_key|4|prefix|varchar(16)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_key|5|created_at|datetime(6)|NO|<null>||-
+column|t_api_key|6|last_used_at|datetime(6)|YES|<null>||-
+column|t_api_key|7|scopes|varchar(255)|NO|read,scan,export||utf8mb4_0900_ai_ci
+column|t_api_key|8|target_kind|varchar(20)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_api_key|9|target_id|bigint|YES|<null>||-
+column|t_audit_chain_head|1|id|int|NO|<null>||-
+column|t_audit_log|10|entry_hash|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|2|description|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|3|operation_type|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|4|resource_id|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|5|timestamp|datetime(6)|NO|<null>||-
+column|t_audit_log|6|user_id|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|7|ip_address|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|8|user_agent|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_audit_log|9|previous_hash|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom_component|1|id|bigint|NO|<null>|auto_increment|-
+column|t_build_sbom_component|2|import_id|bigint|NO|<null>||-
+column|t_build_sbom_component|3|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom_component|4|version|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom_component|5|purl|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom_component|6|type|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom_component|7|license|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|10|document_sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|11|imported_at|datetime(6)|NO|<null>||-
+column|t_build_sbom|12|imported_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|13|api_key_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|1|id|bigint|NO|<null>|auto_increment|-
+column|t_build_sbom|2|source_id|bigint|NO|<null>||-
+column|t_build_sbom|3|source_slug|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|4|repo_id|bigint|NO|<null>||-
+column|t_build_sbom|5|spec_version|varchar(10)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|6|tool|varchar(200)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|7|components_count|int|NO|<null>||-
+column|t_build_sbom|8|commit_sha|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_build_sbom|9|branch_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_answer|10|carried_from_id|bigint|YES|<null>||-
+column|t_checklist_answer|11|carried_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_answer|12|carried_by_id|bigint|YES|<null>||-
+column|t_checklist_answer|13|carried_at|datetime(6)|YES|<null>||-
+column|t_checklist_answer|14|needs_confirmation|bit(1)|NO|b'0'||-
+column|t_checklist_answer|15|edition|int|NO|<null>||-
+column|t_checklist_answer|16|answered_by_kind|varchar(10)|NO|person||utf8mb4_0900_ai_ci
+column|t_checklist_answer|17|withdrawn|bit(1)|NO|b'0'||-
+column|t_checklist_answer|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_answer|2|checklist_id|bigint|NO|<null>||-
+column|t_checklist_answer|3|item_id|bigint|NO|<null>||-
+column|t_checklist_answer|4|answer_value|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_answer|5|answer_comment|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_answer|6|answered_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_answer|7|answered_by_id|bigint|YES|<null>||-
+column|t_checklist_answer|8|answered_at|datetime(6)|NO|<null>||-
+column|t_checklist_answer|9|measurement_id|bigint|YES|<null>||-
+column|t_checklist_document|10|statement_signature|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_document|11|signing_key_id|varchar(128)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_document|12|product_version|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_document|13|produced_at|datetime(6)|NO|<null>||-
+column|t_checklist_document|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_document|2|checklist_id|bigint|NO|<null>||-
+column|t_checklist_document|3|project_id|bigint|NO|<null>||-
+column|t_checklist_document|4|content|longblob|NO|<null>||-
+column|t_checklist_document|5|size_bytes|bigint|NO|<null>||-
+column|t_checklist_document|6|sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_document|7|workbook_sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_document|8|workbook_signature|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_document|9|statement_sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|10|file_sha256|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|11|performed_on|datetime(6)|NO|<null>||-
+column|t_checklist_evidence|12|valid_until|datetime(6)|YES|<null>||-
+column|t_checklist_evidence|13|added_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|14|added_by_id|bigint|NO|<null>||-
+column|t_checklist_evidence|15|added_at|datetime(6)|NO|<null>||-
+column|t_checklist_evidence|16|carried_from_id|bigint|YES|<null>||-
+column|t_checklist_evidence|17|carried_by_id|bigint|YES|<null>||-
+column|t_checklist_evidence|18|edition|int|NO|<null>||-
+column|t_checklist_evidence|19|withdrawn_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_evidence|20|withdrawn_by_id|bigint|YES|<null>||-
+column|t_checklist_evidence|21|withdrawn_at|datetime(6)|YES|<null>||-
+column|t_checklist_evidence|22|withdrawn_edition|int|YES|<null>||-
+column|t_checklist_evidence|2|checklist_id|bigint|NO|<null>||-
+column|t_checklist_evidence|3|item_id|bigint|NO|<null>||-
+column|t_checklist_evidence|4|kind|varchar(10)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|5|link|varchar(2000)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|6|file_id|bigint|YES|<null>||-
+column|t_checklist_evidence|7|file_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|8|media_type|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_evidence|9|file_size|bigint|YES|<null>||-
+column|t_checklist_file|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_file|2|project_id|bigint|NO|<null>||-
+column|t_checklist_file|3|sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_file|4|size_bytes|bigint|NO|<null>||-
+column|t_checklist_file|5|content|longblob|NO|<null>||-
+column|t_checklist_item|10|content_digest|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|11|sheet_row|int|NO|<null>||-
+column|t_checklist_item|12|evidence_kind|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|13|evidence_validity_months|int|YES|<null>||-
+column|t_checklist_item|14|bound_rule|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_item|2|version_id|bigint|NO|<null>||-
+column|t_checklist_item|3|item_key|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|4|item_position|int|NO|<null>||-
+column|t_checklist_item|5|domain|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|6|objective|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|7|control|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|8|contact|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_item|9|kpi|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|10|as_of|datetime(6)|YES|<null>||-
+column|t_checklist_measurement|11|computed_at|datetime(6)|NO|<null>||-
+column|t_checklist_measurement|12|computed_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|13|answer_id|bigint|YES|<null>||-
+column|t_checklist_measurement|14|answer_value|varchar(20)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|15|reconciliation|varchar(30)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|16|evidence_digest|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|17|evidence|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_measurement|2|checklist_id|bigint|NO|<null>||-
+column|t_checklist_measurement|3|item_id|bigint|NO|<null>||-
+column|t_checklist_measurement|4|purpose|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|5|rule_kind|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|6|rule_digest|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|7|bound_rule|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|8|outcome|varchar(10)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_measurement|9|reason|varchar(40)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|10|layout|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|11|offers_not_applicable|bit(1)|NO|b'0'||-
+column|t_checklist_template_version|12|item_pairs|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|13|previous_version_id|bigint|YES|<null>||-
+column|t_checklist_template_version|14|derived_from_version_id|bigint|YES|<null>||-
+column|t_checklist_template_version|15|draft_authors|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|16|imported_at|datetime(6)|NO|<null>||-
+column|t_checklist_template_version|17|imported_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|18|published_at|datetime(6)|YES|<null>||-
+column|t_checklist_template_version|19|published_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_template_version|20|retired_at|datetime(6)|YES|<null>||-
+column|t_checklist_template_version|21|retired_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|2|template_id|bigint|NO|<null>||-
+column|t_checklist_template_version|3|ordinal|int|NO|<null>||-
+column|t_checklist_template_version|4|label|varchar(200)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|5|status|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|6|revision|int|NO|<null>||-
+column|t_checklist_template_version|7|source_sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template_version|8|source_size|bigint|NO|<null>||-
+column|t_checklist_template_version|9|source_bytes|longblob|NO|<null>||-
+column|t_checklist_template|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_template|2|slug|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template|3|name|varchar(200)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_template|4|created_at|datetime(6)|NO|<null>||-
+column|t_checklist_template|5|created_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|10|opened_at|datetime(6)|NO|<null>||-
+column|t_checklist|11|opened_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|12|supersedes_id|bigint|YES|<null>||-
+column|t_checklist|13|submitted_at|datetime(6)|YES|<null>||-
+column|t_checklist|14|submitted_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|15|submitted_by_id|bigint|YES|<null>||-
+column|t_checklist|16|returned_at|datetime(6)|YES|<null>||-
+column|t_checklist|17|returned_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|18|return_reason|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|19|signed_off_at|datetime(6)|YES|<null>||-
+column|t_checklist|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist|20|signed_off_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|21|signed_off_by_id|bigint|YES|<null>||-
+column|t_checklist|22|sign_off_four_eyes|bit(1)|YES|<null>||-
+column|t_checklist|23|superseded_at|datetime(6)|YES|<null>||-
+column|t_checklist|24|superseded_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|2|project_id|bigint|NO|<null>||-
+column|t_checklist|3|template_version_id|bigint|NO|<null>||-
+column|t_checklist|4|revision|int|NO|<null>||-
+column|t_checklist|5|status|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist|6|edition|int|NO|<null>||-
+column|t_checklist|7|open_slot|int|YES|<null>||-
+column|t_checklist|8|author_id|bigint|NO|<null>||-
+column|t_checklist|9|author|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_compliance_snapshot|10|eol_enabled|tinyint(1)|NO|0||-
+column|t_compliance_snapshot|11|code_analysis_reaches|tinyint(1)|NO|0||-
+column|t_compliance_snapshot|12|controls_total|int|NO|0||-
+column|t_compliance_snapshot|13|controls_declared|int|NO|0||-
+column|t_compliance_snapshot|14|soa_findings|int|NO|0||-
+column|t_compliance_snapshot|15|captured_at|datetime(6)|NO|<null>||-
+column|t_compliance_snapshot|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_compliance_snapshot|2|period|varchar(7)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_compliance_snapshot|3|framework|varchar(32)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_compliance_snapshot|4|score|int|NO|<null>||-
+column|t_compliance_snapshot|5|status|varchar(16)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_compliance_snapshot|6|targets|int|NO|<null>||-
+column|t_compliance_snapshot|7|observed_targets|int|NO|<null>||-
+column|t_compliance_snapshot|8|fresh_targets|int|NO|<null>||-
+column|t_compliance_snapshot|9|freshness_days|int|NO|<null>||-
+column|t_component|10|scan_created_at|datetime(6)|YES|<null>||-
+column|t_component|11|origin|varchar(10)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_component|12|build_sbom_id|bigint|YES|<null>||-
+column|t_component|13|scanned_version|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_component|14|scanned_purl|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_component|15|declared_license|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_component|1|id|bigint|NO|<null>|auto_increment|-
+column|t_component|2|scan_id|bigint|NO|<null>||-
+column|t_component|3|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_component|4|version|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_component|5|purl|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_component|6|type|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_component|7|is_direct|bit(1)|YES|<null>||-
+column|t_component|8|repo_id|bigint|YES|<null>||-
+column|t_component|9|container_id|bigint|YES|<null>||-
+column|t_container|10|in_certified_scope|tinyint(1)|NO|0||-
+column|t_container|11|project_id|bigint|YES|<null>||-
+column|t_container|12|scan_manual_only|tinyint(1)|NO|0||-
+column|t_container|1|id|bigint|NO|<null>|auto_increment|-
+column|t_container|2|registry|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_container|3|image_name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_container|4|tag|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_container|5|scan_interval_minutes|int|YES|<null>||-
+column|t_container|6|scan_cron|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_container|7|required_agent_label|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_container|8|last_scheduled_scan_at|datetime(6)|YES|<null>||-
+column|t_container|9|tier|varchar(32)|NO|TIER_2_BUSINESS_OPERATIONAL||utf8mb4_0900_ai_ci
+column|t_control_declaration|10|decided_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|11|decided_at|datetime(6)|NO|<null>||-
+column|t_control_declaration|12|reviewed_at|datetime(6)|YES|<null>||-
+column|t_control_declaration|13|review_due_at|datetime(6)|YES|<null>||-
+column|t_control_declaration|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|2|framework|varchar(32)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|3|control_id|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|4|applicability|varchar(16)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|5|justification|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|6|implementation|varchar(32)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|7|evidence_source|varchar(16)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|8|external_evidence|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_control_declaration|9|control_owner|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|10|branches_total|bigint|YES|<null>||-
+column|t_coverage_import|11|commit_sha|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|12|branch_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|13|document_sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|14|imported_at|datetime(6)|NO|<null>||-
+column|t_coverage_import|15|imported_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|16|api_key_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|17|packages_state|varchar(20)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|1|id|bigint|NO|<null>|auto_increment|-
+column|t_coverage_import|2|source_id|bigint|NO|<null>||-
+column|t_coverage_import|3|source_slug|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|4|repo_id|bigint|NO|<null>||-
+column|t_coverage_import|5|format|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|6|tool_version|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_import|7|lines_covered|bigint|NO|<null>||-
+column|t_coverage_import|8|lines_total|bigint|NO|<null>||-
+column|t_coverage_import|9|branches_covered|bigint|YES|<null>||-
+column|t_coverage_package|1|id|bigint|NO|<null>|auto_increment|-
+column|t_coverage_package|2|import_id|bigint|NO|<null>||-
+column|t_coverage_package|3|path|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_coverage_package|4|lines_covered|bigint|NO|<null>||-
+column|t_coverage_package|5|lines_total|bigint|NO|<null>||-
+column|t_coverage_package|6|branches_covered|bigint|YES|<null>||-
+column|t_coverage_package|7|branches_total|bigint|YES|<null>||-
+column|t_epss_score|1|generation|bigint|NO|<null>||-
+column|t_epss_score|2|cve_id|varchar(32)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_epss_score|3|score|double|NO|<null>||-
+column|t_epss_score|4|percentile|double|NO|<null>||-
+column|t_finding|10|source|varchar(50)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_finding|11|epss_score|double|YES|<null>||-
+column|t_finding|12|is_kev|bit(1)|NO|<null>||-
+column|t_finding|13|created_at|datetime(6)|NO|<null>||-
+column|t_finding|14|cvss_score|double|YES|<null>||-
+column|t_finding|15|cvss_vector|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|16|fix_state|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|17|fix_versions|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|18|link|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|19|issue_id|bigint|YES|<null>||-
+column|t_finding|1|id|bigint|NO|<null>|auto_increment|-
+column|t_finding|20|is_direct_dependency|bit(1)|YES|<null>||-
+column|t_finding|21|line|int|YES|<null>||-
+column|t_finding|22|description|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|23|reachability|varchar(16)|NO|UNKNOWN||utf8mb4_0900_ai_ci
+column|t_finding|24|reachable_symbols|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|25|owasp_category|varchar(3)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|26|tool|varchar(200)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|27|tool_name|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|28|tool_version|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|2|scan_id|bigint|NO|<null>||-
+column|t_finding|3|type|varchar(50)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_finding|4|severity|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|5|identifier|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|6|package_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|7|package_version|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|8|purl|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_finding|9|file_path|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|10|credential_kind|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|11|scopes|varchar(1000)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|12|can_write|bit(1)|YES|<null>||-
+column|t_forge_connection|13|token_expires_at|datetime(6)|YES|<null>||-
+column|t_forge_connection|14|forge_version|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|15|probed_at|datetime(6)|NO|<null>||-
+column|t_forge_connection|16|created_at|datetime(6)|NO|<null>||-
+column|t_forge_connection|17|created_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|18|updated_at|datetime(6)|NO|<null>||-
+column|t_forge_connection|19|updated_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|2|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|3|kind|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|4|edition|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|5|base_url|varchar(512)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|6|owner|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|7|internal_network|bit(1)|NO|<null>||-
+column|t_forge_connection|8|ca_pem|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_connection|9|token|varchar(2048)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|10|lease_expires_at|datetime(6)|YES|<null>||-
+column|t_forge_discovery|11|attempts|int|NO|<null>||-
+column|t_forge_discovery|12|started_at|datetime(6)|YES|<null>||-
+column|t_forge_discovery|13|finished_at|datetime(6)|YES|<null>||-
+column|t_forge_discovery|14|namespaces_seen|int|NO|<null>||-
+column|t_forge_discovery|15|repositories_seen|int|NO|<null>||-
+column|t_forge_discovery|16|repositories_skipped|int|NO|<null>||-
+column|t_forge_discovery|17|requests_made|int|NO|<null>||-
+column|t_forge_discovery|18|rate_limit_wait_seconds|bigint|NO|<null>||-
+column|t_forge_discovery|19|rate_limit_reset_at|datetime(6)|YES|<null>||-
+column|t_forge_discovery|1|id|bigint|NO|<null>|auto_increment|-
+column|t_forge_discovery|20|new_count|int|YES|<null>||-
+column|t_forge_discovery|21|changed_count|int|YES|<null>||-
+column|t_forge_discovery|22|gone_count|int|YES|<null>||-
+column|t_forge_discovery|23|unreadable_namespaces|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|2|connection_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|3|state|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|4|reason|varchar(40)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|5|detail|varchar(2000)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|6|active_key|varchar(36)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|7|requested_at|datetime(6)|NO|<null>||-
+column|t_forge_discovery|8|requested_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_discovery|9|claimed_by|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_import_link|1|id|bigint|NO|<null>|auto_increment|-
+column|t_forge_import_link|2|repository_id|bigint|NO|<null>||-
+column|t_forge_import_link|3|connection_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_import_link|4|forge_id|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_import_link|5|discovery_id|bigint|NO|<null>||-
+column|t_forge_import_link|6|imported_at|datetime(6)|NO|<null>||-
+column|t_forge_import_link|7|imported_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|10|fork|bit(1)|YES|<null>||-
+column|t_forge_repository|11|visibility|varchar(20)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|12|last_activity_at|datetime(6)|YES|<null>||-
+column|t_forge_repository|13|language|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|14|size_bytes|bigint|YES|<null>||-
+column|t_forge_repository|15|http_url|varchar(1024)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|16|ssh_url|varchar(1024)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|17|web_url|varchar(1024)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|18|first_seen_by|bigint|NO|<null>||-
+column|t_forge_repository|19|first_seen_at|datetime(6)|NO|<null>||-
+column|t_forge_repository|1|id|bigint|NO|<null>|auto_increment|-
+column|t_forge_repository|20|last_seen_by|bigint|NO|<null>||-
+column|t_forge_repository|21|last_seen_at|datetime(6)|NO|<null>||-
+column|t_forge_repository|22|changed_by|bigint|YES|<null>||-
+column|t_forge_repository|23|change_summary|varchar(1500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|24|gone_by|bigint|YES|<null>||-
+column|t_forge_repository|25|gone_at|datetime(6)|YES|<null>||-
+column|t_forge_repository|2|connection_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|3|forge_id|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|4|full_path|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|5|namespace_path|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|6|personal|bit(1)|NO|<null>||-
+column|t_forge_repository|7|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|8|default_branch|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_repository|9|archived|bit(1)|YES|<null>||-
+column|t_forge_review_reading|10|evidence|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_review_reading|11|evidence_sha256|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_review_reading|12|claimed_until|datetime(6)|YES|<null>||-
+column|t_forge_review_reading|1|id|bigint|NO|<null>|auto_increment|-
+column|t_forge_review_reading|2|repository_id|bigint|NO|<null>||-
+column|t_forge_review_reading|3|wanted_branch|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_review_reading|4|state|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_forge_review_reading|5|connection_id|char(36)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_review_reading|6|forge_id|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_forge_review_reading|7|window_days|int|NO|<null>||-
+column|t_forge_review_reading|8|read_at|datetime(6)|YES|<null>||-
+column|t_forge_review_reading|9|reason|varchar(1000)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_gate_policy|10|include_ai_review|bit(1)|NO|<null>||-
+column|t_gate_policy|11|note|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_gate_policy|12|created_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_gate_policy|13|created_at|datetime(6)|NO|<null>||-
+column|t_gate_policy|14|fail_on_uncovered_languages|tinyint(1)|NO|0||-
+column|t_gate_policy|15|include_plugins|bit(1)|NO|b'0'||-
+column|t_gate_policy|1|id|bigint|NO|<null>|auto_increment|-
+column|t_gate_policy|2|target_kind|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_gate_policy|3|target_id|bigint|NO|<null>||-
+column|t_gate_policy|4|version|int|NO|<null>||-
+column|t_gate_policy|5|is_active|bit(1)|YES|<null>||-
+column|t_gate_policy|6|fail_on_severity|varchar(20)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_gate_policy|7|fail_on_kev|bit(1)|NO|<null>||-
+column|t_gate_policy|8|fixable_only|bit(1)|NO|<null>||-
+column|t_gate_policy|9|include_triaged|bit(1)|NO|<null>||-
+column|t_gate_verdict|10|low_count|bigint|NO|0||-
+column|t_gate_verdict|11|fail_on_severity|varchar(20)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_gate_verdict|12|policy_source|varchar(32)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_gate_verdict|13|policy_version|bigint|YES|<null>||-
+column|t_gate_verdict|14|relaxations_ignored|tinyint(1)|NO|0||-
+column|t_gate_verdict|15|decided_at|datetime(6)|NO|<null>||-
+column|t_gate_verdict|16|decided_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_gate_verdict|17|ip_address|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_gate_verdict|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_gate_verdict|2|repo_id|bigint|YES|<null>||-
+column|t_gate_verdict|3|container_id|bigint|YES|<null>||-
+column|t_gate_verdict|4|passed|tinyint(1)|NO|<null>||-
+column|t_gate_verdict|5|evaluated|int|NO|<null>||-
+column|t_gate_verdict|6|violations|int|NO|<null>||-
+column|t_gate_verdict|7|critical_count|bigint|NO|0||-
+column|t_gate_verdict|8|high_count|bigint|NO|0||-
+column|t_gate_verdict|9|medium_count|bigint|NO|0||-
+column|t_git_token|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_git_token|2|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_git_token|3|host|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_git_token|4|username|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_git_token|5|token|text|NO|<null>||utf8mb4_0900_ai_ci
+column|t_git_token|6|created_at|datetime(6)|NO|<null>||-
+column|t_issue_ticket|1|id|bigint|NO|<null>|auto_increment|-
+column|t_issue_ticket|2|issue_id|bigint|NO|<null>||-
+column|t_issue_ticket|3|provider|varchar(32)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue_ticket|4|ticket_key|varchar(128)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue_ticket|5|ticket_url|varchar(512)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue_ticket|6|status|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue_ticket|7|created_at|datetime(6)|NO|<null>||-
+column|t_issue_ticket|8|updated_at|datetime(6)|NO|<null>||-
+column|t_issue_triage_event|10|expires_at|datetime(6)|YES|<null>||-
+column|t_issue_triage_event|11|scan_id|bigint|YES|<null>||-
+column|t_issue_triage_event|12|previous_resolved_at|datetime(6)|YES|<null>||-
+column|t_issue_triage_event|13|requested_status|varchar(30)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue_triage_event|1|id|bigint|NO|<null>|auto_increment|-
+column|t_issue_triage_event|2|issue_id|bigint|NO|<null>||-
+column|t_issue_triage_event|3|from_status|varchar(30)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue_triage_event|4|to_status|varchar(30)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue_triage_event|5|justification|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue_triage_event|6|comment|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue_triage_event|7|actor|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue_triage_event|8|origin|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue_triage_event|9|occurred_at|datetime(6)|NO|<null>||-
+column|t_issue|10|file_path|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|11|source|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|12|severity|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|13|epss_score|double|YES|<null>||-
+column|t_issue|14|is_kev|bit(1)|NO|b'0'||-
+column|t_issue|15|cvss_score|double|YES|<null>||-
+column|t_issue|16|cvss_vector|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|17|fix_state|varchar(50)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|18|fix_versions|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|19|link|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|1|id|bigint|NO|<null>|auto_increment|-
+column|t_issue|20|description|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|21|state|varchar(20)|NO|open||utf8mb4_0900_ai_ci
+column|t_issue|22|first_seen_at|datetime(6)|NO|<null>||-
+column|t_issue|23|last_seen_at|datetime(6)|NO|<null>||-
+column|t_issue|24|resolved_at|datetime(6)|YES|<null>||-
+column|t_issue|25|first_seen_scan_id|bigint|YES|<null>||-
+column|t_issue|26|last_seen_scan_id|bigint|YES|<null>||-
+column|t_issue|27|times_seen|int|NO|1||-
+column|t_issue|28|triage_status|varchar(30)|NO|under_review||utf8mb4_0900_ai_ci
+column|t_issue|29|triage_justification|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|2|repo_id|bigint|YES|<null>||-
+column|t_issue|30|triage_comment|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|31|triaged_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|32|triaged_at|datetime(6)|YES|<null>||-
+column|t_issue|33|triage_expires_at|datetime(6)|YES|<null>||-
+column|t_issue|34|is_direct_dependency|bit(1)|YES|<null>||-
+column|t_issue|35|line|int|YES|<null>||-
+column|t_issue|36|ticket_ref|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|37|ticket_url|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|38|reachability|varchar(16)|NO|UNKNOWN||utf8mb4_0900_ai_ci
+column|t_issue|39|reachable_symbols|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|3|container_id|bigint|YES|<null>||-
+column|t_issue|40|resolution_seconds|bigint|YES|<null>||-
+column|t_issue|41|owasp_category|varchar(3)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|42|ticket_attached_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|43|tool|varchar(200)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|44|tool_name|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|45|tool_version|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|46|import_source|varchar(40)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|47|sla_breach_signalled_at|datetime(6)|YES|<null>||-
+column|t_issue|48|triage_requested_status|varchar(30)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|49|revision|bigint|NO|0||-
+column|t_issue|4|fingerprint|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue|5|type|varchar(50)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_issue|6|identifier|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|7|package_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|8|package_version|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_issue|9|purl|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_leader_lease|1|name|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_leader_lease|2|holder|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_leader_lease|3|acquired_at|datetime(6)|YES|<null>||-
+column|t_leader_lease|4|expires_at|datetime(6)|YES|<null>||-
+column|t_leader_lease|5|updated_at|datetime(6)|NO|<null>||-
+column|t_license_policy|1|id|bigint|NO|<null>||-
+column|t_license_policy|2|disallowed_categories|varchar(255)|NO|STRONG_COPYLEFT,FORBIDDEN||utf8mb4_0900_ai_ci
+column|t_license_policy|3|allowed_licenses|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_license_policy|4|disallowed_licenses|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_license_policy|5|updated_at|timestamp|NO|CURRENT_TIMESTAMP|DEFAULT_GENERATED|-
+column|t_login_attempt|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_login_attempt|2|counter_key|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_login_attempt|3|occurred_at|datetime(6)|NO|<null>||-
+column|t_mfa_challenge|1|token_hash|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_mfa_challenge|2|user_id|bigint|NO|<null>||-
+column|t_mfa_challenge|3|expires_at|datetime(6)|NO|<null>||-
+column|t_mfa_challenge|4|attempts|int|NO|0||-
+column|t_mfa_challenge|5|user_agent|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_mfa_challenge|6|ip_address|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_one_shot_job|1|name|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_one_shot_job|2|ran_at|datetime(6)|NO|<null>||-
+column|t_outbox_message|10|team_id|bigint|YES|<null>||-
+column|t_outbox_message|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_outbox_message|2|message_type|varchar(50)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_outbox_message|3|payload|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_outbox_message|4|status|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_outbox_message|5|attempts|int|NO|<null>||-
+column|t_outbox_message|6|next_attempt_at|datetime(6)|YES|<null>||-
+column|t_outbox_message|7|last_error|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_outbox_message|8|created_at|datetime(6)|NO|<null>||-
+column|t_outbox_message|9|sent_at|datetime(6)|YES|<null>||-
+column|t_owasp_weekly_coverage|1|id|bigint|NO|<null>|auto_increment|-
+column|t_owasp_weekly_coverage|2|week_start|datetime(6)|NO|<null>||-
+column|t_owasp_weekly_coverage|3|target_kind|varchar(16)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_owasp_weekly_coverage|4|target_id|bigint|NO|<null>||-
+column|t_owasp_weekly_coverage|5|category|varchar(3)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_owasp_weekly_coverage|6|state|varchar(16)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_owasp_weekly_coverage|7|open_count|bigint|NO|<null>||-
+column|t_owasp_weekly_coverage|8|settled_count|bigint|NO|<null>||-
+column|t_owasp_weekly_coverage|9|captured_at|datetime(6)|NO|<null>||-
+column|t_plugin_activation|1|id|bigint|NO|<null>|auto_increment|-
+column|t_plugin_activation|2|plugin_id|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin_activation|3|project_id|bigint|NO|<null>||-
+column|t_plugin_activation|4|activated_at|datetime(6)|NO|<null>||-
+column|t_plugin_activation|5|activated_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin_manifest|1|digest|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin_manifest|2|plugin_id|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin_manifest|3|manifest|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin_manifest|4|created_at|datetime(6)|NO|<null>||-
+column|t_plugin|10|unsigned_waived_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_plugin|11|unsigned_waived_at|datetime(6)|YES|<null>||-
+column|t_plugin|1|id|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin|2|name|varchar(100)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin|3|manifest_digest|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin|4|enabled|bit(1)|NO|<null>||-
+column|t_plugin|5|created_at|datetime(6)|NO|<null>||-
+column|t_plugin|6|created_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin|7|updated_at|datetime(6)|NO|<null>||-
+column|t_plugin|8|updated_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_plugin|9|unsigned_waiver|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_processed_message|1|id|bigint|NO|<null>|auto_increment|-
+column|t_processed_message|2|message_id|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_processed_message|3|message_type|varchar(50)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_processed_message|4|agent_id|char(36)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_processed_message|5|processed_at|datetime(6)|NO|<null>||-
+column|t_project|1|id|bigint|NO|<null>|auto_increment|-
+column|t_project|2|solution_id|bigint|NO|<null>||-
+column|t_project|3|name|varchar(100)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_project|4|description|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_project|5|created_at|datetime(6)|NO|<null>||-
+column|t_rate_window|1|window_key|varchar(120)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_rate_window|2|hits|int|NO|<null>||-
+column|t_rate_window|3|expires_at|datetime(6)|NO|<null>||-
+column|t_report_document|1|run_id|bigint|NO|<null>||-
+column|t_report_document|2|content|longblob|NO|<null>||-
+column|t_report_document|3|sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_document|4|size_bytes|bigint|NO|<null>||-
+column|t_report_document|5|created_at|datetime(6)|NO|<null>||-
+column|t_report_export|1|run_id|bigint|NO|<null>||-
+column|t_report_export|2|content|longblob|NO|<null>||-
+column|t_report_export|3|sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_export|4|size_bytes|bigint|NO|<null>||-
+column|t_report_export|5|created_at|datetime(6)|NO|<null>||-
+column|t_report_plugin_activation|1|id|bigint|NO|<null>|auto_increment|-
+column|t_report_plugin_activation|2|plugin_id|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_activation|3|project_id|bigint|NO|<null>||-
+column|t_report_plugin_activation|4|activated_at|datetime(6)|NO|<null>||-
+column|t_report_plugin_activation|5|activated_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|10|approved_by_id|bigint|YES|<null>||-
+column|t_report_plugin_manifest|11|approval_four_eyes|bit(1)|YES|<null>||-
+column|t_report_plugin_manifest|12|withdrawn_at|datetime(6)|YES|<null>||-
+column|t_report_plugin_manifest|13|withdrawn_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|14|withdrawal_justification|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|1|digest|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|2|plugin_id|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|3|manifest|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|4|status|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|5|registered_at|datetime(6)|NO|<null>||-
+column|t_report_plugin_manifest|6|registered_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin_manifest|7|registered_by_id|bigint|NO|<null>||-
+column|t_report_plugin_manifest|8|approved_at|datetime(6)|YES|<null>||-
+column|t_report_plugin_manifest|9|approved_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin|10|updated_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin|1|id|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin|2|name|varchar(100)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin|3|approved_digest|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin|4|pending_digest|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin|5|enabled|bit(1)|NO|<null>||-
+column|t_report_plugin|6|revision|bigint|NO|<null>||-
+column|t_report_plugin|7|created_at|datetime(6)|NO|<null>||-
+column|t_report_plugin|8|created_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_plugin|9|updated_at|datetime(6)|NO|<null>||-
+column|t_report_run|10|requested_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|11|requested_by_id|bigint|NO|<null>||-
+column|t_report_run|12|requester_locale|varchar(35)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|13|claimed_by|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|14|lease_expires_at|datetime(6)|YES|<null>||-
+column|t_report_run|15|started_at|datetime(6)|YES|<null>||-
+column|t_report_run|16|exported_at|datetime(6)|YES|<null>||-
+column|t_report_run|17|finished_at|datetime(6)|YES|<null>||-
+column|t_report_run|18|manifest_digest|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|19|image_digest|varchar(71)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|1|id|bigint|NO|<null>|auto_increment|-
+column|t_report_run|20|signer_identity|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|21|signer_issuer|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|22|signer_key_sha256|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|23|export_schema_version|varchar(10)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|24|export_sha256|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|25|export_size|bigint|YES|<null>||-
+column|t_report_run|26|exit_code|int|YES|<null>||-
+column|t_report_run|27|output_size|bigint|YES|<null>||-
+column|t_report_run|28|output_sha256|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|29|product_version|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|2|project_id|bigint|NO|<null>||-
+column|t_report_run|30|output_media_type|varchar(120)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|31|signing_key_id|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|32|package_sha256|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|33|export_targets|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|3|project_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|4|plugin_id|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|5|state|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|6|reason|varchar(40)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|7|detail|varchar(2000)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|8|active_key|varchar(80)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_report_run|9|requested_at|datetime(6)|NO|<null>||-
+column|t_repository|10|ssh_key_id|char(36)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|11|tier|varchar(32)|NO|TIER_2_BUSINESS_OPERATIONAL||utf8mb4_0900_ai_ci
+column|t_repository|12|badge_token|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|13|in_certified_scope|tinyint(1)|NO|0||-
+column|t_repository|14|https_token_id|char(36)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|15|project_id|bigint|YES|<null>||-
+column|t_repository|16|scan_manual_only|tinyint(1)|NO|0||-
+column|t_repository|17|url_identity|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|18|identity_guard|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|1|id|bigint|NO|<null>|auto_increment|-
+column|t_repository|2|url|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_repository|3|branch|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_repository|4|sub_path|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|5|name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|6|scan_interval_minutes|int|YES|<null>||-
+column|t_repository|7|scan_cron|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|8|required_agent_label|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_repository|9|last_scheduled_scan_at|datetime(6)|YES|<null>||-
+column|t_sarif_import|10|reopened_count|int|NO|<null>||-
+column|t_sarif_import|11|imported_at|datetime(6)|NO|<null>||-
+column|t_sarif_import|12|imported_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_import|13|api_key_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_import|14|tool_keys|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_import|1|id|bigint|NO|<null>|auto_increment|-
+column|t_sarif_import|2|source_id|bigint|NO|<null>||-
+column|t_sarif_import|3|source_slug|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_import|4|repo_id|bigint|NO|<null>||-
+column|t_sarif_import|5|tools|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_import|6|document_sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_import|7|results_count|int|NO|<null>||-
+column|t_sarif_import|8|created_count|int|NO|<null>||-
+column|t_sarif_import|9|resolved_count|int|NO|<null>||-
+column|t_sarif_source|10|created_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_source|11|kinds|varchar(100)|NO|sarif||utf8mb4_0900_ai_ci
+column|t_sarif_source|1|id|bigint|NO|<null>|auto_increment|-
+column|t_sarif_source|2|slug|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_source|3|name|varchar(100)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_source|4|api_key_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_source|5|project_id|bigint|YES|<null>||-
+column|t_sarif_source|6|repository_id|bigint|YES|<null>||-
+column|t_sarif_source|7|tools|varchar(1000)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_sarif_source|8|enabled|bit(1)|NO|<null>||-
+column|t_sarif_source|9|created_at|datetime(6)|NO|<null>||-
+column|t_scan|10|new_issues_count|int|NO|0||-
+column|t_scan|11|resolved_issues_count|int|NO|0||-
+column|t_scan|12|error|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|13|created_at|datetime(6)|NO|<null>||-
+column|t_scan|14|version|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|15|project_type|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|16|repo_id|bigint|YES|<null>||-
+column|t_scan|17|container_id|bigint|YES|<null>||-
+column|t_scan|18|required_agent_label|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|19|claimed_by|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|1|id|bigint|NO|<null>|auto_increment|-
+column|t_scan|20|claimed_at|datetime(6)|YES|<null>||-
+column|t_scan|21|lease_expires_at|datetime(6)|YES|<null>||-
+column|t_scan|22|attempts|int|NO|0||-
+column|t_scan|23|plugin_steps|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|24|not_before|datetime(6)|YES|<null>||-
+column|t_scan|25|examined_types|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|26|detected_languages|varchar(512)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|27|sast_languages|varchar(512)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|2|branch|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_scan|3|sub_path|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|4|status|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_scan|5|sbom|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|6|cves|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|7|summary|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_scan|8|duration_ms|bigint|YES|<null>||-
+column|t_scan|9|findings_count|int|NO|0||-
+column|t_semgrep_rule_set|10|uploaded_at|datetime(6)|NO|<null>||-
+column|t_semgrep_rule_set|11|activation_note|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_semgrep_rule_set|1|id|bigint|NO|<null>|auto_increment|-
+column|t_semgrep_rule_set|2|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_semgrep_rule_set|3|files|longtext|NO|<null>||utf8mb4_0900_ai_ci
+column|t_semgrep_rule_set|4|content_hash|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_semgrep_rule_set|5|rule_count|int|NO|<null>||-
+column|t_semgrep_rule_set|6|file_count|int|NO|<null>||-
+column|t_semgrep_rule_set|7|size_bytes|bigint|NO|<null>||-
+column|t_semgrep_rule_set|8|is_active|bit(1)|YES|<null>||-
+column|t_semgrep_rule_set|9|uploaded_by|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_session|1|token_hash|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_session|2|user_id|bigint|NO|<null>||-
+column|t_session|3|created_at|datetime(6)|NO|<null>||-
+column|t_session|4|last_seen_at|datetime(6)|NO|<null>||-
+column|t_session|5|expires_at|datetime(6)|NO|<null>||-
+column|t_session|6|user_agent|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_session|7|ip_address|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_setting|1|key|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_setting|2|value|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_siem_config|1|id|bigint|NO|<null>||-
+column|t_siem_config|2|enabled|tinyint(1)|NO|0||-
+column|t_siem_config|3|protocol|varchar(16)|NO|WEBHOOK||utf8mb4_0900_ai_ci
+column|t_siem_config|4|endpoint|varchar(1024)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_siem_config|5|auth_header|varchar(2048)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_siem_config|6|min_severity|varchar(32)|NO|HIGH||utf8mb4_0900_ai_ci
+column|t_siem_config|7|created_at|timestamp|NO|CURRENT_TIMESTAMP|DEFAULT_GENERATED|-
+column|t_siem_config|8|updated_at|timestamp|NO|CURRENT_TIMESTAMP|DEFAULT_GENERATED on update CURRENT_TIMESTAMP|-
+column|t_siem_config|9|tls_ca_pem|longtext|YES|<null>||utf8mb4_0900_ai_ci
+column|t_solution|1|id|bigint|NO|<null>|auto_increment|-
+column|t_solution|2|name|varchar(100)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_solution|3|description|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_solution|4|created_at|datetime(6)|NO|<null>||-
+column|t_ssh_key|1|id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_ssh_key|2|name|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_ssh_key|3|private_key|text|NO|<null>||utf8mb4_0900_ai_ci
+column|t_ssh_key|4|public_key|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_ssh_key|5|created_at|datetime(6)|NO|<null>||-
+column|t_team_member|1|team_id|bigint|NO|<null>||-
+column|t_team_member|2|user_id|bigint|NO|<null>||-
+column|t_team_member|3|origin|varchar(16)|NO|manual||utf8mb4_0900_ai_ci
+column|t_team_target|1|team_id|bigint|NO|<null>||-
+column|t_team_target|2|target_kind|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_team_target|3|target_id|bigint|NO|<null>||-
+column|t_team_webhook|1|team_id|bigint|NO|<null>||-
+column|t_team_webhook|2|url|varchar(500)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_team|1|id|bigint|NO|<null>|auto_increment|-
+column|t_team|2|name|varchar(100)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_team|3|description|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_team|4|created_at|datetime(6)|NO|<null>||-
+column|t_test_report_import|10|errors_count|int|NO|<null>||-
+column|t_test_report_import|11|skipped_count|int|NO|<null>||-
+column|t_test_report_import|12|commit_sha|varchar(64)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_test_report_import|13|branch_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_test_report_import|14|document_sha256|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_test_report_import|15|imported_at|datetime(6)|NO|<null>||-
+column|t_test_report_import|16|imported_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_test_report_import|17|api_key_id|char(36)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_test_report_import|1|id|bigint|NO|<null>|auto_increment|-
+column|t_test_report_import|2|source_id|bigint|NO|<null>||-
+column|t_test_report_import|3|source_slug|varchar(40)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_test_report_import|4|repo_id|bigint|NO|<null>||-
+column|t_test_report_import|5|format|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_test_report_import|6|documents_count|int|NO|<null>||-
+column|t_test_report_import|7|suites_count|int|NO|<null>||-
+column|t_test_report_import|8|tests_count|int|NO|<null>||-
+column|t_test_report_import|9|failures_count|int|NO|<null>||-
+column|t_test_suite_result|1|id|bigint|NO|<null>|auto_increment|-
+column|t_test_suite_result|2|import_id|bigint|NO|<null>||-
+column|t_test_suite_result|3|name|varchar(500)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_test_suite_result|4|tests_count|int|NO|<null>||-
+column|t_test_suite_result|5|failures_count|int|NO|<null>||-
+column|t_test_suite_result|6|errors_count|int|NO|<null>||-
+column|t_test_suite_result|7|skipped_count|int|NO|<null>||-
+column|t_threat_intel_feed|1|cve_id|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_threat_intel_feed|2|is_kev|tinyint(1)|NO|0||-
+column|t_threat_intel_feed|3|date_added|timestamp|YES|<null>||-
+column|t_threat_intel_feed|4|updated_at|timestamp|NO|CURRENT_TIMESTAMP|DEFAULT_GENERATED|-
+column|t_threat_intel_sync|10|epss_status|varchar(32)|NO|NEVER_SYNCED||utf8mb4_0900_ai_ci
+column|t_threat_intel_sync|11|epss_synced_at|datetime(6)|YES|<null>||-
+column|t_threat_intel_sync|12|epss_model_version|varchar(32)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_threat_intel_sync|13|epss_score_date|datetime(6)|YES|<null>||-
+column|t_threat_intel_sync|14|epss_count|bigint|NO|0||-
+column|t_threat_intel_sync|15|epss_generation|bigint|YES|<null>||-
+column|t_threat_intel_sync|16|epss_attempt_at|datetime(6)|YES|<null>||-
+column|t_threat_intel_sync|17|epss_lease_until|datetime(6)|YES|<null>||-
+column|t_threat_intel_sync|18|epss_claim|bigint|YES|<null>||-
+column|t_threat_intel_sync|19|epss_error|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_threat_intel_sync|1|id|bigint|NO|<null>||-
+column|t_threat_intel_sync|20|epss_previous_generation|bigint|YES|<null>||-
+column|t_threat_intel_sync|2|last_synced_at|timestamp|YES|<null>||-
+column|t_threat_intel_sync|3|cve_count|bigint|NO|0||-
+column|t_threat_intel_sync|4|kev_count|bigint|NO|0||-
+column|t_threat_intel_sync|5|status|varchar(32)|NO|SYNCED||utf8mb4_0900_ai_ci
+column|t_threat_intel_sync|6|kev_catalog_version|varchar(32)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_threat_intel_sync|7|kev_released_at|datetime(6)|YES|<null>||-
+column|t_threat_intel_sync|8|last_attempt_at|datetime(6)|YES|<null>||-
+column|t_threat_intel_sync|9|last_error|varchar(500)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user_target|1|user_id|bigint|NO|<null>||-
+column|t_user_target|2|target_kind|varchar(20)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_user_target|3|target_id|bigint|NO|<null>||-
+column|t_user|10|keycloak_id|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user|11|created_at|datetime(6)|NO|<null>||-
+column|t_user|12|updated_at|datetime(6)|NO|<null>||-
+column|t_user|13|must_change_password|bit(1)|NO|<null>||-
+column|t_user|14|mfa_enabled|tinyint(1)|NO|0||-
+column|t_user|15|totp_secret|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user|16|mfa_backup_codes|text|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user|17|totp_last_step|bigint|YES|<null>||-
+column|t_user|1|id|bigint|NO|<null>|auto_increment|-
+column|t_user|2|username|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_user|3|email|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user|4|password|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user|5|display_name|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user|6|avatar_url|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_user|7|role|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_user|8|is_active|bit(1)|NO|<null>||-
+column|t_user|9|github_id|varchar(255)|YES|<null>||utf8mb4_0900_ai_ci
+column|t_webhook_delivery|1|body_hash|varchar(64)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_webhook_delivery|2|provider|varchar(16)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_webhook_delivery|3|received_at|datetime(6)|NO|<null>||-
+constraint|flyway_schema_history|PRIMARY|PRIMARY KEY|YES
+constraint|t_agent|PRIMARY|PRIMARY KEY|YES
+constraint|t_agent|fk_agent_api_key|FOREIGN KEY|YES
+constraint|t_ai_review_result|PRIMARY|PRIMARY KEY|YES
+constraint|t_ai_review_result|fk_ai_review_scan|FOREIGN KEY|YES
+constraint|t_api_contract|PRIMARY|PRIMARY KEY|YES
+constraint|t_api_contract|fk_api_contract_repository|FOREIGN KEY|YES
+constraint|t_api_contract|fk_api_contract_scan|FOREIGN KEY|YES
+constraint|t_api_endpoint|PRIMARY|PRIMARY KEY|YES
+constraint|t_api_endpoint|fk_api_endpoint_repository|FOREIGN KEY|YES
+constraint|t_api_endpoint|fk_api_endpoint_scan|FOREIGN KEY|YES
+constraint|t_api_key|PRIMARY|PRIMARY KEY|YES
+constraint|t_api_key|fk_api_key_owner|FOREIGN KEY|YES
+constraint|t_audit_chain_head|PRIMARY|PRIMARY KEY|YES
+constraint|t_audit_log|PRIMARY|PRIMARY KEY|YES
+constraint|t_build_sbom_component|PRIMARY|PRIMARY KEY|YES
+constraint|t_build_sbom|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_answer|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_answer|ck_checklist_answer_author|CHECK|YES
+constraint|t_checklist_document|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_document|uq_checklist_document|UNIQUE|YES
+constraint|t_checklist_evidence|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_file|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_item|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_item|uq_checklist_item_key|UNIQUE|YES
+constraint|t_checklist_measurement|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_template_version|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_template_version|uq_checklist_template_version_ordinal|UNIQUE|YES
+constraint|t_checklist_template|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_template|uq_checklist_template_slug|UNIQUE|YES
+constraint|t_checklist|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist|uq_checklist_open_slot|UNIQUE|YES
+constraint|t_checklist|uq_checklist_revision|UNIQUE|YES
+constraint|t_compliance_snapshot|PRIMARY|PRIMARY KEY|YES
+constraint|t_compliance_snapshot|uq_compliance_snapshot|UNIQUE|YES
+constraint|t_component|PRIMARY|PRIMARY KEY|YES
+constraint|t_component|fk_component_scan|FOREIGN KEY|YES
+constraint|t_container|PRIMARY|PRIMARY KEY|YES
+constraint|t_container|fk_container_project|FOREIGN KEY|YES
+constraint|t_control_declaration|PRIMARY|PRIMARY KEY|YES
+constraint|t_control_declaration|uq_control_declaration|UNIQUE|YES
+constraint|t_coverage_import|PRIMARY|PRIMARY KEY|YES
+constraint|t_coverage_package|PRIMARY|PRIMARY KEY|YES
+constraint|t_epss_score|PRIMARY|PRIMARY KEY|YES
+constraint|t_finding|PRIMARY|PRIMARY KEY|YES
+constraint|t_finding|fk_finding_issue|FOREIGN KEY|YES
+constraint|t_finding|fk_finding_scan|FOREIGN KEY|YES
+constraint|t_forge_connection|PRIMARY|PRIMARY KEY|YES
+constraint|t_forge_connection|uq_forge_connection_name|UNIQUE|YES
+constraint|t_forge_discovery|PRIMARY|PRIMARY KEY|YES
+constraint|t_forge_discovery|uq_forge_discovery_active|UNIQUE|YES
+constraint|t_forge_import_link|PRIMARY|PRIMARY KEY|YES
+constraint|t_forge_import_link|uq_forge_import_link_repository|UNIQUE|YES
+constraint|t_forge_import_link|uq_forge_import_link|UNIQUE|YES
+constraint|t_forge_repository|PRIMARY|PRIMARY KEY|YES
+constraint|t_forge_repository|uq_forge_repository|UNIQUE|YES
+constraint|t_forge_review_reading|PRIMARY|PRIMARY KEY|YES
+constraint|t_forge_review_reading|uq_forge_review_reading|UNIQUE|YES
+constraint|t_gate_policy|PRIMARY|PRIMARY KEY|YES
+constraint|t_gate_verdict|PRIMARY|PRIMARY KEY|YES
+constraint|t_gate_verdict|fk_gate_verdict_container|FOREIGN KEY|YES
+constraint|t_gate_verdict|fk_gate_verdict_repo|FOREIGN KEY|YES
+constraint|t_git_token|PRIMARY|PRIMARY KEY|YES
+constraint|t_issue_ticket|PRIMARY|PRIMARY KEY|YES
+constraint|t_issue_ticket|fk_issue_ticket_issue|FOREIGN KEY|YES
+constraint|t_issue_triage_event|PRIMARY|PRIMARY KEY|YES
+constraint|t_issue_triage_event|fk_triage_event_issue|FOREIGN KEY|YES
+constraint|t_issue_triage_event|fk_triage_event_scan|FOREIGN KEY|YES
+constraint|t_issue|PRIMARY|PRIMARY KEY|YES
+constraint|t_issue|fk_issue_container|FOREIGN KEY|YES
+constraint|t_issue|fk_issue_first_scan|FOREIGN KEY|YES
+constraint|t_issue|fk_issue_last_scan|FOREIGN KEY|YES
+constraint|t_issue|fk_issue_repo|FOREIGN KEY|YES
+constraint|t_issue|uq_issue_fingerprint|UNIQUE|YES
+constraint|t_leader_lease|PRIMARY|PRIMARY KEY|YES
+constraint|t_license_policy|PRIMARY|PRIMARY KEY|YES
+constraint|t_login_attempt|PRIMARY|PRIMARY KEY|YES
+constraint|t_mfa_challenge|PRIMARY|PRIMARY KEY|YES
+constraint|t_mfa_challenge|fk_mfa_challenge_user|FOREIGN KEY|YES
+constraint|t_one_shot_job|PRIMARY|PRIMARY KEY|YES
+constraint|t_outbox_message|PRIMARY|PRIMARY KEY|YES
+constraint|t_owasp_weekly_coverage|PRIMARY|PRIMARY KEY|YES
+constraint|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|UNIQUE|YES
+constraint|t_plugin_activation|PRIMARY|PRIMARY KEY|YES
+constraint|t_plugin_activation|uq_plugin_activation|UNIQUE|YES
+constraint|t_plugin_manifest|PRIMARY|PRIMARY KEY|YES
+constraint|t_plugin|PRIMARY|PRIMARY KEY|YES
+constraint|t_processed_message|PRIMARY|PRIMARY KEY|YES
+constraint|t_project|PRIMARY|PRIMARY KEY|YES
+constraint|t_project|fk_project_solution|FOREIGN KEY|YES
+constraint|t_project|uq_project_solution_name|UNIQUE|YES
+constraint|t_rate_window|PRIMARY|PRIMARY KEY|YES
+constraint|t_report_document|PRIMARY|PRIMARY KEY|YES
+constraint|t_report_export|PRIMARY|PRIMARY KEY|YES
+constraint|t_report_plugin_activation|PRIMARY|PRIMARY KEY|YES
+constraint|t_report_plugin_activation|uq_report_plugin_activation|UNIQUE|YES
+constraint|t_report_plugin_manifest|PRIMARY|PRIMARY KEY|YES
+constraint|t_report_plugin|PRIMARY|PRIMARY KEY|YES
+constraint|t_report_run|PRIMARY|PRIMARY KEY|YES
+constraint|t_report_run|uq_report_run_active|UNIQUE|YES
+constraint|t_repository|PRIMARY|PRIMARY KEY|YES
+constraint|t_repository|fk_repository_https_token|FOREIGN KEY|YES
+constraint|t_repository|fk_repository_project|FOREIGN KEY|YES
+constraint|t_repository|fk_repository_ssh_key|FOREIGN KEY|YES
+constraint|t_repository|idx_repository_badge_token|UNIQUE|YES
+constraint|t_repository|uq_repository_identity_guard|UNIQUE|YES
+constraint|t_sarif_import|PRIMARY|PRIMARY KEY|YES
+constraint|t_sarif_source|PRIMARY|PRIMARY KEY|YES
+constraint|t_sarif_source|uq_sarif_source_key|UNIQUE|YES
+constraint|t_sarif_source|uq_sarif_source_slug|UNIQUE|YES
+constraint|t_scan|PRIMARY|PRIMARY KEY|YES
+constraint|t_scan|fk_scan_container|FOREIGN KEY|YES
+constraint|t_scan|fk_scan_repo|FOREIGN KEY|YES
+constraint|t_semgrep_rule_set|PRIMARY|PRIMARY KEY|YES
+constraint|t_semgrep_rule_set|uq_semgrep_rule_set_active|UNIQUE|YES
+constraint|t_session|PRIMARY|PRIMARY KEY|YES
+constraint|t_session|fk_session_user|FOREIGN KEY|YES
+constraint|t_setting|PRIMARY|PRIMARY KEY|YES
+constraint|t_siem_config|PRIMARY|PRIMARY KEY|YES
+constraint|t_solution|PRIMARY|PRIMARY KEY|YES
+constraint|t_solution|uq_solution_name|UNIQUE|YES
+constraint|t_ssh_key|PRIMARY|PRIMARY KEY|YES
+constraint|t_team_member|PRIMARY|PRIMARY KEY|YES
+constraint|t_team_member|fk_team_member_team|FOREIGN KEY|YES
+constraint|t_team_member|fk_team_member_user|FOREIGN KEY|YES
+constraint|t_team_target|PRIMARY|PRIMARY KEY|YES
+constraint|t_team_target|fk_team_target_team|FOREIGN KEY|YES
+constraint|t_team_webhook|PRIMARY|PRIMARY KEY|YES
+constraint|t_team_webhook|fk_team_webhook_team|FOREIGN KEY|YES
+constraint|t_team|PRIMARY|PRIMARY KEY|YES
+constraint|t_team|name|UNIQUE|YES
+constraint|t_test_report_import|PRIMARY|PRIMARY KEY|YES
+constraint|t_test_suite_result|PRIMARY|PRIMARY KEY|YES
+constraint|t_threat_intel_feed|PRIMARY|PRIMARY KEY|YES
+constraint|t_threat_intel_sync|PRIMARY|PRIMARY KEY|YES
+constraint|t_user_target|PRIMARY|PRIMARY KEY|YES
+constraint|t_user_target|fk_user_target_user|FOREIGN KEY|YES
+constraint|t_user|PRIMARY|PRIMARY KEY|YES
+constraint|t_user|email|UNIQUE|YES
+constraint|t_user|github_id|UNIQUE|YES
+constraint|t_user|keycloak_id|UNIQUE|YES
+constraint|t_user|username|UNIQUE|YES
+constraint|t_webhook_delivery|PRIMARY|PRIMARY KEY|YES
+index|flyway_schema_history|PRIMARY|0|1|installed_rank|-|BTREE
+index|flyway_schema_history|flyway_schema_history_s_idx|1|1|success|-|BTREE
+index|t_agent|PRIMARY|0|1|id|-|BTREE
+index|t_agent|fk_agent_api_key|1|1|api_key_id|-|BTREE
+index|t_ai_review_result|PRIMARY|0|1|id|-|BTREE
+index|t_ai_review_result|idx_ai_review_repository|1|1|repo_id|-|BTREE
+index|t_ai_review_result|idx_ai_review_repository|1|2|created_at|-|BTREE
+index|t_ai_review_result|idx_ai_review_scan|1|1|scan_id|-|BTREE
+index|t_api_contract|PRIMARY|0|1|id|-|BTREE
+index|t_api_contract|idx_api_contract_repo|1|1|repository_id|-|BTREE
+index|t_api_contract|idx_api_contract_scan|1|1|scan_id|-|BTREE
+index|t_api_endpoint|PRIMARY|0|1|id|-|BTREE
+index|t_api_endpoint|idx_api_endpoint_path|1|1|path|255|BTREE
+index|t_api_endpoint|idx_api_endpoint_path|1|2|http_method|-|BTREE
+index|t_api_endpoint|idx_api_endpoint_repo|1|1|repository_id|-|BTREE
+index|t_api_endpoint|idx_api_endpoint_repo|1|2|scan_id|-|BTREE
+index|t_api_endpoint|idx_api_endpoint_scan|1|1|scan_id|-|BTREE
+index|t_api_key|PRIMARY|0|1|id|-|BTREE
+index|t_api_key|fk_api_key_owner|1|1|owner_user_id|-|BTREE
+index|t_api_key|idx_api_key_prefix|1|1|prefix|-|BTREE
+index|t_audit_chain_head|PRIMARY|0|1|id|-|BTREE
+index|t_audit_log|PRIMARY|0|1|id|-|BTREE
+index|t_audit_log|idx_audit_log_order|1|1|timestamp|-|BTREE
+index|t_audit_log|idx_audit_log_order|1|2|id|-|BTREE
+index|t_build_sbom_component|PRIMARY|0|1|id|-|BTREE
+index|t_build_sbom_component|idx_build_sbom_component_import|1|1|import_id|-|BTREE
+index|t_build_sbom|PRIMARY|0|1|id|-|BTREE
+index|t_build_sbom|idx_build_sbom_imported|1|1|imported_at|-|BTREE
+index|t_build_sbom|idx_build_sbom_repo|1|1|repo_id|-|BTREE
+index|t_build_sbom|idx_build_sbom_repo|1|2|id|-|BTREE
+index|t_checklist_answer|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_answer|idx_checklist_answer_line|1|1|checklist_id|-|BTREE
+index|t_checklist_answer|idx_checklist_answer_line|1|2|item_id|-|BTREE
+index|t_checklist_document|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_document|idx_checklist_document_project|1|1|project_id|-|BTREE
+index|t_checklist_document|uq_checklist_document|0|1|checklist_id|-|BTREE
+index|t_checklist_evidence|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_evidence|idx_checklist_evidence_line|1|1|checklist_id|-|BTREE
+index|t_checklist_evidence|idx_checklist_evidence_line|1|2|item_id|-|BTREE
+index|t_checklist_file|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_file|idx_checklist_file_project|1|1|project_id|-|BTREE
+index|t_checklist_item|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_item|idx_checklist_item_position|1|1|version_id|-|BTREE
+index|t_checklist_item|idx_checklist_item_position|1|2|item_position|-|BTREE
+index|t_checklist_item|uq_checklist_item_key|0|1|version_id|-|BTREE
+index|t_checklist_item|uq_checklist_item_key|0|2|item_key|-|BTREE
+index|t_checklist_measurement|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_measurement|idx_checklist_measurement_line|1|1|checklist_id|-|BTREE
+index|t_checklist_measurement|idx_checklist_measurement_line|1|2|item_id|-|BTREE
+index|t_checklist_template_version|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_template_version|idx_checklist_template_version_status|1|1|template_id|-|BTREE
+index|t_checklist_template_version|idx_checklist_template_version_status|1|2|status|-|BTREE
+index|t_checklist_template_version|uq_checklist_template_version_ordinal|0|1|template_id|-|BTREE
+index|t_checklist_template_version|uq_checklist_template_version_ordinal|0|2|ordinal|-|BTREE
+index|t_checklist_template|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_template|uq_checklist_template_slug|0|1|slug|-|BTREE
+index|t_checklist|PRIMARY|0|1|id|-|BTREE
+index|t_checklist|uq_checklist_open_slot|0|1|project_id|-|BTREE
+index|t_checklist|uq_checklist_open_slot|0|2|open_slot|-|BTREE
+index|t_checklist|uq_checklist_revision|0|1|project_id|-|BTREE
+index|t_checklist|uq_checklist_revision|0|2|revision|-|BTREE
+index|t_compliance_snapshot|PRIMARY|0|1|id|-|BTREE
+index|t_compliance_snapshot|idx_compliance_snapshot_framework|1|1|framework|-|BTREE
+index|t_compliance_snapshot|idx_compliance_snapshot_framework|1|2|period|-|BTREE
+index|t_compliance_snapshot|uq_compliance_snapshot|0|1|period|-|BTREE
+index|t_compliance_snapshot|uq_compliance_snapshot|0|2|framework|-|BTREE
+index|t_component|PRIMARY|0|1|id|-|BTREE
+index|t_component|idx_component_build_sbom|1|1|build_sbom_id|-|BTREE
+index|t_component|idx_component_scan|1|1|scan_id|-|BTREE
+index|t_component|idx_component_search|1|1|name|-|BTREE
+index|t_component|idx_component_search|1|2|version|-|BTREE
+index|t_component|idx_component_search|1|3|scan_id|-|BTREE
+index|t_container|PRIMARY|0|1|id|-|BTREE
+index|t_container|idx_container_project|1|1|project_id|-|BTREE
+index|t_control_declaration|PRIMARY|0|1|id|-|BTREE
+index|t_control_declaration|idx_control_declaration_review|1|1|review_due_at|-|BTREE
+index|t_control_declaration|uq_control_declaration|0|1|framework|-|BTREE
+index|t_control_declaration|uq_control_declaration|0|2|control_id|-|BTREE
+index|t_coverage_import|PRIMARY|0|1|id|-|BTREE
+index|t_coverage_import|idx_coverage_import_repo|1|1|repo_id|-|BTREE
+index|t_coverage_import|idx_coverage_import_repo|1|2|imported_at|-|BTREE
+index|t_coverage_package|PRIMARY|0|1|id|-|BTREE
+index|t_coverage_package|idx_coverage_package_import|1|1|import_id|-|BTREE
+index|t_epss_score|PRIMARY|0|1|generation|-|BTREE
+index|t_epss_score|PRIMARY|0|2|cve_id|-|BTREE
+index|t_finding|PRIMARY|0|1|id|-|BTREE
+index|t_finding|idx_finding_issue|1|1|issue_id|-|BTREE
+index|t_finding|idx_finding_package|1|1|package_name|-|BTREE
+index|t_finding|idx_finding_scan|1|1|scan_id|-|BTREE
+index|t_forge_connection|PRIMARY|0|1|id|-|BTREE
+index|t_forge_connection|uq_forge_connection_name|0|1|name|-|BTREE
+index|t_forge_discovery|PRIMARY|0|1|id|-|BTREE
+index|t_forge_discovery|idx_forge_discovery_connection|1|1|connection_id|-|BTREE
+index|t_forge_discovery|idx_forge_discovery_connection|1|2|requested_at|-|BTREE
+index|t_forge_discovery|idx_forge_discovery_state|1|1|state|-|BTREE
+index|t_forge_discovery|idx_forge_discovery_state|1|2|requested_at|-|BTREE
+index|t_forge_discovery|uq_forge_discovery_active|0|1|active_key|-|BTREE
+index|t_forge_import_link|PRIMARY|0|1|id|-|BTREE
+index|t_forge_import_link|uq_forge_import_link_repository|0|1|repository_id|-|BTREE
+index|t_forge_import_link|uq_forge_import_link|0|1|connection_id|-|BTREE
+index|t_forge_import_link|uq_forge_import_link|0|2|forge_id|-|BTREE
+index|t_forge_repository|PRIMARY|0|1|id|-|BTREE
+index|t_forge_repository|idx_forge_repository_seen|1|1|connection_id|-|BTREE
+index|t_forge_repository|idx_forge_repository_seen|1|2|last_seen_by|-|BTREE
+index|t_forge_repository|uq_forge_repository|0|1|connection_id|-|BTREE
+index|t_forge_repository|uq_forge_repository|0|2|forge_id|-|BTREE
+index|t_forge_review_reading|PRIMARY|0|1|id|-|BTREE
+index|t_forge_review_reading|uq_forge_review_reading|0|1|repository_id|-|BTREE
+index|t_forge_review_reading|uq_forge_review_reading|0|2|wanted_branch|-|BTREE
+index|t_gate_policy|PRIMARY|0|1|id|-|BTREE
+index|t_gate_verdict|PRIMARY|0|1|id|-|BTREE
+index|t_gate_verdict|idx_gate_verdict_container|1|1|container_id|-|BTREE
+index|t_gate_verdict|idx_gate_verdict_container|1|2|decided_at|-|BTREE
+index|t_gate_verdict|idx_gate_verdict_decided_at|1|1|decided_at|-|BTREE
+index|t_gate_verdict|idx_gate_verdict_repo|1|1|repo_id|-|BTREE
+index|t_gate_verdict|idx_gate_verdict_repo|1|2|decided_at|-|BTREE
+index|t_git_token|PRIMARY|0|1|id|-|BTREE
+index|t_issue_ticket|PRIMARY|0|1|id|-|BTREE
+index|t_issue_ticket|idx_issue_ticket_issue_id|1|1|issue_id|-|BTREE
+index|t_issue_triage_event|PRIMARY|0|1|id|-|BTREE
+index|t_issue_triage_event|fk_triage_event_scan|1|1|scan_id|-|BTREE
+index|t_issue_triage_event|idx_triage_event_issue|1|1|issue_id|-|BTREE
+index|t_issue_triage_event|idx_triage_event_issue|1|2|occurred_at|-|BTREE
+index|t_issue_triage_event|idx_triage_event_issue|1|3|id|-|BTREE
+index|t_issue|PRIMARY|0|1|id|-|BTREE
+index|t_issue|fk_issue_container|1|1|container_id|-|BTREE
+index|t_issue|fk_issue_first_scan|1|1|first_seen_scan_id|-|BTREE
+index|t_issue|fk_issue_last_scan|1|1|last_seen_scan_id|-|BTREE
+index|t_issue|fk_issue_repo|1|1|repo_id|-|BTREE
+index|t_issue|idx_issue_identifier|1|1|identifier|-|BTREE
+index|t_issue|idx_issue_state_container|1|1|state|-|BTREE
+index|t_issue|idx_issue_state_container|1|2|container_id|-|BTREE
+index|t_issue|idx_issue_state_repo|1|1|state|-|BTREE
+index|t_issue|idx_issue_state_repo|1|2|repo_id|-|BTREE
+index|t_issue|idx_issue_ticket_ref|1|1|ticket_ref|-|BTREE
+index|t_issue|idx_issue_triage_expires_at|1|1|triage_expires_at|-|BTREE
+index|t_issue|uq_issue_fingerprint|0|1|fingerprint|-|BTREE
+index|t_leader_lease|PRIMARY|0|1|name|-|BTREE
+index|t_license_policy|PRIMARY|0|1|id|-|BTREE
+index|t_login_attempt|PRIMARY|0|1|id|-|BTREE
+index|t_login_attempt|idx_login_attempt_key|1|1|counter_key|-|BTREE
+index|t_login_attempt|idx_login_attempt_key|1|2|occurred_at|-|BTREE
+index|t_mfa_challenge|PRIMARY|0|1|token_hash|-|BTREE
+index|t_mfa_challenge|fk_mfa_challenge_user|1|1|user_id|-|BTREE
+index|t_mfa_challenge|idx_mfa_challenge_expires|1|1|expires_at|-|BTREE
+index|t_one_shot_job|PRIMARY|0|1|name|-|BTREE
+index|t_outbox_message|PRIMARY|0|1|id|-|BTREE
+index|t_outbox_message|idx_outbox_due|1|1|status|-|BTREE
+index|t_outbox_message|idx_outbox_due|1|2|next_attempt_at|-|BTREE
+index|t_owasp_weekly_coverage|PRIMARY|0|1|id|-|BTREE
+index|t_owasp_weekly_coverage|idx_owasp_weekly_coverage_target|1|1|target_kind|-|BTREE
+index|t_owasp_weekly_coverage|idx_owasp_weekly_coverage_target|1|2|target_id|-|BTREE
+index|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|0|1|week_start|-|BTREE
+index|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|0|2|target_kind|-|BTREE
+index|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|0|3|target_id|-|BTREE
+index|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|0|4|category|-|BTREE
+index|t_plugin_activation|PRIMARY|0|1|id|-|BTREE
+index|t_plugin_activation|uq_plugin_activation|0|1|plugin_id|-|BTREE
+index|t_plugin_activation|uq_plugin_activation|0|2|project_id|-|BTREE
+index|t_plugin_manifest|PRIMARY|0|1|digest|-|BTREE
+index|t_plugin|PRIMARY|0|1|id|-|BTREE
+index|t_processed_message|PRIMARY|0|1|id|-|BTREE
+index|t_project|PRIMARY|0|1|id|-|BTREE
+index|t_project|uq_project_solution_name|0|1|solution_id|-|BTREE
+index|t_project|uq_project_solution_name|0|2|name|-|BTREE
+index|t_rate_window|PRIMARY|0|1|window_key|-|BTREE
+index|t_rate_window|idx_rate_window_expires|1|1|expires_at|-|BTREE
+index|t_report_document|PRIMARY|0|1|run_id|-|BTREE
+index|t_report_document|idx_report_document_created|1|1|created_at|-|BTREE
+index|t_report_export|PRIMARY|0|1|run_id|-|BTREE
+index|t_report_export|idx_report_export_created|1|1|created_at|-|BTREE
+index|t_report_plugin_activation|PRIMARY|0|1|id|-|BTREE
+index|t_report_plugin_activation|idx_report_plugin_activation_project|1|1|project_id|-|BTREE
+index|t_report_plugin_activation|uq_report_plugin_activation|0|1|plugin_id|-|BTREE
+index|t_report_plugin_activation|uq_report_plugin_activation|0|2|project_id|-|BTREE
+index|t_report_plugin_manifest|PRIMARY|0|1|digest|-|BTREE
+index|t_report_plugin_manifest|idx_report_plugin_manifest_plugin|1|1|plugin_id|-|BTREE
+index|t_report_plugin_manifest|idx_report_plugin_manifest_plugin|1|2|registered_at|-|BTREE
+index|t_report_plugin|PRIMARY|0|1|id|-|BTREE
+index|t_report_run|PRIMARY|0|1|id|-|BTREE
+index|t_report_run|idx_report_run_manifest|1|1|manifest_digest|-|BTREE
+index|t_report_run|idx_report_run_output|1|1|output_sha256|-|BTREE
+index|t_report_run|idx_report_run_package|1|1|package_sha256|-|BTREE
+index|t_report_run|idx_report_run_project|1|1|project_id|-|BTREE
+index|t_report_run|idx_report_run_project|1|2|requested_at|-|BTREE
+index|t_report_run|idx_report_run_state|1|1|state|-|BTREE
+index|t_report_run|idx_report_run_state|1|2|requested_at|-|BTREE
+index|t_report_run|uq_report_run_active|0|1|active_key|-|BTREE
+index|t_repository|PRIMARY|0|1|id|-|BTREE
+index|t_repository|fk_repository_https_token|1|1|https_token_id|-|BTREE
+index|t_repository|fk_repository_ssh_key|1|1|ssh_key_id|-|BTREE
+index|t_repository|idx_repository_badge_token|0|1|badge_token|-|BTREE
+index|t_repository|idx_repository_project|1|1|project_id|-|BTREE
+index|t_repository|idx_repository_url_identity|1|1|url_identity|-|BTREE
+index|t_repository|uq_repository_identity_guard|0|1|identity_guard|-|BTREE
+index|t_sarif_import|PRIMARY|0|1|id|-|BTREE
+index|t_sarif_import|idx_sarif_import_repo|1|1|repo_id|-|BTREE
+index|t_sarif_import|idx_sarif_import_repo|1|2|imported_at|-|BTREE
+index|t_sarif_source|PRIMARY|0|1|id|-|BTREE
+index|t_sarif_source|uq_sarif_source_key|0|1|api_key_id|-|BTREE
+index|t_sarif_source|uq_sarif_source_slug|0|1|slug|-|BTREE
+index|t_scan|PRIMARY|0|1|id|-|BTREE
+index|t_scan|idx_scan_container|1|1|container_id|-|BTREE
+index|t_scan|idx_scan_container|1|2|id|-|BTREE
+index|t_scan|idx_scan_queue|1|1|status|-|BTREE
+index|t_scan|idx_scan_queue|1|2|required_agent_label|-|BTREE
+index|t_scan|idx_scan_queue|1|3|created_at|-|BTREE
+index|t_scan|idx_scan_queue|1|4|id|-|BTREE
+index|t_scan|idx_scan_repo|1|1|repo_id|-|BTREE
+index|t_scan|idx_scan_repo|1|2|id|-|BTREE
+index|t_semgrep_rule_set|PRIMARY|0|1|id|-|BTREE
+index|t_semgrep_rule_set|uq_semgrep_rule_set_active|0|1|is_active|-|BTREE
+index|t_session|PRIMARY|0|1|token_hash|-|BTREE
+index|t_session|fk_session_user|1|1|user_id|-|BTREE
+index|t_setting|PRIMARY|0|1|key|-|BTREE
+index|t_siem_config|PRIMARY|0|1|id|-|BTREE
+index|t_solution|PRIMARY|0|1|id|-|BTREE
+index|t_solution|uq_solution_name|0|1|name|-|BTREE
+index|t_ssh_key|PRIMARY|0|1|id|-|BTREE
+index|t_team_member|PRIMARY|0|1|team_id|-|BTREE
+index|t_team_member|PRIMARY|0|2|user_id|-|BTREE
+index|t_team_member|idx_team_member_user|1|1|user_id|-|BTREE
+index|t_team_target|PRIMARY|0|1|team_id|-|BTREE
+index|t_team_target|PRIMARY|0|2|target_kind|-|BTREE
+index|t_team_target|PRIMARY|0|3|target_id|-|BTREE
+index|t_team_webhook|PRIMARY|0|1|team_id|-|BTREE
+index|t_team|PRIMARY|0|1|id|-|BTREE
+index|t_team|name|0|1|name|-|BTREE
+index|t_test_report_import|PRIMARY|0|1|id|-|BTREE
+index|t_test_report_import|idx_test_report_import_repo|1|1|repo_id|-|BTREE
+index|t_test_report_import|idx_test_report_import_repo|1|2|imported_at|-|BTREE
+index|t_test_suite_result|PRIMARY|0|1|id|-|BTREE
+index|t_test_suite_result|idx_test_suite_result_import|1|1|import_id|-|BTREE
+index|t_threat_intel_feed|PRIMARY|0|1|cve_id|-|BTREE
+index|t_threat_intel_sync|PRIMARY|0|1|id|-|BTREE
+index|t_user_target|PRIMARY|0|1|user_id|-|BTREE
+index|t_user_target|PRIMARY|0|2|target_kind|-|BTREE
+index|t_user_target|PRIMARY|0|3|target_id|-|BTREE
+index|t_user|PRIMARY|0|1|id|-|BTREE
+index|t_user|email|0|1|email|-|BTREE
+index|t_user|github_id|0|1|github_id|-|BTREE
+index|t_user|keycloak_id|0|1|keycloak_id|-|BTREE
+index|t_user|username|0|1|username|-|BTREE
+index|t_webhook_delivery|PRIMARY|0|1|body_hash|-|BTREE
+index|t_webhook_delivery|idx_webhook_delivery_received|1|1|received_at|-|BTREE
+key|flyway_schema_history|PRIMARY|installed_rank|1|-|-
+key|t_agent|PRIMARY|id|1|-|-
+key|t_agent|fk_agent_api_key|api_key_id|1|t_api_key|id
+key|t_ai_review_result|PRIMARY|id|1|-|-
+key|t_ai_review_result|fk_ai_review_scan|scan_id|1|t_scan|id
+key|t_api_contract|PRIMARY|id|1|-|-
+key|t_api_contract|fk_api_contract_repository|repository_id|1|t_repository|id
+key|t_api_contract|fk_api_contract_scan|scan_id|1|t_scan|id
+key|t_api_endpoint|PRIMARY|id|1|-|-
+key|t_api_endpoint|fk_api_endpoint_repository|repository_id|1|t_repository|id
+key|t_api_endpoint|fk_api_endpoint_scan|scan_id|1|t_scan|id
+key|t_api_key|PRIMARY|id|1|-|-
+key|t_api_key|fk_api_key_owner|owner_user_id|1|t_user|id
+key|t_audit_chain_head|PRIMARY|id|1|-|-
+key|t_audit_log|PRIMARY|id|1|-|-
+key|t_build_sbom_component|PRIMARY|id|1|-|-
+key|t_build_sbom|PRIMARY|id|1|-|-
+key|t_checklist_answer|PRIMARY|id|1|-|-
+key|t_checklist_document|PRIMARY|id|1|-|-
+key|t_checklist_document|uq_checklist_document|checklist_id|1|-|-
+key|t_checklist_evidence|PRIMARY|id|1|-|-
+key|t_checklist_file|PRIMARY|id|1|-|-
+key|t_checklist_item|PRIMARY|id|1|-|-
+key|t_checklist_item|uq_checklist_item_key|item_key|2|-|-
+key|t_checklist_item|uq_checklist_item_key|version_id|1|-|-
+key|t_checklist_measurement|PRIMARY|id|1|-|-
+key|t_checklist_template_version|PRIMARY|id|1|-|-
+key|t_checklist_template_version|uq_checklist_template_version_ordinal|ordinal|2|-|-
+key|t_checklist_template_version|uq_checklist_template_version_ordinal|template_id|1|-|-
+key|t_checklist_template|PRIMARY|id|1|-|-
+key|t_checklist_template|uq_checklist_template_slug|slug|1|-|-
+key|t_checklist|PRIMARY|id|1|-|-
+key|t_checklist|uq_checklist_open_slot|open_slot|2|-|-
+key|t_checklist|uq_checklist_open_slot|project_id|1|-|-
+key|t_checklist|uq_checklist_revision|project_id|1|-|-
+key|t_checklist|uq_checklist_revision|revision|2|-|-
+key|t_compliance_snapshot|PRIMARY|id|1|-|-
+key|t_compliance_snapshot|uq_compliance_snapshot|framework|2|-|-
+key|t_compliance_snapshot|uq_compliance_snapshot|period|1|-|-
+key|t_component|PRIMARY|id|1|-|-
+key|t_component|fk_component_scan|scan_id|1|t_scan|id
+key|t_container|PRIMARY|id|1|-|-
+key|t_container|fk_container_project|project_id|1|t_project|id
+key|t_control_declaration|PRIMARY|id|1|-|-
+key|t_control_declaration|uq_control_declaration|control_id|2|-|-
+key|t_control_declaration|uq_control_declaration|framework|1|-|-
+key|t_coverage_import|PRIMARY|id|1|-|-
+key|t_coverage_package|PRIMARY|id|1|-|-
+key|t_epss_score|PRIMARY|cve_id|2|-|-
+key|t_epss_score|PRIMARY|generation|1|-|-
+key|t_finding|PRIMARY|id|1|-|-
+key|t_finding|fk_finding_issue|issue_id|1|t_issue|id
+key|t_finding|fk_finding_scan|scan_id|1|t_scan|id
+key|t_forge_connection|PRIMARY|id|1|-|-
+key|t_forge_connection|uq_forge_connection_name|name|1|-|-
+key|t_forge_discovery|PRIMARY|id|1|-|-
+key|t_forge_discovery|uq_forge_discovery_active|active_key|1|-|-
+key|t_forge_import_link|PRIMARY|id|1|-|-
+key|t_forge_import_link|uq_forge_import_link_repository|repository_id|1|-|-
+key|t_forge_import_link|uq_forge_import_link|connection_id|1|-|-
+key|t_forge_import_link|uq_forge_import_link|forge_id|2|-|-
+key|t_forge_repository|PRIMARY|id|1|-|-
+key|t_forge_repository|uq_forge_repository|connection_id|1|-|-
+key|t_forge_repository|uq_forge_repository|forge_id|2|-|-
+key|t_forge_review_reading|PRIMARY|id|1|-|-
+key|t_forge_review_reading|uq_forge_review_reading|repository_id|1|-|-
+key|t_forge_review_reading|uq_forge_review_reading|wanted_branch|2|-|-
+key|t_gate_policy|PRIMARY|id|1|-|-
+key|t_gate_verdict|PRIMARY|id|1|-|-
+key|t_gate_verdict|fk_gate_verdict_container|container_id|1|t_container|id
+key|t_gate_verdict|fk_gate_verdict_repo|repo_id|1|t_repository|id
+key|t_git_token|PRIMARY|id|1|-|-
+key|t_issue_ticket|PRIMARY|id|1|-|-
+key|t_issue_ticket|fk_issue_ticket_issue|issue_id|1|t_issue|id
+key|t_issue_triage_event|PRIMARY|id|1|-|-
+key|t_issue_triage_event|fk_triage_event_issue|issue_id|1|t_issue|id
+key|t_issue_triage_event|fk_triage_event_scan|scan_id|1|t_scan|id
+key|t_issue|PRIMARY|id|1|-|-
+key|t_issue|fk_issue_container|container_id|1|t_container|id
+key|t_issue|fk_issue_first_scan|first_seen_scan_id|1|t_scan|id
+key|t_issue|fk_issue_last_scan|last_seen_scan_id|1|t_scan|id
+key|t_issue|fk_issue_repo|repo_id|1|t_repository|id
+key|t_issue|uq_issue_fingerprint|fingerprint|1|-|-
+key|t_leader_lease|PRIMARY|name|1|-|-
+key|t_license_policy|PRIMARY|id|1|-|-
+key|t_login_attempt|PRIMARY|id|1|-|-
+key|t_mfa_challenge|PRIMARY|token_hash|1|-|-
+key|t_mfa_challenge|fk_mfa_challenge_user|user_id|1|t_user|id
+key|t_one_shot_job|PRIMARY|name|1|-|-
+key|t_outbox_message|PRIMARY|id|1|-|-
+key|t_owasp_weekly_coverage|PRIMARY|id|1|-|-
+key|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|category|4|-|-
+key|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|target_id|3|-|-
+key|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|target_kind|2|-|-
+key|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|week_start|1|-|-
+key|t_plugin_activation|PRIMARY|id|1|-|-
+key|t_plugin_activation|uq_plugin_activation|plugin_id|1|-|-
+key|t_plugin_activation|uq_plugin_activation|project_id|2|-|-
+key|t_plugin_manifest|PRIMARY|digest|1|-|-
+key|t_plugin|PRIMARY|id|1|-|-
+key|t_processed_message|PRIMARY|id|1|-|-
+key|t_project|PRIMARY|id|1|-|-
+key|t_project|fk_project_solution|solution_id|1|t_solution|id
+key|t_project|uq_project_solution_name|name|2|-|-
+key|t_project|uq_project_solution_name|solution_id|1|-|-
+key|t_rate_window|PRIMARY|window_key|1|-|-
+key|t_report_document|PRIMARY|run_id|1|-|-
+key|t_report_export|PRIMARY|run_id|1|-|-
+key|t_report_plugin_activation|PRIMARY|id|1|-|-
+key|t_report_plugin_activation|uq_report_plugin_activation|plugin_id|1|-|-
+key|t_report_plugin_activation|uq_report_plugin_activation|project_id|2|-|-
+key|t_report_plugin_manifest|PRIMARY|digest|1|-|-
+key|t_report_plugin|PRIMARY|id|1|-|-
+key|t_report_run|PRIMARY|id|1|-|-
+key|t_report_run|uq_report_run_active|active_key|1|-|-
+key|t_repository|PRIMARY|id|1|-|-
+key|t_repository|fk_repository_https_token|https_token_id|1|t_git_token|id
+key|t_repository|fk_repository_project|project_id|1|t_project|id
+key|t_repository|fk_repository_ssh_key|ssh_key_id|1|t_ssh_key|id
+key|t_repository|idx_repository_badge_token|badge_token|1|-|-
+key|t_repository|uq_repository_identity_guard|identity_guard|1|-|-
+key|t_sarif_import|PRIMARY|id|1|-|-
+key|t_sarif_source|PRIMARY|id|1|-|-
+key|t_sarif_source|uq_sarif_source_key|api_key_id|1|-|-
+key|t_sarif_source|uq_sarif_source_slug|slug|1|-|-
+key|t_scan|PRIMARY|id|1|-|-
+key|t_scan|fk_scan_container|container_id|1|t_container|id
+key|t_scan|fk_scan_repo|repo_id|1|t_repository|id
+key|t_semgrep_rule_set|PRIMARY|id|1|-|-
+key|t_semgrep_rule_set|uq_semgrep_rule_set_active|is_active|1|-|-
+key|t_session|PRIMARY|token_hash|1|-|-
+key|t_session|fk_session_user|user_id|1|t_user|id
+key|t_setting|PRIMARY|key|1|-|-
+key|t_siem_config|PRIMARY|id|1|-|-
+key|t_solution|PRIMARY|id|1|-|-
+key|t_solution|uq_solution_name|name|1|-|-
+key|t_ssh_key|PRIMARY|id|1|-|-
+key|t_team_member|PRIMARY|team_id|1|-|-
+key|t_team_member|PRIMARY|user_id|2|-|-
+key|t_team_member|fk_team_member_team|team_id|1|t_team|id
+key|t_team_member|fk_team_member_user|user_id|1|t_user|id
+key|t_team_target|PRIMARY|target_id|3|-|-
+key|t_team_target|PRIMARY|target_kind|2|-|-
+key|t_team_target|PRIMARY|team_id|1|-|-
+key|t_team_target|fk_team_target_team|team_id|1|t_team|id
+key|t_team_webhook|PRIMARY|team_id|1|-|-
+key|t_team_webhook|fk_team_webhook_team|team_id|1|t_team|id
+key|t_team|PRIMARY|id|1|-|-
+key|t_team|name|name|1|-|-
+key|t_test_report_import|PRIMARY|id|1|-|-
+key|t_test_suite_result|PRIMARY|id|1|-|-
+key|t_threat_intel_feed|PRIMARY|cve_id|1|-|-
+key|t_threat_intel_sync|PRIMARY|id|1|-|-
+key|t_user_target|PRIMARY|target_id|3|-|-
+key|t_user_target|PRIMARY|target_kind|2|-|-
+key|t_user_target|PRIMARY|user_id|1|-|-
+key|t_user_target|fk_user_target_user|user_id|1|t_user|id
+key|t_user|PRIMARY|id|1|-|-
+key|t_user|email|email|1|-|-
+key|t_user|github_id|github_id|1|-|-
+key|t_user|keycloak_id|keycloak_id|1|-|-
+key|t_user|username|username|1|-|-
+key|t_webhook_delivery|PRIMARY|body_hash|1|-|-
+reference|t_agent|fk_agent_api_key|NO ACTION|SET NULL
+reference|t_ai_review_result|fk_ai_review_scan|NO ACTION|CASCADE
+reference|t_api_contract|fk_api_contract_repository|NO ACTION|CASCADE
+reference|t_api_contract|fk_api_contract_scan|NO ACTION|CASCADE
+reference|t_api_endpoint|fk_api_endpoint_repository|NO ACTION|CASCADE
+reference|t_api_endpoint|fk_api_endpoint_scan|NO ACTION|CASCADE
+reference|t_api_key|fk_api_key_owner|NO ACTION|CASCADE
+reference|t_component|fk_component_scan|NO ACTION|CASCADE
+reference|t_container|fk_container_project|NO ACTION|SET NULL
+reference|t_finding|fk_finding_issue|NO ACTION|SET NULL
+reference|t_finding|fk_finding_scan|NO ACTION|CASCADE
+reference|t_gate_verdict|fk_gate_verdict_container|NO ACTION|CASCADE
+reference|t_gate_verdict|fk_gate_verdict_repo|NO ACTION|CASCADE
+reference|t_issue_ticket|fk_issue_ticket_issue|NO ACTION|CASCADE
+reference|t_issue_triage_event|fk_triage_event_issue|NO ACTION|CASCADE
+reference|t_issue_triage_event|fk_triage_event_scan|NO ACTION|SET NULL
+reference|t_issue|fk_issue_container|NO ACTION|CASCADE
+reference|t_issue|fk_issue_first_scan|NO ACTION|SET NULL
+reference|t_issue|fk_issue_last_scan|NO ACTION|SET NULL
+reference|t_issue|fk_issue_repo|NO ACTION|CASCADE
+reference|t_mfa_challenge|fk_mfa_challenge_user|NO ACTION|CASCADE
+reference|t_project|fk_project_solution|NO ACTION|RESTRICT
+reference|t_repository|fk_repository_https_token|NO ACTION|SET NULL
+reference|t_repository|fk_repository_project|NO ACTION|SET NULL
+reference|t_repository|fk_repository_ssh_key|NO ACTION|SET NULL
+reference|t_scan|fk_scan_container|NO ACTION|CASCADE
+reference|t_scan|fk_scan_repo|NO ACTION|CASCADE
+reference|t_session|fk_session_user|NO ACTION|CASCADE
+reference|t_team_member|fk_team_member_team|NO ACTION|CASCADE
+reference|t_team_member|fk_team_member_user|NO ACTION|CASCADE
+reference|t_team_target|fk_team_target_team|NO ACTION|CASCADE
+reference|t_team_webhook|fk_team_webhook_team|NO ACTION|CASCADE
+reference|t_user_target|fk_user_target_user|NO ACTION|CASCADE
+table|flyway_schema_history|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_agent|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_ai_review_result|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_api_contract|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_api_endpoint|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_api_key|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_audit_chain_head|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_audit_log|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_build_sbom_component|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_build_sbom|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_answer|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_document|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_evidence|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_file|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_item|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_measurement|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_template_version|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_template|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_compliance_snapshot|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_component|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_container|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_control_declaration|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_coverage_import|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_coverage_package|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_epss_score|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_finding|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_forge_connection|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_forge_discovery|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_forge_import_link|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_forge_repository|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_forge_review_reading|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_gate_policy|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_gate_verdict|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_git_token|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_issue_ticket|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_issue_triage_event|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_issue|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_leader_lease|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_license_policy|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_login_attempt|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_mfa_challenge|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_one_shot_job|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_outbox_message|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_owasp_weekly_coverage|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_plugin_activation|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_plugin_manifest|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_plugin|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_processed_message|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_project|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_rate_window|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_report_document|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_report_export|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_report_plugin_activation|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_report_plugin_manifest|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_report_plugin|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_report_run|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_repository|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_sarif_import|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_sarif_source|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_scan|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_semgrep_rule_set|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_session|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_setting|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_siem_config|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_solution|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_ssh_key|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_team_member|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_team_target|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_team_webhook|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_team|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_test_report_import|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_test_suite_result|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_threat_intel_feed|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_threat_intel_sync|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_user_target|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_user|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_webhook_delivery|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci

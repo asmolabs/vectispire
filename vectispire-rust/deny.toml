@@ -50,7 +50,7 @@ wildcards = "deny"
 allow-wildcard-paths = true
 deny = [
     # Decision 0003: the agent holds no database connection, so no crate here may be a client of one.
-    { crate = "sqlx", reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sqlx", reason = "decision 0003: the agent holds no database connection", wrappers = ["vectispire-migrate"] },
     { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
     { crate = "postgres", reason = "decision 0003: the agent holds no database connection" },
     { crate = "tokio-postgres", reason = "decision 0003: the agent holds no database connection" },

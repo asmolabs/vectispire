@@ -1,0 +1,1280 @@
+column|flyway_schema_history|10|success|boolean|bool|NO|<null>|NO
+column|flyway_schema_history|1|installed_rank|integer|int4|32|NO|<null>|NO
+column|flyway_schema_history|2|version|character varying|varchar|50|YES|<null>|NO
+column|flyway_schema_history|3|description|character varying|varchar|200|NO|<null>|NO
+column|flyway_schema_history|4|type|character varying|varchar|20|NO|<null>|NO
+column|flyway_schema_history|5|script|character varying|varchar|1000|NO|<null>|NO
+column|flyway_schema_history|6|checksum|integer|int4|32|YES|<null>|NO
+column|flyway_schema_history|7|installed_by|character varying|varchar|100|NO|<null>|NO
+column|flyway_schema_history|8|installed_on|timestamp without time zone|timestamp|NO|now()|NO
+column|flyway_schema_history|9|execution_time|integer|int4|32|NO|<null>|NO
+column|t_agent|10|hostname|character varying|varchar|255|YES|<null>|NO
+column|t_agent|11|platform|character varying|varchar|255|YES|<null>|NO
+column|t_agent|12|version|character varying|varchar|50|YES|<null>|NO
+column|t_agent|13|scanner_engine|character varying|varchar|50|YES|<null>|NO
+column|t_agent|14|capabilities|text|text|YES|<null>|NO
+column|t_agent|15|contract_version|character varying|varchar|20|YES|<null>|NO
+column|t_agent|16|sealing_public_key|character varying|varchar|255|YES|<null>|NO
+column|t_agent|17|last_seen_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_agent|18|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_agent|19|signing_public_key|character varying|varchar|255|YES|<null>|NO
+column|t_agent|1|id|character|bpchar|36|NO|<null>|NO
+column|t_agent|20|sealing_key_generation|bigint|int8|64|YES|<null>|NO
+column|t_agent|2|name|character varying|varchar|255|NO|<null>|NO
+column|t_agent|3|description|character varying|varchar|500|YES|<null>|NO
+column|t_agent|4|kind|character varying|varchar|20|NO|<null>|NO
+column|t_agent|5|labels|character varying|varchar|255|YES|<null>|NO
+column|t_agent|6|credentials_mode|character varying|varchar|20|NO|<null>|NO
+column|t_agent|7|enabled|boolean|bool|NO|<null>|NO
+column|t_agent|8|max_concurrent|integer|int4|32|YES|<null>|NO
+column|t_agent|9|api_key_id|character|bpchar|36|YES|<null>|NO
+column|t_ai_review_result|10|deadline_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_ai_review_result|11|repo_id|bigint|int8|64|YES|<null>|NO
+column|t_ai_review_result|12|evidence_identifiers|text|text|YES|<null>|NO
+column|t_ai_review_result|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_ai_review_result|2|scan_id|bigint|int8|64|NO|<null>|NO
+column|t_ai_review_result|3|model|character varying|varchar|255|NO|<null>|NO
+column|t_ai_review_result|4|prompt|text|text|NO|<null>|NO
+column|t_ai_review_result|5|response|text|text|YES|<null>|NO
+column|t_ai_review_result|6|status|character varying|varchar|50|NO|<null>|NO
+column|t_ai_review_result|7|error|character varying|varchar|500|YES|<null>|NO
+column|t_ai_review_result|8|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_ai_review_result|9|inputs|text|text|YES|<null>|NO
+column|t_api_contract|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_api_contract|2|repository_id|bigint|int8|64|NO|<null>|NO
+column|t_api_contract|3|scan_id|bigint|int8|64|YES|<null>|NO
+column|t_api_contract|4|contract_path|character varying|varchar|1000|NO|<null>|NO
+column|t_api_contract|5|format|character varying|varchar|50|YES|<null>|NO
+column|t_api_contract|6|title|character varying|varchar|255|YES|<null>|NO
+column|t_api_contract|7|version|character varying|varchar|50|YES|<null>|NO
+column|t_api_contract|8|endpoints_count|integer|int4|32|NO|0|NO
+column|t_api_contract|9|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_api_endpoint|10|line_number|integer|int4|32|YES|<null>|NO
+column|t_api_endpoint|11|framework|character varying|varchar|50|YES|<null>|NO
+column|t_api_endpoint|12|operation_id|character varying|varchar|255|YES|<null>|NO
+column|t_api_endpoint|13|summary|character varying|varchar|500|YES|<null>|NO
+column|t_api_endpoint|14|tags|character varying|varchar|255|YES|<null>|NO
+column|t_api_endpoint|15|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_api_endpoint|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_api_endpoint|2|scan_id|bigint|int8|64|NO|<null>|NO
+column|t_api_endpoint|3|repository_id|bigint|int8|64|YES|<null>|NO
+column|t_api_endpoint|4|http_method|character varying|varchar|20|NO|<null>|NO
+column|t_api_endpoint|5|path|character varying|varchar|1000|NO|<null>|NO
+column|t_api_endpoint|6|auth_required|boolean|bool|NO|false|NO
+column|t_api_endpoint|7|auth_type|character varying|varchar|50|YES|<null>|NO
+column|t_api_endpoint|8|visibility|character varying|varchar|20|NO|'UNKNOWN'::character varying|NO
+column|t_api_endpoint|9|file_path|character varying|varchar|1000|YES|<null>|NO
+column|t_api_key|10|expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_api_key|11|owner_user_id|bigint|int8|64|YES|<null>|NO
+column|t_api_key|1|id|character|bpchar|36|NO|<null>|NO
+column|t_api_key|2|name|character varying|varchar|255|NO|<null>|NO
+column|t_api_key|3|key_hash|character varying|varchar|255|NO|<null>|NO
+column|t_api_key|4|prefix|character varying|varchar|16|YES|<null>|NO
+column|t_api_key|5|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_api_key|6|last_used_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_api_key|7|scopes|character varying|varchar|255|NO|'read,scan,export'::character varying|NO
+column|t_api_key|8|target_kind|character varying|varchar|20|YES|<null>|NO
+column|t_api_key|9|target_id|bigint|int8|64|YES|<null>|NO
+column|t_audit_chain_head|1|id|integer|int4|32|NO|<null>|NO
+column|t_audit_log|10|entry_hash|character varying|varchar|64|YES|<null>|NO
+column|t_audit_log|1|id|character|bpchar|36|NO|<null>|NO
+column|t_audit_log|2|description|character varying|varchar|255|NO|<null>|NO
+column|t_audit_log|3|operation_type|character varying|varchar|255|NO|<null>|NO
+column|t_audit_log|4|resource_id|character varying|varchar|255|NO|<null>|NO
+column|t_audit_log|5|timestamp|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_audit_log|6|user_id|character varying|varchar|255|YES|<null>|NO
+column|t_audit_log|7|ip_address|character varying|varchar|64|YES|<null>|NO
+column|t_audit_log|8|user_agent|character varying|varchar|255|YES|<null>|NO
+column|t_audit_log|9|previous_hash|character varying|varchar|64|YES|<null>|NO
+column|t_build_sbom_component|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_build_sbom_component|2|import_id|bigint|int8|64|NO|<null>|NO
+column|t_build_sbom_component|3|name|character varying|varchar|255|NO|<null>|NO
+column|t_build_sbom_component|4|version|character varying|varchar|255|YES|<null>|NO
+column|t_build_sbom_component|5|purl|character varying|varchar|500|YES|<null>|NO
+column|t_build_sbom_component|6|type|character varying|varchar|50|YES|<null>|NO
+column|t_build_sbom_component|7|license|character varying|varchar|255|YES|<null>|NO
+column|t_build_sbom|10|document_sha256|character varying|varchar|64|NO|<null>|NO
+column|t_build_sbom|11|imported_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_build_sbom|12|imported_by|character varying|varchar|255|NO|<null>|NO
+column|t_build_sbom|13|api_key_id|character|bpchar|36|NO|<null>|NO
+column|t_build_sbom|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_build_sbom|2|source_id|bigint|int8|64|NO|<null>|NO
+column|t_build_sbom|3|source_slug|character varying|varchar|40|NO|<null>|NO
+column|t_build_sbom|4|repo_id|bigint|int8|64|NO|<null>|NO
+column|t_build_sbom|5|spec_version|character varying|varchar|10|NO|<null>|NO
+column|t_build_sbom|6|tool|character varying|varchar|200|YES|<null>|NO
+column|t_build_sbom|7|components_count|integer|int4|32|NO|<null>|NO
+column|t_build_sbom|8|commit_sha|character varying|varchar|64|YES|<null>|NO
+column|t_build_sbom|9|branch_name|character varying|varchar|255|YES|<null>|NO
+column|t_checklist_answer|10|carried_from_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_answer|11|carried_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist_answer|12|carried_by_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_answer|13|carried_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist_answer|14|needs_confirmation|boolean|bool|NO|false|NO
+column|t_checklist_answer|15|edition|integer|int4|32|NO|<null>|NO
+column|t_checklist_answer|16|answered_by_kind|character varying|varchar|10|NO|'person'::character varying|NO
+column|t_checklist_answer|17|withdrawn|boolean|bool|NO|false|NO
+column|t_checklist_answer|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_answer|2|checklist_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_answer|3|item_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_answer|4|answer_value|character varying|varchar|20|NO|<null>|NO
+column|t_checklist_answer|5|answer_comment|text|text|YES|<null>|NO
+column|t_checklist_answer|6|answered_by|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_answer|7|answered_by_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_answer|8|answered_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist_answer|9|measurement_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_document|10|statement_signature|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_document|11|signing_key_id|character varying|varchar|128|NO|<null>|NO
+column|t_checklist_document|12|product_version|character varying|varchar|100|YES|<null>|NO
+column|t_checklist_document|13|produced_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist_document|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_document|2|checklist_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_document|3|project_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_document|4|content|bytea|bytea|NO|<null>|NO
+column|t_checklist_document|5|size_bytes|bigint|int8|64|NO|<null>|NO
+column|t_checklist_document|6|sha256|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_document|7|workbook_sha256|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_document|8|workbook_signature|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_document|9|statement_sha256|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_evidence|10|file_sha256|character varying|varchar|64|YES|<null>|NO
+column|t_checklist_evidence|11|performed_on|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist_evidence|12|valid_until|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist_evidence|13|added_by|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_evidence|14|added_by_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_evidence|15|added_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist_evidence|16|carried_from_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_evidence|17|carried_by_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_evidence|18|edition|integer|int4|32|NO|<null>|NO
+column|t_checklist_evidence|19|withdrawn_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist_evidence|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_evidence|20|withdrawn_by_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_evidence|21|withdrawn_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist_evidence|22|withdrawn_edition|integer|int4|32|YES|<null>|NO
+column|t_checklist_evidence|2|checklist_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_evidence|3|item_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_evidence|4|kind|character varying|varchar|10|NO|<null>|NO
+column|t_checklist_evidence|5|link|character varying|varchar|2000|YES|<null>|NO
+column|t_checklist_evidence|6|file_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_evidence|7|file_name|character varying|varchar|255|YES|<null>|NO
+column|t_checklist_evidence|8|media_type|character varying|varchar|255|YES|<null>|NO
+column|t_checklist_evidence|9|file_size|bigint|int8|64|YES|<null>|NO
+column|t_checklist_file|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_file|2|project_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_file|3|sha256|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_file|4|size_bytes|bigint|int8|64|NO|<null>|NO
+column|t_checklist_file|5|content|bytea|bytea|NO|<null>|NO
+column|t_checklist_item|10|content_digest|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_item|11|sheet_row|integer|int4|32|NO|<null>|NO
+column|t_checklist_item|12|evidence_kind|character varying|varchar|20|NO|<null>|NO
+column|t_checklist_item|13|evidence_validity_months|integer|int4|32|YES|<null>|NO
+column|t_checklist_item|14|bound_rule|text|text|YES|<null>|NO
+column|t_checklist_item|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_item|2|version_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_item|3|item_key|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_item|4|item_position|integer|int4|32|NO|<null>|NO
+column|t_checklist_item|5|domain|character varying|varchar|1000|NO|<null>|NO
+column|t_checklist_item|6|objective|character varying|varchar|1000|NO|<null>|NO
+column|t_checklist_item|7|control|text|text|NO|<null>|NO
+column|t_checklist_item|8|contact|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_item|9|kpi|text|text|NO|<null>|NO
+column|t_checklist_measurement|10|as_of|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist_measurement|11|computed_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist_measurement|12|computed_by|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_measurement|13|answer_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_measurement|14|answer_value|character varying|varchar|20|YES|<null>|NO
+column|t_checklist_measurement|15|reconciliation|character varying|varchar|30|YES|<null>|NO
+column|t_checklist_measurement|16|evidence_digest|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_measurement|17|evidence|text|text|NO|<null>|NO
+column|t_checklist_measurement|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_measurement|2|checklist_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_measurement|3|item_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_measurement|4|purpose|character varying|varchar|20|NO|<null>|NO
+column|t_checklist_measurement|5|rule_kind|character varying|varchar|40|NO|<null>|NO
+column|t_checklist_measurement|6|rule_digest|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_measurement|7|bound_rule|text|text|NO|<null>|NO
+column|t_checklist_measurement|8|outcome|character varying|varchar|10|NO|<null>|NO
+column|t_checklist_measurement|9|reason|character varying|varchar|40|YES|<null>|NO
+column|t_checklist_template_version|10|layout|text|text|YES|<null>|NO
+column|t_checklist_template_version|11|offers_not_applicable|boolean|bool|NO|false|NO
+column|t_checklist_template_version|12|item_pairs|text|text|YES|<null>|NO
+column|t_checklist_template_version|13|previous_version_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_template_version|14|derived_from_version_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_template_version|15|draft_authors|text|text|NO|<null>|NO
+column|t_checklist_template_version|16|imported_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist_template_version|17|imported_by|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_template_version|18|published_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist_template_version|19|published_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist_template_version|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_template_version|20|retired_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist_template_version|21|retired_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist_template_version|2|template_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_template_version|3|ordinal|integer|int4|32|NO|<null>|NO
+column|t_checklist_template_version|4|label|character varying|varchar|200|YES|<null>|NO
+column|t_checklist_template_version|5|status|character varying|varchar|20|NO|<null>|NO
+column|t_checklist_template_version|6|revision|integer|int4|32|NO|<null>|NO
+column|t_checklist_template_version|7|source_sha256|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_template_version|8|source_size|bigint|int8|64|NO|<null>|NO
+column|t_checklist_template_version|9|source_bytes|bytea|bytea|NO|<null>|NO
+column|t_checklist_template|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_template|2|slug|character varying|varchar|64|NO|<null>|NO
+column|t_checklist_template|3|name|character varying|varchar|200|NO|<null>|NO
+column|t_checklist_template|4|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist_template|5|created_by|character varying|varchar|255|NO|<null>|NO
+column|t_checklist|10|opened_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_checklist|11|opened_by|character varying|varchar|255|NO|<null>|NO
+column|t_checklist|12|supersedes_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist|13|submitted_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist|14|submitted_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist|15|submitted_by_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist|16|returned_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist|17|returned_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist|18|return_reason|text|text|YES|<null>|NO
+column|t_checklist|19|signed_off_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist|20|signed_off_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist|21|signed_off_by_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist|22|sign_off_four_eyes|boolean|bool|YES|<null>|NO
+column|t_checklist|23|superseded_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_checklist|24|superseded_by|character varying|varchar|255|YES|<null>|NO
+column|t_checklist|2|project_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist|3|template_version_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist|4|revision|integer|int4|32|NO|<null>|NO
+column|t_checklist|5|status|character varying|varchar|20|NO|<null>|NO
+column|t_checklist|6|edition|integer|int4|32|NO|<null>|NO
+column|t_checklist|7|open_slot|integer|int4|32|YES|<null>|NO
+column|t_checklist|8|author_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist|9|author|character varying|varchar|255|NO|<null>|NO
+column|t_compliance_snapshot|10|eol_enabled|boolean|bool|NO|false|NO
+column|t_compliance_snapshot|11|code_analysis_reaches|boolean|bool|NO|false|NO
+column|t_compliance_snapshot|12|controls_total|integer|int4|32|NO|0|NO
+column|t_compliance_snapshot|13|controls_declared|integer|int4|32|NO|0|NO
+column|t_compliance_snapshot|14|soa_findings|integer|int4|32|NO|0|NO
+column|t_compliance_snapshot|15|captured_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_compliance_snapshot|1|id|character|bpchar|36|NO|<null>|NO
+column|t_compliance_snapshot|2|period|character varying|varchar|7|NO|<null>|NO
+column|t_compliance_snapshot|3|framework|character varying|varchar|32|NO|<null>|NO
+column|t_compliance_snapshot|4|score|integer|int4|32|NO|<null>|NO
+column|t_compliance_snapshot|5|status|character varying|varchar|16|NO|<null>|NO
+column|t_compliance_snapshot|6|targets|integer|int4|32|NO|<null>|NO
+column|t_compliance_snapshot|7|observed_targets|integer|int4|32|NO|<null>|NO
+column|t_compliance_snapshot|8|fresh_targets|integer|int4|32|NO|<null>|NO
+column|t_compliance_snapshot|9|freshness_days|integer|int4|32|NO|<null>|NO
+column|t_component|10|scan_created_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_component|11|origin|character varying|varchar|10|YES|<null>|NO
+column|t_component|12|build_sbom_id|bigint|int8|64|YES|<null>|NO
+column|t_component|13|scanned_version|character varying|varchar|255|YES|<null>|NO
+column|t_component|14|scanned_purl|character varying|varchar|500|YES|<null>|NO
+column|t_component|15|declared_license|character varying|varchar|255|YES|<null>|NO
+column|t_component|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_component|2|scan_id|bigint|int8|64|NO|<null>|NO
+column|t_component|3|name|character varying|varchar|255|NO|<null>|NO
+column|t_component|4|version|character varying|varchar|255|YES|<null>|NO
+column|t_component|5|purl|character varying|varchar|500|YES|<null>|NO
+column|t_component|6|type|character varying|varchar|50|YES|<null>|NO
+column|t_component|7|is_direct|boolean|bool|YES|<null>|NO
+column|t_component|8|repo_id|bigint|int8|64|YES|<null>|NO
+column|t_component|9|container_id|bigint|int8|64|YES|<null>|NO
+column|t_container|10|in_certified_scope|boolean|bool|NO|false|NO
+column|t_container|11|project_id|bigint|int8|64|YES|<null>|NO
+column|t_container|12|scan_manual_only|boolean|bool|NO|false|NO
+column|t_container|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_container|2|registry|character varying|varchar|255|YES|<null>|NO
+column|t_container|3|image_name|character varying|varchar|255|NO|<null>|NO
+column|t_container|4|tag|character varying|varchar|255|NO|<null>|NO
+column|t_container|5|scan_interval_minutes|integer|int4|32|YES|<null>|NO
+column|t_container|6|scan_cron|character varying|varchar|255|YES|<null>|NO
+column|t_container|7|required_agent_label|character varying|varchar|255|YES|<null>|NO
+column|t_container|8|last_scheduled_scan_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_container|9|tier|character varying|varchar|32|NO|'TIER_2_BUSINESS_OPERATIONAL'::character varying|NO
+column|t_control_declaration|10|decided_by|character varying|varchar|255|YES|<null>|NO
+column|t_control_declaration|11|decided_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_control_declaration|12|reviewed_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_control_declaration|13|review_due_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_control_declaration|1|id|character|bpchar|36|NO|<null>|NO
+column|t_control_declaration|2|framework|character varying|varchar|32|NO|<null>|NO
+column|t_control_declaration|3|control_id|character varying|varchar|64|NO|<null>|NO
+column|t_control_declaration|4|applicability|character varying|varchar|16|NO|<null>|NO
+column|t_control_declaration|5|justification|text|text|YES|<null>|NO
+column|t_control_declaration|6|implementation|character varying|varchar|32|YES|<null>|NO
+column|t_control_declaration|7|evidence_source|character varying|varchar|16|NO|<null>|NO
+column|t_control_declaration|8|external_evidence|text|text|YES|<null>|NO
+column|t_control_declaration|9|control_owner|character varying|varchar|255|YES|<null>|NO
+column|t_coverage_import|10|branches_total|bigint|int8|64|YES|<null>|NO
+column|t_coverage_import|11|commit_sha|character varying|varchar|64|YES|<null>|NO
+column|t_coverage_import|12|branch_name|character varying|varchar|255|YES|<null>|NO
+column|t_coverage_import|13|document_sha256|character varying|varchar|64|NO|<null>|NO
+column|t_coverage_import|14|imported_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_coverage_import|15|imported_by|character varying|varchar|255|NO|<null>|NO
+column|t_coverage_import|16|api_key_id|character|bpchar|36|NO|<null>|NO
+column|t_coverage_import|17|packages_state|character varying|varchar|20|YES|<null>|NO
+column|t_coverage_import|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_coverage_import|2|source_id|bigint|int8|64|NO|<null>|NO
+column|t_coverage_import|3|source_slug|character varying|varchar|40|NO|<null>|NO
+column|t_coverage_import|4|repo_id|bigint|int8|64|NO|<null>|NO
+column|t_coverage_import|5|format|character varying|varchar|20|NO|<null>|NO
+column|t_coverage_import|6|tool_version|character varying|varchar|100|YES|<null>|NO
+column|t_coverage_import|7|lines_covered|bigint|int8|64|NO|<null>|NO
+column|t_coverage_import|8|lines_total|bigint|int8|64|NO|<null>|NO
+column|t_coverage_import|9|branches_covered|bigint|int8|64|YES|<null>|NO
+column|t_coverage_package|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_coverage_package|2|import_id|bigint|int8|64|NO|<null>|NO
+column|t_coverage_package|3|path|character varying|varchar|1000|NO|<null>|NO
+column|t_coverage_package|4|lines_covered|bigint|int8|64|NO|<null>|NO
+column|t_coverage_package|5|lines_total|bigint|int8|64|NO|<null>|NO
+column|t_coverage_package|6|branches_covered|bigint|int8|64|YES|<null>|NO
+column|t_coverage_package|7|branches_total|bigint|int8|64|YES|<null>|NO
+column|t_epss_score|1|generation|bigint|int8|64|NO|<null>|NO
+column|t_epss_score|2|cve_id|character varying|varchar|32|NO|<null>|NO
+column|t_epss_score|3|score|double precision|float8|53|NO|<null>|NO
+column|t_epss_score|4|percentile|double precision|float8|53|NO|<null>|NO
+column|t_finding|10|source|character varying|varchar|50|NO|<null>|NO
+column|t_finding|11|epss_score|double precision|float8|53|YES|<null>|NO
+column|t_finding|12|is_kev|boolean|bool|NO|<null>|NO
+column|t_finding|13|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_finding|14|cvss_score|double precision|float8|53|YES|<null>|NO
+column|t_finding|15|cvss_vector|character varying|varchar|255|YES|<null>|NO
+column|t_finding|16|fix_state|character varying|varchar|50|YES|<null>|NO
+column|t_finding|17|fix_versions|character varying|varchar|255|YES|<null>|NO
+column|t_finding|18|link|character varying|varchar|500|YES|<null>|NO
+column|t_finding|19|issue_id|bigint|int8|64|YES|<null>|NO
+column|t_finding|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_finding|20|is_direct_dependency|boolean|bool|YES|<null>|NO
+column|t_finding|21|line|integer|int4|32|YES|<null>|NO
+column|t_finding|22|description|text|text|YES|<null>|NO
+column|t_finding|23|reachability|character varying|varchar|16|NO|'UNKNOWN'::character varying|NO
+column|t_finding|24|reachable_symbols|text|text|YES|<null>|NO
+column|t_finding|25|owasp_category|character varying|varchar|3|YES|<null>|NO
+column|t_finding|26|tool|character varying|varchar|200|YES|<null>|NO
+column|t_finding|27|tool_name|character varying|varchar|100|YES|<null>|NO
+column|t_finding|28|tool_version|character varying|varchar|100|YES|<null>|NO
+column|t_finding|2|scan_id|bigint|int8|64|NO|<null>|NO
+column|t_finding|3|type|character varying|varchar|50|NO|<null>|NO
+column|t_finding|4|severity|character varying|varchar|50|YES|<null>|NO
+column|t_finding|5|identifier|character varying|varchar|255|YES|<null>|NO
+column|t_finding|6|package_name|character varying|varchar|255|YES|<null>|NO
+column|t_finding|7|package_version|character varying|varchar|255|YES|<null>|NO
+column|t_finding|8|purl|character varying|varchar|255|YES|<null>|NO
+column|t_finding|9|file_path|character varying|varchar|500|YES|<null>|NO
+column|t_forge_connection|10|credential_kind|character varying|varchar|40|NO|<null>|NO
+column|t_forge_connection|11|scopes|character varying|varchar|1000|YES|<null>|NO
+column|t_forge_connection|12|can_write|boolean|bool|YES|<null>|NO
+column|t_forge_connection|13|token_expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_connection|14|forge_version|character varying|varchar|64|YES|<null>|NO
+column|t_forge_connection|15|probed_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_forge_connection|16|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_forge_connection|17|created_by|character varying|varchar|255|NO|<null>|NO
+column|t_forge_connection|18|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_forge_connection|19|updated_by|character varying|varchar|255|NO|<null>|NO
+column|t_forge_connection|1|id|character|bpchar|36|NO|<null>|NO
+column|t_forge_connection|2|name|character varying|varchar|255|NO|<null>|NO
+column|t_forge_connection|3|kind|character varying|varchar|20|NO|<null>|NO
+column|t_forge_connection|4|edition|character varying|varchar|40|NO|<null>|NO
+column|t_forge_connection|5|base_url|character varying|varchar|512|NO|<null>|NO
+column|t_forge_connection|6|owner|character varying|varchar|100|YES|<null>|NO
+column|t_forge_connection|7|internal_network|boolean|bool|NO|<null>|NO
+column|t_forge_connection|8|ca_pem|text|text|YES|<null>|NO
+column|t_forge_connection|9|token|character varying|varchar|2048|NO|<null>|NO
+column|t_forge_discovery|10|lease_expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_discovery|11|attempts|integer|int4|32|NO|<null>|NO
+column|t_forge_discovery|12|started_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_discovery|13|finished_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_discovery|14|namespaces_seen|integer|int4|32|NO|<null>|NO
+column|t_forge_discovery|15|repositories_seen|integer|int4|32|NO|<null>|NO
+column|t_forge_discovery|16|repositories_skipped|integer|int4|32|NO|<null>|NO
+column|t_forge_discovery|17|requests_made|integer|int4|32|NO|<null>|NO
+column|t_forge_discovery|18|rate_limit_wait_seconds|bigint|int8|64|NO|<null>|NO
+column|t_forge_discovery|19|rate_limit_reset_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_discovery|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_forge_discovery|20|new_count|integer|int4|32|YES|<null>|NO
+column|t_forge_discovery|21|changed_count|integer|int4|32|YES|<null>|NO
+column|t_forge_discovery|22|gone_count|integer|int4|32|YES|<null>|NO
+column|t_forge_discovery|23|unreadable_namespaces|text|text|YES|<null>|NO
+column|t_forge_discovery|2|connection_id|character|bpchar|36|NO|<null>|NO
+column|t_forge_discovery|3|state|character varying|varchar|20|NO|<null>|NO
+column|t_forge_discovery|4|reason|character varying|varchar|40|YES|<null>|NO
+column|t_forge_discovery|5|detail|character varying|varchar|2000|YES|<null>|NO
+column|t_forge_discovery|6|active_key|character varying|varchar|36|YES|<null>|NO
+column|t_forge_discovery|7|requested_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_forge_discovery|8|requested_by|character varying|varchar|255|NO|<null>|NO
+column|t_forge_discovery|9|claimed_by|character varying|varchar|100|YES|<null>|NO
+column|t_forge_import_link|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_forge_import_link|2|repository_id|bigint|int8|64|NO|<null>|NO
+column|t_forge_import_link|3|connection_id|character|bpchar|36|NO|<null>|NO
+column|t_forge_import_link|4|forge_id|character varying|varchar|64|NO|<null>|NO
+column|t_forge_import_link|5|discovery_id|bigint|int8|64|NO|<null>|NO
+column|t_forge_import_link|6|imported_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_forge_import_link|7|imported_by|character varying|varchar|255|NO|<null>|NO
+column|t_forge_repository|10|fork|boolean|bool|YES|<null>|NO
+column|t_forge_repository|11|visibility|character varying|varchar|20|YES|<null>|NO
+column|t_forge_repository|12|last_activity_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_repository|13|language|character varying|varchar|100|YES|<null>|NO
+column|t_forge_repository|14|size_bytes|bigint|int8|64|YES|<null>|NO
+column|t_forge_repository|15|http_url|character varying|varchar|1024|YES|<null>|NO
+column|t_forge_repository|16|ssh_url|character varying|varchar|1024|YES|<null>|NO
+column|t_forge_repository|17|web_url|character varying|varchar|1024|YES|<null>|NO
+column|t_forge_repository|18|first_seen_by|bigint|int8|64|NO|<null>|NO
+column|t_forge_repository|19|first_seen_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_forge_repository|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_forge_repository|20|last_seen_by|bigint|int8|64|NO|<null>|NO
+column|t_forge_repository|21|last_seen_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_forge_repository|22|changed_by|bigint|int8|64|YES|<null>|NO
+column|t_forge_repository|23|change_summary|character varying|varchar|1500|YES|<null>|NO
+column|t_forge_repository|24|gone_by|bigint|int8|64|YES|<null>|NO
+column|t_forge_repository|25|gone_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_repository|2|connection_id|character|bpchar|36|NO|<null>|NO
+column|t_forge_repository|3|forge_id|character varying|varchar|64|NO|<null>|NO
+column|t_forge_repository|4|full_path|character varying|varchar|1000|NO|<null>|NO
+column|t_forge_repository|5|namespace_path|character varying|varchar|1000|NO|<null>|NO
+column|t_forge_repository|6|personal|boolean|bool|NO|<null>|NO
+column|t_forge_repository|7|name|character varying|varchar|255|NO|<null>|NO
+column|t_forge_repository|8|default_branch|character varying|varchar|255|YES|<null>|NO
+column|t_forge_repository|9|archived|boolean|bool|YES|<null>|NO
+column|t_forge_review_reading|10|evidence|text|text|YES|<null>|NO
+column|t_forge_review_reading|11|evidence_sha256|character varying|varchar|64|YES|<null>|NO
+column|t_forge_review_reading|12|claimed_until|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_review_reading|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_forge_review_reading|2|repository_id|bigint|int8|64|NO|<null>|NO
+column|t_forge_review_reading|3|wanted_branch|character varying|varchar|255|NO|<null>|NO
+column|t_forge_review_reading|4|state|character varying|varchar|20|NO|<null>|NO
+column|t_forge_review_reading|5|connection_id|character|bpchar|36|YES|<null>|NO
+column|t_forge_review_reading|6|forge_id|character varying|varchar|64|YES|<null>|NO
+column|t_forge_review_reading|7|window_days|integer|int4|32|NO|<null>|NO
+column|t_forge_review_reading|8|read_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_forge_review_reading|9|reason|character varying|varchar|1000|YES|<null>|NO
+column|t_gate_policy|10|include_ai_review|boolean|bool|NO|<null>|NO
+column|t_gate_policy|11|note|text|text|YES|<null>|NO
+column|t_gate_policy|12|created_by|character varying|varchar|255|YES|<null>|NO
+column|t_gate_policy|13|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_gate_policy|14|fail_on_uncovered_languages|boolean|bool|NO|false|NO
+column|t_gate_policy|15|include_plugins|boolean|bool|NO|false|NO
+column|t_gate_policy|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_gate_policy|2|target_kind|character varying|varchar|20|NO|<null>|NO
+column|t_gate_policy|3|target_id|bigint|int8|64|NO|<null>|NO
+column|t_gate_policy|4|version|integer|int4|32|NO|<null>|NO
+column|t_gate_policy|5|is_active|boolean|bool|YES|<null>|NO
+column|t_gate_policy|6|fail_on_severity|character varying|varchar|20|YES|<null>|NO
+column|t_gate_policy|7|fail_on_kev|boolean|bool|NO|<null>|NO
+column|t_gate_policy|8|fixable_only|boolean|bool|NO|<null>|NO
+column|t_gate_policy|9|include_triaged|boolean|bool|NO|<null>|NO
+column|t_gate_verdict|10|low_count|bigint|int8|64|NO|0|NO
+column|t_gate_verdict|11|fail_on_severity|character varying|varchar|20|YES|<null>|NO
+column|t_gate_verdict|12|policy_source|character varying|varchar|32|NO|<null>|NO
+column|t_gate_verdict|13|policy_version|bigint|int8|64|YES|<null>|NO
+column|t_gate_verdict|14|relaxations_ignored|boolean|bool|NO|false|NO
+column|t_gate_verdict|15|decided_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_gate_verdict|16|decided_by|character varying|varchar|255|YES|<null>|NO
+column|t_gate_verdict|17|ip_address|character varying|varchar|64|YES|<null>|NO
+column|t_gate_verdict|1|id|character|bpchar|36|NO|<null>|NO
+column|t_gate_verdict|2|repo_id|bigint|int8|64|YES|<null>|NO
+column|t_gate_verdict|3|container_id|bigint|int8|64|YES|<null>|NO
+column|t_gate_verdict|4|passed|boolean|bool|NO|<null>|NO
+column|t_gate_verdict|5|evaluated|integer|int4|32|NO|<null>|NO
+column|t_gate_verdict|6|violations|integer|int4|32|NO|<null>|NO
+column|t_gate_verdict|7|critical_count|bigint|int8|64|NO|0|NO
+column|t_gate_verdict|8|high_count|bigint|int8|64|NO|0|NO
+column|t_gate_verdict|9|medium_count|bigint|int8|64|NO|0|NO
+column|t_git_token|1|id|character|bpchar|36|NO|<null>|NO
+column|t_git_token|2|name|character varying|varchar|255|NO|<null>|NO
+column|t_git_token|3|host|character varying|varchar|255|NO|<null>|NO
+column|t_git_token|4|username|character varying|varchar|255|YES|<null>|NO
+column|t_git_token|5|token|text|text|NO|<null>|NO
+column|t_git_token|6|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_issue_ticket|1|id|bigint|int8|64|NO|nextval('t_issue_ticket_id_seq'::regclass)|NO
+column|t_issue_ticket|2|issue_id|bigint|int8|64|NO|<null>|NO
+column|t_issue_ticket|3|provider|character varying|varchar|32|NO|<null>|NO
+column|t_issue_ticket|4|ticket_key|character varying|varchar|128|NO|<null>|NO
+column|t_issue_ticket|5|ticket_url|character varying|varchar|512|NO|<null>|NO
+column|t_issue_ticket|6|status|character varying|varchar|64|NO|<null>|NO
+column|t_issue_ticket|7|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_issue_ticket|8|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_issue_triage_event|10|expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_issue_triage_event|11|scan_id|bigint|int8|64|YES|<null>|NO
+column|t_issue_triage_event|12|previous_resolved_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_issue_triage_event|13|requested_status|character varying|varchar|30|YES|<null>|NO
+column|t_issue_triage_event|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_issue_triage_event|2|issue_id|bigint|int8|64|NO|<null>|NO
+column|t_issue_triage_event|3|from_status|character varying|varchar|30|NO|<null>|NO
+column|t_issue_triage_event|4|to_status|character varying|varchar|30|NO|<null>|NO
+column|t_issue_triage_event|5|justification|character varying|varchar|64|YES|<null>|NO
+column|t_issue_triage_event|6|comment|text|text|YES|<null>|NO
+column|t_issue_triage_event|7|actor|character varying|varchar|255|YES|<null>|NO
+column|t_issue_triage_event|8|origin|character varying|varchar|20|NO|<null>|NO
+column|t_issue_triage_event|9|occurred_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_issue|10|file_path|character varying|varchar|500|YES|<null>|NO
+column|t_issue|11|source|character varying|varchar|50|YES|<null>|NO
+column|t_issue|12|severity|character varying|varchar|50|YES|<null>|NO
+column|t_issue|13|epss_score|double precision|float8|53|YES|<null>|NO
+column|t_issue|14|is_kev|boolean|bool|NO|false|NO
+column|t_issue|15|cvss_score|double precision|float8|53|YES|<null>|NO
+column|t_issue|16|cvss_vector|character varying|varchar|255|YES|<null>|NO
+column|t_issue|17|fix_state|character varying|varchar|50|YES|<null>|NO
+column|t_issue|18|fix_versions|character varying|varchar|255|YES|<null>|NO
+column|t_issue|19|link|character varying|varchar|500|YES|<null>|NO
+column|t_issue|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_issue|20|description|text|text|YES|<null>|NO
+column|t_issue|21|state|character varying|varchar|20|NO|'open'::character varying|NO
+column|t_issue|22|first_seen_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_issue|23|last_seen_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_issue|24|resolved_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_issue|25|first_seen_scan_id|bigint|int8|64|YES|<null>|NO
+column|t_issue|26|last_seen_scan_id|bigint|int8|64|YES|<null>|NO
+column|t_issue|27|times_seen|integer|int4|32|NO|1|NO
+column|t_issue|28|triage_status|character varying|varchar|30|NO|'under_review'::character varying|NO
+column|t_issue|29|triage_justification|character varying|varchar|64|YES|<null>|NO
+column|t_issue|2|repo_id|bigint|int8|64|YES|<null>|NO
+column|t_issue|30|triage_comment|text|text|YES|<null>|NO
+column|t_issue|31|triaged_by|character varying|varchar|255|YES|<null>|NO
+column|t_issue|32|triaged_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_issue|33|triage_expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_issue|34|is_direct_dependency|boolean|bool|YES|<null>|NO
+column|t_issue|35|line|integer|int4|32|YES|<null>|NO
+column|t_issue|36|ticket_ref|character varying|varchar|64|YES|<null>|NO
+column|t_issue|37|ticket_url|character varying|varchar|500|YES|<null>|NO
+column|t_issue|38|reachability|character varying|varchar|16|NO|'UNKNOWN'::character varying|NO
+column|t_issue|39|reachable_symbols|text|text|YES|<null>|NO
+column|t_issue|3|container_id|bigint|int8|64|YES|<null>|NO
+column|t_issue|40|resolution_seconds|bigint|int8|64|YES|<null>|NO
+column|t_issue|41|owasp_category|character varying|varchar|3|YES|<null>|NO
+column|t_issue|42|ticket_attached_by|character varying|varchar|255|YES|<null>|NO
+column|t_issue|43|tool|character varying|varchar|200|YES|<null>|NO
+column|t_issue|44|tool_name|character varying|varchar|100|YES|<null>|NO
+column|t_issue|45|tool_version|character varying|varchar|100|YES|<null>|NO
+column|t_issue|46|import_source|character varying|varchar|40|YES|<null>|NO
+column|t_issue|47|sla_breach_signalled_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_issue|48|triage_requested_status|character varying|varchar|30|YES|<null>|NO
+column|t_issue|49|revision|bigint|int8|64|NO|0|NO
+column|t_issue|4|fingerprint|character varying|varchar|64|NO|<null>|NO
+column|t_issue|5|type|character varying|varchar|50|NO|<null>|NO
+column|t_issue|6|identifier|character varying|varchar|255|YES|<null>|NO
+column|t_issue|7|package_name|character varying|varchar|255|YES|<null>|NO
+column|t_issue|8|package_version|character varying|varchar|255|YES|<null>|NO
+column|t_issue|9|purl|character varying|varchar|255|YES|<null>|NO
+column|t_leader_lease|1|name|character varying|varchar|64|NO|<null>|NO
+column|t_leader_lease|2|holder|character varying|varchar|64|YES|<null>|NO
+column|t_leader_lease|3|acquired_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_leader_lease|4|expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_leader_lease|5|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_license_policy|1|id|bigint|int8|64|NO|<null>|NO
+column|t_license_policy|2|disallowed_categories|character varying|varchar|255|NO|'STRONG_COPYLEFT,FORBIDDEN'::character varying|NO
+column|t_license_policy|3|allowed_licenses|text|text|YES|<null>|NO
+column|t_license_policy|4|disallowed_licenses|text|text|YES|<null>|NO
+column|t_license_policy|5|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_login_attempt|1|id|character|bpchar|36|NO|<null>|NO
+column|t_login_attempt|2|counter_key|character varying|varchar|255|NO|<null>|NO
+column|t_login_attempt|3|occurred_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_mfa_challenge|1|token_hash|character varying|varchar|64|NO|<null>|NO
+column|t_mfa_challenge|2|user_id|bigint|int8|64|NO|<null>|NO
+column|t_mfa_challenge|3|expires_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_mfa_challenge|4|attempts|integer|int4|32|NO|0|NO
+column|t_mfa_challenge|5|user_agent|character varying|varchar|255|YES|<null>|NO
+column|t_mfa_challenge|6|ip_address|character varying|varchar|64|YES|<null>|NO
+column|t_one_shot_job|1|name|character varying|varchar|64|NO|<null>|NO
+column|t_one_shot_job|2|ran_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_outbox_message|10|team_id|bigint|int8|64|YES|<null>|NO
+column|t_outbox_message|1|id|character|bpchar|36|NO|<null>|NO
+column|t_outbox_message|2|message_type|character varying|varchar|50|NO|<null>|NO
+column|t_outbox_message|3|payload|text|text|NO|<null>|NO
+column|t_outbox_message|4|status|character varying|varchar|20|NO|<null>|NO
+column|t_outbox_message|5|attempts|integer|int4|32|NO|<null>|NO
+column|t_outbox_message|6|next_attempt_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_outbox_message|7|last_error|text|text|YES|<null>|NO
+column|t_outbox_message|8|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_outbox_message|9|sent_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_owasp_weekly_coverage|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_owasp_weekly_coverage|2|week_start|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_owasp_weekly_coverage|3|target_kind|character varying|varchar|16|NO|<null>|NO
+column|t_owasp_weekly_coverage|4|target_id|bigint|int8|64|NO|<null>|NO
+column|t_owasp_weekly_coverage|5|category|character varying|varchar|3|NO|<null>|NO
+column|t_owasp_weekly_coverage|6|state|character varying|varchar|16|NO|<null>|NO
+column|t_owasp_weekly_coverage|7|open_count|bigint|int8|64|NO|<null>|NO
+column|t_owasp_weekly_coverage|8|settled_count|bigint|int8|64|NO|<null>|NO
+column|t_owasp_weekly_coverage|9|captured_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_plugin_activation|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_plugin_activation|2|plugin_id|character varying|varchar|40|NO|<null>|NO
+column|t_plugin_activation|3|project_id|bigint|int8|64|NO|<null>|NO
+column|t_plugin_activation|4|activated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_plugin_activation|5|activated_by|character varying|varchar|255|NO|<null>|NO
+column|t_plugin_manifest|1|digest|character varying|varchar|64|NO|<null>|NO
+column|t_plugin_manifest|2|plugin_id|character varying|varchar|40|NO|<null>|NO
+column|t_plugin_manifest|3|manifest|text|text|NO|<null>|NO
+column|t_plugin_manifest|4|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_plugin|10|unsigned_waived_by|character varying|varchar|255|YES|<null>|NO
+column|t_plugin|11|unsigned_waived_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_plugin|1|id|character varying|varchar|40|NO|<null>|NO
+column|t_plugin|2|name|character varying|varchar|100|NO|<null>|NO
+column|t_plugin|3|manifest_digest|character varying|varchar|64|NO|<null>|NO
+column|t_plugin|4|enabled|boolean|bool|NO|<null>|NO
+column|t_plugin|5|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_plugin|6|created_by|character varying|varchar|255|NO|<null>|NO
+column|t_plugin|7|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_plugin|8|updated_by|character varying|varchar|255|NO|<null>|NO
+column|t_plugin|9|unsigned_waiver|character varying|varchar|500|YES|<null>|NO
+column|t_processed_message|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_processed_message|2|message_id|character varying|varchar|64|NO|<null>|NO
+column|t_processed_message|3|message_type|character varying|varchar|50|NO|<null>|NO
+column|t_processed_message|4|agent_id|character|bpchar|36|YES|<null>|NO
+column|t_processed_message|5|processed_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_project|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_project|2|solution_id|bigint|int8|64|NO|<null>|NO
+column|t_project|3|name|character varying|varchar|100|NO|<null>|NO
+column|t_project|4|description|character varying|varchar|255|YES|<null>|NO
+column|t_project|5|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_rate_window|1|window_key|character varying|varchar|120|NO|<null>|NO
+column|t_rate_window|2|hits|integer|int4|32|NO|<null>|NO
+column|t_rate_window|3|expires_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_report_document|1|run_id|bigint|int8|64|NO|<null>|NO
+column|t_report_document|2|content|bytea|bytea|NO|<null>|NO
+column|t_report_document|3|sha256|character varying|varchar|64|NO|<null>|NO
+column|t_report_document|4|size_bytes|bigint|int8|64|NO|<null>|NO
+column|t_report_document|5|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_report_export|1|run_id|bigint|int8|64|NO|<null>|NO
+column|t_report_export|2|content|bytea|bytea|NO|<null>|NO
+column|t_report_export|3|sha256|character varying|varchar|64|NO|<null>|NO
+column|t_report_export|4|size_bytes|bigint|int8|64|NO|<null>|NO
+column|t_report_export|5|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_report_plugin_activation|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_report_plugin_activation|2|plugin_id|character varying|varchar|40|NO|<null>|NO
+column|t_report_plugin_activation|3|project_id|bigint|int8|64|NO|<null>|NO
+column|t_report_plugin_activation|4|activated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_report_plugin_activation|5|activated_by|character varying|varchar|255|NO|<null>|NO
+column|t_report_plugin_manifest|10|approved_by_id|bigint|int8|64|YES|<null>|NO
+column|t_report_plugin_manifest|11|approval_four_eyes|boolean|bool|YES|<null>|NO
+column|t_report_plugin_manifest|12|withdrawn_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_report_plugin_manifest|13|withdrawn_by|character varying|varchar|255|YES|<null>|NO
+column|t_report_plugin_manifest|14|withdrawal_justification|character varying|varchar|500|YES|<null>|NO
+column|t_report_plugin_manifest|1|digest|character varying|varchar|64|NO|<null>|NO
+column|t_report_plugin_manifest|2|plugin_id|character varying|varchar|40|NO|<null>|NO
+column|t_report_plugin_manifest|3|manifest|text|text|NO|<null>|NO
+column|t_report_plugin_manifest|4|status|character varying|varchar|20|NO|<null>|NO
+column|t_report_plugin_manifest|5|registered_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_report_plugin_manifest|6|registered_by|character varying|varchar|255|NO|<null>|NO
+column|t_report_plugin_manifest|7|registered_by_id|bigint|int8|64|NO|<null>|NO
+column|t_report_plugin_manifest|8|approved_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_report_plugin_manifest|9|approved_by|character varying|varchar|255|YES|<null>|NO
+column|t_report_plugin|10|updated_by|character varying|varchar|255|NO|<null>|NO
+column|t_report_plugin|1|id|character varying|varchar|40|NO|<null>|NO
+column|t_report_plugin|2|name|character varying|varchar|100|NO|<null>|NO
+column|t_report_plugin|3|approved_digest|character varying|varchar|64|YES|<null>|NO
+column|t_report_plugin|4|pending_digest|character varying|varchar|64|YES|<null>|NO
+column|t_report_plugin|5|enabled|boolean|bool|NO|<null>|NO
+column|t_report_plugin|6|revision|bigint|int8|64|NO|<null>|NO
+column|t_report_plugin|7|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_report_plugin|8|created_by|character varying|varchar|255|NO|<null>|NO
+column|t_report_plugin|9|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_report_run|10|requested_by|character varying|varchar|255|NO|<null>|NO
+column|t_report_run|11|requested_by_id|bigint|int8|64|NO|<null>|NO
+column|t_report_run|12|requester_locale|character varying|varchar|35|YES|<null>|NO
+column|t_report_run|13|claimed_by|character varying|varchar|100|YES|<null>|NO
+column|t_report_run|14|lease_expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_report_run|15|started_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_report_run|16|exported_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_report_run|17|finished_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_report_run|18|manifest_digest|character varying|varchar|64|YES|<null>|NO
+column|t_report_run|19|image_digest|character varying|varchar|71|YES|<null>|NO
+column|t_report_run|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_report_run|20|signer_identity|character varying|varchar|500|YES|<null>|NO
+column|t_report_run|21|signer_issuer|character varying|varchar|500|YES|<null>|NO
+column|t_report_run|22|signer_key_sha256|character varying|varchar|64|YES|<null>|NO
+column|t_report_run|23|export_schema_version|character varying|varchar|10|YES|<null>|NO
+column|t_report_run|24|export_sha256|character varying|varchar|64|YES|<null>|NO
+column|t_report_run|25|export_size|bigint|int8|64|YES|<null>|NO
+column|t_report_run|26|exit_code|integer|int4|32|YES|<null>|NO
+column|t_report_run|27|output_size|bigint|int8|64|YES|<null>|NO
+column|t_report_run|28|output_sha256|character varying|varchar|64|YES|<null>|NO
+column|t_report_run|29|product_version|character varying|varchar|100|YES|<null>|NO
+column|t_report_run|2|project_id|bigint|int8|64|NO|<null>|NO
+column|t_report_run|30|output_media_type|character varying|varchar|120|YES|<null>|NO
+column|t_report_run|31|signing_key_id|character varying|varchar|64|YES|<null>|NO
+column|t_report_run|32|package_sha256|character varying|varchar|64|YES|<null>|NO
+column|t_report_run|33|export_targets|text|text|YES|<null>|NO
+column|t_report_run|3|project_name|character varying|varchar|255|YES|<null>|NO
+column|t_report_run|4|plugin_id|character varying|varchar|40|NO|<null>|NO
+column|t_report_run|5|state|character varying|varchar|20|NO|<null>|NO
+column|t_report_run|6|reason|character varying|varchar|40|YES|<null>|NO
+column|t_report_run|7|detail|character varying|varchar|2000|YES|<null>|NO
+column|t_report_run|8|active_key|character varying|varchar|80|YES|<null>|NO
+column|t_report_run|9|requested_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_repository|10|ssh_key_id|character|bpchar|36|YES|<null>|NO
+column|t_repository|11|tier|character varying|varchar|32|NO|'TIER_2_BUSINESS_OPERATIONAL'::character varying|NO
+column|t_repository|12|badge_token|character varying|varchar|64|YES|<null>|NO
+column|t_repository|13|in_certified_scope|boolean|bool|NO|false|NO
+column|t_repository|14|https_token_id|character|bpchar|36|YES|<null>|NO
+column|t_repository|15|project_id|bigint|int8|64|YES|<null>|NO
+column|t_repository|16|scan_manual_only|boolean|bool|NO|false|NO
+column|t_repository|17|url_identity|character varying|varchar|255|YES|<null>|NO
+column|t_repository|18|identity_guard|character varying|varchar|64|YES|<null>|NO
+column|t_repository|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_repository|2|url|character varying|varchar|255|NO|<null>|NO
+column|t_repository|3|branch|character varying|varchar|255|NO|<null>|NO
+column|t_repository|4|sub_path|character varying|varchar|255|YES|<null>|NO
+column|t_repository|5|name|character varying|varchar|255|YES|<null>|NO
+column|t_repository|6|scan_interval_minutes|integer|int4|32|YES|<null>|NO
+column|t_repository|7|scan_cron|character varying|varchar|255|YES|<null>|NO
+column|t_repository|8|required_agent_label|character varying|varchar|255|YES|<null>|NO
+column|t_repository|9|last_scheduled_scan_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_sarif_import|10|reopened_count|integer|int4|32|NO|<null>|NO
+column|t_sarif_import|11|imported_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_sarif_import|12|imported_by|character varying|varchar|255|NO|<null>|NO
+column|t_sarif_import|13|api_key_id|character|bpchar|36|NO|<null>|NO
+column|t_sarif_import|14|tool_keys|text|text|YES|<null>|NO
+column|t_sarif_import|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_sarif_import|2|source_id|bigint|int8|64|NO|<null>|NO
+column|t_sarif_import|3|source_slug|character varying|varchar|40|NO|<null>|NO
+column|t_sarif_import|4|repo_id|bigint|int8|64|NO|<null>|NO
+column|t_sarif_import|5|tools|character varying|varchar|1000|NO|<null>|NO
+column|t_sarif_import|6|document_sha256|character varying|varchar|64|NO|<null>|NO
+column|t_sarif_import|7|results_count|integer|int4|32|NO|<null>|NO
+column|t_sarif_import|8|created_count|integer|int4|32|NO|<null>|NO
+column|t_sarif_import|9|resolved_count|integer|int4|32|NO|<null>|NO
+column|t_sarif_source|10|created_by|character varying|varchar|255|NO|<null>|NO
+column|t_sarif_source|11|kinds|character varying|varchar|100|NO|'sarif'::character varying|NO
+column|t_sarif_source|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_sarif_source|2|slug|character varying|varchar|40|NO|<null>|NO
+column|t_sarif_source|3|name|character varying|varchar|100|NO|<null>|NO
+column|t_sarif_source|4|api_key_id|character|bpchar|36|NO|<null>|NO
+column|t_sarif_source|5|project_id|bigint|int8|64|YES|<null>|NO
+column|t_sarif_source|6|repository_id|bigint|int8|64|YES|<null>|NO
+column|t_sarif_source|7|tools|character varying|varchar|1000|NO|<null>|NO
+column|t_sarif_source|8|enabled|boolean|bool|NO|<null>|NO
+column|t_sarif_source|9|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_scan|10|new_issues_count|integer|int4|32|NO|0|NO
+column|t_scan|11|resolved_issues_count|integer|int4|32|NO|0|NO
+column|t_scan|12|error|text|text|YES|<null>|NO
+column|t_scan|13|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_scan|14|version|character varying|varchar|255|YES|<null>|NO
+column|t_scan|15|project_type|character varying|varchar|255|YES|<null>|NO
+column|t_scan|16|repo_id|bigint|int8|64|YES|<null>|NO
+column|t_scan|17|container_id|bigint|int8|64|YES|<null>|NO
+column|t_scan|18|required_agent_label|character varying|varchar|255|YES|<null>|NO
+column|t_scan|19|claimed_by|character varying|varchar|64|YES|<null>|NO
+column|t_scan|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_scan|20|claimed_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_scan|21|lease_expires_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_scan|22|attempts|integer|int4|32|NO|0|NO
+column|t_scan|23|plugin_steps|text|text|YES|<null>|NO
+column|t_scan|24|not_before|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_scan|25|examined_types|character varying|varchar|255|YES|<null>|NO
+column|t_scan|26|detected_languages|character varying|varchar|512|YES|<null>|NO
+column|t_scan|27|sast_languages|character varying|varchar|512|YES|<null>|NO
+column|t_scan|2|branch|character varying|varchar|255|NO|<null>|NO
+column|t_scan|3|sub_path|character varying|varchar|255|YES|<null>|NO
+column|t_scan|4|status|character varying|varchar|255|NO|<null>|NO
+column|t_scan|5|sbom|text|text|YES|<null>|NO
+column|t_scan|6|cves|text|text|YES|<null>|NO
+column|t_scan|7|summary|text|text|YES|<null>|NO
+column|t_scan|8|duration_ms|bigint|int8|64|YES|<null>|NO
+column|t_scan|9|findings_count|integer|int4|32|NO|0|NO
+column|t_semgrep_rule_set|10|uploaded_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_semgrep_rule_set|11|activation_note|text|text|YES|<null>|NO
+column|t_semgrep_rule_set|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_semgrep_rule_set|2|name|character varying|varchar|255|NO|<null>|NO
+column|t_semgrep_rule_set|3|files|text|text|NO|<null>|NO
+column|t_semgrep_rule_set|4|content_hash|character varying|varchar|64|NO|<null>|NO
+column|t_semgrep_rule_set|5|rule_count|integer|int4|32|NO|<null>|NO
+column|t_semgrep_rule_set|6|file_count|integer|int4|32|NO|<null>|NO
+column|t_semgrep_rule_set|7|size_bytes|bigint|int8|64|NO|<null>|NO
+column|t_semgrep_rule_set|8|is_active|boolean|bool|YES|<null>|NO
+column|t_semgrep_rule_set|9|uploaded_by|character varying|varchar|255|YES|<null>|NO
+column|t_session|1|token_hash|character varying|varchar|64|NO|<null>|NO
+column|t_session|2|user_id|bigint|int8|64|NO|<null>|NO
+column|t_session|3|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_session|4|last_seen_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_session|5|expires_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_session|6|user_agent|character varying|varchar|255|YES|<null>|NO
+column|t_session|7|ip_address|character varying|varchar|64|YES|<null>|NO
+column|t_setting|1|key|character varying|varchar|255|NO|<null>|NO
+column|t_setting|2|value|text|text|YES|<null>|NO
+column|t_siem_config|1|id|bigint|int8|64|NO|<null>|NO
+column|t_siem_config|2|enabled|boolean|bool|NO|false|NO
+column|t_siem_config|3|protocol|character varying|varchar|16|NO|'WEBHOOK'::character varying|NO
+column|t_siem_config|4|endpoint|character varying|varchar|1024|YES|<null>|NO
+column|t_siem_config|5|auth_header|character varying|varchar|2048|YES|<null>|NO
+column|t_siem_config|6|min_severity|character varying|varchar|32|NO|'HIGH'::character varying|NO
+column|t_siem_config|7|created_at|timestamp without time zone|timestamp|NO|CURRENT_TIMESTAMP|NO
+column|t_siem_config|8|updated_at|timestamp without time zone|timestamp|NO|CURRENT_TIMESTAMP|NO
+column|t_siem_config|9|tls_ca_pem|text|text|YES|<null>|NO
+column|t_solution|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_solution|2|name|character varying|varchar|100|NO|<null>|NO
+column|t_solution|3|description|character varying|varchar|255|YES|<null>|NO
+column|t_solution|4|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_ssh_key|1|id|character|bpchar|36|NO|<null>|NO
+column|t_ssh_key|2|name|character varying|varchar|255|NO|<null>|NO
+column|t_ssh_key|3|private_key|text|text|NO|<null>|NO
+column|t_ssh_key|4|public_key|text|text|YES|<null>|NO
+column|t_ssh_key|5|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_team_member|1|team_id|bigint|int8|64|NO|<null>|NO
+column|t_team_member|2|user_id|bigint|int8|64|NO|<null>|NO
+column|t_team_member|3|origin|character varying|varchar|16|NO|'manual'::character varying|NO
+column|t_team_target|1|team_id|bigint|int8|64|NO|<null>|NO
+column|t_team_target|2|target_kind|character varying|varchar|20|NO|<null>|NO
+column|t_team_target|3|target_id|bigint|int8|64|NO|<null>|NO
+column|t_team_webhook|1|team_id|bigint|int8|64|NO|<null>|NO
+column|t_team_webhook|2|url|character varying|varchar|500|NO|<null>|NO
+column|t_team|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_team|2|name|character varying|varchar|100|NO|<null>|NO
+column|t_team|3|description|character varying|varchar|255|YES|<null>|NO
+column|t_team|4|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_test_report_import|10|errors_count|integer|int4|32|NO|<null>|NO
+column|t_test_report_import|11|skipped_count|integer|int4|32|NO|<null>|NO
+column|t_test_report_import|12|commit_sha|character varying|varchar|64|YES|<null>|NO
+column|t_test_report_import|13|branch_name|character varying|varchar|255|YES|<null>|NO
+column|t_test_report_import|14|document_sha256|character varying|varchar|64|NO|<null>|NO
+column|t_test_report_import|15|imported_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_test_report_import|16|imported_by|character varying|varchar|255|NO|<null>|NO
+column|t_test_report_import|17|api_key_id|character|bpchar|36|NO|<null>|NO
+column|t_test_report_import|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_test_report_import|2|source_id|bigint|int8|64|NO|<null>|NO
+column|t_test_report_import|3|source_slug|character varying|varchar|40|NO|<null>|NO
+column|t_test_report_import|4|repo_id|bigint|int8|64|NO|<null>|NO
+column|t_test_report_import|5|format|character varying|varchar|20|NO|<null>|NO
+column|t_test_report_import|6|documents_count|integer|int4|32|NO|<null>|NO
+column|t_test_report_import|7|suites_count|integer|int4|32|NO|<null>|NO
+column|t_test_report_import|8|tests_count|integer|int4|32|NO|<null>|NO
+column|t_test_report_import|9|failures_count|integer|int4|32|NO|<null>|NO
+column|t_test_suite_result|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_test_suite_result|2|import_id|bigint|int8|64|NO|<null>|NO
+column|t_test_suite_result|3|name|character varying|varchar|500|NO|<null>|NO
+column|t_test_suite_result|4|tests_count|integer|int4|32|NO|<null>|NO
+column|t_test_suite_result|5|failures_count|integer|int4|32|NO|<null>|NO
+column|t_test_suite_result|6|errors_count|integer|int4|32|NO|<null>|NO
+column|t_test_suite_result|7|skipped_count|integer|int4|32|NO|<null>|NO
+column|t_threat_intel_feed|1|cve_id|character varying|varchar|64|NO|<null>|NO
+column|t_threat_intel_feed|2|is_kev|boolean|bool|NO|false|NO
+column|t_threat_intel_feed|5|date_added|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_feed|6|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_threat_intel_sync|10|epss_status|character varying|varchar|32|NO|'NEVER_SYNCED'::character varying|NO
+column|t_threat_intel_sync|11|epss_synced_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_sync|12|epss_model_version|character varying|varchar|32|YES|<null>|NO
+column|t_threat_intel_sync|13|epss_score_date|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_sync|14|epss_count|bigint|int8|64|NO|0|NO
+column|t_threat_intel_sync|15|epss_generation|bigint|int8|64|YES|<null>|NO
+column|t_threat_intel_sync|16|epss_attempt_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_sync|17|epss_lease_until|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_sync|18|epss_claim|bigint|int8|64|YES|<null>|NO
+column|t_threat_intel_sync|19|epss_error|character varying|varchar|500|YES|<null>|NO
+column|t_threat_intel_sync|1|id|bigint|int8|64|NO|<null>|NO
+column|t_threat_intel_sync|20|epss_previous_generation|bigint|int8|64|YES|<null>|NO
+column|t_threat_intel_sync|2|last_synced_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_sync|3|cve_count|bigint|int8|64|NO|0|NO
+column|t_threat_intel_sync|4|kev_count|bigint|int8|64|NO|0|NO
+column|t_threat_intel_sync|5|status|character varying|varchar|32|NO|'SYNCED'::character varying|NO
+column|t_threat_intel_sync|6|kev_catalog_version|character varying|varchar|32|YES|<null>|NO
+column|t_threat_intel_sync|7|kev_released_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_sync|8|last_attempt_at|timestamp with time zone|timestamptz|YES|<null>|NO
+column|t_threat_intel_sync|9|last_error|character varying|varchar|500|YES|<null>|NO
+column|t_user_target|1|user_id|bigint|int8|64|NO|<null>|NO
+column|t_user_target|2|target_kind|character varying|varchar|20|NO|<null>|NO
+column|t_user_target|3|target_id|bigint|int8|64|NO|<null>|NO
+column|t_user|10|keycloak_id|character varying|varchar|255|YES|<null>|NO
+column|t_user|11|created_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_user|12|updated_at|timestamp with time zone|timestamptz|NO|<null>|NO
+column|t_user|13|must_change_password|boolean|bool|NO|<null>|NO
+column|t_user|14|mfa_enabled|boolean|bool|NO|false|NO
+column|t_user|15|totp_secret|text|text|YES|<null>|NO
+column|t_user|16|mfa_backup_codes|text|text|YES|<null>|NO
+column|t_user|17|totp_last_step|bigint|int8|64|YES|<null>|NO
+column|t_user|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_user|2|username|character varying|varchar|255|NO|<null>|NO
+column|t_user|3|email|character varying|varchar|255|YES|<null>|NO
+column|t_user|4|password|character varying|varchar|255|YES|<null>|NO
+column|t_user|5|display_name|character varying|varchar|255|YES|<null>|NO
+column|t_user|6|avatar_url|character varying|varchar|255|YES|<null>|NO
+column|t_user|7|role|character varying|varchar|255|NO|<null>|NO
+column|t_user|8|is_active|boolean|bool|NO|<null>|NO
+column|t_user|9|github_id|character varying|varchar|255|YES|<null>|NO
+column|t_webhook_delivery|1|body_hash|character varying|varchar|64|NO|<null>|NO
+column|t_webhook_delivery|2|provider|character varying|varchar|16|NO|<null>|NO
+column|t_webhook_delivery|3|received_at|timestamp with time zone|timestamptz|NO|<null>|NO
+constraint|flyway_schema_history|flyway_schema_history_pk|p|PRIMARY KEY (installed_rank)
+constraint|t_agent|t_agent_api_key_id_fkey|f|FOREIGN KEY (api_key_id) REFERENCES t_api_key(id) ON DELETE SET NULL
+constraint|t_agent|t_agent_pkey|p|PRIMARY KEY (id)
+constraint|t_ai_review_result|t_ai_review_result_pkey|p|PRIMARY KEY (id)
+constraint|t_ai_review_result|t_ai_review_result_scan_id_fkey|f|FOREIGN KEY (scan_id) REFERENCES t_scan(id) ON DELETE CASCADE
+constraint|t_api_contract|t_api_contract_pkey|p|PRIMARY KEY (id)
+constraint|t_api_contract|t_api_contract_repository_id_fkey|f|FOREIGN KEY (repository_id) REFERENCES t_repository(id) ON DELETE CASCADE
+constraint|t_api_contract|t_api_contract_scan_id_fkey|f|FOREIGN KEY (scan_id) REFERENCES t_scan(id) ON DELETE CASCADE
+constraint|t_api_endpoint|t_api_endpoint_pkey|p|PRIMARY KEY (id)
+constraint|t_api_endpoint|t_api_endpoint_repository_id_fkey|f|FOREIGN KEY (repository_id) REFERENCES t_repository(id) ON DELETE CASCADE
+constraint|t_api_endpoint|t_api_endpoint_scan_id_fkey|f|FOREIGN KEY (scan_id) REFERENCES t_scan(id) ON DELETE CASCADE
+constraint|t_api_key|fk_api_key_owner|f|FOREIGN KEY (owner_user_id) REFERENCES t_user(id) ON DELETE CASCADE
+constraint|t_api_key|t_api_key_pkey|p|PRIMARY KEY (id)
+constraint|t_audit_chain_head|t_audit_chain_head_pkey|p|PRIMARY KEY (id)
+constraint|t_audit_log|t_audit_log_pkey|p|PRIMARY KEY (id)
+constraint|t_build_sbom_component|t_build_sbom_component_pkey|p|PRIMARY KEY (id)
+constraint|t_build_sbom|t_build_sbom_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_answer|ck_checklist_answer_author|c|CHECK (((((answered_by_kind)::text = 'person'::text) AND (answered_by_id IS NOT NULL) AND (withdrawn = false)) OR (((answered_by_kind)::text = 'system'::text) AND (answered_by_id IS NULL))))
+constraint|t_checklist_answer|t_checklist_answer_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_document|t_checklist_document_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_document|uq_checklist_document|u|UNIQUE (checklist_id)
+constraint|t_checklist_evidence|t_checklist_evidence_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_file|t_checklist_file_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_item|t_checklist_item_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_item|uq_checklist_item_key|u|UNIQUE (version_id, item_key)
+constraint|t_checklist_measurement|t_checklist_measurement_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_template_version|t_checklist_template_version_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_template_version|uq_checklist_template_version_ordinal|u|UNIQUE (template_id, ordinal)
+constraint|t_checklist_template|t_checklist_template_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_template|uq_checklist_template_slug|u|UNIQUE (slug)
+constraint|t_checklist|t_checklist_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist|uq_checklist_open_slot|u|UNIQUE (project_id, open_slot)
+constraint|t_checklist|uq_checklist_revision|u|UNIQUE (project_id, revision)
+constraint|t_compliance_snapshot|t_compliance_snapshot_pkey|p|PRIMARY KEY (id)
+constraint|t_component|t_component_pkey|p|PRIMARY KEY (id)
+constraint|t_component|t_component_scan_id_fkey|f|FOREIGN KEY (scan_id) REFERENCES t_scan(id) ON DELETE CASCADE
+constraint|t_container|fk_container_project|f|FOREIGN KEY (project_id) REFERENCES t_project(id) ON DELETE SET NULL
+constraint|t_container|t_container_pkey|p|PRIMARY KEY (id)
+constraint|t_control_declaration|t_control_declaration_pkey|p|PRIMARY KEY (id)
+constraint|t_coverage_import|t_coverage_import_pkey|p|PRIMARY KEY (id)
+constraint|t_coverage_package|t_coverage_package_pkey|p|PRIMARY KEY (id)
+constraint|t_epss_score|t_epss_score_pkey|p|PRIMARY KEY (generation, cve_id)
+constraint|t_finding|t_finding_issue_id_fkey|f|FOREIGN KEY (issue_id) REFERENCES t_issue(id) ON DELETE SET NULL
+constraint|t_finding|t_finding_pkey|p|PRIMARY KEY (id)
+constraint|t_finding|t_finding_scan_id_fkey|f|FOREIGN KEY (scan_id) REFERENCES t_scan(id) ON DELETE CASCADE
+constraint|t_forge_connection|t_forge_connection_pkey|p|PRIMARY KEY (id)
+constraint|t_forge_connection|uq_forge_connection_name|u|UNIQUE (name)
+constraint|t_forge_discovery|t_forge_discovery_pkey|p|PRIMARY KEY (id)
+constraint|t_forge_discovery|uq_forge_discovery_active|u|UNIQUE (active_key)
+constraint|t_forge_import_link|t_forge_import_link_pkey|p|PRIMARY KEY (id)
+constraint|t_forge_import_link|uq_forge_import_link_repository|u|UNIQUE (repository_id)
+constraint|t_forge_import_link|uq_forge_import_link|u|UNIQUE (connection_id, forge_id)
+constraint|t_forge_repository|t_forge_repository_pkey|p|PRIMARY KEY (id)
+constraint|t_forge_repository|uq_forge_repository|u|UNIQUE (connection_id, forge_id)
+constraint|t_forge_review_reading|t_forge_review_reading_pkey|p|PRIMARY KEY (id)
+constraint|t_forge_review_reading|uq_forge_review_reading|u|UNIQUE (repository_id, wanted_branch)
+constraint|t_gate_policy|t_gate_policy_pkey|p|PRIMARY KEY (id)
+constraint|t_gate_verdict|t_gate_verdict_container_id_fkey|f|FOREIGN KEY (container_id) REFERENCES t_container(id) ON DELETE CASCADE
+constraint|t_gate_verdict|t_gate_verdict_pkey|p|PRIMARY KEY (id)
+constraint|t_gate_verdict|t_gate_verdict_repo_id_fkey|f|FOREIGN KEY (repo_id) REFERENCES t_repository(id) ON DELETE CASCADE
+constraint|t_git_token|t_git_token_pkey|p|PRIMARY KEY (id)
+constraint|t_issue_ticket|t_issue_ticket_issue_id_fkey|f|FOREIGN KEY (issue_id) REFERENCES t_issue(id) ON DELETE CASCADE
+constraint|t_issue_ticket|t_issue_ticket_pkey|p|PRIMARY KEY (id)
+constraint|t_issue_triage_event|t_issue_triage_event_issue_id_fkey|f|FOREIGN KEY (issue_id) REFERENCES t_issue(id) ON DELETE CASCADE
+constraint|t_issue_triage_event|t_issue_triage_event_pkey|p|PRIMARY KEY (id)
+constraint|t_issue_triage_event|t_issue_triage_event_scan_id_fkey|f|FOREIGN KEY (scan_id) REFERENCES t_scan(id) ON DELETE SET NULL
+constraint|t_issue|t_issue_container_id_fkey|f|FOREIGN KEY (container_id) REFERENCES t_container(id) ON DELETE CASCADE
+constraint|t_issue|t_issue_first_seen_scan_id_fkey|f|FOREIGN KEY (first_seen_scan_id) REFERENCES t_scan(id) ON DELETE SET NULL
+constraint|t_issue|t_issue_last_seen_scan_id_fkey|f|FOREIGN KEY (last_seen_scan_id) REFERENCES t_scan(id) ON DELETE SET NULL
+constraint|t_issue|t_issue_pkey|p|PRIMARY KEY (id)
+constraint|t_issue|t_issue_repo_id_fkey|f|FOREIGN KEY (repo_id) REFERENCES t_repository(id) ON DELETE CASCADE
+constraint|t_leader_lease|t_leader_lease_pkey|p|PRIMARY KEY (name)
+constraint|t_license_policy|t_license_policy_pkey|p|PRIMARY KEY (id)
+constraint|t_login_attempt|t_login_attempt_pkey|p|PRIMARY KEY (id)
+constraint|t_mfa_challenge|t_mfa_challenge_pkey|p|PRIMARY KEY (token_hash)
+constraint|t_mfa_challenge|t_mfa_challenge_user_id_fkey|f|FOREIGN KEY (user_id) REFERENCES t_user(id) ON DELETE CASCADE
+constraint|t_one_shot_job|t_one_shot_job_pkey|p|PRIMARY KEY (name)
+constraint|t_outbox_message|t_outbox_message_pkey|p|PRIMARY KEY (id)
+constraint|t_owasp_weekly_coverage|t_owasp_weekly_coverage_pkey|p|PRIMARY KEY (id)
+constraint|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|u|UNIQUE (week_start, target_kind, target_id, category)
+constraint|t_plugin_activation|t_plugin_activation_pkey|p|PRIMARY KEY (id)
+constraint|t_plugin_activation|uq_plugin_activation|u|UNIQUE (plugin_id, project_id)
+constraint|t_plugin_manifest|t_plugin_manifest_pkey|p|PRIMARY KEY (digest)
+constraint|t_plugin|t_plugin_pkey|p|PRIMARY KEY (id)
+constraint|t_processed_message|t_processed_message_pkey|p|PRIMARY KEY (id)
+constraint|t_project|fk_project_solution|f|FOREIGN KEY (solution_id) REFERENCES t_solution(id) ON DELETE RESTRICT
+constraint|t_project|t_project_pkey|p|PRIMARY KEY (id)
+constraint|t_project|uq_project_solution_name|u|UNIQUE (solution_id, name)
+constraint|t_rate_window|t_rate_window_pkey|p|PRIMARY KEY (window_key)
+constraint|t_report_document|t_report_document_pkey|p|PRIMARY KEY (run_id)
+constraint|t_report_export|t_report_export_pkey|p|PRIMARY KEY (run_id)
+constraint|t_report_plugin_activation|t_report_plugin_activation_pkey|p|PRIMARY KEY (id)
+constraint|t_report_plugin_activation|uq_report_plugin_activation|u|UNIQUE (plugin_id, project_id)
+constraint|t_report_plugin_manifest|t_report_plugin_manifest_pkey|p|PRIMARY KEY (digest)
+constraint|t_report_plugin|t_report_plugin_pkey|p|PRIMARY KEY (id)
+constraint|t_report_run|t_report_run_pkey|p|PRIMARY KEY (id)
+constraint|t_report_run|uq_report_run_active|u|UNIQUE (active_key)
+constraint|t_repository|fk_repository_https_token|f|FOREIGN KEY (https_token_id) REFERENCES t_git_token(id) ON DELETE SET NULL
+constraint|t_repository|fk_repository_project|f|FOREIGN KEY (project_id) REFERENCES t_project(id) ON DELETE SET NULL
+constraint|t_repository|t_repository_pkey|p|PRIMARY KEY (id)
+constraint|t_repository|t_repository_ssh_key_id_fkey|f|FOREIGN KEY (ssh_key_id) REFERENCES t_ssh_key(id) ON DELETE SET NULL
+constraint|t_sarif_import|t_sarif_import_pkey|p|PRIMARY KEY (id)
+constraint|t_sarif_source|t_sarif_source_pkey|p|PRIMARY KEY (id)
+constraint|t_sarif_source|uq_sarif_source_key|u|UNIQUE (api_key_id)
+constraint|t_sarif_source|uq_sarif_source_slug|u|UNIQUE (slug)
+constraint|t_scan|t_scan_container_id_fkey|f|FOREIGN KEY (container_id) REFERENCES t_container(id) ON DELETE CASCADE
+constraint|t_scan|t_scan_pkey|p|PRIMARY KEY (id)
+constraint|t_scan|t_scan_repo_id_fkey|f|FOREIGN KEY (repo_id) REFERENCES t_repository(id) ON DELETE CASCADE
+constraint|t_semgrep_rule_set|t_semgrep_rule_set_pkey|p|PRIMARY KEY (id)
+constraint|t_session|t_session_pkey|p|PRIMARY KEY (token_hash)
+constraint|t_session|t_session_user_id_fkey|f|FOREIGN KEY (user_id) REFERENCES t_user(id) ON DELETE CASCADE
+constraint|t_setting|t_setting_pkey|p|PRIMARY KEY (key)
+constraint|t_siem_config|t_siem_config_pkey|p|PRIMARY KEY (id)
+constraint|t_solution|t_solution_pkey|p|PRIMARY KEY (id)
+constraint|t_solution|uq_solution_name|u|UNIQUE (name)
+constraint|t_ssh_key|t_ssh_key_pkey|p|PRIMARY KEY (id)
+constraint|t_team_member|t_team_member_pkey|p|PRIMARY KEY (team_id, user_id)
+constraint|t_team_member|t_team_member_team_id_fkey|f|FOREIGN KEY (team_id) REFERENCES t_team(id) ON DELETE CASCADE
+constraint|t_team_member|t_team_member_user_id_fkey|f|FOREIGN KEY (user_id) REFERENCES t_user(id) ON DELETE CASCADE
+constraint|t_team_target|t_team_target_pkey|p|PRIMARY KEY (team_id, target_kind, target_id)
+constraint|t_team_target|t_team_target_team_id_fkey|f|FOREIGN KEY (team_id) REFERENCES t_team(id) ON DELETE CASCADE
+constraint|t_team_webhook|t_team_webhook_pkey|p|PRIMARY KEY (team_id)
+constraint|t_team_webhook|t_team_webhook_team_id_fkey|f|FOREIGN KEY (team_id) REFERENCES t_team(id) ON DELETE CASCADE
+constraint|t_team|t_team_name_key|u|UNIQUE (name)
+constraint|t_team|t_team_pkey|p|PRIMARY KEY (id)
+constraint|t_test_report_import|t_test_report_import_pkey|p|PRIMARY KEY (id)
+constraint|t_test_suite_result|t_test_suite_result_pkey|p|PRIMARY KEY (id)
+constraint|t_threat_intel_feed|t_threat_intel_feed_pkey|p|PRIMARY KEY (cve_id)
+constraint|t_threat_intel_sync|t_threat_intel_sync_pkey|p|PRIMARY KEY (id)
+constraint|t_user_target|t_user_target_pkey|p|PRIMARY KEY (user_id, target_kind, target_id)
+constraint|t_user_target|t_user_target_user_id_fkey|f|FOREIGN KEY (user_id) REFERENCES t_user(id) ON DELETE CASCADE
+constraint|t_user|t_user_email_key|u|UNIQUE (email)
+constraint|t_user|t_user_github_id_key|u|UNIQUE (github_id)
+constraint|t_user|t_user_keycloak_id_key|u|UNIQUE (keycloak_id)
+constraint|t_user|t_user_pkey|p|PRIMARY KEY (id)
+constraint|t_user|t_user_username_key|u|UNIQUE (username)
+constraint|t_webhook_delivery|t_webhook_delivery_pkey|p|PRIMARY KEY (body_hash)
+index|flyway_schema_history|flyway_schema_history_pk|CREATE UNIQUE INDEX flyway_schema_history_pk ON public.flyway_schema_history USING btree (installed_rank)
+index|flyway_schema_history|flyway_schema_history_s_idx|CREATE INDEX flyway_schema_history_s_idx ON public.flyway_schema_history USING btree (success)
+index|t_agent|t_agent_pkey|CREATE UNIQUE INDEX t_agent_pkey ON public.t_agent USING btree (id)
+index|t_ai_review_result|idx_ai_review_repository|CREATE INDEX idx_ai_review_repository ON public.t_ai_review_result USING btree (repo_id, created_at)
+index|t_ai_review_result|idx_ai_review_scan|CREATE INDEX idx_ai_review_scan ON public.t_ai_review_result USING btree (scan_id)
+index|t_ai_review_result|t_ai_review_result_pkey|CREATE UNIQUE INDEX t_ai_review_result_pkey ON public.t_ai_review_result USING btree (id)
+index|t_api_contract|idx_api_contract_repo|CREATE INDEX idx_api_contract_repo ON public.t_api_contract USING btree (repository_id)
+index|t_api_contract|idx_api_contract_scan|CREATE INDEX idx_api_contract_scan ON public.t_api_contract USING btree (scan_id)
+index|t_api_contract|t_api_contract_pkey|CREATE UNIQUE INDEX t_api_contract_pkey ON public.t_api_contract USING btree (id)
+index|t_api_endpoint|idx_api_endpoint_path|CREATE INDEX idx_api_endpoint_path ON public.t_api_endpoint USING btree (path, http_method)
+index|t_api_endpoint|idx_api_endpoint_repo|CREATE INDEX idx_api_endpoint_repo ON public.t_api_endpoint USING btree (repository_id, scan_id)
+index|t_api_endpoint|idx_api_endpoint_scan|CREATE INDEX idx_api_endpoint_scan ON public.t_api_endpoint USING btree (scan_id)
+index|t_api_endpoint|t_api_endpoint_pkey|CREATE UNIQUE INDEX t_api_endpoint_pkey ON public.t_api_endpoint USING btree (id)
+index|t_api_key|idx_api_key_prefix|CREATE INDEX idx_api_key_prefix ON public.t_api_key USING btree (prefix)
+index|t_api_key|t_api_key_pkey|CREATE UNIQUE INDEX t_api_key_pkey ON public.t_api_key USING btree (id)
+index|t_audit_chain_head|t_audit_chain_head_pkey|CREATE UNIQUE INDEX t_audit_chain_head_pkey ON public.t_audit_chain_head USING btree (id)
+index|t_audit_log|idx_audit_log_order|CREATE INDEX idx_audit_log_order ON public.t_audit_log USING btree ("timestamp", id)
+index|t_audit_log|t_audit_log_pkey|CREATE UNIQUE INDEX t_audit_log_pkey ON public.t_audit_log USING btree (id)
+index|t_build_sbom_component|idx_build_sbom_component_import|CREATE INDEX idx_build_sbom_component_import ON public.t_build_sbom_component USING btree (import_id)
+index|t_build_sbom_component|t_build_sbom_component_pkey|CREATE UNIQUE INDEX t_build_sbom_component_pkey ON public.t_build_sbom_component USING btree (id)
+index|t_build_sbom|idx_build_sbom_imported|CREATE INDEX idx_build_sbom_imported ON public.t_build_sbom USING btree (imported_at)
+index|t_build_sbom|idx_build_sbom_repo|CREATE INDEX idx_build_sbom_repo ON public.t_build_sbom USING btree (repo_id, id)
+index|t_build_sbom|t_build_sbom_pkey|CREATE UNIQUE INDEX t_build_sbom_pkey ON public.t_build_sbom USING btree (id)
+index|t_checklist_answer|idx_checklist_answer_line|CREATE INDEX idx_checklist_answer_line ON public.t_checklist_answer USING btree (checklist_id, item_id)
+index|t_checklist_answer|t_checklist_answer_pkey|CREATE UNIQUE INDEX t_checklist_answer_pkey ON public.t_checklist_answer USING btree (id)
+index|t_checklist_document|idx_checklist_document_project|CREATE INDEX idx_checklist_document_project ON public.t_checklist_document USING btree (project_id)
+index|t_checklist_document|t_checklist_document_pkey|CREATE UNIQUE INDEX t_checklist_document_pkey ON public.t_checklist_document USING btree (id)
+index|t_checklist_document|uq_checklist_document|CREATE UNIQUE INDEX uq_checklist_document ON public.t_checklist_document USING btree (checklist_id)
+index|t_checklist_evidence|idx_checklist_evidence_line|CREATE INDEX idx_checklist_evidence_line ON public.t_checklist_evidence USING btree (checklist_id, item_id)
+index|t_checklist_evidence|t_checklist_evidence_pkey|CREATE UNIQUE INDEX t_checklist_evidence_pkey ON public.t_checklist_evidence USING btree (id)
+index|t_checklist_file|idx_checklist_file_project|CREATE INDEX idx_checklist_file_project ON public.t_checklist_file USING btree (project_id)
+index|t_checklist_file|t_checklist_file_pkey|CREATE UNIQUE INDEX t_checklist_file_pkey ON public.t_checklist_file USING btree (id)
+index|t_checklist_item|idx_checklist_item_position|CREATE INDEX idx_checklist_item_position ON public.t_checklist_item USING btree (version_id, item_position)
+index|t_checklist_item|t_checklist_item_pkey|CREATE UNIQUE INDEX t_checklist_item_pkey ON public.t_checklist_item USING btree (id)
+index|t_checklist_item|uq_checklist_item_key|CREATE UNIQUE INDEX uq_checklist_item_key ON public.t_checklist_item USING btree (version_id, item_key)
+index|t_checklist_measurement|idx_checklist_measurement_line|CREATE INDEX idx_checklist_measurement_line ON public.t_checklist_measurement USING btree (checklist_id, item_id)
+index|t_checklist_measurement|t_checklist_measurement_pkey|CREATE UNIQUE INDEX t_checklist_measurement_pkey ON public.t_checklist_measurement USING btree (id)
+index|t_checklist_template_version|idx_checklist_template_version_status|CREATE INDEX idx_checklist_template_version_status ON public.t_checklist_template_version USING btree (template_id, status)
+index|t_checklist_template_version|t_checklist_template_version_pkey|CREATE UNIQUE INDEX t_checklist_template_version_pkey ON public.t_checklist_template_version USING btree (id)
+index|t_checklist_template_version|uq_checklist_template_version_ordinal|CREATE UNIQUE INDEX uq_checklist_template_version_ordinal ON public.t_checklist_template_version USING btree (template_id, ordinal)
+index|t_checklist_template|t_checklist_template_pkey|CREATE UNIQUE INDEX t_checklist_template_pkey ON public.t_checklist_template USING btree (id)
+index|t_checklist_template|uq_checklist_template_slug|CREATE UNIQUE INDEX uq_checklist_template_slug ON public.t_checklist_template USING btree (slug)
+index|t_checklist|t_checklist_pkey|CREATE UNIQUE INDEX t_checklist_pkey ON public.t_checklist USING btree (id)
+index|t_checklist|uq_checklist_open_slot|CREATE UNIQUE INDEX uq_checklist_open_slot ON public.t_checklist USING btree (project_id, open_slot)
+index|t_checklist|uq_checklist_revision|CREATE UNIQUE INDEX uq_checklist_revision ON public.t_checklist USING btree (project_id, revision)
+index|t_compliance_snapshot|idx_compliance_snapshot_framework|CREATE INDEX idx_compliance_snapshot_framework ON public.t_compliance_snapshot USING btree (framework, period)
+index|t_compliance_snapshot|t_compliance_snapshot_pkey|CREATE UNIQUE INDEX t_compliance_snapshot_pkey ON public.t_compliance_snapshot USING btree (id)
+index|t_compliance_snapshot|uq_compliance_snapshot|CREATE UNIQUE INDEX uq_compliance_snapshot ON public.t_compliance_snapshot USING btree (period, framework)
+index|t_component|idx_component_build_sbom|CREATE INDEX idx_component_build_sbom ON public.t_component USING btree (build_sbom_id)
+index|t_component|idx_component_scan|CREATE INDEX idx_component_scan ON public.t_component USING btree (scan_id)
+index|t_component|idx_component_search|CREATE INDEX idx_component_search ON public.t_component USING btree (name, version, scan_id)
+index|t_component|t_component_pkey|CREATE UNIQUE INDEX t_component_pkey ON public.t_component USING btree (id)
+index|t_container|idx_container_project|CREATE INDEX idx_container_project ON public.t_container USING btree (project_id)
+index|t_container|t_container_pkey|CREATE UNIQUE INDEX t_container_pkey ON public.t_container USING btree (id)
+index|t_control_declaration|idx_control_declaration_review|CREATE INDEX idx_control_declaration_review ON public.t_control_declaration USING btree (review_due_at)
+index|t_control_declaration|t_control_declaration_pkey|CREATE UNIQUE INDEX t_control_declaration_pkey ON public.t_control_declaration USING btree (id)
+index|t_control_declaration|uq_control_declaration|CREATE UNIQUE INDEX uq_control_declaration ON public.t_control_declaration USING btree (framework, control_id)
+index|t_coverage_import|idx_coverage_import_repo|CREATE INDEX idx_coverage_import_repo ON public.t_coverage_import USING btree (repo_id, imported_at)
+index|t_coverage_import|t_coverage_import_pkey|CREATE UNIQUE INDEX t_coverage_import_pkey ON public.t_coverage_import USING btree (id)
+index|t_coverage_package|idx_coverage_package_import|CREATE INDEX idx_coverage_package_import ON public.t_coverage_package USING btree (import_id)
+index|t_coverage_package|t_coverage_package_pkey|CREATE UNIQUE INDEX t_coverage_package_pkey ON public.t_coverage_package USING btree (id)
+index|t_epss_score|t_epss_score_pkey|CREATE UNIQUE INDEX t_epss_score_pkey ON public.t_epss_score USING btree (generation, cve_id)
+index|t_finding|idx_finding_issue|CREATE INDEX idx_finding_issue ON public.t_finding USING btree (issue_id)
+index|t_finding|idx_finding_package|CREATE INDEX idx_finding_package ON public.t_finding USING btree (package_name)
+index|t_finding|idx_finding_scan|CREATE INDEX idx_finding_scan ON public.t_finding USING btree (scan_id)
+index|t_finding|t_finding_pkey|CREATE UNIQUE INDEX t_finding_pkey ON public.t_finding USING btree (id)
+index|t_forge_connection|t_forge_connection_pkey|CREATE UNIQUE INDEX t_forge_connection_pkey ON public.t_forge_connection USING btree (id)
+index|t_forge_connection|uq_forge_connection_name|CREATE UNIQUE INDEX uq_forge_connection_name ON public.t_forge_connection USING btree (name)
+index|t_forge_discovery|idx_forge_discovery_connection|CREATE INDEX idx_forge_discovery_connection ON public.t_forge_discovery USING btree (connection_id, requested_at)
+index|t_forge_discovery|idx_forge_discovery_state|CREATE INDEX idx_forge_discovery_state ON public.t_forge_discovery USING btree (state, requested_at)
+index|t_forge_discovery|t_forge_discovery_pkey|CREATE UNIQUE INDEX t_forge_discovery_pkey ON public.t_forge_discovery USING btree (id)
+index|t_forge_discovery|uq_forge_discovery_active|CREATE UNIQUE INDEX uq_forge_discovery_active ON public.t_forge_discovery USING btree (active_key)
+index|t_forge_import_link|t_forge_import_link_pkey|CREATE UNIQUE INDEX t_forge_import_link_pkey ON public.t_forge_import_link USING btree (id)
+index|t_forge_import_link|uq_forge_import_link_repository|CREATE UNIQUE INDEX uq_forge_import_link_repository ON public.t_forge_import_link USING btree (repository_id)
+index|t_forge_import_link|uq_forge_import_link|CREATE UNIQUE INDEX uq_forge_import_link ON public.t_forge_import_link USING btree (connection_id, forge_id)
+index|t_forge_repository|idx_forge_repository_seen|CREATE INDEX idx_forge_repository_seen ON public.t_forge_repository USING btree (connection_id, last_seen_by)
+index|t_forge_repository|t_forge_repository_pkey|CREATE UNIQUE INDEX t_forge_repository_pkey ON public.t_forge_repository USING btree (id)
+index|t_forge_repository|uq_forge_repository|CREATE UNIQUE INDEX uq_forge_repository ON public.t_forge_repository USING btree (connection_id, forge_id)
+index|t_forge_review_reading|t_forge_review_reading_pkey|CREATE UNIQUE INDEX t_forge_review_reading_pkey ON public.t_forge_review_reading USING btree (id)
+index|t_forge_review_reading|uq_forge_review_reading|CREATE UNIQUE INDEX uq_forge_review_reading ON public.t_forge_review_reading USING btree (repository_id, wanted_branch)
+index|t_gate_policy|t_gate_policy_pkey|CREATE UNIQUE INDEX t_gate_policy_pkey ON public.t_gate_policy USING btree (id)
+index|t_gate_verdict|idx_gate_verdict_container|CREATE INDEX idx_gate_verdict_container ON public.t_gate_verdict USING btree (container_id, decided_at)
+index|t_gate_verdict|idx_gate_verdict_decided_at|CREATE INDEX idx_gate_verdict_decided_at ON public.t_gate_verdict USING btree (decided_at)
+index|t_gate_verdict|idx_gate_verdict_repo|CREATE INDEX idx_gate_verdict_repo ON public.t_gate_verdict USING btree (repo_id, decided_at)
+index|t_gate_verdict|t_gate_verdict_pkey|CREATE UNIQUE INDEX t_gate_verdict_pkey ON public.t_gate_verdict USING btree (id)
+index|t_git_token|t_git_token_pkey|CREATE UNIQUE INDEX t_git_token_pkey ON public.t_git_token USING btree (id)
+index|t_issue_ticket|idx_issue_ticket_issue_id|CREATE INDEX idx_issue_ticket_issue_id ON public.t_issue_ticket USING btree (issue_id)
+index|t_issue_ticket|t_issue_ticket_pkey|CREATE UNIQUE INDEX t_issue_ticket_pkey ON public.t_issue_ticket USING btree (id)
+index|t_issue_triage_event|idx_triage_event_issue|CREATE INDEX idx_triage_event_issue ON public.t_issue_triage_event USING btree (issue_id, occurred_at, id)
+index|t_issue_triage_event|t_issue_triage_event_pkey|CREATE UNIQUE INDEX t_issue_triage_event_pkey ON public.t_issue_triage_event USING btree (id)
+index|t_issue|idx_issue_identifier|CREATE INDEX idx_issue_identifier ON public.t_issue USING btree (identifier)
+index|t_issue|idx_issue_state_container|CREATE INDEX idx_issue_state_container ON public.t_issue USING btree (state, container_id)
+index|t_issue|idx_issue_state_repo|CREATE INDEX idx_issue_state_repo ON public.t_issue USING btree (state, repo_id)
+index|t_issue|idx_issue_ticket_ref|CREATE INDEX idx_issue_ticket_ref ON public.t_issue USING btree (ticket_ref)
+index|t_issue|idx_issue_triage_expires_at|CREATE INDEX idx_issue_triage_expires_at ON public.t_issue USING btree (triage_expires_at)
+index|t_issue|t_issue_pkey|CREATE UNIQUE INDEX t_issue_pkey ON public.t_issue USING btree (id)
+index|t_issue|uq_issue_fingerprint|CREATE UNIQUE INDEX uq_issue_fingerprint ON public.t_issue USING btree (fingerprint)
+index|t_leader_lease|t_leader_lease_pkey|CREATE UNIQUE INDEX t_leader_lease_pkey ON public.t_leader_lease USING btree (name)
+index|t_license_policy|t_license_policy_pkey|CREATE UNIQUE INDEX t_license_policy_pkey ON public.t_license_policy USING btree (id)
+index|t_login_attempt|idx_login_attempt_key|CREATE INDEX idx_login_attempt_key ON public.t_login_attempt USING btree (counter_key, occurred_at)
+index|t_login_attempt|t_login_attempt_pkey|CREATE UNIQUE INDEX t_login_attempt_pkey ON public.t_login_attempt USING btree (id)
+index|t_mfa_challenge|idx_mfa_challenge_expires|CREATE INDEX idx_mfa_challenge_expires ON public.t_mfa_challenge USING btree (expires_at)
+index|t_mfa_challenge|t_mfa_challenge_pkey|CREATE UNIQUE INDEX t_mfa_challenge_pkey ON public.t_mfa_challenge USING btree (token_hash)
+index|t_one_shot_job|t_one_shot_job_pkey|CREATE UNIQUE INDEX t_one_shot_job_pkey ON public.t_one_shot_job USING btree (name)
+index|t_outbox_message|idx_outbox_due|CREATE INDEX idx_outbox_due ON public.t_outbox_message USING btree (status, next_attempt_at)
+index|t_outbox_message|t_outbox_message_pkey|CREATE UNIQUE INDEX t_outbox_message_pkey ON public.t_outbox_message USING btree (id)
+index|t_owasp_weekly_coverage|idx_owasp_weekly_coverage_target|CREATE INDEX idx_owasp_weekly_coverage_target ON public.t_owasp_weekly_coverage USING btree (target_kind, target_id)
+index|t_owasp_weekly_coverage|t_owasp_weekly_coverage_pkey|CREATE UNIQUE INDEX t_owasp_weekly_coverage_pkey ON public.t_owasp_weekly_coverage USING btree (id)
+index|t_owasp_weekly_coverage|uq_owasp_weekly_coverage|CREATE UNIQUE INDEX uq_owasp_weekly_coverage ON public.t_owasp_weekly_coverage USING btree (week_start, target_kind, target_id, category)
+index|t_plugin_activation|t_plugin_activation_pkey|CREATE UNIQUE INDEX t_plugin_activation_pkey ON public.t_plugin_activation USING btree (id)
+index|t_plugin_activation|uq_plugin_activation|CREATE UNIQUE INDEX uq_plugin_activation ON public.t_plugin_activation USING btree (plugin_id, project_id)
+index|t_plugin_manifest|t_plugin_manifest_pkey|CREATE UNIQUE INDEX t_plugin_manifest_pkey ON public.t_plugin_manifest USING btree (digest)
+index|t_plugin|t_plugin_pkey|CREATE UNIQUE INDEX t_plugin_pkey ON public.t_plugin USING btree (id)
+index|t_processed_message|t_processed_message_pkey|CREATE UNIQUE INDEX t_processed_message_pkey ON public.t_processed_message USING btree (id)
+index|t_project|t_project_pkey|CREATE UNIQUE INDEX t_project_pkey ON public.t_project USING btree (id)
+index|t_project|uq_project_solution_name|CREATE UNIQUE INDEX uq_project_solution_name ON public.t_project USING btree (solution_id, name)
+index|t_rate_window|idx_rate_window_expires|CREATE INDEX idx_rate_window_expires ON public.t_rate_window USING btree (expires_at)
+index|t_rate_window|t_rate_window_pkey|CREATE UNIQUE INDEX t_rate_window_pkey ON public.t_rate_window USING btree (window_key)
+index|t_report_document|idx_report_document_created|CREATE INDEX idx_report_document_created ON public.t_report_document USING btree (created_at)
+index|t_report_document|t_report_document_pkey|CREATE UNIQUE INDEX t_report_document_pkey ON public.t_report_document USING btree (run_id)
+index|t_report_export|idx_report_export_created|CREATE INDEX idx_report_export_created ON public.t_report_export USING btree (created_at)
+index|t_report_export|t_report_export_pkey|CREATE UNIQUE INDEX t_report_export_pkey ON public.t_report_export USING btree (run_id)
+index|t_report_plugin_activation|idx_report_plugin_activation_project|CREATE INDEX idx_report_plugin_activation_project ON public.t_report_plugin_activation USING btree (project_id)
+index|t_report_plugin_activation|t_report_plugin_activation_pkey|CREATE UNIQUE INDEX t_report_plugin_activation_pkey ON public.t_report_plugin_activation USING btree (id)
+index|t_report_plugin_activation|uq_report_plugin_activation|CREATE UNIQUE INDEX uq_report_plugin_activation ON public.t_report_plugin_activation USING btree (plugin_id, project_id)
+index|t_report_plugin_manifest|idx_report_plugin_manifest_plugin|CREATE INDEX idx_report_plugin_manifest_plugin ON public.t_report_plugin_manifest USING btree (plugin_id, registered_at)
+index|t_report_plugin_manifest|t_report_plugin_manifest_pkey|CREATE UNIQUE INDEX t_report_plugin_manifest_pkey ON public.t_report_plugin_manifest USING btree (digest)
+index|t_report_plugin|t_report_plugin_pkey|CREATE UNIQUE INDEX t_report_plugin_pkey ON public.t_report_plugin USING btree (id)
+index|t_report_run|idx_report_run_manifest|CREATE INDEX idx_report_run_manifest ON public.t_report_run USING btree (manifest_digest)
+index|t_report_run|idx_report_run_output|CREATE INDEX idx_report_run_output ON public.t_report_run USING btree (output_sha256)
+index|t_report_run|idx_report_run_package|CREATE INDEX idx_report_run_package ON public.t_report_run USING btree (package_sha256)
+index|t_report_run|idx_report_run_project|CREATE INDEX idx_report_run_project ON public.t_report_run USING btree (project_id, requested_at)
+index|t_report_run|idx_report_run_state|CREATE INDEX idx_report_run_state ON public.t_report_run USING btree (state, requested_at)
+index|t_report_run|t_report_run_pkey|CREATE UNIQUE INDEX t_report_run_pkey ON public.t_report_run USING btree (id)
+index|t_report_run|uq_report_run_active|CREATE UNIQUE INDEX uq_report_run_active ON public.t_report_run USING btree (active_key)
+index|t_repository|idx_repository_badge_token|CREATE UNIQUE INDEX idx_repository_badge_token ON public.t_repository USING btree (badge_token)
+index|t_repository|idx_repository_project|CREATE INDEX idx_repository_project ON public.t_repository USING btree (project_id)
+index|t_repository|idx_repository_url_identity|CREATE INDEX idx_repository_url_identity ON public.t_repository USING btree (url_identity)
+index|t_repository|t_repository_pkey|CREATE UNIQUE INDEX t_repository_pkey ON public.t_repository USING btree (id)
+index|t_repository|uq_repository_identity_guard|CREATE UNIQUE INDEX uq_repository_identity_guard ON public.t_repository USING btree (identity_guard)
+index|t_sarif_import|idx_sarif_import_repo|CREATE INDEX idx_sarif_import_repo ON public.t_sarif_import USING btree (repo_id, imported_at)
+index|t_sarif_import|t_sarif_import_pkey|CREATE UNIQUE INDEX t_sarif_import_pkey ON public.t_sarif_import USING btree (id)
+index|t_sarif_source|t_sarif_source_pkey|CREATE UNIQUE INDEX t_sarif_source_pkey ON public.t_sarif_source USING btree (id)
+index|t_sarif_source|uq_sarif_source_key|CREATE UNIQUE INDEX uq_sarif_source_key ON public.t_sarif_source USING btree (api_key_id)
+index|t_sarif_source|uq_sarif_source_slug|CREATE UNIQUE INDEX uq_sarif_source_slug ON public.t_sarif_source USING btree (slug)
+index|t_scan|idx_scan_container|CREATE INDEX idx_scan_container ON public.t_scan USING btree (container_id, id)
+index|t_scan|idx_scan_queue|CREATE INDEX idx_scan_queue ON public.t_scan USING btree (status, required_agent_label, created_at, id)
+index|t_scan|idx_scan_repo|CREATE INDEX idx_scan_repo ON public.t_scan USING btree (repo_id, id)
+index|t_scan|t_scan_pkey|CREATE UNIQUE INDEX t_scan_pkey ON public.t_scan USING btree (id)
+index|t_semgrep_rule_set|t_semgrep_rule_set_pkey|CREATE UNIQUE INDEX t_semgrep_rule_set_pkey ON public.t_semgrep_rule_set USING btree (id)
+index|t_semgrep_rule_set|uq_semgrep_rule_set_active|CREATE UNIQUE INDEX uq_semgrep_rule_set_active ON public.t_semgrep_rule_set USING btree (is_active)
+index|t_session|t_session_pkey|CREATE UNIQUE INDEX t_session_pkey ON public.t_session USING btree (token_hash)
+index|t_setting|t_setting_pkey|CREATE UNIQUE INDEX t_setting_pkey ON public.t_setting USING btree (key)
+index|t_siem_config|t_siem_config_pkey|CREATE UNIQUE INDEX t_siem_config_pkey ON public.t_siem_config USING btree (id)
+index|t_solution|t_solution_pkey|CREATE UNIQUE INDEX t_solution_pkey ON public.t_solution USING btree (id)
+index|t_solution|uq_solution_name|CREATE UNIQUE INDEX uq_solution_name ON public.t_solution USING btree (name)
+index|t_ssh_key|t_ssh_key_pkey|CREATE UNIQUE INDEX t_ssh_key_pkey ON public.t_ssh_key USING btree (id)
+index|t_team_member|idx_team_member_user|CREATE INDEX idx_team_member_user ON public.t_team_member USING btree (user_id)
+index|t_team_member|t_team_member_pkey|CREATE UNIQUE INDEX t_team_member_pkey ON public.t_team_member USING btree (team_id, user_id)
+index|t_team_target|t_team_target_pkey|CREATE UNIQUE INDEX t_team_target_pkey ON public.t_team_target USING btree (team_id, target_kind, target_id)
+index|t_team_webhook|t_team_webhook_pkey|CREATE UNIQUE INDEX t_team_webhook_pkey ON public.t_team_webhook USING btree (team_id)
+index|t_team|t_team_name_key|CREATE UNIQUE INDEX t_team_name_key ON public.t_team USING btree (name)
+index|t_team|t_team_pkey|CREATE UNIQUE INDEX t_team_pkey ON public.t_team USING btree (id)
+index|t_test_report_import|idx_test_report_import_repo|CREATE INDEX idx_test_report_import_repo ON public.t_test_report_import USING btree (repo_id, imported_at)
+index|t_test_report_import|t_test_report_import_pkey|CREATE UNIQUE INDEX t_test_report_import_pkey ON public.t_test_report_import USING btree (id)
+index|t_test_suite_result|idx_test_suite_result_import|CREATE INDEX idx_test_suite_result_import ON public.t_test_suite_result USING btree (import_id)
+index|t_test_suite_result|t_test_suite_result_pkey|CREATE UNIQUE INDEX t_test_suite_result_pkey ON public.t_test_suite_result USING btree (id)
+index|t_threat_intel_feed|t_threat_intel_feed_pkey|CREATE UNIQUE INDEX t_threat_intel_feed_pkey ON public.t_threat_intel_feed USING btree (cve_id)
+index|t_threat_intel_sync|t_threat_intel_sync_pkey|CREATE UNIQUE INDEX t_threat_intel_sync_pkey ON public.t_threat_intel_sync USING btree (id)
+index|t_user_target|t_user_target_pkey|CREATE UNIQUE INDEX t_user_target_pkey ON public.t_user_target USING btree (user_id, target_kind, target_id)
+index|t_user|t_user_email_key|CREATE UNIQUE INDEX t_user_email_key ON public.t_user USING btree (email)
+index|t_user|t_user_github_id_key|CREATE UNIQUE INDEX t_user_github_id_key ON public.t_user USING btree (github_id)
+index|t_user|t_user_keycloak_id_key|CREATE UNIQUE INDEX t_user_keycloak_id_key ON public.t_user USING btree (keycloak_id)
+index|t_user|t_user_pkey|CREATE UNIQUE INDEX t_user_pkey ON public.t_user USING btree (id)
+index|t_user|t_user_username_key|CREATE UNIQUE INDEX t_user_username_key ON public.t_user USING btree (username)
+index|t_webhook_delivery|idx_webhook_delivery_received|CREATE INDEX idx_webhook_delivery_received ON public.t_webhook_delivery USING btree (received_at)
+index|t_webhook_delivery|t_webhook_delivery_pkey|CREATE UNIQUE INDEX t_webhook_delivery_pkey ON public.t_webhook_delivery USING btree (body_hash)
+sequence|t_issue_ticket_id_seq|bigint|1|1
+table|flyway_schema_history|BASE TABLE
+table|t_agent|BASE TABLE
+table|t_ai_review_result|BASE TABLE
+table|t_api_contract|BASE TABLE
+table|t_api_endpoint|BASE TABLE
+table|t_api_key|BASE TABLE
+table|t_audit_chain_head|BASE TABLE
+table|t_audit_log|BASE TABLE
+table|t_build_sbom_component|BASE TABLE
+table|t_build_sbom|BASE TABLE
+table|t_checklist_answer|BASE TABLE
+table|t_checklist_document|BASE TABLE
+table|t_checklist_evidence|BASE TABLE
+table|t_checklist_file|BASE TABLE
+table|t_checklist_item|BASE TABLE
+table|t_checklist_measurement|BASE TABLE
+table|t_checklist_template_version|BASE TABLE
+table|t_checklist_template|BASE TABLE
+table|t_checklist|BASE TABLE
+table|t_compliance_snapshot|BASE TABLE
+table|t_component|BASE TABLE
+table|t_container|BASE TABLE
+table|t_control_declaration|BASE TABLE
+table|t_coverage_import|BASE TABLE
+table|t_coverage_package|BASE TABLE
+table|t_epss_score|BASE TABLE
+table|t_finding|BASE TABLE
+table|t_forge_connection|BASE TABLE
+table|t_forge_discovery|BASE TABLE
+table|t_forge_import_link|BASE TABLE
+table|t_forge_repository|BASE TABLE
+table|t_forge_review_reading|BASE TABLE
+table|t_gate_policy|BASE TABLE
+table|t_gate_verdict|BASE TABLE
+table|t_git_token|BASE TABLE
+table|t_issue_ticket|BASE TABLE
+table|t_issue_triage_event|BASE TABLE
+table|t_issue|BASE TABLE
+table|t_leader_lease|BASE TABLE
+table|t_license_policy|BASE TABLE
+table|t_login_attempt|BASE TABLE
+table|t_mfa_challenge|BASE TABLE
+table|t_one_shot_job|BASE TABLE
+table|t_outbox_message|BASE TABLE
+table|t_owasp_weekly_coverage|BASE TABLE
+table|t_plugin_activation|BASE TABLE
+table|t_plugin_manifest|BASE TABLE
+table|t_plugin|BASE TABLE
+table|t_processed_message|BASE TABLE
+table|t_project|BASE TABLE
+table|t_rate_window|BASE TABLE
+table|t_report_document|BASE TABLE
+table|t_report_export|BASE TABLE
+table|t_report_plugin_activation|BASE TABLE
+table|t_report_plugin_manifest|BASE TABLE
+table|t_report_plugin|BASE TABLE
+table|t_report_run|BASE TABLE
+table|t_repository|BASE TABLE
+table|t_sarif_import|BASE TABLE
+table|t_sarif_source|BASE TABLE
+table|t_scan|BASE TABLE
+table|t_semgrep_rule_set|BASE TABLE
+table|t_session|BASE TABLE
+table|t_setting|BASE TABLE
+table|t_siem_config|BASE TABLE
+table|t_solution|BASE TABLE
+table|t_ssh_key|BASE TABLE
+table|t_team_member|BASE TABLE
+table|t_team_target|BASE TABLE
+table|t_team_webhook|BASE TABLE
+table|t_team|BASE TABLE
+table|t_test_report_import|BASE TABLE
+table|t_test_suite_result|BASE TABLE
+table|t_threat_intel_feed|BASE TABLE
+table|t_threat_intel_sync|BASE TABLE
+table|t_user_target|BASE TABLE
+table|t_user|BASE TABLE
+table|t_webhook_delivery|BASE TABLE
