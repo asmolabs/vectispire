@@ -1,0 +1,2 @@
+findings
+[{"checkId":"KEPT","checkName":"A check","file":"main.tf","line":1,"guideline":"https://docs.example.org/x","resource":"aws_s3_bucket.a"}]

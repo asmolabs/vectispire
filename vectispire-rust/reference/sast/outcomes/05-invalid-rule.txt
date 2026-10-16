@@ -1,0 +1,2 @@
+failure
+Scanner "semgrep (source code analysis)" exited with 7. InvalidRuleSchemaError; SemgrepError: invalid configuration file found (1 configs were invalid)

@@ -1,0 +1,2 @@
+findings
+[{"ruleId":"r.é","category":"security","severity":"LOW","confidence":null,"file":" .py","line":1,"message":"line\nbreak 😀 \u0000","owaspCategory":"A03"}]
