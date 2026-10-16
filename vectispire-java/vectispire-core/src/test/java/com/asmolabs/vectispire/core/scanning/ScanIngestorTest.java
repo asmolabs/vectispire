@@ -207,6 +207,28 @@ class ScanIngestorTest {
 
             assertThat(scannedTypes()).contains(FindingType.LICENSE);
         }
+
+        /**
+         * A document without {@code artifacts} read as a catalogue of nothing: no forbidden licence, no
+         * end-of-life platform, both types declared, both backlogs resolved. This version's scanner
+         * refuses that shape; an agent of 0.11.0 still sends whatever its cataloguer printed.
+         */
+        @Test
+        @DisplayName("an SBOM that is not a catalogue declares neither licences nor end of life")
+        void aDocumentThatIsNotACatalogueDeclaresNothing() throws Exception {
+            ScanIngestor.LicenseSource licences = mock(ScanIngestor.LicenseSource.class);
+            when(licences.findings(any())).thenReturn(List.of());
+            ScanIngestor.EndOfLifeSource endOfLife = mock(ScanIngestor.EndOfLifeSource.class);
+            when(endOfLife.isEnabled()).thenReturn(true);
+            when(endOfLife.findings(any())).thenReturn(Optional.of(List.of()));
+
+            ingestor(Optional.empty(), Optional.of(endOfLife), Optional.of(licences)).ingest(scan(), ScanArtifacts.builder()
+                    .sbom(new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"descriptor\": {\"name\": \"syft\"}}"))
+                    .build(Duration.ZERO));
+
+            assertThat(scannedTypes()).doesNotContain(FindingType.LICENSE, FindingType.EOL);
+            org.mockito.Mockito.verifyNoInteractions(licences);
+        }
     }
 
     /**

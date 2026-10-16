@@ -29,7 +29,7 @@ class ScannerOutputTest {
                       "Fingerprint": "abc123",
                       "Secret": "AKIAIOSFODNN7EXAMPLE", "Match": "key = AKIAIOSFODNN7EXAMPLE"}]""";
 
-            SecretFinding finding = SecretsScanner.parse(report).getFirst();
+            SecretFinding finding = SecretsScanner.read(report).orElseThrow().getFirst();
 
             assertThat(finding.rule()).isEqualTo("aws-access-token");
             assertThat(finding.file()).isEqualTo("app/config.py");
@@ -43,21 +43,45 @@ class ScannerOutputTest {
         @Test
         @DisplayName("strips the container path, so a file has one identity")
         void pathsAreRelativeToTheTree() {
-            assertThat(SecretsScanner.parse("[{\"File\": \"/repo/source/src/main.py\", \"StartLine\": 1}]").getFirst().file())
+            assertThat(SecretsScanner.read("[{\"File\": \"/repo/source/src/main.py\", \"StartLine\": 1}]").orElseThrow().getFirst().file())
                     .isEqualTo("src/main.py");
         }
 
         @Test
         @DisplayName("an absent fingerprint is absent, not an empty string")
         void missingFingerprintIsNull() {
-            assertThat(SecretsScanner.parse("[{\"File\": \"a\", \"StartLine\": 1}]").getFirst().fingerprint()).isNull();
+            assertThat(SecretsScanner.read("[{\"File\": \"a\", \"StartLine\": 1}]").orElseThrow().getFirst().fingerprint()).isNull();
         }
 
         @Test
-        @DisplayName("unreadable output yields nothing rather than throwing")
-        void malformedOutputIsEmpty() {
-            assertThat(SecretsScanner.parse("not json")).isEmpty();
-            assertThat(SecretsScanner.parse("{\"not\": \"an array\"}")).isEmpty();
+        @DisplayName("the empty array gitleaks writes on a clean tree is a clean tree")
+        void theEmptyArrayIsClean() {
+            // The one way to say "no secrets": v8.5.0 to the pinned v8.30.1 write `[]` (measured).
+            assertThat(SecretsScanner.read("[]\n")).hasValue(java.util.List.of());
+        }
+
+        /**
+         * <b>Absent, not empty</b> (decision 0007). Each of these came back as an empty list — or, for
+         * the elements that are not objects, as findings with no rule and no file — which resolved
+         * every secret issue of the target. The reference set of the Rust port carries the same
+         * reports ({@code vectispire-rust/reference/secrets/reports/}).
+         */
+        @ParameterizedTest(name = "{0}")
+        @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "this is not json",
+            "{\"RuleID\":\"generic-api-key\",\"File\":\"/repo/source/a\"}",
+            "",
+            "   \n\t\n",
+            "[1, \"text\", null, [], {\"RuleID\":\"only-rule\"}]",
+            "\uFEFF[{\"RuleID\":\"bom\",\"File\":\"/repo/source/f\",\"StartLine\":1}]",
+            "[{\"RuleID\":\"x\",\"File\":\"/repo/source/f\",\"StartLine\":1}] trailing",
+            "[{\"RuleID\":\"ctl\",\"File\":\"/repo/source/f\",\"StartLine\":1,\"Description\":\"raw\ttab\"}]",
+            "[{\"RuleID\":\"cut\",\"File\":\"/repo/sou",
+            "null"
+        })
+        @DisplayName("a report gitleaks did not write is absent, never an empty list")
+        void aReportOfAnotherShapeIsAbsent(String report) {
+            assertThat(SecretsScanner.read(report)).isEmpty();
         }
     }
 

@@ -86,7 +86,78 @@ class DependencyScannerTest {
         @DisplayName("a report with no matches is a clean analysis")
         void noMatchesIsClean() throws Exception {
             assertThat(DependencyScanner.findings(MAPPER.readTree("{\"matches\": []}"))).isEmpty();
-            assertThat(DependencyScanner.findings(MAPPER.readTree("{\"descriptor\": {}}"))).isEmpty();
+            // The pinned grype's own answer for an SBOM with nothing to match, kept as it printed it.
+            assertThat(DependencyScanner.findings(MAPPER.readTree(fixture("grype-no-match.json")))).isEmpty();
+        }
+
+        /**
+         * <b>Absent is not "no vulnerabilities".</b> {@code {"descriptor": {}}} was pinned as a clean
+         * analysis, and it resolved the target's whole vulnerability backlog; grype writes
+         * {@code "matches": []} when nothing matched, so a report without the array is not one of its
+         * clean answers.
+         */
+        @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
+        @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "{\"descriptor\": {}}", "{}", "[]", "\"text\"", "42", "{\"matches\": {}}", "{\"matches\": null}",
+            "{\"matches\": [1, \"x\"]}"
+        })
+        @DisplayName("a report of another shape is thrown, never read as a clean analysis")
+        void anotherShapeFails(String report) {
+            assertThatThrownBy(() -> DependencyScanner.findings(MAPPER.readTree(report)))
+                    .isInstanceOf(ScannerFailureException.class)
+                    .hasMessageContaining("grype");
+        }
+    }
+
+    @Nested
+    @DisplayName("reading the cataloguer's output")
+    class Catalogue {
+
+        private final ContainerRunner runner = mock(ContainerRunner.class);
+        private final DependencyScanner scanner =
+                new DependencyScanner(runner, ScannerImages.PINNED, mock(VulnerabilityDatabase.class));
+
+        @Test
+        @DisplayName("syft's catalogue of a tree with no package is an SBOM, with its empty artifacts")
+        void anEmptyCatalogueIsAnSbom() throws Exception {
+            String printed = fixture("syft-empty-tree.json");
+            when(runner.run(any())).thenReturn(new ContainerResult(printed, "", 0));
+
+            java.util.Optional<com.fasterxml.jackson.databind.JsonNode> sbom =
+                    Workspace.withWorkspace(workspace -> scanner.sbomOfDirectory(workspace, null));
+
+            assertThat(sbom).hasValue(MAPPER.readTree(printed));
+        }
+
+        /**
+         * JSON of another shape was the scan's SBOM: the licence rule read it as a tree with no
+         * package and resolved every licence issue, and the matcher was handed it.
+         */
+        @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
+        @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "{}", "{\"artifacts\": {}}", "{\"descriptor\": {\"name\": \"syft\"}}", "[]", "\"text\""
+        })
+        @DisplayName("output that is not syft's catalogue fails the step, on a directory and on an image")
+        void anotherShapeFails(String printed) {
+            when(runner.run(any())).thenReturn(new ContainerResult(printed, "", 0));
+
+            Workspace.withWorkspace(workspace -> {
+                assertThatThrownBy(() -> scanner.sbomOfDirectory(workspace, null))
+                        .isInstanceOf(ScannerFailureException.class)
+                        .hasMessageContaining("not its catalogue");
+                assertThatThrownBy(() -> scanner.sbomOfImage(workspace, "registry.example.invalid/shop:1", null))
+                        .isInstanceOf(ScannerFailureException.class)
+                        .hasMessageContaining("not its catalogue");
+                return null;
+            });
+        }
+    }
+
+    static String fixture(String name) {
+        try (var in = DependencyScannerTest.class.getResourceAsStream("/scanner-reports/" + name)) {
+            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException | NullPointerException missing) {
+            throw new AssertionError("no fixture " + name, missing);
         }
     }
 
@@ -107,7 +178,8 @@ class DependencyScannerTest {
         @Test
         @DisplayName("both tools run offline, on read-only mounts: the matcher reads the host's database, it fetches nothing")
         void bothToolsAreOffline() {
-            when(runner.run(any())).thenReturn(new ContainerResult("{\"artifacts\": []}", "", 0));
+            // One answer both tools accept: a catalogue to the cataloguer, a report to the matcher.
+            when(runner.run(any())).thenReturn(new ContainerResult("{\"artifacts\": [], \"matches\": []}", "", 0));
 
             String owner = Workspace.withWorkspace(workspace -> {
                 scanner.sbomOfDirectory(workspace, null);

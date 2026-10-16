@@ -121,9 +121,34 @@ class SastScannerTest {
         }
 
         @Test
-        @DisplayName("a report with no results is empty, not a failure")
-        void noResultsIsEmpty() {
-            assertThat(SastScanner.findings(json("{\"paths\": {\"scanned\": [\"a\"]}}"), null)).isEmpty();
+        @DisplayName("a report whose results are an empty array is a clean tree")
+        void emptyResultsAreClean() {
+            // What the pinned semgrep prints over a tree with nothing to report (measured).
+            assertThat(SastScanner.findings(
+                            json("{\"results\": [], \"errors\": [], \"paths\": {\"scanned\": [\"/repo/source/a.py\"]}}"),
+                            null))
+                    .isEmpty();
+        }
+
+        /**
+         * <b>A report with no results is a failure, not an empty list.</b> It was pinned the other way
+         * — "empty, not a failure" — and {@code mostlyFailed} lets such a payload through as soon as it
+         * lists a scanned file, so a report of another shape resolved the target's SAST and quality
+         * backlog. The pinned semgrep writes {@code "results": []} on a clean tree and on an empty one
+         * (measured), so the old reading answered for no output the tool produces.
+         */
+        @ParameterizedTest(name = "{0}")
+        @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "{\"paths\": {\"scanned\": [\"a\"]}}",
+            "{\"results\": {}, \"paths\": {\"scanned\": [\"a\"]}}",
+            "{\"results\": null, \"paths\": {\"scanned\": [\"a\"]}}",
+            "{\"results\": [1, \"x\"], \"paths\": {\"scanned\": [\"a\"]}}"
+        })
+        @DisplayName("a report of another shape is thrown, never read as a clean tree")
+        void anotherShapeFails(String payload) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> SastScanner.findings(json(payload), null))
+                    .isInstanceOf(com.asmolabs.vectispire.common.scanning.ScannerFailureException.class)
+                    .hasMessageContaining("semgrep");
         }
     }
 }

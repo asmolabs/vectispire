@@ -177,6 +177,17 @@
 
 ### Corrigé {#corrige-0111}
 
+- **Un rapport de scanner corrompu ou absent ne résout plus les problèmes de la cible.** Un rapport de
+  secrets qui n'était pas du JSON, pas une liste de constats, tronqué, ou pas écrit du tout se lisait
+  « aucun secret », et tous les problèmes de secrets du dépôt étaient résolus, leur triage avec eux ; de
+  même pour un rapport d'analyse du code sans ses résultats, un rapport du rapprochement de vulnérabilités
+  sans ses correspondances, un rapport IaC d'une forme inconnue, et une sortie du catalogueur qui n'est
+  pas un SBOM, qui résolvait tous les problèmes de licence et de fin de vie. Chacun est désormais une étape
+  en échec, nommée sur le scan, et laisse ces problèmes tels quels. Une image gitleaks à vous qui n'écrit
+  aucun rapport sur un arbre propre (la v8.2.0 le fait ; la v8.5.0 et les suivantes écrivent une liste
+  vide) fait maintenant échouer son étape secrets au lieu de la passer. Mettez aussi à jour les agents
+  distants : un agent 0.11.0 lit encore un tel rapport comme propre, et seul son SBOM est revérifié par le
+  plan de contrôle.
 - **La chart Helm transmet le relais de messagerie et l'adresse publique au plan de contrôle.** Elle ne
   transmettait ni l'un ni l'autre : une installation Kubernetes ne pouvait envoyer aucun e-mail — ni
   alerte, ni rapport hebdomadaire, ni rappel de checklist — et ses liens n'avaient pas d'adresse.

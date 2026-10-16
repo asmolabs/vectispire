@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
@@ -33,6 +34,7 @@ import java.util.stream.StreamSupport;
 public final class DependencyScanner {
 
     private static final String SBOM_FILENAME = "sbom.json";
+    private static final String GRYPE = "grype";
 
     /**
      * The exported image, at the workspace root.
@@ -96,7 +98,7 @@ public final class DependencyScanner {
                         label)
                 .runningAsOwnerOf(workspace.root()));
 
-        return ContainerRunner.parseJson(result, label, List.of(0));
+        return catalogue(ContainerRunner.parseJson(result, label, List.of(0)), label);
     }
 
     /**
@@ -125,7 +127,7 @@ public final class DependencyScanner {
                     // so there is nothing left for it to reach.
                     .runningAsOwnerOf(workspace.root()));
 
-            return ContainerRunner.parseJson(result, label, List.of(0));
+            return catalogue(ContainerRunner.parseJson(result, label, List.of(0)), label);
         } finally {
             // An image archive routinely runs to hundreds of megabytes, and the matcher does not
             // need it: it goes as soon as the SBOM is read, without waiting for the scan to end.
@@ -135,6 +137,22 @@ public final class DependencyScanner {
                 // The workspace removal will get it; this only shortens the window.
             }
         }
+    }
+
+    /**
+     * The cataloguer's output, believed only when it is a catalogue ({@link Sbom#isCatalogue}).
+     *
+     * <p>JSON of another shape was handed on as the scan's SBOM: the licence rule read it as an
+     * image with no package and resolved every licence issue, and the matcher was given it to match.
+     * Thrown, so that the step says what the cataloguer printed rather than that it "could not be
+     * taken".
+     */
+    private static Optional<JsonNode> catalogue(Optional<JsonNode> printed, String label) {
+        if (printed.isPresent() && !Sbom.isCatalogue(printed.get())) {
+            throw ScannerFailureException.of(label, "syft exited 0 and printed JSON that is not its catalogue (no "
+                    + "\"artifacts\" array); it is not read as a tree without dependencies.");
+        }
+        return printed;
     }
 
     /**
@@ -204,14 +222,28 @@ public final class DependencyScanner {
         return ContainerRunner.parseJson(result, label, List.of(0)).map(DependencyScanner::findings);
     }
 
+    /**
+     * The matcher's report as findings.
+     *
+     * <p><b>A report without its {@code matches} array is not a clean one.</b> It came back as an
+     * empty list, which resolves the target's whole vulnerability backlog — the "expensive lie" of
+     * {@link #matchSbom}, reached by JSON of another shape rather than by a failed download. Grype
+     * writes {@code "matches": []} when nothing matched (measured on the pinned image), so a missing
+     * array, or an element that is not an object, is thrown as the failure it is.
+     */
     static List<DependencyFinding> findings(JsonNode payload) {
         JsonNode matches = payload.path("matches");
         if (!matches.isArray()) {
-            return List.of();
+            throw ScannerFailureException.of(GRYPE, "grype exited 0, and its report carries no \"matches\" array; "
+                    + "a report of another shape is not read as dependencies without vulnerabilities.");
         }
 
         List<DependencyFinding> findings = new ArrayList<>(matches.size());
         for (JsonNode match : matches) {
+            if (!match.isObject()) {
+                throw ScannerFailureException.of(GRYPE, "grype's report holds a match that is not an object; the "
+                        + "report is not read.");
+            }
             JsonNode vulnerability = match.path("vulnerability");
             JsonNode artifact = match.path("artifact");
 

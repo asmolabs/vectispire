@@ -51,7 +51,7 @@ public final class IacScanner {
                     .runningAsOwnerOf(workspace.root()));
 
             Optional<JsonNode> payload = ContainerRunner.parseJson(result, LABEL, List.of(0));
-            return payload.map(node -> findings(node, subPath));
+            return payload.flatMap(node -> findings(node, subPath));
         } catch (RuntimeException failure) {
             // Deliberately broad: this checker's output varies enough between versions that a
             // failure is plausible without the rest of the scan having to suffer. Empty — never
@@ -60,15 +60,50 @@ public final class IacScanner {
         }
     }
 
-    private static List<IacFinding> findings(JsonNode payload, String subPath) {
-        List<IacFinding> findings = new ArrayList<>();
+    /**
+     * The failed controls, or absent when the payload is not a report checkov wrote.
+     *
+     * <p><b>Three shapes are checkov's, measured on the pinned 3.3.9</b>: one report object
+     * ({@code check_type}, {@code results}, {@code summary}) when one framework is detected, a list of
+     * them when several are — Terraform and Kubernetes in the same repository, for instance — and,
+     * when there is nothing to check, a bare summary ({@code passed}, {@code failed}, …,
+     * {@code resource_count}, {@code checkov_version}) with no {@code results} at all. The last is a
+     * clean answer: an empty list.
+     *
+     * <p><b>Anything else is absent, never an empty list</b> (decision 0007). Every path through this
+     * method used to end in a list: a report whose {@code results} were missing, a JSON string, an
+     * empty array — each read as "no control failed" and resolved the target's whole IaC backlog.
+     *
+     * <p><b>Parsing errors are not read as a failure</b>, though a manifest checkov cannot parse is
+     * checked against nothing and its issues resolve. Measured on 3.3.9, its {@code terraform_plan}
+     * framework lists every JSON file that does not parse — a broken {@code package.json}, a test
+     * fixture — as a parsing error with {@code resource_count: 0}, so a rule on those counts would
+     * fail the IaC step of any repository carrying one, at every scan. Closing it needs the
+     * parsing errors read per framework against the files that framework owns; it is not done here.
+     */
+    static Optional<List<IacFinding>> findings(JsonNode payload, String subPath) {
+        if (payload.isObject() && !payload.has("results")) {
+            return isBareSummary(payload) ? Optional.of(List.of()) : Optional.empty();
+        }
+        Iterable<JsonNode> reports;
+        if (payload.isArray() && !payload.isEmpty()) {
+            reports = payload;
+        } else if (payload.isObject()) {
+            reports = List.of(payload);
+        } else {
+            return Optional.empty();
+        }
 
-        // It returns **one** report object when a single framework is detected, and a *list*
-        // when several are — Terraform and Kubernetes in the same repository, for instance.
-        // Handling both shapes is what stops a mixed repository from reporting nothing.
-        Iterable<JsonNode> reports = payload.isArray() ? payload : List.of(payload);
+        List<IacFinding> findings = new ArrayList<>();
         for (JsonNode report : reports) {
-            for (JsonNode check : report.path("results").path("failed_checks")) {
+            JsonNode failed = report.path("results").path("failed_checks");
+            if (!report.isObject() || !failed.isArray()) {
+                return Optional.empty();
+            }
+            for (JsonNode check : failed) {
+                if (!check.isObject()) {
+                    return Optional.empty();
+                }
                 findings.add(new IacFinding(
                         check.path("check_id").asText("unknown"),
                         check.path("check_name").asText(""),
@@ -81,6 +116,11 @@ public final class IacScanner {
                         check.path("resource").isTextual() ? check.get("resource").asText() : null));
             }
         }
-        return List.copyOf(findings);
+        return Optional.of(List.copyOf(findings));
+    }
+
+    /** What checkov prints when no framework found anything to check. */
+    private static boolean isBareSummary(JsonNode payload) {
+        return payload.path("resource_count").isIntegralNumber() && payload.path("checkov_version").isTextual();
     }
 }

@@ -1,0 +1,159 @@
+{
+ "check_type": "terraform",
+ "results": {
+  "passed_checks": [
+   {
+    "check_id": "CKV_AWS_93",
+    "bc_check_id": "BC_AWS_S3_24",
+    "check_name": "Ensure S3 bucket policy does not lockout all but root user. (Prevent lockouts needing root account fixes)",
+    "check_result": {
+     "result": "PASSED",
+     "evaluated_keys": [
+      "policy"
+     ]
+    },
+    "code_block": null,
+    "file_path": "/main.tf",
+    "file_abs_path": "/repo/source/main.tf",
+    "repo_file_path": "/repo/source/main.tf",
+    "file_line_range": [
+     1,
+     3
+    ],
+    "resource": "aws_s3_bucket.b",
+    "evaluations": null,
+    "check_class": "checkov.terraform.checks.resource.aws.S3ProtectAgainstPolicyLockout",
+    "fixed_definition": null,
+    "entity_tags": null,
+    "caller_file_path": null,
+    "caller_file_line_range": null,
+    "resource_address": null,
+    "severity": null,
+    "bc_category": null,
+    "benchmarks": null,
+    "description": null,
+    "short_description": null,
+    "vulnerability_details": null,
+    "connected_node": null,
+    "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/s3-policies/bc-aws-s3-24",
+    "details": [],
+    "check_len": null,
+    "definition_context_file_path": "/repo/source/main.tf"
+   }
+  ],
+  "failed_checks": [
+   {
+    "check_id": "CKV2_AWS_62",
+    "bc_check_id": "BC_AWS_LOGGING_36",
+    "check_name": "Ensure S3 buckets should have event notifications enabled",
+    "check_result": {
+     "result": "FAILED",
+     "entity": {
+      "aws_s3_bucket": {
+       "b": {
+        "__end_line__": 3,
+        "__start_line__": 1,
+        "bucket": [
+         "x"
+        ],
+        "__address__": "aws_s3_bucket.b"
+       }
+      }
+     },
+     "evaluated_keys": [
+      "resource_type"
+     ]
+    },
+    "code_block": null,
+    "file_path": "/main.tf",
+    "file_abs_path": "/repo/source/main.tf",
+    "repo_file_path": "/repo/source/main.tf",
+    "file_line_range": [
+     1,
+     3
+    ],
+    "resource": "aws_s3_bucket.b",
+    "evaluations": null,
+    "check_class": "checkov.common.graph.checks_infra.base_check",
+    "fixed_definition": null,
+    "entity_tags": null,
+    "caller_file_path": null,
+    "caller_file_line_range": null,
+    "resource_address": null,
+    "severity": null,
+    "bc_category": null,
+    "benchmarks": null,
+    "description": null,
+    "short_description": null,
+    "vulnerability_details": null,
+    "connected_node": null,
+    "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/bc-aws-2-62",
+    "details": [],
+    "check_len": null,
+    "definition_context_file_path": "/repo/source/main.tf"
+   },
+   {
+    "check_id": "CKV_AWS_18",
+    "bc_check_id": "BC_AWS_S3_13",
+    "check_name": "Ensure the S3 bucket has access logging enabled",
+    "check_result": {
+     "result": "FAILED",
+     "entity": {
+      "aws_s3_bucket": {
+       "b": {
+        "__end_line__": 3,
+        "__start_line__": 1,
+        "bucket": [
+         "x"
+        ],
+        "__address__": "aws_s3_bucket.b"
+       }
+      }
+     },
+     "evaluated_keys": [
+      "resource_type",
+      "logging"
+     ]
+    },
+    "code_block": null,
+    "file_path": "/main.tf",
+    "file_abs_path": "/repo/source/main.tf",
+    "repo_file_path": "/repo/source/main.tf",
+    "file_line_range": [
+     1,
+     3
+    ],
+    "resource": "aws_s3_bucket.b",
+    "evaluations": null,
+    "check_class": "checkov.common.graph.checks_infra.base_check",
+    "fixed_definition": null,
+    "entity_tags": null,
+    "caller_file_path": null,
+    "caller_file_line_range": null,
+    "resource_address": null,
+    "severity": null,
+    "bc_category": null,
+    "benchmarks": null,
+    "description": null,
+    "short_description": null,
+    "vulnerability_details": null,
+    "connected_node": null,
+    "guideline": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/s3-policies/s3-13-enable-logging",
+    "details": [],
+    "check_len": null,
+    "definition_context_file_path": "/repo/source/main.tf"
+   }
+  ],
+  "skipped_checks": [],
+  "parsing_errors": []
+ },
+ "summary": {
+  "passed": 4,
+  "failed": 7,
+  "skipped": 0,
+  "parsing_errors": 0,
+  "resource_count": 1,
+  "checkov_version": "3.3.9"
+ },
+ "url": "Add an api key '--bc-api-key <api-key>' to see more detailed insights via https://bridgecrew.cloud"
+}

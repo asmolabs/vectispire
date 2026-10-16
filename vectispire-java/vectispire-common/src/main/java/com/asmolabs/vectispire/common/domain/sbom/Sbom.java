@@ -22,11 +22,28 @@ import java.util.Optional;
  *       it.
  * </ul>
  *
- * <p>Anything unreadable becomes an empty list rather than an exception. A malformed SBOM
- * should cost the rules that depend on it, not the whole scan — and the analyzer that produced
- * it reports its own failure separately.
+ * <p>A field it cannot read becomes an empty list rather than an exception: one malformed
+ * package should cost the rules that read it, not the whole scan. <b>A document that is not a
+ * catalogue at all is another matter</b> — see {@link #isCatalogue}: read through this record,
+ * it would be an image with no packages, and the licence rule would resolve every licence issue
+ * of the target on the strength of a file the cataloguer never wrote.
  */
 public record Sbom(JsonNode root) {
+
+    /**
+     * Whether the document is a catalogue this record can be read from: an object carrying an
+     * {@code artifacts} array, which Syft writes even when it found no package
+     * ({@code "artifacts": []}, measured on the pinned image against an empty tree).
+     *
+     * <p><b>Anything else is absent, never an empty catalogue</b> (decision 0007). The cataloguer
+     * printing JSON of another shape — a newer major, an image override, a truncated stream that
+     * still parsed — used to reach the rules as an SBOM with no artifact: "this image holds no
+     * package", hence no forbidden licence and no end-of-life platform, hence the resolution of both
+     * backlogs, triage included. The inventory already refused that shape; the rules did not.
+     */
+    public static boolean isCatalogue(JsonNode document) {
+        return document != null && document.isObject() && document.path("artifacts").isArray();
+    }
 
     /** @param licenses already flattened from whichever shape Syft used */
     public record Artifact(String name, String version, String purl, List<String> licenses) {}

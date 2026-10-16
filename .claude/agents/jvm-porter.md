@@ -127,6 +127,25 @@ for exactly this. An empty list means "ran, found nothing", which resolves the b
 means "did not look". Getting it the wrong way round destroys triage silently — no exception,
 no log line, and a dashboard that looks better afterwards.
 
+**The parser's fallback is where that rule broke, five times at once.** A scanner returning
+`Optional` is not enough when the function reading its report answers `List.of()` for what it cannot
+read: the caller wraps it in `Optional.of(...)` and a corrupt report is delivered as "ran, found
+nothing". Gitleaks' report not JSON, not an array, truncated or not written; Semgrep's without
+`results`; Grype's without `matches`; Checkov's of an unknown shape; Syft's without `artifacts` (read
+by the licence and end-of-life rules as an image with no package) — each resolved its backlog, and two
+tests pinned the empty reading as intended. So: **a parser answers `Optional` or throws, and only the
+tool's own clean answer is empty** — `[]`, `"results": []`, `"matches": []`, `"artifacts": []`,
+Checkov's bare summary — measured on the pinned image, not assumed. A missing array, an element that is
+not an object, a blank or missing file is absent (and, in the gitleaks report, content after the end).
+No `return List.of()` in a `catch` or after an `if (!x.isArray())`, and no `orElse(List.of())` between
+a scanner and `ScanArtifacts`. A missing report is not "nothing found" because the exit code was 0:
+gitleaks (v8.0.0, v8.8.0, v8.12.0, measured) exits 0 without a report it could not write, having
+logged "leaks found". A refusal's message names the tool and quotes nothing of the report — the
+secrets report holds the secrets in the clear, and a parser's message quotes what it choked on. Test
+the reading through the scan as well as the parser (`SecretsReportFateTest` follows a corrupt report
+to the issue's row), with a clean-report case beside it that does resolve, or the test cannot tell
+"kept" from "never looked".
+
 **A plugin has four states, not two** (decision 0017). `PluginStep` is `produced` (ran; an empty
 list resolves *its* issues), `not_applicable` (none of its languages in the tree: resolves nothing,
 and is not a failure), `absent` (should have run and did not: resolves nothing, and is a failure) or
