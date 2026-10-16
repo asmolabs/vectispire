@@ -3341,6 +3341,169 @@ test.describe('documentation screenshots', () => {
         await shoot(page, 'project-reports', locale);
     });
 
+    test('checklist contacts', async ({ page }, testInfo) => {
+        const locale = edition(testInfo.project.name);
+        await stubEverything(page);
+        await stub(page, '**/api/v1/solutions', SOLUTION_TREE);
+        await stub(page, '**/api/v1/projects/11/checklists/context', {
+            projectId: 11,
+            projectName: 'Helios portal',
+            latestRevision: 1,
+            latestEdition: 6
+        });
+        const revision = {
+            projectId: 11,
+            revision: 1,
+            status: 'draft',
+            edition: 6,
+            templateSlug: 'secure-delivery',
+            templateName: 'Secure delivery checklist',
+            versionOrdinal: 2,
+            versionLabel: '2.0',
+            author: 'c.moreau',
+            openedAt: '2026-09-14T09:00:00Z',
+            openedBy: 'c.moreau',
+            supersedesRevision: null,
+            submittedAt: null,
+            submittedBy: null,
+            returnedAt: null,
+            returnedBy: null,
+            returnReason: null,
+            signedOffAt: null,
+            signedOffBy: null,
+            signOffFourEyes: null,
+            supersededAt: null,
+            supersededBy: null
+        };
+        await stub(page, '**/api/v1/projects/11/checklists', [revision]);
+        await stub(page, '**/api/v1/projects/11/checklists/offered', []);
+        // **The contact column as an organisation writes it**: one role per line, two on the line both
+        // own (*PO / BA*), and `AUTO` on the line a rule will answer — which is no one's to fill in, so
+        // no profile of the card counts it. The counts below are these lines' own: unanswered, or carried
+        // and waiting for confirmation.
+        const line = (position: number, control: string, contact: string, extra: Record<string, unknown> = {}) => ({
+            itemId: 300 + position,
+            itemKey: `text:${position}`,
+            position,
+            domain: position <= 4 ? 'Requirements' : 'Design and operations',
+            objective: position <= 4 ? 'Security is specified' : 'Security is built in',
+            control,
+            contact,
+            kpi: null,
+            evidenceKind: 'none',
+            evidenceValidityMonths: null,
+            rule: null,
+            answer: null,
+            evidence: [],
+            edition: 0,
+            problems: ['unanswered'],
+            ...extra
+        });
+        const answered = (itemId: number, extra: Record<string, unknown> = {}) => ({
+            id: 900 + itemId,
+            itemId,
+            value: 'yes',
+            comment: null,
+            answeredBy: 'c.moreau',
+            answeredByKind: 'person',
+            answeredAt: '2026-09-15T10:00:00Z',
+            measurementId: null,
+            carriedFromId: null,
+            carriedBy: null,
+            carriedAt: null,
+            needsConfirmation: false,
+            withdrawn: false,
+            edition: 2,
+            ...extra
+        });
+        await stub(page, '**/api/v1/projects/11/checklists/1', {
+            checklist: revision,
+            projectName: 'Helios portal',
+            offersNotApplicable: true,
+            answerWords: { yes: 'Yes', no: 'No', notApplicable: 'N/A' },
+            authors: ['c.moreau'],
+            fourEyesRequired: true,
+            readyToSubmit: false,
+            lines: [
+                line(1, 'Security requirements are recorded for every feature', 'PO', {
+                    answer: answered(301),
+                    edition: 2,
+                    problems: []
+                }),
+                line(2, 'The personal data a feature processes is listed in the register', 'PO'),
+                line(3, 'Acceptance criteria cover who may see and change what', 'PO / BA'),
+                line(4, 'Abuse cases are written for the sensitive flows', 'BA', {
+                    answer: answered(304, {
+                        carriedFromId: 204,
+                        carriedBy: 'c.moreau',
+                        carriedAt: '2026-09-14T09:00:00Z',
+                        needsConfirmation: true,
+                        edition: 1
+                    }),
+                    edition: 1,
+                    problems: ['awaiting_confirmation']
+                }),
+                line(5, 'Data crossing a trust boundary is encrypted in transit', 'Arch'),
+                line(6, 'Third-party components come from approved sources', 'Arch', {
+                    answer: answered(306),
+                    edition: 2,
+                    problems: []
+                }),
+                line(7, 'Hosts are hardened to the agreed baseline', 'SII'),
+                line(8, 'No secret is committed to the repository', 'AUTO')
+            ]
+        });
+        // **The four states the card can show**, one per profile: linked and reminded (PO, SII), linked
+        // to an account with no address (BA), linked to nobody (Arch) — the last two the CISOs'. The
+        // accounts are invented, and named by display name only, as the card names them (decision 0044).
+        await stub(page, '**/api/v1/projects/11/checklists/contacts', {
+            projectId: 11,
+            revision: 1,
+            draft: true,
+            profiles: [
+                { profile: 'PO', label: 'PO', openLines: 2, accountId: 21, accountName: 'Julien Faure', warning: null },
+                {
+                    profile: 'BA',
+                    label: 'BA',
+                    openLines: 2,
+                    accountId: 22,
+                    accountName: 'Léa Dumont',
+                    warning: 'no_email'
+                },
+                { profile: 'ARCH', label: 'Arch', openLines: 1, accountId: null, accountName: null, warning: null },
+                {
+                    profile: 'SII',
+                    label: 'SII',
+                    openLines: 1,
+                    accountId: 23,
+                    accountName: 'Nadia Benali',
+                    warning: null
+                }
+            ]
+        });
+        await stub(page, '**/api/v1/projects/11/checklists/contacts/candidates', [
+            { accountId: 21, name: 'Julien Faure' },
+            { accountId: 22, name: 'Léa Dumont' },
+            { accountId: 23, name: 'Nadia Benali' },
+            { accountId: 24, name: 'Marc Delvaux' }
+        ]);
+        await enterApp(page, locale);
+        await openScreen(page, '/solutions');
+        await page.getByTestId('project-checklist').first().click();
+        await expect(page).toHaveURL(/\/projects\/11\/checklist(\?|#|$)/, { timeout: 15_000 });
+
+        await expect(page.getByTestId('contact-row')).toHaveCount(4, { timeout: 15_000 });
+        await expect(page.getByTestId('contact-open-lines')).toHaveText(['2', '2', '1', '1']);
+        await expect(page.getByTestId('contact-warning')).toHaveCount(1);
+        await expect(page.getByTestId('contact-ciso')).toHaveCount(2);
+        await settle(page);
+        await page.getByTestId('contacts').evaluate((node) => {
+            (node as HTMLElement).style.scrollMarginTop = '5rem';
+            node.scrollIntoView({ block: 'start', behavior: 'instant' });
+        });
+        await shoot(page, 'checklist-contacts', locale);
+    });
+
     test('report plugins', async ({ page }, testInfo) => {
         const locale = edition(testInfo.project.name);
         await stubEverything(page);
