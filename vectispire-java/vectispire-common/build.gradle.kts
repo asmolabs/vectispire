@@ -123,6 +123,19 @@ dependencies {
     "integrationTestImplementation"(project(":vectispire-report-demo"))
 }
 
+/**
+ * The reference sets the Rust port of the agent is held to — `vectispire-rust/reference/`, read by
+ * the `*ReferenceSetTest` classes (see `common.rust.ReferenceSet`). Checked on every build;
+ * `-Dvectispire.rust.reference.write=true` regenerates them.
+ */
+tasks.named<Test>("test") {
+    systemProperty("vectispire.rust.reference", rootProject.file("../vectispire-rust/reference").absolutePath)
+    systemProperty(
+        "vectispire.rust.reference.write",
+        providers.systemProperty("vectispire.rust.reference.write").getOrElse("false"))
+    inputs.dir(rootProject.file("../vectispire-rust/reference"))
+}
+
 tasks.register<Test>("integrationTest") {
     description = "Runs the scanner containers against a real Docker daemon."
     group = "verification"
