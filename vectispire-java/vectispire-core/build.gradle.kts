@@ -329,6 +329,16 @@ tasks.named<Test>("test") {
     inputs.files(rootProject.file("../docker-compose.yml"), rootProject.file("../.env.oidc.example"))
         .withPropertyName("shippedComposition")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // The traffic recorder (port plan §4.3, task 0.5; README.md beside `TrafficRecorder`): off unless
+    // `-Pvectispire.golden.dir=<dir>` is given, and then the directory is the task's output, so a
+    // recording is never answered by an up-to-date check from a run that recorded nothing. Unset, the
+    // task's inputs and outputs are the ones it had before the recorder existed.
+    providers.gradleProperty("vectispire.golden.dir").orNull?.let { directory ->
+        val goldens = file(directory)
+        systemProperty("vectispire.golden.dir", goldens.absolutePath)
+        outputs.dir(goldens).withPropertyName("goldenFiles")
+    }
 }
 
 tasks.register("integrationTestAll") {

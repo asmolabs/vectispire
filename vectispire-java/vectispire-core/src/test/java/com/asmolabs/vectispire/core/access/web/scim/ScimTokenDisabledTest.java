@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.golden.TrafficRecorder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,9 @@ class ScimTokenDisabledTest extends VectispireContextTest {
     @Test
     @DisplayName("authenticates nobody, even on /scim")
     void isRefused() throws Exception {
-        MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build()
+        TrafficRecorder.wire(MockMvcBuilders.webAppContextSetup(context), context)
+                .addFilters(securityFilterChain)
+                .build()
                 .perform(get("/scim/v2/Users").header("Authorization", "Bearer scim-test-token-0123456789"))
                 .andExpect(status().isUnauthorized());
     }
