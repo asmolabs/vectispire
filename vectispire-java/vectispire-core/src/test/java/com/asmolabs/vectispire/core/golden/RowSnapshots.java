@@ -41,12 +41,13 @@ import java.util.zip.CRC32;
  * Reading all of them costs two round trips per request on a connection of the recorder's own (one
  * multi-statement read each), and only when recording.
  *
- * <p><b>Identities are made deterministic rather than replaced.</b> Before each test the recorder sets
- * every emptied table's {@code auto_increment} to a base of its own ({@link #idBases}), so the first
- * repository a test creates is {@code 1xxx000001} on every run, in every order, and no two tables share
- * an identity. A golden then carries ids literally: a replay sets the same bases and expects the same
- * numbers, and a path, a row and a body naming the same thing say the same number without a table of
- * placeholders that would have to guess which table an {@code "id": 7} came from.
+ * <p><b>Identities are made unambiguous, then ranked.</b> Once per database, the recorder sets each
+ * table's {@code auto_increment} to a base of its own ({@link #idBases}), a million apart: a number then
+ * says which table it is an id of, wherever it appears — a path, a body, a row — and the golden writes
+ * it as that table's rank in the test ({@code «t_repository#1»}, see {@link Placeholders}). Identities
+ * still only grow, as they do in production. Reset per test instead, they would be literal, and wrong:
+ * a test then rebuilt the previous test's ids, and a cache keyed by a target and stamped by its scans'
+ * count and newest id ({@code LicenseGovernanceService}'s tallies) served the previous test's counts.
  */
 final class RowSnapshots {
 
@@ -54,8 +55,8 @@ final class RowSnapshots {
     static final int ROW_CEILING = 5_000;
 
     static final long ID_STRIDE = 1_000_000L;
-    private static final int FIRST_SLOT = 1_000;
-    private static final int SLOTS = 9_000;
+    private static final int FIRST_SLOT = 100;
+    private static final int SLOTS = 900;
 
     private static final Map<String, RowSnapshots> BY_URL = new ConcurrentHashMap<>();
 
@@ -111,43 +112,50 @@ final class RowSnapshots {
         return tables;
     }
 
+    private boolean placed;
+
     /**
-     * Sets every table's next identity to its base, so the test that follows numbers its rows the same
-     * way on every run. On a table that still holds rows MySQL moves the counter past the highest id
-     * instead, and that table's ids are as unstable as they always were — the determinism check names it.
+     * Moves every table's identity counter to its base, once per database: the rows the context's start
+     * wrote keep theirs, below every base, and the suite's rows number upward from there.
      *
-     * @return the tables whose counter could not be set
+     * @return the tables whose counter could not be moved, with the reason
      */
-    synchronized List<String> resetIdentities() {
+    synchronized List<String> placeIdentities() {
+        if (placed) {
+            return List.of();
+        }
+        placed = true;
         List<String> refused = new ArrayList<>();
-        try {
-            Map<String, Long> current = new HashMap<>();
-            try (Statement statement = connection.createStatement();
-                 ResultSet rows = statement.executeQuery(
-                         "select table_name, auto_increment from information_schema.tables where table_schema = database()")) {
-                while (rows.next()) {
-                    long next = rows.getLong(2);
-                    current.put(rows.getString(1).toLowerCase(), rows.wasNull() ? -1 : next);
-                }
+        Map<String, Long> current = nextIdentities();
+        for (Table table : tables) {
+            if (!table.autoIncrement() || current.getOrDefault(table.name(), 0L) > table.idBase()) {
+                continue;
             }
-            for (Table table : tables) {
-                if (!table.autoIncrement()) {
-                    continue;
-                }
-                long wanted = table.idBase() + 1;
-                if (Objects.equals(current.get(table.name()), wanted)) {
-                    continue;
-                }
-                try (Statement statement = connection.createStatement()) {
-                    statement.execute("alter table " + table.name() + " auto_increment = " + wanted);
-                } catch (SQLException failed) {
-                    refused.add(table.name() + ": " + failed.getMessage());
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("alter table " + table.name() + " auto_increment = " + (table.idBase() + 1));
+            } catch (SQLException failed) {
+                refused.add(table.name() + ": " + failed.getMessage());
+            }
+        }
+        return refused;
+    }
+
+    /** Each table's next identity, as the server holds it now. */
+    synchronized Map<String, Long> nextIdentities() {
+        Map<String, Long> current = new HashMap<>();
+        try (Statement statement = connection.createStatement();
+             ResultSet rows = statement.executeQuery(
+                     "select table_name, auto_increment from information_schema.tables where table_schema = database()")) {
+            while (rows.next()) {
+                long next = rows.getLong(2);
+                if (!rows.wasNull()) {
+                    current.put(rows.getString(1).toLowerCase(), next);
                 }
             }
         } catch (SQLException failed) {
-            refused.add("information_schema: " + failed.getMessage());
+            throw new IllegalStateException("The traffic recorder could not read the identity counters", failed);
         }
-        return refused;
+        return current;
     }
 
     /** Every table's rows, in one round trip. */
@@ -308,8 +316,8 @@ final class RowSnapshots {
     }
 
     /**
-     * Whether the table's key is its identity column, which {@link #resetIdentities} makes the same on
-     * every run: rows then keep the order they were created in. Any other key — a random UUID, a hash —
+     * Whether the table's key is its identity column, which only grows: rows then keep the order they
+     * were created in. Any other key — a random UUID, a hash —
      * orders rows by chance, so they are shown in the order of their content with the random parts
      * masked ({@link Placeholders#mask}), the raw key breaking a tie between rows nothing tells apart.
      */
@@ -418,9 +426,8 @@ final class RowSnapshots {
 
     /**
      * Each table's identity base: a slot from its name's CRC-32, probed in name order on a collision, so
-     * a table keeps its base when another is added unless the newcomer takes its slot first. Ten digits
-     * at most — below the twelve {@link Placeholders} reads as a clock — and far below 2^53, so a
-     * JavaScript client reads them exactly.
+     * a table keeps its base when another is added unless the newcomer takes its slot first. Nine digits:
+     * never an epoch second (ten), nor a clock reading {@link Placeholders} replaces (twelve or more).
      */
     static Map<String, Long> idBases(Set<String> sortedNames) {
         Set<Integer> taken = new HashSet<>();

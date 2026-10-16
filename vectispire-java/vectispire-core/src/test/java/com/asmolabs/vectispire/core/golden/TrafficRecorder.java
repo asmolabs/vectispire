@@ -233,17 +233,35 @@ public final class TrafficRecorder {
         }
 
         /**
-         * Called by {@link #wire} once the harness has emptied the tables: the identities are reset
-         * and the baseline read, before the test seeds a row. Called again by a class that rebuilds its
-         * {@code MockMvc}, which only rebuilds the baseline if no request was recorded yet.
+         * Called by {@link #wire} once the harness has emptied the tables, before the test seeds a row:
+         * where each table's identities start for this test — its ranks count from there — and the
+         * baseline. Called again by a class that rebuilds its {@code MockMvc}, which only reads them
+         * again if no request was recorded yet.
          */
         synchronized void attach(RowSnapshots rows) {
             if (this.rows != null && sequence.get() > 0) {
                 return;
             }
             this.rows = rows;
-            List<String> refused = rows.resetIdentities();
-            refused.forEach(reason -> notes.add("identity not reset: " + reason));
+            rows.placeIdentities().forEach(reason -> RECORDER_FAILURES.add("identity base not set: " + reason));
+            Map<String, Long> next = rows.nextIdentities();
+            List<Placeholders.IdRange> ranges = new ArrayList<>();
+            for (RowSnapshots.Table table : rows.tables()) {
+                if (!table.autoIncrement()) {
+                    continue;
+                }
+                long start = next.getOrDefault(table.name(), table.idBase() + 1);
+                if (start < table.idBase() || start >= table.idBase() + RowSnapshots.ID_STRIDE) {
+                    // Past its million, a table's ids read as the next table's: ranks would lie.
+                    notes.add("identities of " + table.name() + " outside their range: next is " + start);
+                    RECORDER_FAILURES.add(classKey + "#" + testKey + ": identities of " + table.name()
+                            + " outside their range");
+                }
+                ranges.add(new Placeholders.IdRange(table.name(), table.idBase(), start));
+            }
+            synchronized (placeholders) {
+                placeholders.identities(ranges, RowSnapshots.ID_STRIDE);
+            }
             lastState = rows.snapshot();
             baseline = rows.dump(lastState);
         }

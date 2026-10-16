@@ -85,8 +85,7 @@ final class Placeholders {
 
     /**
      * {@code System.nanoTime()} and {@code currentTimeMillis()} suffixes: {@code ApiTestBase} names its
-     * accounts {@code admin-<nanoTime>}. Twelve digits or more, so the identities ({@link RowSnapshots},
-     * ten digits at most) stay literal.
+     * accounts {@code admin-<nanoTime>}. Twelve digits or more, never an identity ({@link RowSnapshots}, nine).
      */
     private static final Pattern LONG_NUMBER = Pattern.compile("(?<![0-9A-Za-z])[0-9]{12,19}(?![0-9A-Za-z])");
 
@@ -121,6 +120,36 @@ final class Placeholders {
     private final Map<String, Integer> longNumbers = new HashMap<>();
     private final Map<String, Integer> digests = new HashMap<>();
     private List<String> secretsLongestFirst = List.of();
+
+    /** A table's identities: its base, and the first one this test may create. */
+    record IdRange(String table, long base, long start) {}
+
+    /** Nine digits, the identities' length ({@link RowSnapshots#idBases}), alone. */
+    private static final Pattern IDENTITY = Pattern.compile("(?<![0-9A-Za-z])[1-9][0-9]{8}(?![0-9A-Za-z])");
+
+    private final Map<Long, IdRange> rangesByBase = new HashMap<>();
+    private long idStride = 1;
+
+    /** The tables' ranges, read when the test starts: an identity is written as its rank among them. */
+    void identities(List<IdRange> ranges, long stride) {
+        rangesByBase.clear();
+        ranges.forEach(range -> rangesByBase.put(range.base(), range));
+        idStride = stride;
+    }
+
+    /**
+     * {@code «t_repository#1»}: the first repository this test created, whatever number the server gave
+     * it — the number depends on every test that ran before. An identity created before the test
+     * (none should be: the harness empties the tables) is {@code «t_repository#prior»}.
+     */
+    private String identity(long value) {
+        IdRange range = rangesByBase.get(value - value % idStride);
+        if (range == null) {
+            return null;
+        }
+        long rank = value - range.start() + 1;
+        return "«" + range.table() + "#" + (rank >= 1 ? String.valueOf(rank) : "prior") + "»";
+    }
 
     /** Registers a credential: it, its SHA-256 and, for an API key, its stored prefix are replaced from now on. */
     void registerSecret(String value) {
@@ -240,9 +269,11 @@ final class Placeholders {
             return node;
         }
         if (node.isObject()) {
+            // An updated row's column holds {from, to}: both are still that column's values.
+            boolean change = fieldName != null && node.size() == 2 && node.has("from") && node.has("to");
             ObjectNode copy = JsonNodeFactory.instance.objectNode();
             for (Map.Entry<String, JsonNode> field : node.properties()) {
-                copy.set(field.getKey(), render(field.getValue(), field.getKey()));
+                copy.set(field.getKey(), render(field.getValue(), change ? fieldName : field.getKey()));
             }
             return copy;
         }
@@ -262,13 +293,19 @@ final class Placeholders {
             }
             String rendered = render(text);
             if (field.contains("hash") && HEX_DIGEST.matcher(rendered).matches()) {
-                rendered = "«digest:" + digests.computeIfAbsent(rendered.toLowerCase(Locale.ROOT),
+                rendered = "«sha256:" + digests.computeIfAbsent(rendered.toLowerCase(Locale.ROOT),
                         key -> digests.size() + 1) + "»";
             }
             return JsonNodeFactory.instance.textNode(rendered);
         }
         if (node.isIntegralNumber() && CLOCK_COUNTERS.contains(fieldName == null ? "" : fieldName.toLowerCase(Locale.ROOT))) {
             return JsonNodeFactory.instance.textNode("«clock-step»");
+        }
+        if (node.isIntegralNumber() && node.canConvertToLong()) {
+            String id = identity(node.asLong());
+            if (id != null) {
+                return JsonNodeFactory.instance.textNode(id);
+            }
         }
         if (node.isIntegralNumber() && LONG_NUMBER.matcher(node.asText()).matches()) {
             return JsonNodeFactory.instance.textNode(longNumber(node.asText()));
@@ -295,12 +332,20 @@ final class Placeholders {
                 out = out.replace(prefix.getKey(), "«secret:" + prefix.getValue() + ":prefix»");
             }
         }
+        // A digest no secret accounts for: a document's, a chain link's, a manifest's. Many are the same on
+        // every run, but a document holding a date is not, and its digest names it in a path.
+        out = replace(out, HEX_64, match -> "«sha256:" + digests.computeIfAbsent(
+                match.group().toLowerCase(Locale.ROOT), key -> digests.size() + 1) + "»");
         out = replace(out, UUID, match -> "«uuid:" + uuids.computeIfAbsent(
                 match.group().toLowerCase(Locale.ROOT), key -> uuids.size() + 1) + "»");
         out = replace(out, ISO_DATE_TIME, Placeholders::isoDateTime);
         out = replace(out, HTTP_DATE, match -> inWindow(Integer.parseInt(match.group(1)), 1, 1)
                 ? "«http-date»" : match.group());
         out = replace(out, COMPACT_STAMP, match -> inWindow(match) ? "«stamp»" : match.group());
+        out = replace(out, IDENTITY, match -> {
+            String id = identity(Long.parseLong(match.group()));
+            return id == null ? match.group() : id;
+        });
         out = replace(out, LONG_NUMBER, match -> longNumber(match.group()));
         return out;
     }
