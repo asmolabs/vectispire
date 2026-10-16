@@ -2364,6 +2364,7 @@ dependencies = [
  "uuid",
  "vectispire-crypto",
  "vectispire-domain",
+ "vectispire-testkit",
  "vectispire-tls",
 ]
 

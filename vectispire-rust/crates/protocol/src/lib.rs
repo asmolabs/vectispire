@@ -9,8 +9,11 @@
 //! failure report — what an agent needs to announce itself and hold a poll. The other routes (rules,
 //! plugin manifests, heartbeats, results) are the protocol stream of the port (`README.md`).
 
+mod artifacts;
 mod client;
 mod wire;
+
+pub use artifacts::{Failure, Findings, PluginStep, Project, Refusal, ScanArtifacts, Signature, java_duration};
 
 pub use client::{AgentClient, Claim, ProtocolError, SealingKeyOutcome};
 pub use wire::{AssignedTask, CredentialsMode, Description, Identity};

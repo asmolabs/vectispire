@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 reqwest.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 thiserror.workspace = true
 tracing.workspace = true
 uuid = { workspace = true, features = ["serde"] }
@@ -21,6 +21,7 @@ vectispire-tls.workspace = true
 [dev-dependencies]
 base64.workspace = true
 tokio.workspace = true
+vectispire-testkit = { path = "../testkit" }
 
 [lints]
 workspace = true
