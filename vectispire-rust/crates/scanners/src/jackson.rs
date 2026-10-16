@@ -18,6 +18,15 @@ pub fn read_tree(content: &str) -> Option<Value> {
     Value::deserialize(&mut deserializer).ok()
 }
 
+/// `ObjectMapper.reader().with(FAIL_ON_TRAILING_TOKENS).readTree(String)`: the one JSON value the text
+/// holds, `None` for anything after it, for a blank text, or where Jackson would throw.
+///
+/// The reading gitleaks' report is held to: a report followed by anything else is not what the tool
+/// wrote — two runs' output concatenated, or a stream spliced.
+pub fn read_tree_strict(content: &str) -> Option<Value> {
+    serde_json::from_str(content).ok()
+}
+
 /// `node.path(field)`: the member of an object, absent for anything else.
 pub fn path<'a>(node: &'a Value, field: &str) -> Option<&'a Value> {
     node.as_object().and_then(|object| object.get(field))
@@ -146,8 +155,8 @@ pub fn java_double_to_string(value: f64) -> String {
 /// Two differences from `serde_json`'s compact writer, both found by `reference/dependencies/`: a
 /// control character is escaped with **upper-case** hex (`\u001F`, where serde writes `\u001f`), and a
 /// double is written by `Double.toString` (`1.0E10`, where serde writes `10000000000.0`). Object keys
-/// keep the order the value holds, which for a `Value` read without `serde_json`'s `preserve_order` is
-/// sorted — so this is byte-faithful for structs, and only value-faithful for a forwarded document.
+/// keep the order the value holds — document order, since the workspace turns on `serde_json`'s
+/// `preserve_order` — so a forwarded document is byte-faithful as well as a struct.
 pub fn to_wire_string<T: serde::Serialize + ?Sized>(value: &T) -> String {
     let mut out = Vec::new();
     let mut serializer = serde_json::Serializer::with_formatter(&mut out, WireFormatter);

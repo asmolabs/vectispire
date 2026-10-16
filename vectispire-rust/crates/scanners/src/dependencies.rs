@@ -50,46 +50,7 @@ pub const STANDALONE_MATCH_LABEL: &str = "grype (image SBOM analysis)";
 
 // ---------------------------------------------------------------------------------- the finding
 
-/// A severity, in Vectispire's vocabulary — `Severity`, declared worst first.
-///
-/// Here until a second scanner stream needs it; it belongs to `vectispire-domain` then. On the wire it
-/// is the Java enum's name, upper case, as the agent's Jackson mapper writes an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum Severity {
-    Critical,
-    High,
-    Medium,
-    Low,
-    Negligible,
-    Unknown,
-}
-
-impl Severity {
-    /// The lowercase form the API and the database use.
-    pub fn wire_name(self) -> &'static str {
-        match self {
-            Severity::Critical => "critical",
-            Severity::High => "high",
-            Severity::Medium => "medium",
-            Severity::Low => "low",
-            Severity::Negligible => "negligible",
-            Severity::Unknown => "unknown",
-        }
-    }
-
-    /// `Severity.of`: trimmed as `String.trim` trims, lower-cased, matched against the wire names, and
-    /// [`Severity::Unknown`] for anything else — lenient, because scanners invent labels and a value
-    /// nobody anticipated must rank last and be evaluated, not throw.
-    pub fn of(value: Option<&str>) -> Severity {
-        let Some(value) = value else { return Severity::Unknown };
-        let normalized = value.trim_matches(|c: char| c <= ' ').to_lowercase();
-        [Severity::Critical, Severity::High, Severity::Medium, Severity::Low, Severity::Negligible, Severity::Unknown]
-            .into_iter()
-            .find(|severity| severity.wire_name() == normalized)
-            .unwrap_or(Severity::Unknown)
-    }
-}
+pub use vectispire_domain::Severity;
 
 /// A vulnerable component, reduced to what Vectispire keeps — the wire form the agent sends, field for
 /// field and in this order.
@@ -113,23 +74,51 @@ pub struct DependencyFinding {
 
 /// The findings of the matcher's report — `DependencyScanner.findings`.
 ///
-/// **Known defect, reproduced on purpose and reported:** a document that parsed but has no `matches`
-/// array — `{}`, an array, a scalar, `"matches": null` — gives no findings, which the step then sends as
-/// "analysed, no vulnerabilities" and which resolves the target's whole dependency backlog. Decision
-/// 0007 says it must be absent. The Java side does this today and the port does the same, so that the
-/// two agents never disagree about a backlog; `reference/dependencies/matches/13…17` pin it, and
-/// `tests/dependencies.rs` holds the corrected behaviour as a pending test ([`findings_strict`]).
-pub fn findings(payload: &Value) -> Vec<DependencyFinding> {
-    findings_strict(payload).unwrap_or_default()
+/// **A report without its `matches` array is not a clean one** (decision 0007): `{}`, an array, a
+/// scalar, `"matches": null` or an object each used to read as "analysed, no vulnerabilities", which
+/// resolves the target's whole dependency backlog. Grype writes `"matches": []` when nothing matched
+/// (measured on the pinned image), so a missing array, or a match that is not an object, fails the
+/// step. Pinned by `reference/dependencies/findings/13…18`.
+pub fn findings(payload: &Value) -> Result<Vec<DependencyFinding>, ScannerError> {
+    let Some(Value::Array(matches)) = jackson::path(payload, "matches") else {
+        return Err(ScannerError::of(GRYPE_LABEL, NO_MATCHES));
+    };
+    matches
+        .iter()
+        .map(|entry| {
+            if entry.is_object() { Ok(finding(entry)) } else { Err(ScannerError::of(GRYPE_LABEL, MATCH_NOT_AN_OBJECT)) }
+        })
+        .collect()
 }
 
-/// What [`findings`] should answer once the Java side is fixed: `None` — absent — when the document has
-/// no `matches` array, findings otherwise. Not used by the scan until both agents change together.
-pub fn findings_strict(payload: &Value) -> Option<Vec<DependencyFinding>> {
-    let Some(Value::Array(matches)) = jackson::path(payload, "matches") else {
-        return None;
-    };
-    Some(matches.iter().map(finding).collect())
+/// What the step says when grype exited 0 with no `matches` array — `DependencyScanner.findings`' words.
+pub const NO_MATCHES: &str = "grype exited 0, and its report carries no \"matches\" array; a report of another \
+shape is not read as dependencies without vulnerabilities.";
+
+/// What the step says when a match is not an object.
+pub const MATCH_NOT_AN_OBJECT: &str = "grype's report holds a match that is not an object; the report is not read.";
+
+/// What the step says when the cataloguer printed JSON that is not its catalogue — `catalogue`'s words.
+pub const NOT_A_CATALOGUE: &str = "syft exited 0 and printed JSON that is not its catalogue (no \"artifacts\" \
+array); it is not read as a tree without dependencies.";
+
+/// The label the matcher's own failures carry — the Java side's `GRYPE`.
+const GRYPE_LABEL: &str = "grype";
+
+/// `Sbom.isCatalogue`: an object with an `artifacts` array, which Syft writes even when it found no
+/// package (`"artifacts": []`, measured on the pinned image against an empty tree).
+pub fn is_catalogue(document: &Value) -> bool {
+    matches!(jackson::path(document, "artifacts"), Some(Value::Array(_)))
+}
+
+/// The cataloguer's output, believed only when it is a catalogue. JSON of another shape was handed on
+/// as the scan's SBOM: the licence and end-of-life rules read it as an image with no package and
+/// resolved both backlogs, and the matcher was given it to match.
+fn catalogue(printed: Option<Value>, label: &str) -> Result<Option<Value>, ScannerError> {
+    match printed {
+        Some(document) if !is_catalogue(&document) => Err(ScannerError::of(label, NOT_A_CATALOGUE)),
+        other => Ok(other),
+    }
 }
 
 fn finding(entry: &Value) -> DependencyFinding {
@@ -212,10 +201,11 @@ pub fn parse_json(
 }
 
 /// What the matcher's standard output gives, read as the Java side reads it: absent when it is empty or
-/// not JSON, the findings otherwise — the composition [`match_sbom`] applies, for the reference set.
-pub fn read_match_output(stdout: &str) -> Option<Vec<DependencyFinding>> {
+/// not JSON, a failure for a report of another shape, the findings otherwise — the composition
+/// [`match_sbom`] applies, for the reference set.
+pub fn read_match_output(stdout: &str) -> Result<Option<Vec<DependencyFinding>>, ScannerError> {
     let result = ContainerResult { stdout: stdout.to_owned(), stderr: String::new(), exit_code: 0 };
-    parse_json(&result, MATCH_LABEL, &[0]).ok().flatten().map(|payload| findings(&payload))
+    parse_json(&result, MATCH_LABEL, &[0])?.map(|payload| findings(&payload)).transpose()
 }
 
 /// What the cataloguer's standard output gives — the SBOM the step keeps and sends, or absent.
@@ -321,7 +311,7 @@ pub async fn sbom_of_directory<R: RunContainers>(
     sub_path: Option<&str>,
 ) -> Result<Option<Value>, ScannerError> {
     let result = runner.run(&directory_sbom_request(workspace_root, sub_path, image)).await?;
-    parse_json(&result, DIRECTORY_SBOM_LABEL, &[0])
+    catalogue(parse_json(&result, DIRECTORY_SBOM_LABEL, &[0])?, DIRECTORY_SBOM_LABEL)
 }
 
 /// Takes the inventory of a container image — `sbomOfImage`. The platform is applied at the pull, so
@@ -338,7 +328,8 @@ pub async fn sbom_of_image<R: RunContainers + ExportImages>(
     let outcome = async {
         runner.export_image(reference, platform, &archive).await?;
         let result = runner.run(&image_sbom_request(workspace_root, reference, image)).await?;
-        parse_json(&result, &image_sbom_label(reference), &[0])
+        let label = image_sbom_label(reference);
+        catalogue(parse_json(&result, &label, &[0])?, &label)
     }
     .await;
     // The workspace removal would get it; this only shortens the window.
@@ -393,7 +384,7 @@ async fn run_match<R: RunContainers, D: MountableDatabase>(
     // whatever is published afterwards, this scan reads what it mounted. None to be had fails the step.
     let generation = database.mountable().await?;
     let result = runner.run(&match_request(mounted, &generation, image, label)).await?;
-    Ok(parse_json(&result, label, &[0])?.map(|payload| findings(&payload)))
+    parse_json(&result, label, &[0])?.map(|payload| findings(&payload)).transpose()
 }
 
 fn write_sbom(directory: &Path, sbom_json: &str) -> Result<(), ScannerError> {
@@ -419,8 +410,7 @@ fn java_io_message(error: &std::io::Error, directory: &Path) -> String {
 // ------------------------------------------------------------------------------ the step's result
 
 /// The dependencies step of a tree or image scan, as `ScanRunner` composes it — the SBOM, then its
-/// match. A narrow adapter until `ScanArtifacts` comes with the protocol stream: the two fields are its
-/// `sbom` and `dependencies`.
+/// match: the `sbom` and `dependencies` of the scan's `ScanArtifacts`, which the agent's runner fills.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DependenciesStep {
     pub sbom: Value,

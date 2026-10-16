@@ -53,30 +53,45 @@ pub fn request(workspace_root: &Path, sub_path: Option<&str>, image: &str) -> Co
 }
 
 /// What the IaC step makes of the container's result: the findings, or `None` — absent.
-///
-/// **Known defect, reproduced and reported (decision 0007):** a JSON document that is not a checkov
-/// report — a scalar, `{}`, a `results` that is not an object — gives an empty list, "analysed,
-/// clean", as on the Java side today. Pinned by `reference/iac/runs/18-…` to `20-…`; the corrected
-/// outcome is asserted by the ignored test `pending_0007_a_document_that_is_no_report_is_absent`.
 pub fn outcome(result: &ContainerResult, sub_path: Option<&str>) -> Option<Vec<IacFinding>> {
     // Deliberately broad, as the Java side's `catch (RuntimeException)`: every failure is absent.
     let payload = output::parse_json(result, LABEL, &[0]).ok()??;
-    Some(findings(&payload, sub_path))
+    findings(&payload, sub_path)
 }
 
-/// The findings of a checkov JSON document.
+/// The failed controls of a checkov JSON document — `IacScanner.findings` — or `None` when the document
+/// is not a report checkov wrote.
 ///
-/// It prints **one** report object when a single framework is detected, and a **list** when several
-/// are — Terraform and Kubernetes in one repository. Both shapes are read, or a mixed repository
-/// reports nothing.
-pub fn findings(payload: &Value, sub_path: Option<&str>) -> Vec<IacFinding> {
+/// **Three shapes are checkov's, measured on the pinned 3.3.9**: one report object (`check_type`,
+/// `results`, `summary`) when one framework is detected, a list of them when several are, and — when
+/// there is nothing to check — a bare summary (`resource_count`, `checkov_version`, …) with no
+/// `results` at all. The last is a clean answer: an empty list.
+///
+/// **Anything else is absent, never an empty list** (decision 0007): a scalar, `{}`, an empty list, a
+/// list holding something other than reports, `results` that is not an object, `failed_checks` that
+/// is not an array, a check that is not an object. Each used to read as "no control failed" and
+/// resolved the target's whole IaC backlog. Pinned by `reference/iac/`.
+pub fn findings(payload: &Value, sub_path: Option<&str>) -> Option<Vec<IacFinding>> {
+    if let Value::Object(members) = payload
+        && !members.contains_key("results")
+    {
+        return is_bare_summary(payload).then(Vec::new);
+    }
     let reports: Vec<&Value> = match payload {
-        Value::Array(items) => items.iter().collect(),
-        other => vec![other],
+        Value::Array(items) if !items.is_empty() => items.iter().collect(),
+        Value::Object(_) => vec![payload],
+        _ => return None,
     };
     let mut found = Vec::new();
     for report in reports {
-        for check in children(path(path(Some(report), "results"), "failed_checks")) {
+        let failed = path(path(Some(report), "results"), "failed_checks");
+        if !report.is_object() || !matches!(failed, Some(Value::Array(_))) {
+            return None;
+        }
+        for check in children(failed) {
+            if !check.is_object() {
+                return None;
+            }
             found.push(IacFinding {
                 check_id: jackson::as_text(jackson::path(check, "check_id"), "unknown"),
                 check_name: jackson::as_text(jackson::path(check, "check_name"), ""),
@@ -92,7 +107,14 @@ pub fn findings(payload: &Value, sub_path: Option<&str>) -> Vec<IacFinding> {
             });
         }
     }
-    found
+    Some(found)
+}
+
+/// What checkov prints when no framework found anything to check: `isIntegralNumber` and `isTextual`.
+fn is_bare_summary(payload: &Value) -> bool {
+    let integral =
+        matches!(jackson::path(payload, "resource_count"), Some(Value::Number(n)) if n.is_i64() || n.is_u64());
+    integral && matches!(jackson::path(payload, "checkov_version"), Some(Value::String(_)))
 }
 
 /// The IaC findings of the workspace at `workspace_root`, `None` when the checker failed.

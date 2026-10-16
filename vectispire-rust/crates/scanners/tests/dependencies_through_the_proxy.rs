@@ -245,7 +245,8 @@ async fn real_matcher_on_the_real_database_gives_the_reference_findings() {
             .unwrap()
             .expect("the matcher analysed");
 
-    let reference =
-        dependencies::read_match_output(&vectispire_testkit::read("dependencies/matches/01-polyglot.json")).unwrap();
+    let reference = dependencies::read_match_output(&vectispire_testkit::read("dependencies/matches/01-polyglot.json"))
+        .unwrap()
+        .unwrap();
     assert_eq!(findings, reference);
 }

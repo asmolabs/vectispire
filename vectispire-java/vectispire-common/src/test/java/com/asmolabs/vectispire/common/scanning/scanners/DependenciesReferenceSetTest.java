@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.rust.ReferenceSet;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -24,7 +25,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Each output goes through what the scanner does with a container's standard output — {@code
  * ContainerRunner.parseJson}, then {@code findings} for the matcher — so the absent cases (nothing
- * printed, not JSON) are pinned as {@code null} alongside the findings. The first three of each
+ * printed, not JSON) are pinned as {@code null} alongside the findings, and a report of another shape,
+ * which fails the step, as {@code {"failure": <the sentence>}}. The first three of each
  * directory are real outputs of the pinned images on small fixture repositories and an exported
  * image; the rest are the edge cases a real run does not produce.
  *
@@ -53,9 +55,17 @@ class DependenciesReferenceSetTest {
     @Test
     void theFindingsTheRustPortIsHeldTo() throws Exception {
         for (Path output : inputs("dependencies/matches")) {
-            var findings = ContainerRunner.parseJson(printed(output), "grype (SBOM analysis)", List.of(0))
-                    .map(DependencyScanner::findings);
-            ReferenceSet.expect("dependencies/findings/" + output.getFileName(), WIRE.writeValueAsString(findings) + "\n");
+            String answer;
+            try {
+                var findings = ContainerRunner.parseJson(printed(output), "grype (SBOM analysis)", List.of(0))
+                        .map(DependencyScanner::findings);
+                answer = WIRE.writeValueAsString(findings);
+            } catch (ScannerFailureException failed) {
+                // A report of another shape fails the step (decision 0007): pinned as the sentence the
+                // scan carries, in an object no findings list can be mistaken for.
+                answer = WIRE.writeValueAsString(java.util.Map.of("failure", failed.getMessage()));
+            }
+            ReferenceSet.expect("dependencies/findings/" + output.getFileName(), answer + "\n");
         }
     }
 

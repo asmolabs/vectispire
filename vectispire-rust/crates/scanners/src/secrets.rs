@@ -19,36 +19,33 @@ pub struct SecretFinding {
     pub fingerprint: Option<String>,
 }
 
-/// The findings of a report file's content, as the Java side reads the file: stripped, an empty
-/// file meaning no secrets.
-pub fn read_report(content: &str) -> Vec<SecretFinding> {
-    let stripped = content.trim_matches(jackson::is_java_whitespace);
-    if stripped.is_empty() { Vec::new() } else { parse(stripped) }
-}
-
-/// The findings of a gitleaks JSON report.
+/// The findings of a report as gitleaks writes it — `SecretsScanner.read` — or `None` when the text is
+/// not such a report.
 ///
-/// **Known defect, reproduced on purpose and reported:** a report that is not JSON, or not an
-/// array, gives no findings — which the scan then sends as "analysed, nothing found", and that
-/// resolves every secret issue of the target (decision 0007 says it must be absent). The Java parser
-/// does this today; the port does the same until the Java side is fixed, so that the two agents never
-/// disagree about a target's backlog. Pinned by `reference/secrets/reports/04-not-json.json`.
-pub fn parse(content: &str) -> Vec<SecretFinding> {
-    let Some(serde_json::Value::Array(entries)) = jackson::read_tree(content) else {
-        return Vec::new();
+/// **Absent, never an empty list, for anything but `[]`** (decision 0007). Text that is not JSON, JSON
+/// that is not an array, an array holding something other than objects, a blank file, a document with
+/// something after its end: each is absent, and the scan fails the step rather than send "analysed, no
+/// secrets", which would resolve every secret issue of the target. The fields of an object stay
+/// leniently read: a version that drops one is a finding with less detail, not a report to refuse.
+/// Pinned by `reference/secrets/`.
+pub fn read(content: &str) -> Option<Vec<SecretFinding>> {
+    let serde_json::Value::Array(entries) = jackson::read_tree_strict(content)? else {
+        return None;
     };
     entries
         .iter()
-        .map(|entry| SecretFinding {
-            rule: jackson::as_text(jackson::path(entry, "RuleID"), ""),
-            description: jackson::as_text(jackson::path(entry, "Description"), ""),
-            // The path the tool returns is the container's; a finding's is relative to the tree.
-            file: container_paths::relative_to_source(&jackson::as_text(jackson::path(entry, "File"), ""), None),
-            line: jackson::as_int(jackson::path(entry, "StartLine"), 0),
-            fingerprint: match jackson::path(entry, "Fingerprint") {
-                Some(serde_json::Value::String(text)) => Some(text.clone()),
-                _ => None,
-            },
+        .map(|entry| {
+            entry.is_object().then(|| SecretFinding {
+                rule: jackson::as_text(jackson::path(entry, "RuleID"), ""),
+                description: jackson::as_text(jackson::path(entry, "Description"), ""),
+                // The path the tool returns is the container's; a finding's is relative to the tree.
+                file: container_paths::relative_to_source(&jackson::as_text(jackson::path(entry, "File"), ""), None),
+                line: jackson::as_int(jackson::path(entry, "StartLine"), 0),
+                fingerprint: match jackson::path(entry, "Fingerprint") {
+                    Some(serde_json::Value::String(text)) => Some(text.clone()),
+                    _ => None,
+                },
+            })
         })
         .collect()
 }
@@ -91,7 +88,20 @@ pub fn request(workspace_root: &Path, sub_path: Option<&str>, image: &str) -> Co
     .running_as_owner_of(workspace_root)
 }
 
-/// The secrets found, `Ok(None)` when the report could not be read — absent, not empty.
+/// What the step says when gitleaks exited 0 and its report is not one — `SecretsScanner.scan`'s words.
+pub const NOT_A_REPORT: &str = "gitleaks exited 0, and its report is not the JSON array of findings it writes — empty, \
+truncated or of another shape; it is not read as a tree without secrets.";
+
+/// What the step says when gitleaks exited 0 and wrote no report.
+pub const NO_REPORT: &str = "gitleaks exited 0 without writing its report, which says nothing about the tree: a \
+gitleaks that could not write the file exits 0 too.";
+
+/// The secrets found, `Ok(None)` when the report could not be read — absent, not empty — and an error
+/// when gitleaks wrote no report or one of another shape.
+///
+/// **No report is not "no secrets".** Gitleaks also exits 0 *without a report* when it cannot write
+/// one — after logging "leaks found: 1" (measured on v8.0.0, v8.8.0 and v8.12.0) — so a missing file
+/// fails the step. The pinned version writes `[]` on a clean tree.
 pub async fn scan(
     runner: &ContainerRunner,
     workspace_root: &Path,
@@ -103,14 +113,12 @@ pub async fn scan(
         return Err(ScannerError::exited(LABEL, result.exit_code, &result.stderr));
     }
     let report = workspace_root.join(REPORT_FILENAME);
-    let read = std::fs::read_to_string(&report);
+    let read_file = std::fs::read_to_string(&report);
     // Deleted the moment it is read: a file of plaintext secrets exists for as long as it must.
     let _ = std::fs::remove_file(&report);
-    match read {
-        Ok(content) => Ok(Some(read_report(&content))),
-        // Depending on its version the tool writes nothing when it finds nothing, and the exit code
-        // has already told a failure apart.
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Some(Vec::new())),
+    match read_file {
+        Ok(content) => read(&content).map(Some).ok_or_else(|| ScannerError::of(LABEL, NOT_A_REPORT)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(ScannerError::of(LABEL, NO_REPORT)),
         // Absent: the container ran and may have found secrets; what failed is reading them.
         Err(_) => Ok(None),
     }

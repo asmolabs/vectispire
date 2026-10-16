@@ -36,16 +36,18 @@ fn the_owasp_edition_is_read_with_an_ascii_word_boundary() {
     assert_eq!(sast::category_of("A03:2021x"), None);
 }
 
-/// Decision 0007, as it should read once the Java side is fixed: a report whose `results` is not an
-/// array has no findings to read — absent, not "clean". Today both sides answer an empty list
-/// (`reference/sast/runs/18-results-not-an-array`); un-ignore when the reference set is regenerated.
+/// Decision 0007: a report whose `results` is not an array, or holds something other than objects, is
+/// a report of another shape — the step fails, it never reads "clean"
+/// (`reference/sast/runs/18-results-not-an-array`, `23-field-types`).
 #[test]
-#[ignore = "pending the Java fix of decision 0007's defect class — see the docs of sast::outcome"]
-fn pending_0007_a_report_without_results_is_absent() {
-    let result = ContainerResult {
-        stdout: r#"{"results": {"a": 1}, "errors": [], "paths": {"scanned": ["/repo/source/a.py"]}}"#.to_owned(),
-        stderr: String::new(),
-        exit_code: 0,
-    };
-    assert!(matches!(sast::outcome(&result, None), Ok(None)));
+fn a_report_without_results_fails_the_step() {
+    for (stdout, said) in [
+        (r#"{"results": {"a": 1}, "errors": [], "paths": {"scanned": ["/repo/source/a.py"]}}"#, sast::NO_RESULTS),
+        (r#"{"errors": [], "paths": {"scanned": ["/repo/source/a.py"]}}"#, sast::NO_RESULTS),
+        (r#"{"results": [1], "errors": [], "paths": {"scanned": ["/repo/source/a.py"]}}"#, sast::RESULT_NOT_AN_OBJECT),
+    ] {
+        let result = ContainerResult { stdout: stdout.to_owned(), stderr: String::new(), exit_code: 0 };
+        let error = sast::outcome(&result, None).expect_err(stdout);
+        assert_eq!(error.to_string(), said, "{stdout}");
+    }
 }

@@ -1,1 +1,1 @@
-[]
+{"failure":"grype exited 0, and its report carries no \"matches\" array; a report of another shape is not read as dependencies without vulnerabilities."}

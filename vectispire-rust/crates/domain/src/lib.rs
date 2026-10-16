@@ -11,5 +11,8 @@ pub mod failure;
 pub mod net;
 pub mod repository_url;
 pub mod secret;
+pub mod severity;
+pub mod sub_path;
 
 pub use failure::FailureKind;
+pub use severity::Severity;

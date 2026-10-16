@@ -80,7 +80,8 @@ fn a_match_becomes_a_finding_with_the_severity_in_vectispire_s_vocabulary_and_th
         "vulnerability": {"id": "CVE-2026-0001", "severity": "High", "fix": {"versions": ["4.17.22", "", "5.0.1"]},
             "description": "Prototype pollution", "dataSource": "https://nvd.example/CVE-2026-0001"},
         "artifact": {"name": "lodash", "version": "4.17.21", "purl": "pkg:npm/lodash@4.17.21"}
-    }]}));
+    }]}))
+    .unwrap();
     assert_eq!(
         findings,
         vec![DependencyFinding {
@@ -102,6 +103,7 @@ fn no_published_fix_is_an_empty_string_the_value_the_gate_reads_as_not_fixable()
     let finding =
         dependencies::findings(&json!({"matches": [{"vulnerability": {"id": "CVE-1", "fix": {"state": "not-fixed"}},
         "artifact": {"name": "openssl"}}]}))
+        .unwrap()
         .remove(0);
     assert_eq!(finding.fix_versions, "");
     assert_eq!(finding.severity, Severity::Unknown);
@@ -112,48 +114,53 @@ fn no_published_fix_is_an_empty_string_the_value_the_gate_reads_as_not_fixable()
 
 #[test]
 fn a_report_with_no_matches_is_a_clean_analysis() {
-    assert_eq!(dependencies::findings(&json!({"matches": []})), Vec::new());
+    assert_eq!(dependencies::findings(&json!({"matches": []})).unwrap(), Vec::new());
 }
 
-/// What decision 0007 asks of a document that is not a matcher's report — absent — and what the scan
-/// does not do yet, because the Java agent does not: [`dependencies::findings`] reproduces its empty
-/// list until both change together. The corrected reading is ready and checked here.
+/// Decision 0007: a document that is not a matcher's report fails the step — it never reads "no
+/// vulnerabilities", which would resolve the target's whole dependency backlog.
 #[test]
-fn the_corrected_reading_of_a_document_without_matches_is_absent() {
+fn a_document_without_matches_fails_the_step() {
     for document in
         [json!({}), json!({"descriptor": {}}), json!({"matches": null}), json!({"matches": {}}), json!([]), json!(42)]
     {
-        assert_eq!(dependencies::findings_strict(&document), None, "{document}");
-        assert_eq!(dependencies::findings(&document), Vec::new(), "the Java side's reading, for now: {document}");
+        let error = dependencies::findings(&document).expect_err(&document.to_string());
+        assert_eq!(error.to_string(), dependencies::NO_MATCHES, "{document}");
     }
-    assert_eq!(dependencies::findings_strict(&json!({"matches": []})), Some(Vec::new()));
+    let error = dependencies::findings(&json!({"matches": [1]})).expect_err("a match that is not an object");
+    assert_eq!(error.to_string(), dependencies::MATCH_NOT_AN_OBJECT);
 }
 
-/// **Pending** the Java side's fix of `DependencyScanner.findings` (decision 0007: a document that parsed
-/// but has no `matches` array is absent, not "no vulnerabilities"). Un-ignore it in the commit that
-/// switches [`dependencies::findings`] to [`dependencies::findings_strict`] and regenerates
-/// `reference/dependencies/findings/13…17` from the fixed Java parser.
 #[test]
-#[ignore = "pending: the Java fix of DependencyScanner.findings (decision 0007), which both agents take together"]
-fn pending_java_fix_a_document_without_matches_is_absent_end_to_end() {
+fn every_reference_document_without_matches_fails_end_to_end() {
     for name in
         ["13-no-matches-key", "14-matches-null", "15-matches-object", "16-top-level-array", "17-top-level-scalar"]
     {
         let printed = vectispire_testkit::read(&format!("dependencies/matches/{name}.json"));
-        assert_eq!(dependencies::read_match_output(&printed), None, "{name}");
+        let error = dependencies::read_match_output(&printed).expect_err(name);
+        assert_eq!(error.to_string(), dependencies::NO_MATCHES, "{name}");
     }
+}
+
+#[test]
+fn a_cataloguer_output_that_is_no_catalogue_is_refused() {
+    for document in [json!([]), json!("text"), json!({"source": {}}), json!({"artifacts": null})] {
+        assert!(!dependencies::is_catalogue(&document), "{document}");
+    }
+    assert!(dependencies::is_catalogue(&json!({"artifacts": []})));
 }
 
 // ------------------------------------------------------------------------------ running the two tools
 
 #[tokio::test]
 async fn both_tools_run_offline_on_read_only_mounts_the_matcher_reading_the_host_s_database() {
-    let runner = Fake::printing(r#"{"artifacts": []}"#, "", 0);
+    // One document both tools accept: the cataloguer's `artifacts`, the matcher's `matches`.
+    let runner = Fake::printing(r#"{"artifacts": [], "matches": []}"#, "", 0);
     let workspace = workspace();
 
     let sbom =
         dependencies::sbom_of_directory(&runner, images::SYFT, workspace.path(), Some("services/api/")).await.unwrap();
-    assert_eq!(sbom, Some(json!({"artifacts": []})));
+    assert_eq!(sbom, Some(json!({"artifacts": [], "matches": []})));
     dependencies::match_sbom(&runner, &database(), images::GRYPE, workspace.path(), "{}").await.unwrap();
 
     let runs = runner.runs();

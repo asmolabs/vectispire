@@ -1,2 +1,2 @@
-findings
-[]
+failure
+semgrep exited 0, and its report carries no "results" array; a report of another shape is not read as a tree without findings.

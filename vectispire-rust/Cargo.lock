@@ -2285,8 +2285,10 @@ name = "vectispire-agent"
 version = "0.12.0-dev"
 dependencies = [
  "reqwest",
+ "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",
@@ -2337,6 +2339,7 @@ name = "vectispire-domain"
 version = "0.12.0-dev"
 dependencies = [
  "regex",
+ "serde",
  "serde_json",
  "thiserror",
  "vectispire-testkit",
@@ -2396,6 +2399,7 @@ dependencies = [
  "tracing",
  "uuid",
  "vectispire-container",
+ "vectispire-domain",
  "vectispire-testkit",
 ]
 

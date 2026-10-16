@@ -31,21 +31,28 @@ fn stdout(text: &str) -> ContainerResult {
     ContainerResult { stdout: text.to_owned(), stderr: String::new(), exit_code: 0 }
 }
 
-/// Decision 0007, as it should read once the Java side is fixed: a document that is no checkov
-/// report says nothing was analysed — absent, not "clean". Today both sides answer an empty list
-/// (`reference/iac/runs/18-…` to `20-…`); un-ignore when the reference set is regenerated after the fix.
+/// Decision 0007: a document that is no checkov report says nothing was analysed — absent, not
+/// "clean" (`reference/iac/runs/16-…` to `20-…`).
 #[test]
-#[ignore = "pending the Java fix of decision 0007's defect class — see the docs of iac::outcome"]
-fn pending_0007_a_document_that_is_no_report_is_absent() {
-    for garbage in ["\"done\"", "{}", "{\"results\": \"x\"}", "[1, 2]"] {
+fn a_document_that_is_no_report_is_absent() {
+    for garbage in [
+        "\"done\"",
+        "{}",
+        "[]",
+        "{\"results\": \"x\"}",
+        "[1, 2]",
+        "{\"results\": {\"failed_checks\": {}}}",
+        "{\"results\": {\"failed_checks\": [1]}}",
+        "{\"resource_count\": 1.0, \"checkov_version\": \"3\"}",
+    ] {
         assert_eq!(iac::outcome(&stdout(garbage), None), None, "{garbage}");
     }
 }
 
 #[test]
 fn the_empty_summary_of_a_tree_without_infrastructure_stays_an_empty_list() {
-    // The real answer for a tree with nothing to check: analysed, nothing failed. The corrected
-    // reading above must keep it.
+    // The real answer for a tree with nothing to check: analysed, nothing failed. The refusals above
+    // must keep it.
     let run = scanner_runs::runs("iac").into_iter().find(|run| run.name == "03-no-infrastructure").unwrap();
     assert_eq!(iac::outcome(&run.result, None), Some(Vec::new()));
 }

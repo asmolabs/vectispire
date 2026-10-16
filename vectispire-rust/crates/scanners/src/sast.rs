@@ -30,17 +30,7 @@ pub const LABEL: &str = "semgrep (source code analysis)";
 /// individual files time out, and a run that skipped most of the repository would read as clean.
 pub const MAX_ERROR_RATIO: f64 = 0.25;
 
-/// Vectispire's severity vocabulary — `Severity`, written by its name as Jackson writes an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Severity {
-    Critical,
-    High,
-    Medium,
-    Low,
-    Negligible,
-    Unknown,
-}
+pub use vectispire_domain::Severity;
 
 /// A source finding — the wire form the agent sends, field for field and in this order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -99,10 +89,8 @@ pub fn request(workspace_root: &Path, sub_path: Option<&str>, image: &str) -> Co
 /// the tool ended well and covered too little to be read — and `Err` a failure, which the step
 /// records with what actually happened.
 ///
-/// **Known defect, reproduced and reported (decision 0007):** a report that covered files but whose
-/// `results` is not an array gives an empty list, "analysed, clean", as on the Java side today.
-/// Pinned by `reference/sast/runs/18-results-not-an-array`; the corrected outcome is asserted by the
-/// ignored test `pending_0007_a_report_without_results_is_absent`.
+/// A report of another shape — `results` not an array, a result that is not an object — is a failure,
+/// never "analysed, clean" (decision 0007): see [`findings`].
 pub fn outcome(result: &ContainerResult, sub_path: Option<&str>) -> Result<Option<Vec<SastFinding>>, ScannerError> {
     // **The refusal is read before the exit code is judged**: semgrep reports a bad configuration on
     // stdout, inside the JSON, and leaves stderr empty.
@@ -115,7 +103,7 @@ pub fn outcome(result: &ContainerResult, sub_path: Option<&str>) -> Result<Optio
     if mostly_failed(&payload) {
         return Ok(None);
     }
-    Ok(Some(findings(&payload, sub_path)))
+    findings(&payload, sub_path).map(Some)
 }
 
 /// What the tool said about its own failure, wherever it put it: a refused configuration is
@@ -173,16 +161,21 @@ pub fn mostly_failed(payload: &Value) -> bool {
 }
 
 /// The findings of a semgrep JSON report.
-pub fn findings(payload: &Value, sub_path: Option<&str>) -> Vec<SastFinding> {
+pub fn findings(payload: &Value, sub_path: Option<&str>) -> Result<Vec<SastFinding>, ScannerError> {
     let Some(Value::Array(results)) = jackson::path(payload, "results") else {
-        return Vec::new();
+        return Err(ScannerError::of(LABEL, NO_RESULTS));
     };
     results
         .iter()
         .map(|entry| {
+            if !entry.is_object() {
+                // Read on, it became a finding of rule "unknown" at no path — one issue standing in for
+                // the real ones, which then resolved.
+                return Err(ScannerError::of(LABEL, RESULT_NOT_AN_OBJECT));
+            }
             let extra = jackson::path(entry, "extra");
             let metadata = path(extra, "metadata");
-            SastFinding {
+            Ok(SastFinding {
                 rule_id: jackson::as_text(jackson::path(entry, "check_id"), "unknown"),
                 // Absent means "security", the cautious reading: filed as quality, an unknown finding
                 // could never fail a gate.
@@ -196,10 +189,17 @@ pub fn findings(payload: &Value, sub_path: Option<&str>) -> Vec<SastFinding> {
                 line: jackson::as_int(path(jackson::path(entry, "start"), "line"), 0),
                 message: jackson::as_text(path(extra, "message"), ""),
                 owasp_category: owasp_of(path(metadata, "owasp")),
-            }
+            })
         })
         .collect()
 }
+
+/// What the step says when semgrep exited 0 with no `results` array — `SastScanner.findings`' words.
+pub const NO_RESULTS: &str = "semgrep exited 0, and its report carries no \"results\" array; a report of another \
+shape is not read as a tree without findings.";
+
+/// What the step says when a result is not an object.
+pub const RESULT_NOT_AN_OBJECT: &str = "semgrep's report holds a result that is not an object; the report is not read.";
 
 /// The 2021 edition's own spelling — `OwaspTag.CATEGORY_2021`. `A01:2017` is Injection and
 /// `A01:2021` access control: the year is what separates the editions, so it is not optional. The

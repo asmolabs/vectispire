@@ -2,10 +2,10 @@
 //! `DependenciesReferenceSetTest`.
 //!
 //! - **Findings, byte for byte** as the agent's Jackson mapper writes them: every field of a finding is
-//!   fingerprint material or gate material, and `null` — absent — where the Java side found no usable
-//!   output.
-//! - **SBOMs, value for value**: the SBOM is forwarded, not fingerprinted, and Jackson keeps a
-//!   document's key order where a `serde_json::Value` sorts it; the values must be the same.
+//!   fingerprint material or gate material; `null` — absent — where the Java side found no usable
+//!   output, and `{"failure": …}` where a report of another shape fails the step (decision 0007).
+//! - **SBOMs, byte for byte** too: forwarded, not fingerprinted, and with `serde_json`'s
+//!   `preserve_order` on for the workspace a `Value` keeps the cataloguer's member order as Jackson does.
 //! - **Check times**, both ways: the `checked` file two agents sharing one cache read from each other.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -31,7 +31,10 @@ fn every_matcher_output_gives_the_java_findings_byte_for_byte() {
     let mut differences = Vec::new();
     for name in &outputs {
         let printed = vectispire_testkit::read(&format!("dependencies/matches/{name}"));
-        let ours = jackson::to_wire_string(&dependencies::read_match_output(&printed)) + "\n";
+        let ours = match dependencies::read_match_output(&printed) {
+            Ok(findings) => jackson::to_wire_string(&findings),
+            Err(failure) => jackson::to_wire_string(&serde_json::json!({ "failure": failure.to_string() })),
+        } + "\n";
         let java = vectispire_testkit::read(&format!("dependencies/findings/{name}"));
         if ours != java {
             let at = ours.bytes().zip(java.bytes()).position(|(a, b)| a != b).unwrap_or(ours.len().min(java.len()));
@@ -51,7 +54,7 @@ fn the_real_outputs_are_not_trivial() {
     // A reference set whose real outputs had silently become empty would pin nothing that matters.
     for (name, at_least) in [("01-polyglot.json", 50), ("03-alpine-image.json", 100)] {
         let printed = vectispire_testkit::read(&format!("dependencies/matches/{name}"));
-        let findings = dependencies::read_match_output(&printed).unwrap();
+        let findings = dependencies::read_match_output(&printed).unwrap().unwrap();
         assert!(findings.len() >= at_least, "{name}: {}", findings.len());
         assert!(
             findings.iter().all(|finding| finding.identifier.starts_with("CVE-")
@@ -62,20 +65,20 @@ fn the_real_outputs_are_not_trivial() {
         );
     }
     let clean = dependencies::read_match_output(&vectispire_testkit::read("dependencies/matches/02-clean.json"));
-    assert_eq!(clean, Some(Vec::new()), "a tree with no dependencies is analysed and clean");
+    assert_eq!(clean.unwrap(), Some(Vec::new()), "a tree with no dependencies is analysed and clean");
 }
 
 #[test]
-fn every_cataloguer_output_gives_the_java_sbom() {
+fn every_cataloguer_output_gives_the_java_sbom_byte_for_byte() {
+    // Byte for byte since `preserve_order` is on for the workspace: the SBOM is forwarded, not
+    // fingerprinted, but an export or a signature over it should not depend on which agent ran.
     let outputs = names("dependencies/sboms");
     assert!(outputs.len() >= 10, "the reference set is there: {outputs:?}");
     let mut differences = Vec::new();
     for name in &outputs {
         let printed = vectispire_testkit::read(&format!("dependencies/sboms/{name}"));
-        let ours = dependencies::read_sbom_output(&printed);
-        let java: Option<serde_json::Value> =
-            serde_json::from_str(&vectispire_testkit::read(&format!("dependencies/sbom/{name}"))).unwrap();
-        if ours != java {
+        let ours = jackson::to_wire_string(&dependencies::read_sbom_output(&printed)) + "\n";
+        if ours != vectispire_testkit::read(&format!("dependencies/sbom/{name}")) {
             differences.push(name.clone());
         }
     }
