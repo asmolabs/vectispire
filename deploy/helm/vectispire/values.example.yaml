@@ -24,6 +24,10 @@ secrets:
   signingKey:
     secretName: vectispire-keys
     key: signing-key
+  # The relay's password, with mail.username below.
+  mailPassword:
+    secretName: vectispire-mail
+    key: password
 
 bootstrap:
   username: admin
@@ -36,6 +40,17 @@ ingress:
   host: vectispire.example.org
   tls:
     secretName: vectispire-tls
+
+# The address in every link Vectispire writes. Left empty, it is https://<ingress.host>; set it when people
+# reach Vectispire under another name than the Ingress's.
+publicUrl: https://vectispire.example.org
+
+# The SMTP relay for alerts, the weekly digest and the checklist reminders. Remove the block for none.
+mail:
+  host: smtp.example.org
+  port: 587
+  from: vectispire@example.org
+  username: vectispire
 
 extraEnv:
   - name: VECTISPIRE_GIT_ALLOWED_HOSTS

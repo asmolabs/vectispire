@@ -162,6 +162,10 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 
 ### Fixed {#fixed-0111}
 
+- **The Helm chart passes the mail relay and the public address to the control plane.** It passed
+  neither, so a Kubernetes installation could send no e-mail at all — no alert, no weekly digest, no
+  checklist reminder — and its links had no address. New values `mail.*`, `secrets.mailPassword` and
+  `publicUrl`, which defaults to `https://<ingress.host>`; without `mail.host` nothing changes.
 - **Headings, paragraphs, links and cards follow the sizes and spacing their screens give them**; the
   template's global styles had overridden them. French documentation screenshots show date fields as
   dd/mm/yyyy.

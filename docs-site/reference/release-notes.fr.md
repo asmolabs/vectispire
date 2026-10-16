@@ -177,6 +177,11 @@
 
 ### Corrigé {#corrige-0111}
 
+- **La chart Helm transmet le relais de messagerie et l'adresse publique au plan de contrôle.** Elle ne
+  transmettait ni l'un ni l'autre : une installation Kubernetes ne pouvait envoyer aucun e-mail — ni
+  alerte, ni rapport hebdomadaire, ni rappel de checklist — et ses liens n'avaient pas d'adresse.
+  Nouvelles valeurs `mail.*`, `secrets.mailPassword` et `publicUrl`, qui vaut par défaut
+  `https://<ingress.host>` ; sans `mail.host`, rien ne change.
 - **Les titres, paragraphes, liens et cartes suivent désormais les tailles et espacements que leur donne
   chaque écran** ; les styles globaux du gabarit les écrasaient. Les captures de la documentation française
   montrent les champs de date au format jj/mm/aaaa.

@@ -287,6 +287,13 @@ La chart refuse de se rendre sans ses valeurs obligatoires, et dit laquelle manq
 est dans le [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md)
 de la chart.
 
+**E-mails et liens.** Renseignez `mail.host` et `mail.from` pour que les alertes, le rapport
+hebdomadaire et les rappels de checklist partent tout court — avec `mail.username` et un Secret
+`secrets.mailPassword` pour un relais qui authentifie. Sans hôte, rien n'est envoyé. Les liens des
+messages et des documents utilisent `publicUrl`, ou `https://<ingress.host>` s'il est vide. Avant 0.11.1,
+la chart ne transmettait ni l'un ni l'autre
+([README de la chart](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md#e-mail-and-the-public-address)).
+
 **Forme du déploiement :**
 
 - un réplica ;

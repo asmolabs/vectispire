@@ -67,6 +67,22 @@ in a pod's log.
 {{- if and (gt (int .Values.replicaCount) 1) .Values.auditMirror.enabled (ne .Values.auditMirror.accessMode "ReadWriteMany") -}}
 {{- fail "replicaCount above 1 with the audit mirror needs auditMirror.accessMode ReadWriteMany: each pod writes its own file on the shared volume." -}}
 {{- end -}}
+{{- if and .Values.publicUrl (not (regexMatch "^https?://[^/?#]+" .Values.publicUrl)) -}}
+{{- fail "publicUrl is an address people open: https://vectispire.example.org. It goes into the links of every reminder, ticket and exported document." -}}
+{{- end -}}
+{{- if .Values.mail.host -}}
+{{- if regexMatch "[:/\\s]" .Values.mail.host -}}
+{{- fail "mail.host is the relay's name alone, without a scheme or a port: the port is mail.port." -}}
+{{- end -}}
+{{- if not .Values.mail.from -}}
+{{- fail "mail.from is required with mail.host: unset, the application signs as vectispire@localhost, which a relay refuses." -}}
+{{- end -}}
+{{- if and .Values.mail.username (not .Values.secrets.mailPassword.secretName) -}}
+{{- fail "mail.username needs secrets.mailPassword.secretName: the relay would be asked to authenticate with an empty password. Leave mail.username empty for an anonymous relay." -}}
+{{- end -}}
+{{- else if or .Values.mail.username .Values.secrets.mailPassword.secretName -}}
+{{- fail "mail.username or secrets.mailPassword is set without mail.host: no relay is configured, so nothing would be sent. Set mail.host, or remove them." -}}
+{{- end -}}
 {{- if .Values.agents.enabled -}}
 {{- if not .Values.agents.controlPlaneUrl -}}
 {{- fail "agents.controlPlaneUrl is required: the control plane as the agent reaches it, through the Ingress over HTTPS." -}}
@@ -112,6 +128,19 @@ in a pod's log.
 {{- end -}}
 {{- end -}}
 
+
+{{/*
+The address people reach Vectispire at: `publicUrl`, else `https://<ingress.host>` while the Ingress is on.
+Https in both shapes the chart renders — TLS ends at the Ingress, or before it with `allowPlainHttp` — and
+empty without an Ingress, where the chart cannot know the address.
+*/}}
+{{- define "vectispire.publicUrl" -}}
+{{- if .Values.publicUrl -}}
+{{- trimSuffix "/" .Values.publicUrl -}}
+{{- else if and .Values.ingress.enabled .Values.ingress.host -}}
+{{- printf "https://%s" .Values.ingress.host -}}
+{{- end -}}
+{{- end -}}
 
 {{/*
 The control plane's affinity: the operator's, plus a required anti-affinity to every agent pod. Their

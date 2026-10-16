@@ -86,6 +86,27 @@ spec:
             - name: VECTISPIRE_OIDC_ISSUER
               value: {{ .Values.oidc.issuer | quote }}
             {{- end }}
+            {{- with include "vectispire.publicUrl" . }}
+            - name: VECTISPIRE_PUBLIC_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.mail }}
+            {{- if .host }}
+            # Rendered only with a host: the sender exists as soon as the host variable does, empty or not.
+            - name: VECTISPIRE_MAIL_HOST
+              value: {{ .host | quote }}
+            - name: VECTISPIRE_MAIL_PORT
+              value: {{ .port | quote }}
+            - name: VECTISPIRE_MAIL_FROM
+              value: {{ .from | quote }}
+            - name: VECTISPIRE_MAIL_STARTTLS
+              value: {{ .starttls | quote }}
+            {{- if .username }}
+            - name: VECTISPIRE_MAIL_USERNAME
+              value: {{ .username | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -174,6 +195,19 @@ spec:
                   items:
                     - key: {{ .key }}
                       path: vectispire.oidc.client-secret
+              {{- end }}
+              {{- end }}
+              {{- if .Values.mail.host }}
+              {{- with .Values.secrets.mailPassword }}
+              {{- if .secretName }}
+              # Named after the property, not the variable: a config-tree file binds by its name, and
+              # `vectispire.mail.password` is the name the application reads.
+              - secret:
+                  name: {{ .secretName }}
+                  items:
+                    - key: {{ .key }}
+                      path: vectispire.mail.password
+              {{- end }}
               {{- end }}
               {{- end }}
               {{- with .Values.secrets.previousEncryptionKeys }}

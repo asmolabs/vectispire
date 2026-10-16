@@ -275,6 +275,12 @@ it makes every document already signed unverifiable.
 The chart refuses to render without its required values, and says which is missing. The full list is
 in the chart's [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md).
 
+**E-mail and links.** Set `mail.host` and `mail.from` for alerts, the weekly digest and the checklist
+reminders to leave at all — with `mail.username` and a `secrets.mailPassword` Secret for a relay that
+authenticates. Without a host, nothing is sent. Links in messages and documents use `publicUrl`, or
+`https://<ingress.host>` when it is empty. Before 0.11.1 the chart passed neither
+([chart README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md#e-mail-and-the-public-address)).
+
 **Shape of the deployment:**
 
 - one replica;
