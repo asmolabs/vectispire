@@ -1,19 +1,27 @@
 //! The remote agent — the Rust port of `vectispire-agent`, **in progress and not shipped**.
 //!
-//! Today it announces itself, signs and announces its sealing key, and holds the long poll — which is
-//! what the measurements of the port's Phase 0 needed (`README.md`). **It does not run scans yet**: a
-//! scan it is handed is reported back as a transient failure, so it returns to the queue for an agent
-//! that can. Never point it at a control plane whose scans matter.
+//! It speaks the whole agent protocol: it announces itself and its signed sealing key, claims up to its
+//! limit of scans at once, opens the credentials they carry, beats for each while it runs, and hands
+//! back a signed result or a signed, scrubbed failure report (`serve.rs`). **It does not run scans
+//! yet**: no scanner is wired to the loop, so a scan it is handed is reported back as a transient
+//! failure and returns to the queue for an agent that can. Never point it at a control plane whose
+//! scans matter.
 
 mod check;
 mod config;
+mod serve;
 
 use config::Config;
+use serve::{AgentLoop, Execute, ExecutionFailure, Settings};
+use std::future::Future;
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use vectispire_crypto::{ResultSigner, SealingKeyPair};
 use vectispire_domain::FailureKind;
-use vectispire_protocol::{AgentClient, CredentialsMode, Description, ProtocolError, SealingKeyOutcome};
+use vectispire_protocol::{
+    AgentClient, CredentialsMode, Description, ProtocolError, ScanArtifacts, ScanTask, SealingKeyOutcome, concurrency,
+};
 use vectispire_tls::TlsTrust;
 
 fn main() -> ExitCode {
@@ -119,31 +127,41 @@ async fn run() -> Result<(), Fatal> {
         log_sealing_outcome(client.announce_sealing_key().await);
     }
 
-    let shutdown = shutdown_signal();
-    tokio::pin!(shutdown);
-    loop {
-        tokio::select! {
-            () = &mut shutdown => {
-                tracing::info!("Agent stopped.");
-                return Ok(());
-            }
-            claim = client.claim(config.claim_wait) => match claim {
-                Ok(claim) => {
-                    if let Some(task) = claim.task {
-                        tracing::warn!(scan = task.scan_id, "Handed a scan this build cannot run yet; giving it back.");
-                        let reason = "This build of the agent (the Rust port, in progress) does not run scans yet.";
-                        if let Err(error) = client.report_failure(&task, reason, FailureKind::Transient).await {
-                            tracing::warn!("The scan could not be handed back: {error}");
-                        }
-                    }
-                }
-                Err(error @ (ProtocolError::Unauthorized(_) | ProtocolError::ContractMismatch(_))) => return Err(error.into()),
-                Err(error) => {
-                    tracing::warn!("{error}; retrying in {}s.", config.retry_delay.as_secs());
-                    tokio::time::sleep(config.retry_delay).await;
-                }
-            }
-        }
+    let max_concurrent = concurrency::effective(Some(i64::from(identity.max_concurrent)));
+    tracing::info!("Up to {max_concurrent} scan(s) at once, as set on this agent's row.");
+    let mut secrets = vec![config.token.clone()];
+    secrets.extend(config.signing_key.clone());
+    let settings = Settings {
+        claim_wait: config.claim_wait,
+        retry_delay: config.retry_delay,
+        heartbeat: config.heartbeat,
+        secrets,
+    };
+    let looping = Arc::new(AgentLoop::new(Arc::new(client), Arc::new(NotPorted), settings, max_concurrent));
+    let stopper = looping.clone();
+    tokio::spawn(async move {
+        shutdown_signal().await;
+        tracing::info!("Shutdown requested: no new scans; waiting for the running ones to be handed back.");
+        stopper.stop();
+    });
+    // Transitory failures are handled inside — a failed claim waits and retries. What comes out is a
+    // refused key or a contract gap: neither is fixed by looping.
+    let served = looping.serve().await;
+    tracing::info!("Agent stopped.");
+    Ok(served?)
+}
+
+/// The runner this build has: **none yet**. A scan is reported back as a transient failure, so it
+/// returns to the queue for an agent that can run it; the scanner streams of the port replace this.
+#[derive(Debug)]
+struct NotPorted;
+
+impl Execute for NotPorted {
+    fn execute(&self, _task: ScanTask) -> impl Future<Output = Result<ScanArtifacts, ExecutionFailure>> + Send {
+        std::future::ready(Err(ExecutionFailure {
+            message: "This build of the agent (the Rust port, in progress) does not run scans yet.".to_owned(),
+            kind: FailureKind::Transient,
+        }))
     }
 }
 

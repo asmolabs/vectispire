@@ -25,7 +25,10 @@ vectispire-scanners.workspace = true
 vectispire-tls.workspace = true
 
 [dev-dependencies]
+reqwest.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
+vectispire-testkit = { path = "../testkit" }
 
 [lints]
 workspace = true

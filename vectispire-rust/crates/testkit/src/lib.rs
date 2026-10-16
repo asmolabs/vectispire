@@ -5,6 +5,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)] // A test helper fails the test, which is the point.
 
+pub mod control_plane;
 pub mod docker;
 pub mod forge;
 pub mod proxy;

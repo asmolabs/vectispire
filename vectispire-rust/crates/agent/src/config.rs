@@ -15,9 +15,7 @@ pub struct Config {
     pub claim_wait: Duration,
     /// `VECTISPIRE_AGENT_RETRY`, 1 s to 5 min, default 10 s: the pause after a failed call.
     pub retry_delay: Duration,
-    /// `VECTISPIRE_AGENT_HEARTBEAT`, 5 s to 10 min, default 60 s.
-    #[allow(dead_code)]
-    // Read and validated now, so a bad value fails at start; sent by the protocol stream.
+    /// `VECTISPIRE_AGENT_HEARTBEAT`, 5 s to 10 min, default 60 s: how often a running scan says it is.
     pub heartbeat: Duration,
     /// `VECTISPIRE_AGENT_SIGNING_KEY`: the Ed25519 seed an administrator pinned, or none.
     pub signing_key: Option<Secret>,
