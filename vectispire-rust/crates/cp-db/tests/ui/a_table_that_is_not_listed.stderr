@@ -1,0 +1,31 @@
+error[E0277]: the trait bound `Mine: query::sealed::Sealed` is not satisfied
+ --> tests/ui/a_table_that_is_not_listed.rs:7:22
+  |
+7 | impl TargetTable for Mine {
+  |                      ^^^^ unsatisfied trait bound
+  |
+help: the trait `query::sealed::Sealed` is not implemented for `Mine`
+ --> tests/ui/a_table_that_is_not_listed.rs:5:1
+  |
+5 | struct Mine;
+  | ^^^^^^^^^^^
+  = help: the following other types implement trait `query::sealed::Sealed`:
+            Containers
+            GateVerdicts
+            Issues
+            Repositories
+            Scans
+            vectispire_cp_db::query::Components
+note: required by a bound in `TargetTable`
+ --> src/query.rs
+  |
+  | pub trait TargetTable: sealed::Sealed {
+  |                        ^^^^^^^^^^^^^^ required by this bound in `TargetTable`
+  = note: `TargetTable` is a "sealed trait", because to implement it you also need to implement `vectispire_cp_db::query::sealed::Sealed`, which is not accessible; this is usually done to force you to use one of the provided types that already implement it
+  = help: the following types implement the trait:
+            vectispire_cp_db::query::Issues
+            vectispire_cp_db::query::Scans
+            vectispire_cp_db::query::Components
+            vectispire_cp_db::query::GateVerdicts
+            vectispire_cp_db::query::Repositories
+            vectispire_cp_db::query::Containers

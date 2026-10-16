@@ -19,6 +19,7 @@ pub mod engine;
 pub mod parity;
 pub mod query;
 pub mod settings;
+pub mod store;
 pub mod tx;
 pub mod types;
 pub mod visibility;

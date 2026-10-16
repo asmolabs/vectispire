@@ -16,6 +16,7 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 use vectispire_cp_db::parity::{self, Column, ColumnType::*, Mismatch, MySqlText, Table, column, nullable};
 use vectispire_cp_db::query::{Issues, Repositories};
+use vectispire_cp_db::store::{self, EpssScore};
 use vectispire_cp_db::types::{TextUuid, UtcInstant, now};
 use vectispire_cp_db::{
     Db, Engine, Mode, ScanTarget, Tx, Visibility, VisibleSelect, is_lock_conflict, retry_on_lock_conflict,
@@ -43,6 +44,8 @@ fn run(engine: Engine) {
         a_read_only_transaction_refuses_a_write(&db).await;
         a_transaction_of_its_own_outlives_the_callers(&db).await;
         a_lock_the_engine_gives_up_on_is_retried(&db).await;
+        a_deadlock_the_engine_broke_is_a_lock_conflict(&db).await;
+        the_checked_queries_round_trip(&db).await;
         a_reader_sees_only_the_targets_granted(&db).await;
         a_grant_of_seventy_thousand_targets_is_one_statement(&db).await;
         db.close().await;
@@ -457,4 +460,91 @@ async fn a_grant_of_seventy_thousand_targets_is_one_statement(db: &Db) {
     let visibility = Visibility::only((first..first + 70_000).map(ScanTarget::Repository));
     let visible = VisibleSelect::<Repositories>::count(&visibility).fetch_count(db).await.unwrap();
     assert_eq!(visible, 2);
+}
+
+/// The `sqlx::query!` statements compiled against each engine's own schema do what they say there too:
+/// an insert, an upsert over the primary key, a read — with `f64`s kept to the bit.
+async fn the_checked_queries_round_trip(db: &Db) {
+    let first = EpssScore { cve_id: "CVE-2026-0001".into(), score: 0.1 + 0.2, percentile: 0.5 };
+    let second = EpssScore { score: 0.9, percentile: 0.99, ..first.clone() };
+    let read = |generation: i64| async move {
+        match db {
+            Db::MySql(pool) => store::mysql::epss_score(pool, generation, "CVE-2026-0001").await.unwrap(),
+            Db::PostgreSql(pool) => store::postgres::epss_score(pool, generation, "CVE-2026-0001").await.unwrap(),
+        }
+    };
+    let write = |score: EpssScore| async move {
+        match db {
+            Db::MySql(pool) => store::mysql::upsert_epss_score(pool, 7, &score).await.unwrap(),
+            Db::PostgreSql(pool) => store::postgres::upsert_epss_score(pool, 7, &score).await.unwrap(),
+        }
+    };
+    assert_eq!(read(7).await, None);
+    write(first.clone()).await;
+    assert_eq!(read(7).await, Some(first));
+    write(second.clone()).await;
+    assert_eq!(read(7).await, Some(second), "the upsert replaced the row instead of failing on the key");
+    assert_eq!(read(8).await, None, "another generation holds nothing");
+}
+
+async fn lock_row(tx: &mut Tx, cve: &'static str) -> Result<(), sqlx::Error> {
+    let engine = tx.engine();
+    match tx {
+        Tx::MySql(tx) => {
+            sqlx::query(sql(engine, "select score from t_epss_score where generation = 9 and cve_id = ? for update"))
+                .bind(cve)
+                .fetch_all(&mut **tx)
+                .await
+                .map(drop)
+        }
+        Tx::PostgreSql(tx) => {
+            sqlx::query(sql(engine, "select score from t_epss_score where generation = 9 and cve_id = ? for update"))
+                .bind(cve)
+                .fetch_all(&mut **tx)
+                .await
+                .map(drop)
+        }
+    }
+}
+
+/// Two transactions taking two rows in opposite order: the engine breaks the cycle by failing one with
+/// its deadlock code — 1213 on MySQL, 40P01 on PostgreSQL — which is a lock conflict, retried.
+async fn a_deadlock_the_engine_broke_is_a_lock_conflict(db: &Db) {
+    for cve in ["CVE-DL-A", "CVE-DL-B"] {
+        let mut tx = db.begin(Mode::ReadWrite).await.unwrap();
+        match &mut tx {
+            Tx::MySql(tx) => drop(
+                sqlx::query("insert into t_epss_score (generation, cve_id, score, percentile) values (9, ?, 0, 0)")
+                    .bind(cve)
+                    .execute(&mut **tx)
+                    .await
+                    .unwrap(),
+            ),
+            Tx::PostgreSql(tx) => drop(
+                sqlx::query("insert into t_epss_score (generation, cve_id, score, percentile) values (9, $1, 0, 0)")
+                    .bind(cve)
+                    .execute(&mut **tx)
+                    .await
+                    .unwrap(),
+            ),
+        }
+        tx.commit().await.unwrap();
+    }
+    let crossing = |first: &'static str, second: &'static str| {
+        let db = db.clone();
+        tokio::spawn(async move {
+            let mut tx = db.begin(Mode::ReadWrite).await.unwrap();
+            lock_row(&mut tx, first).await.unwrap();
+            // Long enough for the other to hold its first row before this asks for the second.
+            tokio::time::sleep(Duration::from_millis(700)).await;
+            let outcome = lock_row(&mut tx, second).await;
+            let _ = tx.rollback().await;
+            outcome
+        })
+    };
+    let (one, other) = (crossing("CVE-DL-A", "CVE-DL-B"), crossing("CVE-DL-B", "CVE-DL-A"));
+    let outcomes = [one.await.unwrap(), other.await.unwrap()];
+    let losers: Vec<&sqlx::Error> = outcomes.iter().filter_map(|outcome| outcome.as_ref().err()).collect();
+    assert_eq!(losers.len(), 1, "the engine fails exactly one transaction of the cycle: {outcomes:?}");
+    assert!(is_lock_conflict(losers[0]), "{}", losers[0]);
 }
