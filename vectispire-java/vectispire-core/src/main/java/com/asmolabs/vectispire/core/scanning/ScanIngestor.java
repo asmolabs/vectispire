@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.dependencies.Directness;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.ToolKeys;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.PluginStep;
@@ -215,10 +216,23 @@ public class ScanIngestor {
     public Prepared prepare(ScanEntity scan, ScanArtifacts artifacts) {
         List<String> identifiers = vulnerabilityIdentifiers(artifacts);
         return new Prepared(
-                artifacts.sbom().flatMap(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled)
+                catalogue(artifacts).flatMap(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled)
                         .flatMap(source -> source.findings(sbom))),
                 identifiers.isEmpty() ? Optional.empty() : enricher.flatMap(source -> source.enrich(identifiers)),
                 clock.instant());
+    }
+
+    /**
+     * The scan's SBOM, when it is a catalogue the rules can read ({@link Sbom#isCatalogue}).
+     *
+     * <p><b>Here as well as in the scanner</b>, because the scanner that refuses another shape is
+     * this version's: an agent of 0.11.0 still hands over whatever its cataloguer printed, and the
+     * licence and end-of-life rules read a document without {@code artifacts} as an image holding
+     * no package — their two types declared examined, their backlogs resolved. The inventory has
+     * refused that shape on its own for longer; the graph reads it as no edge, which decides nothing.
+     */
+    private static Optional<JsonNode> catalogue(ScanArtifacts artifacts) {
+        return artifacts.sbom().filter(Sbom::isCatalogue);
     }
 
     /**
@@ -387,10 +401,10 @@ public class ScanIngestor {
         });
 
         // Licences are read from the same SBOM, with no network call and no extra tool. The type
-        // counts as scanned as soon as an SBOM exists: unlike end of life there is no remote
+        // counts as scanned as soon as a catalogue exists: unlike end of life there is no remote
         // service to reach, so "no findings" genuinely means "no forbidden licence" — including
         // when the list is empty, in which case the old findings should indeed resolve.
-        artifacts.sbom().ifPresent(sbom -> licenses.ifPresent(source -> {
+        catalogue(artifacts).ifPresent(sbom -> licenses.ifPresent(source -> {
             scannedTypes.add(FindingType.LICENSE);
             List<FindingEntity> found = source.findings(sbom).stream()
                     .map(finding -> row(scan, finding, clock.instant()))

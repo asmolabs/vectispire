@@ -4,8 +4,10 @@ import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.Workspace;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -30,7 +32,8 @@ public final class SecretsScanner {
 
     private static final String REPORT_FILENAME = "vectispire-gitleaks-report.json";
     private static final String LABEL = "gitleaks (secret detection)";
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectReader READER =
+            new ObjectMapper().reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private final ContainerRunner runner;
     private final String image;
@@ -63,8 +66,10 @@ public final class SecretsScanner {
      *
      * <p><b>Two ways to fail, as {@code SastScanner} has.</b> A non-zero exit throws, because the
      * exit code and the tool's own stderr say more than any reason this class could invent. A
-     * report that cannot be read comes back empty, and {@link ScanRunner} turns that into the
-     * step's recorded failure through {@code ran(…)}. Both end in the same place: the artifact
+     * report that is missing or is not one gitleaks wrote throws too, with a sentence of this
+     * class's own — never a quotation, since the file holds the secrets in the clear. A report the
+     * filesystem would not read back comes back empty, and {@link ScanRunner} turns that into the
+     * step's recorded failure through {@code ran(…)}. All end in the same place: the artifact
      * stays absent and the backlog is left alone.
      */
     public Optional<List<SecretFinding>> scan(Workspace workspace, String subPath) {
@@ -108,13 +113,21 @@ public final class SecretsScanner {
 
         Path reportPath = workspace.root().resolve(REPORT_FILENAME);
         try {
-            String content = Files.readString(reportPath).strip();
-            return Optional.of(content.isEmpty() ? List.of() : parse(content));
+            String content = Files.readString(reportPath);
+            return Optional.of(read(content).orElseThrow(() -> ScannerFailureException.of(LABEL,
+                    "gitleaks exited 0, and its report is not the JSON array of findings it writes — empty, "
+                            + "truncated or of another shape; it is not read as a tree without secrets.")));
         } catch (NoSuchFileException noReport) {
-            // No report means no secrets: depending on the version the tool writes nothing when
-            // it finds nothing. Telling that apart from a failure would be more precise, and the
-            // exit code above has already done it.
-            return Optional.of(List.of());
+            // **No report is not "no secrets".** It was read so, on the strength of the exit code and
+            // of versions that write nothing when they find nothing (v8.2.0 does, measured). But
+            // gitleaks also exits 0 *without a report* when it cannot write one — after logging
+            // "leaks found: 1" (measured on v8.0.0, v8.8.0 and v8.12.0, the report path read-only;
+            // v8.14.0 and later exit 1 there). The two cases leave the same nothing behind, and one
+            // of them closed every secret issue of the target while the tool said it had found one.
+            // The pinned v8.30.1 writes `[]` on a clean tree, so absent costs a clean scan nothing;
+            // an image override old enough to write nothing reports a failed step instead of a pass.
+            throw ScannerFailureException.of(LABEL, "gitleaks exited 0 without writing its report, which says "
+                    + "nothing about the tree: a gitleaks that could not write the file exits 0 too.");
         } catch (IOException unreadable) {
             // **Absent, not empty.** The container ran and may well have found secrets; what
             // failed is reading them back. An empty list here would assert "no secrets" on the
@@ -129,19 +142,40 @@ public final class SecretsScanner {
         }
     }
 
-    static List<SecretFinding> parse(String content) {
+    /**
+     * The findings of a report as gitleaks writes it, or absent when the text is not such a report.
+     *
+     * <p><b>Absent, never an empty list, for anything but {@code []}</b> (decision 0007). Text that is
+     * not JSON, JSON that is not an array, an array holding something other than objects, a blank
+     * file, a document with something after its end: each used to come back as "analysed, no
+     * secrets" — or, for the elements that are not objects, as findings with no rule and no file in
+     * place of the real ones — and the backlog then resolved every secret issue of the target, in
+     * the one type where a false resolution costs the most. Gitleaks writes an array of objects, and
+     * {@code []} when it found nothing (v8.5.0 onwards, measured); nothing else is believed.
+     *
+     * <p>The fields of an object stay leniently read: a version that drops one is a finding with less
+     * detail, not a report to refuse. Package-private so that the reading is pinned without a
+     * container, and so that the Rust port's reference set is written from this very function.
+     */
+    static Optional<List<SecretFinding>> read(String content) {
         JsonNode root;
         try {
-            root = MAPPER.readTree(content);
+            // Trailing tokens refused: a report followed by anything else is not what the tool
+            // wrote — two runs' output concatenated, or a stream spliced — and the array in front
+            // of it says nothing about what came after.
+            root = READER.readTree(content);
         } catch (IOException notJson) {
-            return List.of();
+            return Optional.empty();
         }
-        if (!root.isArray()) {
-            return List.of();
+        if (root == null || !root.isArray()) {
+            return Optional.empty();
         }
 
-        List<SecretFinding> findings = new ArrayList<>();
+        List<SecretFinding> findings = new ArrayList<>(root.size());
         for (JsonNode finding : root) {
+            if (!finding.isObject()) {
+                return Optional.empty();
+            }
             findings.add(new SecretFinding(
                     finding.path("RuleID").asText(""),
                     finding.path("Description").asText(""),
@@ -151,6 +185,6 @@ public final class SecretsScanner {
                     finding.path("StartLine").asInt(0),
                     finding.path("Fingerprint").isTextual() ? finding.get("Fingerprint").asText() : null));
         }
-        return findings;
+        return Optional.of(List.copyOf(findings));
     }
 }

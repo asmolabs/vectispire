@@ -162,6 +162,15 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 
 ### Fixed {#fixed-0111}
 
+- **A scanner report that is corrupt or missing no longer resolves the target's issues.** A secrets
+  report that was not JSON, not a list of findings, truncated, or not written at all was read as "no
+  secrets", and every secret issue of the repository was resolved, its triage with it; the same held for
+  a source-analysis report without its results, a matcher report without its matches, an IaC report of
+  an unknown shape, and a cataloguer output that is not an SBOM, which resolved every licence and
+  end-of-life issue. Each is now a failed step, named on the scan, and leaves those issues as they were.
+  A gitleaks image of your own that writes no report on a clean tree (v8.2.0 does; v8.5.0 and later
+  write an empty list) now fails its secrets step instead of passing. Upgrade remote agents too: an agent
+  of 0.11.0 still reads such a report as clean, and only its SBOM is checked again by the control plane.
 - **The Helm chart passes the mail relay and the public address to the control plane.** It passed
   neither, so a Kubernetes installation could send no e-mail at all — no alert, no weekly digest, no
   checklist reminder — and its links had no address. New values `mail.*`, `secrets.mailPassword` and

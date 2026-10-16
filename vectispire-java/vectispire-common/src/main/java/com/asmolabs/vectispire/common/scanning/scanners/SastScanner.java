@@ -191,14 +191,31 @@ public final class SastScanner {
         return (double) errors / (errors + scanned) > MAX_ERROR_RATIO;
     }
 
+    /**
+     * The report's results.
+     *
+     * <p><b>A report without its {@code results} array is not a clean one.</b> It came back as an
+     * empty list — "analysed, nothing found" — which resolves the target's whole SAST and quality
+     * backlog; {@link #mostlyFailed} lets such a payload through as soon as it lists a scanned file.
+     * Semgrep writes {@code "results": []} when it found nothing, so anything else — a missing array,
+     * an element that is not an object — is a report of another shape, and it is thrown as the
+     * failure it is rather than read.
+     */
     static List<SastFinding> findings(JsonNode payload, String subPath) {
         JsonNode results = payload.path("results");
         if (!results.isArray()) {
-            return List.of();
+            throw ScannerFailureException.of(LABEL, "semgrep exited 0, and its report carries no \"results\" array; "
+                    + "a report of another shape is not read as a tree without findings.");
         }
 
         List<SastFinding> findings = new ArrayList<>(results.size());
         for (JsonNode entry : results) {
+            if (!entry.isObject()) {
+                // Read on, it became a finding of rule "unknown" at no path — one issue standing in
+                // for the real ones, which then resolved.
+                throw ScannerFailureException.of(LABEL, "semgrep's report holds a result that is not an object; "
+                        + "the report is not read.");
+            }
             JsonNode extra = entry.path("extra");
             JsonNode metadata = extra.path("metadata");
 
