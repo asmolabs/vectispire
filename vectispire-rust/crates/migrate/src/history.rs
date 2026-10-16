@@ -462,6 +462,8 @@ mod tests {
         assert_eq!(java_hash_code("`vectispire`.`flyway_schema_history`"), -986_636_733);
         assert_eq!(java_hash_code("\"public\".\"flyway_schema_history\""), 2_125_624_436);
         assert_eq!(mysql_lock_name("vectispire"), "Flyway--986636733");
+        // "Flyway" in ASCII (0x466C79776179) plus the hash of "public"."flyway_schema_history".
+        assert_eq!(postgres_lock_number("public"), 77433833903597);
     }
 
     #[test]
