@@ -407,6 +407,8 @@ account ([decision 0044](https://github.com/asmolabs/vectispire/blob/main/docs/a
   which beside the profile — *Reminded to the CISOs* — and every active CISO with an address receives,
   the same week, the list of those profiles and why.
 
+![The Contacts card of a project's checklist: PO and SII linked to an account and reminded; BA linked to an account with no e-mail address and Arch linked to nobody, both reminded to the CISOs; each with its number of lines still to fill in.](../assets/screens/en/checklist-contacts.png)
+
 The reminder is plain text, in English like Vectispire's other e-mails, and links to the checklist's page
 when the deployment's public address (`VECTISPIRE_PUBLIC_URL`) is set. A recipient whose message the
 relay refuses is retried the next hour; the others are not sent twice.

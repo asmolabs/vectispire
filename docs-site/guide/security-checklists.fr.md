@@ -431,6 +431,8 @@ remplir, et lie chacun à un compte
   le dit à côté du profil — *Rappelé aux CISO* — et chaque CISO actif qui a une adresse reçoit, la même
   semaine, la liste de ces profils et la raison.
 
+![La carte Contacts de la checklist d'un projet : PO et SII liés à un compte et rappelés ; BA lié à un compte sans adresse e-mail et Arch lié à personne, tous deux rappelés aux CISO ; chacun avec son nombre de lignes encore à remplir.](../assets/screens/fr/checklist-contacts.png)
+
 Le rappel est en texte brut, en anglais comme les autres e-mails de Vectispire, et renvoie à la page de la
 checklist quand l'adresse publique du déploiement (`VECTISPIRE_PUBLIC_URL`) est définie. Un destinataire
 dont le relais refuse le message est réessayé l'heure suivante ; les autres ne reçoivent rien deux fois.
