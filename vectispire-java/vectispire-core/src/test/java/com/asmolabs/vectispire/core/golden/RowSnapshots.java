@@ -237,13 +237,9 @@ final class RowSnapshots {
                 continue;
             }
             if (was.overCeiling() || is.overCeiling()) {
-                if (was.count() != is.count() || !was.byKey().equals(is.byKey())) {
-                    ObjectNode counted = JsonNodeFactory.instance.objectNode();
-                    counted.put("overCeiling", true);
-                    counted.put("countBefore", was.count());
-                    counted.put("countAfter", is.count());
-                    changes.set(table.name(), counted);
-                }
+                // Read with a limit and no order, the rows past the ceiling are whichever the engine
+                // returned first, and their count stops at the limit: nothing about them is comparable.
+                changes.putObject(table.name()).put("overCeiling", true);
                 continue;
             }
             ArrayNode inserted = JsonNodeFactory.instance.arrayNode();

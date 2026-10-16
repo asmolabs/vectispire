@@ -73,8 +73,13 @@ final class Placeholders {
     private static final Pattern API_KEY = Pattern.compile("zsk_[A-Za-z0-9_-]{43}");
     private static final int API_KEY_PREFIX = 12;
 
-    /** Thirty-two random bytes, base64url without padding: a session token, an agent key, a hand-off. */
-    private static final Pattern RANDOM_TOKEN = Pattern.compile("(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])");
+    /**
+     * Thirty-two random bytes, base64url without padding: a session token, an agent key, a hand-off. Not
+     * a slice of standard base64 between a {@code +} and a {@code /}: registered, it was never shown,
+     * and every ordinal after it moved by one between runs.
+     */
+    private static final Pattern RANDOM_TOKEN =
+            Pattern.compile("(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_+/=-])");
 
     /**
      * Base64 or base64url of random bytes, padded or not: an agent's sealing or signing public key, an

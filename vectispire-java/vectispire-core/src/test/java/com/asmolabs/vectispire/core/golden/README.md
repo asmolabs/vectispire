@@ -167,8 +167,10 @@ The recorder reads **every table** except `flyway_schema_history`:
   next) is **dropped**. Whether it happens at all depends on how long the previous request took.
 - Values are JSON scalars. A `datetime` column is ISO-8601 without a zone before normalisation. A blob
   is written `«bytes:<length>:<first 16 hex of its SHA-256>»`.
-- A table past 5,000 rows is compared by count only:
-  `{ "overCeiling": true, "countBefore": …, "countAfter": … }`. Nothing in the HTTP suite reaches that.
+- A table holding more than 5,000 rows before or after the request is shown as
+  `{ "overCeiling": true }` and nothing else. It is read with a limit and no order, so the rows past
+  the ceiling are whichever the engine returned first. In the HTTP suite only `t_epss_score` reaches
+  it, in `EpssSyncRoutesTest`.
 - **Concurrent requests**: when a test overlaps requests on several threads, the recorder cannot tell
   which rows each one touched. Those records carry `"concurrent": true` and no `seed` or `effect`.
   Their ranks follow the order they started, which the threads decide, so they are **not
