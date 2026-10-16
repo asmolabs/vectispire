@@ -1,9 +1,11 @@
 # vectispire-rust — the remote agent, in Rust
 
 **Port in progress, not shipped.** Nothing here is built by `release.yml` or published, and no
-deployment runs it. The agent that ships is `vectispire-java/vectispire-agent`. This binary announces
-itself, signs its sealing key and holds the long poll, but **it does not run scans yet**: a scan it is
-handed goes back to the queue as a transient failure. Never point it at a control plane whose scans
+deployment runs it. The agent that ships is `vectispire-java/vectispire-agent`. This binary speaks the
+whole agent protocol — it announces itself and its signed sealing key, claims up to its limit of scans
+at once, opens the credentials they carry, beats for each, and hands back a signed result or a signed,
+scrubbed failure report — but **it does not run scans yet**: no scanner is wired to its loop, so a scan
+it is handed goes back to the queue as a transient failure. Never point it at a control plane whose scans
 matter.
 
 The costed study behind the port is on branch `docs/rust-agent-study`
@@ -21,15 +23,15 @@ The toolchain is pinned by `rust-toolchain.toml`.
 
 | Crate | Owns | Java counterpart |
 |---|---|---|
-| `agent` | the binary: configuration (same variables as the Java agent), logging, the claim loop, `check docker` / `check clone` | `vectispire-agent` |
-| `protocol` | the agent routes and their bodies, the HTTP client of the control plane | `AgentProtocol`, `AgentHttp` |
+| `agent` | the binary: configuration (same variables as the Java agent), logging, `check docker` / `check clone`, and the loop (`serve.rs`: slots, heartbeats, a lost lease, the graceful stop) | `vectispire-agent` (`AgentRunner`, `AgentLoop`, `Slots`) |
+| `protocol` | every agent route and its bodies (`ScanTask` in, `ScanArtifacts` out), the HTTP client of the control plane, the opening of sealed credentials, the failure reason's scrub, the concurrency limit | `AgentProtocol`, `AgentHttp`, `ScanTask`, `ScanArtifacts`, `FailureReason`, `AgentConcurrency` |
 | `crypto` | result, failure and sealing-key signatures; sealed envelopes | `domain.crypto` |
 | `git` | the clone: SSH (libgit2 and libssh2, host keys pinned or recorded), HTTPS (this crate's own smart-HTTP transport on rustls), failure kinds and sentences | `GitClone`, `RedirectRefusingConnections`, `CloneFailureException` |
 | `container` | scanner containers through the Docker API or the socket proxy, in one closed shape | `ContainerRunner`, `ContainerRun`, `ScannerLimits` |
 | `scanners` | each scanner's run and the parser of its output (secrets today) | `scanning.scanners` |
 | `domain` | repository-URL checks (a port of `java.net.URI`'s parser), metadata addresses, failure kinds, the contract number, `Secret` | `RepositoryUrl`, `LinkLocalHosts`, `FailureKind`, `AgentContract` |
 | `tls` | the one trust every HTTPS connection uses | the JVM truststore |
-| `testkit` | test support only: the reference sets, throwaway containers, the test forge and the stub control plane | — |
+| `testkit` | test support only: the reference sets, throwaway containers, the test forge and the stub control plane (`control_plane.rs`, on a loopback port, one thread per connection) | — |
 
 **The agent's isolation is a property of the graph** (decision 0003). The workspace shares no code
 with the control plane. `crates/agent/tests/isolation.rs` reads `cargo metadata` and fails if the agent
@@ -75,6 +77,8 @@ answers for fixed inputs, and the Rust tests read them:
 | `repository-url/` | `RepositoryUrlReferenceSetTest` | `domain/tests/reference_set.rs` | `validate`, `host`, `redact`, `isHttps`, `hasHost` for 90 URLs chosen to tell parsers apart |
 | `container/` | `ContainerReferenceSetTest` | `scanners/tests/create_request.rs` | the secrets scan's container-create request, captured off the wire by a stub daemon |
 | `crypto/` | `CryptoReferenceSetTest` | `crypto/tests/reference_set.rs` | both directions: Java's signatures reproduced bit for bit, envelopes sealed by Java opened here; Rust's signatures and announced key verified by Java |
+| `failure-reason/` | `FailureReasonReferenceSetTest` | `protocol/tests/failure_reason_reference_set.rs` | `FailureReason.scrub` for 27 reasons chosen to tell two regex engines apart (`\s`, `\b` and `(?i)` are ASCII-only on JDK 19+), lengths in UTF-16 units |
+| `artifacts/` | `protocol/tests/artifacts_reference_set.rs` (**the Rust side writes**) | `ScanArtifactsReferenceSetTest` | result bodies the Rust agent sends, read by the agent's mapper and written back: the tree must be the one sent, so a step sent absent cannot arrive empty (decision 0007) |
 
 **Both sides check, and neither silently regenerates.** `./gradlew :vectispire-common:test` fails when
 the Java answers differ from the committed files; `./check.sh` fails when the Rust answers differ. A
@@ -122,15 +126,30 @@ No private key is in any file. Each one is the SHA-256 of a label both sides spe
 
 | | Java agent 0.11.0-rc.3 (amd64, emulated) | Rust agent, this commit |
 |---|---|---|
-| Image, compressed | 111 MB | **4.4 MB** |
+| Image, compressed | 111 MB | **4.5 MB** (4.4 MB before the whole protocol and the loop) |
 | Idle on a long poll, resident | 300 MB (`VmRSS`) | **3.2 MB** (`VmRSS`, peak the same) |
 | Threads | 26 | 3 |
 | Grype on the image | 91 matches (6 critical, 39 high), almost all Alpine packages and the JRE | **0 matches** over 207 crates |
 
 **Read the Rust figures for what they are.**
-- The binary links the clone, the container runner, the protocol and the crypto. The other four
+- The binary links the clone, the container runner, the whole protocol with its loop, and the crypto. The other four
   scanners, plugins and rules are not ported yet.
 - No scan-time figure is claimed: the scanners run in their own containers either way.
+
+## Against a real control plane
+
+`crates/agent/tests/against_a_control_plane.rs` starts the published control plane
+(`VECTISPIRE_E2E_CONTROL_PLANE_IMAGE`, by default 0.11.0-rc.3 by digest) on a throwaway MySQL, declares a
+`delegated` agent with a pinned signing key and a repository with an HTTPS token, and then:
+
+- **through the client**, call by call: hello; the sealing key, whose signature the control plane verifies
+  (`Accepted`); a claim whose token the control plane sealed to the announced key and this agent opens;
+  a heartbeat; a signed result the control plane accepts; the finished scan's lease refused afterwards; a
+  second scan's signed failure report, requeued, and the same attempt refused when reported twice;
+- **through the binary**, with the runner it ships: its own hello, announcement and loop take the requeued
+  scan and report it, and `SIGTERM` stops it cleanly; its log holds neither the API key nor the seed.
+
+About two minutes, most of it the control plane starting (an amd64 image, emulated on arm64).
 
 ## Differences from the Java agent, known and deliberate
 
@@ -141,6 +160,12 @@ No private key is in any file. Each one is the SHA-256 of a label both sides spe
   libgit2's socket timeouts: 30 s to connect, 5 min of silence.
 - **An invalid branch name is refused before the network**, with the absent-branch sentence.
 - **`@cert-authority` known-hosts lines are skipped.** Host certificates are not verified.
+- **A rule set's hash and a plugin's id and digest are percent-encoded as path segments.** The Java
+  agent concatenates them as they come; here a `/` or a `..` in one cannot reach another route.
+- **A stop cuts the pause after a failed claim short**, where the Java agent sleeps it out; a scan already
+  running is still waited for, as there.
+- **The hello is retried while the control plane is unreachable** (Phase 0's choice); the Java agent
+  fails to start and leaves the restart to its orchestrator. A refusal still stops it at once.
 - **JSON integers beyond 64 bits** in a scanner report would be read as doubles here, where Jackson
   keeps their low 32 bits. No scanner writes one.
 
@@ -159,7 +184,7 @@ additively.
 
 | Stream | Owns | Done when |
 |---|---|---|
-| **Protocol client** | `crates/protocol/**`; in `crates/agent/src/main.rs`, the loop only | The other routes are typed from `openapi.json` (rules, plugin manifests, heartbeat, result with `ScanArtifacts`), with slots and claim concurrency, heartbeats, unsealing of delegated credentials (`crypto::SealingKeyPair::open`), and a graceful shutdown that hands running scans back. `AgentProtocolTest`, `AgentLoopTest` and `AgentWireFormatTest` are ported against the stub. |
+| **Protocol client** — *done* (branch `rust/protocol`) | `crates/protocol/**`; `crates/agent/src/serve.rs` and the loop in `main.rs` | Every route typed from `openapi.json`, with slots and claim concurrency, heartbeats, the unsealing of delegated credentials, and a graceful stop that waits for the running scans to be handed back (as the Java agent does: the protocol has no call to give one back unrun). `AgentProtocolTest`, `AgentHttpTest`, `AgentSealingKeyAnnouncementTest`, `AgentLoopTest`, `AgentLoopConcurrencyTest` and `AgentWireFormatTest` are ported against the stub; the end-to-end suite runs against a real control plane. **What a scanner stream plugs in:** `serve::Execute` (one scan in, `ScanArtifacts` or an `ExecutionFailure` with its kind out), `AgentClient::rule_set` for the SAST stream, `AgentClient::plugin` (with the plugins stream's digest function) for the plugins stream. |
 | **Dependencies: Syft + Grype** | `crates/scanners/src/dependencies.rs`, `vulnerability_database.rs`, `reference/dependencies/` | Their parsers match the Java side's on a reference set of real SBOM and match outputs. The database is downloaded under a lock and mounted read-only. |
 | **IaC: Checkov** | `crates/scanners/src/iac.rs`, `reference/iac/` | The same, for Checkov. |
 | **SAST: Semgrep** | `crates/scanners/src/sast.rs`, `reference/sast/` | The same, for Semgrep. Its rule placement comes with it (`RulePlacement`, `BundledRules`). |
