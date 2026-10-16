@@ -1,0 +1,35 @@
+# The statements that name another module's table, each with its reason — `CrossModuleQueriesTest.KNOWN` of the Java
+# control plane (0.11.1 line, b8bd7e8d0), carried over entry by entry. **The list only shrinks**: `sql.rs` fails
+# on a reference not listed here, and, for a module whose port is finished, on an entry the code no longer needs.
+#
+# `query` is the function holding the statement, `Type::function` for a method — the Rust name of the repository
+# method Java names, so `IssueRepository.findOrphanedIds` is `IssueRepository::find_orphaned_ids`. The crate
+# that ports it keeps that name, or changes it here in the same commit.
+
+[[known]]
+query = "IssueRepository::find_orphaned_ids"
+module = "issues"
+owner = "targets"
+table = "t_container"
+reason = """The orphan sweep (at startup and on every maintenance tick): the rows whose target no longer exists. The fact is an absence in targets' table, so no copied column can carry it, and asking the targets' catalogue means reading every repository and image id into memory, or handing it every distinct target id this table holds, a thousand per statement, to learn that all of them exist: a read of the whole estate per tick where one `not in (select …)` per table binds no parameter and probes the owner's primary key. The foreign keys keep orphans from forming (MySQL since V19), so the statement exists for the rows left before them, and costs one anti-join per table to find none. targets is below scanning and issues, and both list it, so the direction holds."""
+
+[[known]]
+query = "IssueRepository::find_orphaned_ids"
+module = "issues"
+owner = "targets"
+table = "t_repository"
+reason = """The orphan sweep, as above: one anti-join against targets' repository table, which carries the fact that a target is gone."""
+
+[[known]]
+query = "ScanRepository::find_orphaned_ids"
+module = "scanning"
+owner = "targets"
+table = "t_container"
+reason = """The orphan sweep, as above: one anti-join against targets' container table, which carries the fact that a target is gone."""
+
+[[known]]
+query = "ScanRepository::find_orphaned_ids"
+module = "scanning"
+owner = "targets"
+table = "t_repository"
+reason = """The orphan sweep, as above: one anti-join against targets' repository table, which carries the fact that a target is gone."""

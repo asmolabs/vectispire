@@ -1,0 +1,22 @@
+[package]
+name = "vectispire-cp-arch-tests"
+description = "The boundaries of the Rust control plane, as tests: module edges read from cargo metadata, layers read with syn, cross-module SQL, unsafe, the agent's isolation, route authorization coverage."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+# Line numbers in a violation: without `span-locations` a span has none outside a proc macro.
+proc-macro2 = { version = "1", features = ["span-locations"] }
+serde = { workspace = true }
+serde_json.workspace = true
+syn = { version = "2", features = ["full", "visit"] }
+toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

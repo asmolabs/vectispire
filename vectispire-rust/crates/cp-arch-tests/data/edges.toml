@@ -1,0 +1,185 @@
+# The modules of the control plane and what each may use — `@ApplicationModule(allowedDependencies)` of the
+# 0.11.1 line (b8bd7e8d0), module by module, which Spring Modulith's `verify()` enforces on the Java side
+# (decision 0030) and `edges.rs` enforces here, on `cargo metadata`.
+#
+# One module = one crate, `vectispire-cp-<module>`. A line below is a decision for the review, with its
+# reason beside it, exactly as in `package-info.java`: an edge is added here first, or the build fails.
+#
+#   allowed    "x" is x's root (its API: the crate's `pub` items); "x::y" is x's named interface `y`, a `pub mod y`
+#              of x's crate. Modulith lists both when both are used, and so do we.
+#   interfaces the named interfaces a module exposes besides its root — `access::security` is the guard types
+#              every route marks itself with, `queries` the read-side catalogues. Anything else a crate holds is
+#              `web`, `internal` or `persistence`, which are private modules (`layering.rs` checks it).
+#   status     "pending" while the crate is being ported; "ported" once it is. A ported module's listed edges must
+#              all be used (Modulith's "a line nothing uses"), and its entries in `sql-known.toml` must still be
+#              there. A pending module is held to the ceiling only.
+#   open       the module may use any module: Modulith's reading of a bare `@ApplicationModule`. Only `platform`,
+#              the shell that composes several domains for one screen (decision 0029, step 5), is declared so;
+#              the port writes its list when the crate lands, and that is a review decision.
+
+[settings]
+module_prefix = "vectispire-cp-"
+# What a module crate may depend on besides other modules. The agent port's crates: the same domain, crypto,
+# protocol and transport code serves both programs, which is why none of them may depend on a `cp-*` crate.
+shared = ["vectispire-domain", "vectispire-crypto", "vectispire-protocol", "vectispire-tls", "vectispire-container", "vectispire-scanners", "vectispire-git", "vectispire-migrate"]
+# The crates that must stay free of frameworks and drivers: Java's `common.domain` (`domainIsPure`).
+pure = ["vectispire-domain"]
+# The one place `unsafe` may appear outside a control-plane crate, and how many times: libgit2's two process-wide calls.
+unsafe_allowed = [{ crate = "vectispire-git", file = "src/init.rs", max = 2 }]
+
+# The crates that are not modules. `uses_modules` is what they may depend on, `used_by_modules` whether a module crate
+# may depend on them. Java's `core.config` — "it uses no module and no module uses it" — is the ancestor of this
+# table: the infrastructure sits under every module and decides nothing a domain owns, so none of these uses a
+# module, and only the binary uses what it composes.
+
+[infrastructure.db]
+crate = "vectispire-cp-db"
+uses_modules = []
+used_by_modules = true
+# the pool per engine, `Engine`, transactions and the query helpers that take a `Visibility`
+
+[infrastructure.http]
+crate = "vectispire-cp-http"
+uses_modules = []
+used_by_modules = true
+# the filter chain and the route builder that will not register a route without its requirement
+
+[infrastructure.contract]
+crate = "vectispire-cp-contract"
+uses_modules = []
+used_by_modules = false
+# the embedded openapi.json and the router-versus-document check
+
+[infrastructure.runtime]
+crate = "vectispire-cp-runtime"
+uses_modules = []
+used_by_modules = false
+# configuration, tracing, metrics, the audit mirror writer, graceful shutdown
+
+[infrastructure.app]
+crate = "vectispire-cp-app"
+uses_modules = "all"
+used_by_modules = false
+# the binary: composes every module and starts the server
+
+[infrastructure.arch-tests]
+crate = "vectispire-cp-arch-tests"
+uses_modules = []
+used_by_modules = false
+# this crate
+
+[module.access]
+status = "pending"
+allowed = []
+interfaces = ["security"]
+
+[module.agents]
+status = "pending"
+allowed = ["access", "access::security", "rules", "scanning", "targets"]
+
+[module.ai]
+status = "pending"
+allowed = ["access", "access::security", "issues", "threatintel"]
+
+[module.audit]
+status = "pending"
+allowed = []
+
+[module.checklists]
+status = "pending"
+allowed = ["access", "access::security", "targets", "scanning", "scanning::queries", "issues", "plugins", "inventory", "notifications"]
+
+[module.compliance]
+status = "pending"
+allowed = ["access", "access::security", "ai", "exports", "gate", "inventory", "issues", "issues::queries", "posture", "rules", "scanning", "scanning::queries", "targets"]
+
+[module.crypto]
+status = "pending"
+allowed = ["outbound", "settings"]
+
+[module.exports]
+status = "pending"
+allowed = ["access", "access::security", "gate", "inventory", "issues", "issues::queries", "scanning", "targets"]
+
+[module.forges]
+status = "pending"
+allowed = ["targets", "checklists", "access::security"]
+
+[module.gate]
+status = "pending"
+allowed = ["access", "access::security", "issues", "issues::queries", "rules", "scanning", "scanning::queries", "targets"]
+
+[module.inventory]
+status = "pending"
+allowed = ["access", "access::security", "scanning", "scanning::queries", "targets"]
+
+[module.issues]
+status = "pending"
+allowed = ["access", "access::security", "scanning", "targets"]
+interfaces = ["queries"]
+
+[module.maintenance]
+status = "pending"
+allowed = []
+
+[module.notifications]
+status = "pending"
+allowed = ["access", "access::security", "issues", "targets"]
+
+[module.outbound]
+status = "pending"
+allowed = []
+
+[module.outbox]
+status = "pending"
+allowed = ["maintenance"]
+
+[module.platform]
+status = "pending"
+open = true
+allowed = []
+
+[module.plugins]
+status = "pending"
+allowed = ["access", "access::security", "inventory", "issues", "scanning", "targets"]
+
+[module.posture]
+status = "pending"
+allowed = ["access", "access::security", "gate", "inventory", "issues", "issues::queries", "notifications", "scanning", "targets"]
+
+[module.reporting]
+status = "pending"
+allowed = []
+
+[module.reportplugins]
+status = "pending"
+allowed = ["access", "access::security", "targets", "scanning", "scanning::queries", "gate", "issues", "issues::queries", "inventory", "compliance", "checklists"]
+
+[module.rules]
+status = "pending"
+allowed = ["access::security", "inventory", "issues", "scanning"]
+
+[module.scanning]
+status = "pending"
+allowed = ["access", "access::security", "targets"]
+interfaces = ["queries"]
+
+[module.settings]
+status = "pending"
+allowed = []
+
+[module.siem]
+status = "pending"
+allowed = ["access::security"]
+
+[module.targets]
+status = "pending"
+allowed = ["access", "access::security"]
+
+[module.threatintel]
+status = "pending"
+allowed = ["access", "access::security", "issues", "issues::queries", "scanning", "targets"]
+
+[module.tickets]
+status = "pending"
+allowed = ["access", "access::security", "gate", "issues", "targets"]
