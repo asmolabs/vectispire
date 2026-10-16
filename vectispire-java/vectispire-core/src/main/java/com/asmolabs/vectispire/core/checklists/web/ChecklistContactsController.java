@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.checklists.web;
 
+import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -51,17 +52,19 @@ public class ChecklistContactsController {
             + "newest checklist version names — every value but AUTO, a cell such as \"PO / BA\" naming both, compared "
             + "without case — each with the account linked to it, the lines it still has to fill in in the draft, and "
             + "a warning when that account would not be reminded: account_gone, account_inactive, no_email, "
-            + "cannot_fill. Empty while the project has no checklist. 404 for a project the caller does not see whole.")
+            + "cannot_fill to a caller who may relink it, not_reminded to one who may not. Empty while the project "
+            + "has no checklist. 404 for a project the caller does not see whole.")
     @GetMapping
     @RequiresAccount
     public ChecklistContactsView checklistContacts(
             @PathVariable long projectId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return contacts.contacts(projectId, allowanceOf(principal));
+        return contacts.contacts(projectId, allowanceOf(principal), writes(principal));
     }
 
     @Operation(summary = "List checklist contact candidates", description = "The accounts a profile of this project "
             + "may be linked to: active, of a role that answers checklists, and seeing the whole project — each by its "
-            + "id and a name, never an e-mail address. 404 for a project the caller does not see whole.")
+            + "id and its display name, null when it has none or one that is an e-mail address; never its user name, "
+            + "its address or its role. 404 for a project the caller does not see whole.")
     @GetMapping("/candidates")
     @RequiresWriteAccount
     public List<ChecklistContactCandidate> checklistContactCandidates(
@@ -97,6 +100,11 @@ public class ChecklistContactsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         return contacts.unlink(projectId, profile, allowanceOf(principal), participant(principal, request));
+    }
+
+    /** Whether the caller may relink a profile — and so is told why an account would not be reminded. */
+    private static boolean writes(VectispirePrincipal principal) {
+        return principal.user().flatMap(user -> Role.of(user.role())).map(Role::canCauseEffects).orElse(false);
     }
 
     /** The caller's allowance: the account's grants, the projects granted as such, and the credential's narrowing. */

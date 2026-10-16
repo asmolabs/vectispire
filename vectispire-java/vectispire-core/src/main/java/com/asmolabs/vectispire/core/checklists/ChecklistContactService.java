@@ -85,8 +85,20 @@ public class ChecklistContactService {
         this.clock = clock;
     }
 
-    /** The project's profiles, each with the account linked to it and the lines it has to fill in. */
-    public ChecklistContactsView contacts(long projectId, VisibilityService.Allowance allowance) {
+    /**
+     * What a reader who cannot write is told of an account that would not be reminded: that it would not,
+     * and not why. Whether another person's account is deactivated, has no address or lost its access to
+     * the project is the business of who can relink the profile — the writers, who are given the reason.
+     */
+    static final String NOT_REMINDED = "not_reminded";
+
+    /**
+     * The project's profiles, each with the account linked to it and the lines it has to fill in.
+     *
+     * @param detailed whether the caller may relink the profiles, and so is told why an account would not
+     *     be reminded; otherwise only that it would not ({@link #NOT_REMINDED})
+     */
+    public ChecklistContactsView contacts(long projectId, VisibilityService.Allowance allowance, boolean detailed) {
         Guarded guarded = requireWhole(projectId, allowance);
         Optional<ChecklistEntity> latest = checklists.findFirstByProjectIdOrderByRevisionDesc(projectId);
         if (latest.isEmpty()) {
@@ -110,7 +122,8 @@ public class ChecklistContactService {
             Optional<UserView> account = accounts.byId(link.getAccountId());
             profiles.add(new ChecklistContactView(profile.key(), profile.label(), openLines, link.getAccountId(),
                     account.flatMap(ChecklistContactService::nameOf).orElse(null),
-                    gapOf(account, guarded.project().projectId(), guarded.repositoryIds()).map(Gap::wireName).orElse(null)));
+                    gapOf(account, guarded.project().projectId(), guarded.repositoryIds())
+                            .map(gap -> detailed ? gap.wireName() : NOT_REMINDED).orElse(null)));
         }
         return new ChecklistContactsView(projectId, checklist.getRevision(), draft, profiles);
     }
@@ -146,13 +159,13 @@ public class ChecklistContactService {
         Optional<Long> previous = store(projectId, named.key(), accountId, who.username());
         // By value: two boxed ids are the same object only up to 127, and an install has more accounts.
         if (previous.equals(Optional.of(accountId))) {
-            return contacts(projectId, allowance);
+            return contacts(projectId, allowance, true);
         }
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_CONTACT_CHANGED, resource(projectId, named.key()),
                 "Checklist profile " + named.label() + " of project \"" + guarded.project().name() + "\" linked to account "
-                        + account.id() + " (" + account.username() + ")"
+                        + account.id()
                         + previous.map(before -> ", in place of account " + before).orElse("") + "."));
-        return contacts(projectId, allowance);
+        return contacts(projectId, allowance, true);
     }
 
     /** Unlinks a profile; its lines go to the CISOs until it is linked again. Unlinking an unlinked profile is not an error. */
@@ -168,7 +181,7 @@ public class ChecklistContactService {
                     "Checklist profile " + key + " of project \"" + guarded.project().name() + "\" unlinked from account "
                             + link.get().getAccountId() + "."));
         }
-        return contacts(projectId, allowance);
+        return contacts(projectId, allowance, true);
     }
 
     // ------------------------------------------------------------------ shared with the reminder
@@ -225,10 +238,14 @@ public class ChecklistContactService {
         return RowVisibility.seesWholeProject(projectId, repositoryIds, visibility.allowance(account, Visibility.everything()));
     }
 
-    /** The name a list or a message may print: the display name, or a user name that is not an address. */
+    /**
+     * The name a list or a message may print: the display name, under {@link AccountNames}' rule, or none —
+     * and the account is then named by its id. Never the user name: it is how the account signs in, and
+     * through an identity provider often an address, and these lists are read by people who administer
+     * nobody (decision 0044).
+     */
     static Optional<String> nameOf(UserView account) {
-        return AccountNames.displayNameOf(account).or(() -> Optional.ofNullable(account.username())
-                .filter(username -> !username.isBlank() && !AccountNames.looksLikeAnAddress(username)));
+        return AccountNames.displayNameOf(account);
     }
 
     // ------------------------------------------------------------------ the guard and the rows

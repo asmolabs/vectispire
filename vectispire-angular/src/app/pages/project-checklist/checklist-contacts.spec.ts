@@ -66,7 +66,7 @@ describe('the checklist contacts panel', () => {
 
         expect(rows().map((row) => cell(row, 'contact-profile'))).toEqual(['PO', 'Arch', 'BA']);
         expect(rows().map((row) => cell(row, 'contact-open-lines'))).toEqual(['2', '1', '0']);
-        expect(rows().map((row) => cell(row, 'contact-account'))).toEqual(['Product owner', 'Account 42', 'Nobody']);
+        expect(rows().map((row) => cell(row, 'contact-account'))).toEqual(['Product owner', 'Account #42', 'Nobody']);
         expect(cell(rows()[0], 'contact-warning')).toBe('');
         expect(cell(rows()[1], 'contact-warning')).toBe('No e-mail address');
         // Linked to nobody, or to an account that would not be reminded: the CISOs are.
@@ -76,6 +76,28 @@ describe('the checklist contacts panel', () => {
             'Reminded to the CISOs'
         ]);
         expect(dom().querySelector('[data-testid="contact-select"]')).toBeNull();
+    });
+
+    it('tells a reader an account would not be reminded, not why', async () => {
+        await TestBed.configureTestingModule({
+            imports: [ChecklistContactsPanel],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting()]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(ChecklistContactsPanel);
+        fixture.componentRef.setInput('projectId', PROJECT_ID);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        http.expectOne({ method: 'GET', url: BASE }).flush(
+            asSchema('ChecklistContactsView', {
+                ...CONTACTS,
+                profiles: [{ ...CONTACTS.profiles[1], warning: 'not_reminded' }]
+            })
+        );
+        fixture.detectChanges();
+
+        expect(cell(rows()[0], 'contact-warning')).toBe('Not reminded');
+        expect(cell(rows()[0], 'contact-ciso')).toBe('Reminded to the CISOs');
     });
 
     it('says when the contact column names no profile', async () => {
@@ -102,7 +124,11 @@ describe('the checklist contacts panel', () => {
         await start(true);
         const panel = fixture.componentInstance;
 
-        expect(panel.options()['PO'].map((option) => option.label)).toEqual(['Product owner', 'Account 42', 'Analyst']);
+        expect(panel.options()['PO'].map((option) => option.label)).toEqual([
+            'Product owner',
+            'Account #42',
+            'Analyst'
+        ]);
         expect(rows()).toHaveLength(3);
         expect(dom().querySelectorAll('[data-testid="contact-select"]')).toHaveLength(3);
 
@@ -113,7 +139,7 @@ describe('the checklist contacts panel', () => {
             })
         );
         expect(panel.options()['PO'].map((option) => option.value)).toEqual([41, 42, 43, 99]);
-        expect(panel.options()['PO'].at(-1)?.label).toBe('Account 99');
+        expect(panel.options()['PO'].at(-1)?.label).toBe('Account #99');
     });
 
     it("links a profile by its key to the account chosen, and shows the server's list back", async () => {

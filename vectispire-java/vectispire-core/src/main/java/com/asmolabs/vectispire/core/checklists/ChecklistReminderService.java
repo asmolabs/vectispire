@@ -64,7 +64,8 @@ import org.springframework.stereotype.Service;
  * that a relay refusing one address is retried next hour for that address alone. Written after the send:
  * a crash between the two sends one message twice, rather than a week of silence. Two instances of the
  * control plane may both send in the same hour, as the posture report may; a duplicate is the price of
- * needing no lock.
+ * needing no lock. The mark goes through {@code AuditLogService.append}, which throws, and a mark refused
+ * stops the run: an audit log refusing writes would otherwise have every recipient written to every hour.
  *
  * <p><b>Never throws</b>, for the tick's sake, and a recipient whose send fails does not stop the others.
  */
@@ -179,29 +180,89 @@ public class ChecklistReminderService {
             }
         }
 
+        // Last week's sends the log refused to mark are of no use this week: the keys name their Monday.
+        String thisWeek = weekStarting + "/";
+        sentUnmarked.removeIf(key -> !key.startsWith(thisWeek));
         Set<String> alreadySent = sends.isEmpty() ? Set.of()
                 : auditLog.resourcesNamed(AuditOperation.CHECKLIST_REMINDER_SENT.wireName(), sends.keySet());
         int sent = 0;
-        for (Map.Entry<String, Pending> pending : sends.entrySet()) {
-            if (alreadySent.contains(pending.getKey())) {
+        List<Map.Entry<String, Pending>> queue = List.copyOf(sends.entrySet());
+        for (int index = 0; index < queue.size(); index++) {
+            Map.Entry<String, Pending> pending = queue.get(index);
+            String key = pending.getKey();
+            if (alreadySent.contains(key)) {
+                sentUnmarked.remove(key);
                 continue;
             }
             Pending message = pending.getValue();
+            if (sentUnmarked.contains(key)) {
+                // Sent this week, the mark refused: marked now if the log takes it, never sent again.
+                if (!mark(key, message)) {
+                    return stopped(sent, queue.subList(index + 1, queue.size()), alreadySent);
+                }
+                sentUnmarked.remove(key);
+                continue;
+            }
             try {
                 mail.sendTextTo(List.of(message.address()), message.message().subject(), message.message().body());
             } catch (RuntimeException refused) {
                 // No entry: the entry is what says it went, and its absence is what retries it next hour.
                 log.warn("The weekly checklist reminder {} could not be sent; it will be retried next tick.",
-                        pending.getKey(), refused);
+                        key, refused);
                 continue;
             }
-            audit.record(new AuditLogService.Record(AuditOperation.CHECKLIST_REMINDER_SENT, pending.getKey(),
-                    message.description(),
-                    // No actor: nobody asked for this one, as nobody asks for the posture report.
-                    null, null, null));
             sent++;
+            if (!mark(key, message)) {
+                // **The run stops at the first mark refused.** The log is the bookkeeping, and with it
+                // refusing writes every message after this one would go out unmarked too — and, before this
+                // stop, every hour again, 168 times a week. What was sent is remembered here until the log
+                // takes its mark.
+                sentUnmarked.add(key);
+                return stopped(sent, queue.subList(index + 1, queue.size()), alreadySent);
+            }
         }
         return sent;
+    }
+
+    /**
+     * Ends a run stopped by a refused mark, saying how many recipients wait: <b>while the audit log refuses
+     * writes, nobody after the first recipient is written to</b> — the other contacts and the CISOs wait for
+     * the log, and an outage spanning a whole week misses that week's reminder for them.
+     */
+    private int stopped(int sent, List<Map.Entry<String, Pending>> rest, Set<String> alreadySent) {
+        long waiting = rest.stream()
+                .filter(entry -> !alreadySent.contains(entry.getKey()) && !sentUnmarked.contains(entry.getKey()))
+                .count();
+        log.warn("The weekly checklist reminders stopped with the audit log refusing their mark: {} recipient(s) "
+                + "not written to this run, until the log takes writes again.", waiting);
+        return sent;
+    }
+
+    /**
+     * The sends of this week whose mark the audit log refused, by key — held by this instance so that the
+     * first recipient of a run, the only one written to before the run stops ({@link #stopped}), is not
+     * written to again every hour while the log refuses. Lost with the process, which then sends that one
+     * once more: a restart is rarer than the tick.
+     */
+    private final Set<String> sentUnmarked = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Writes a send's mark through the call that says when it could not ({@code append}) — {@code record}
+     * logs a refusal and returns, which here would read as a reminder never sent.
+     *
+     * @return whether the log took it
+     */
+    private boolean mark(String key, Pending message) {
+        try {
+            audit.append(new AuditLogService.Record(AuditOperation.CHECKLIST_REMINDER_SENT, key, message.description(),
+                    // No actor: nobody asked for this one, as nobody asks for the posture report.
+                    null, null, null));
+            return true;
+        } catch (RuntimeException refused) {
+            log.error("The weekly checklist reminder {} was sent and could not be recorded; the run stops here, and "
+                    + "it is not sent again.", key, refused);
+            return false;
+        }
     }
 
     /** A message due to one recipient: where it goes, what it says, and what its audit entry will say. */

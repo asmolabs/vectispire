@@ -38,7 +38,20 @@ refuse un projet que l'appelant ne voit pas entier.
    propre compte, sous le mode de visibilité en vigueur. Sinon le lien est refusé, avec une seule phrase
    pour un compte qui n'existe pas et pour un compte qui ne peut pas la remplir. Lier et délier revient à
    qui écrit — qui peut répondre à la checklist — et est consigné (`CHECKLIST_CONTACT_CHANGED`). Les comptes
-   proposés sont listés par identifiant et par un nom, jamais une adresse e-mail, ni un nom qui en est une.
+   proposés sont listés par identifiant et par nom d'affichage selon la règle d'`AccountNames` — `null` s'il
+   n'y en a pas, ou s'il est une adresse, et l'écran dit alors *Compte n° N* — jamais par identifiant de
+   connexion : c'est ce par quoi le compte se connecte, et via un fournisseur d'identité souvent une adresse.
+   Un appelant qui ne peut pas relier n'apprend que `not_reminded` d'un compte qui ne serait pas rappelé ;
+   pourquoi — désactivé, sans adresse, plus sur le projet — regarde une autre personne, et les rédacteurs,
+   qui le corrigent.
+8. **La route des candidats est un nouvel annuaire, et c'est accepté.** Jusqu'ici seuls les administrateurs
+   listaient les comptes. `GET …/contacts/candidates` donne à tout rédacteur d'un projet les identifiants et
+   noms d'affichage des comptes actifs qui peuvent remplir sa checklist : en mode de visibilité `everyone`,
+   ce sont tous les rédacteurs de l'installation, et les comptes ADMIN et CISO en font toujours partie,
+   puisqu'ils voient tout. C'est accepté parce qu'un lien doit nommer quelqu'un, que les personnes proposées
+   sont celles que la checklist du projet montre déjà comme ses répondants, et que rien d'autre n'est
+   montré — ni adresse e-mail, ni identifiant de connexion, ni rôle, ni équipe, ni état. En mode `assigned`,
+   l'annuaire se réduit aux personnes du projet.
 4. **Ce qui reste à remplir est une ligne du brouillon ouvert sans réponse courante, ou dont la réponse
    reportée attend une confirmation.** Une révision soumise n'est à remplir par personne tant qu'elle n'est
    pas renvoyée. Les autres problèmes d'une ligne — un commentaire ou une preuve manquants, une mesure
@@ -53,7 +66,14 @@ refuse un projet que l'appelant ne voit pas entier.
    utilisateurs. Il nécessite le relais de messagerie ; sans relais, rien n'est envoyé ni réessayé.
 7. **La comptabilité est le journal d'audit, une entrée par destinataire** (`CHECKLIST_REMINDER_SENT`, sa
    ressource le lundi de la semaine et le destinataire), écrite après l'envoi : un relais qui refuse une
-   adresse est réessayé l'heure suivante pour cette adresse seule. Aucune des deux entrées n'est signalée au
+   adresse est réessayé l'heure suivante pour cette adresse seule. La marque est écrite par l'appel strict du
+   journal d'audit, qui dit quand il a échoué (`append`, pas `record`, qui journalise et rend la main) : un
+   journal qui refuse les écritures ferait sinon écrire à chaque destinataire toutes les heures, 168 fois par
+   semaine. Une marque refusée arrête le passage : tant que le journal refuse les écritures, seul le premier
+   destinataire d'un passage reçoit un message — une fois, l'instance retenant l'envoi jusqu'à ce que le
+   journal prenne sa marque — et tous les autres contacts comme les CISO attendent le journal. Une panne qui
+   couvre toute une semaine leur fait manquer le rappel de cette semaine ; un avertissement dit combien
+   attendent. Aucune des deux entrées n'est signalée au
    SIEM : qui est sollicité pour remplir une checklist relève du travail, pas d'un événement de sécurité.
 
 ## Conséquences

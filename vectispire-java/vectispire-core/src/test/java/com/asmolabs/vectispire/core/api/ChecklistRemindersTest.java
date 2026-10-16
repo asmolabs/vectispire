@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -12,8 +13,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.checklists.ChecklistReminderService;
 import com.asmolabs.vectispire.core.notifications.MailNotificationChannel;
 import java.util.List;
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
  * The weekly checklist reminder over a real database (decision 0044): who is written to — each linked
@@ -35,6 +39,9 @@ class ChecklistRemindersTest extends ChecklistContactsTestBase {
 
     @MockitoBean
     private MailNotificationChannel mail;
+
+    @MockitoSpyBean
+    private AuditLogService audit;
 
     @Autowired
     private ChecklistReminderService reminders;
@@ -135,6 +142,26 @@ class ChecklistRemindersTest extends ChecklistContactsTestBase {
         assertThat(reminders.runOnce()).isEqualTo(1);
         verify(mail).sendTextTo(eq(List.of("contact@example.org")), anyString(), anyString());
         verify(mail, never()).sendTextTo(eq(List.of("ciso@example.org")), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("an audit log refusing the mark stops the run, and nobody is written to twice")
+    void aRefusedMarkStopsTheRun() {
+        doThrow(new IllegalStateException("audit log refused the write")).when(audit).append(argThat(entry ->
+                entry.operation() == AuditOperation.CHECKLIST_REMINDER_SENT));
+
+        // The first message leaves, its mark is refused, and the run stops there: the CISO's waits.
+        assertThat(reminders.runOnce()).isEqualTo(1);
+        assertThat(reminders.runOnce()).as("the next hour sends nothing again").isZero();
+        assertThat(reminders.runOnce()).isZero();
+        verify(mail, times(1)).sendTextTo(anyList(), anyString(), anyString());
+
+        // The log takes writes again: the first is marked without being sent, and the run goes on.
+        reset(audit);
+        assertThat(reminders.runOnce()).isEqualTo(1);
+        verify(mail, times(1)).sendTextTo(eq(List.of("contact@example.org")), anyString(), anyString());
+        verify(mail, times(1)).sendTextTo(eq(List.of("ciso@example.org")), anyString(), anyString());
+        assertThat(entries("CHECKLIST_REMINDER_SENT")).hasSize(2);
     }
 
     @Test

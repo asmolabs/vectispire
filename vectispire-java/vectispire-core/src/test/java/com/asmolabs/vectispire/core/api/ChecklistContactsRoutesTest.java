@@ -101,16 +101,29 @@ class ChecklistContactsRoutesTest extends ChecklistContactsTestBase {
 
             JsonNode arch = profile(linked, "ARCH");
             assertThat(arch.at("/accountId").asLong()).isEqualTo(developer.id());
-            assertThat(arch.at("/accountName").asText()).as("a user name that is no address").isEqualTo(developer.name());
+            assertThat(arch.at("/accountName").isNull()).as("no display name: never the user name").isTrue();
             assertThat(arch.at("/warning").asText()).as("nothing to write to").isEqualTo("no_email");
+            // A reader who cannot relink the profile is told that the account would not be reminded, not why.
+            assertThat(profile(contacts(asAuditor()), "ARCH").at("/warning").asText()).isEqualTo("not_reminded");
+            // And so is the platform governor, who reads every checklist and answers none.
+            assertThat(profile(contacts(account(Role.SUPERUSER).token()), "ARCH").at("/warning").asText())
+                    .isEqualTo("not_reminded");
+            assertThat(contacts(asAuditor()).toString()).doesNotContain(developer.name());
             assertThat(entries("CHECKLIST_CONTACT_CHANGED")).singleElement().satisfies(entry -> {
                 assertThat(entry.getUserId()).isEqualTo(champion.name());
                 assertThat(entry.getResourceId()).isEqualTo(project + "/contacts/ARCH");
-                assertThat(entry.getDescription()).contains("Arch", "\"Checkout\"", "account " + developer.id());
+                assertThat(entry.getDescription()).contains("Arch", "\"Checkout\"", "account " + developer.id())
+                        // By id: the user name is how the account signs in, and the log is read by more people.
+                        .doesNotContain(developer.name());
             });
 
-            change(developer, row -> row.setEmail("developer@example.org"));
-            assertThat(profile(contacts(developer.token()), "ARCH").at("/warning").isNull()).isTrue();
+            change(developer, row -> {
+                row.setEmail("developer@example.org");
+                row.setDisplayName("Development lead");
+            });
+            JsonNode reachable = profile(contacts(asAuditor()), "ARCH");
+            assertThat(reachable.at("/warning").isNull()).isTrue();
+            assertThat(reachable.at("/accountName").asText()).isEqualTo("Development lead");
         }
 
         @Test
@@ -244,6 +257,13 @@ class ChecklistContactsRoutesTest extends ChecklistContactsTestBase {
                 }
             }
             assertThat(candidates.toString()).doesNotContain("@example.org");
+            // An account with no display name is named by nobody but its id: the user name is how it signs in.
+            for (JsonNode candidate : candidates) {
+                if (candidate.at("/accountId").asLong() == developer.id()) {
+                    assertThat(candidate.at("/name").isNull()).isTrue();
+                }
+            }
+            assertThat(candidates.toString()).doesNotContain(developer.name(), champion.name());
         }
 
         @Test
