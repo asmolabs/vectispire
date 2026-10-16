@@ -6,6 +6,15 @@
 
 [graph]
 all-features = false
+# **The platforms the agent is built for, and those it is tested on** — not every platform a crate
+# supports. Without the list every Windows and WebAssembly crate of the graph is checked and allowed
+# too, and an allowance nobody needs is one nobody reviews (the build-script list below, the licences).
+targets = [
+    "x86_64-unknown-linux-musl",  # the image (Dockerfile.agent)
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",   # CI's runner, which builds and runs the test suites
+    "aarch64-apple-darwin",       # a developer's machine
+]
 
 [advisories]
 # Every advisory fails the check, including unmaintained crates and yanked versions: an exception is
@@ -15,22 +24,27 @@ unmaintained = "all"
 ignore = []
 
 [licenses]
+# Exactly the licences the graph carries on the platforms above: one nobody uses is removed rather than
+# kept "in case", so that the next crate under it is a decision in a diff, not an allowance waiting.
 confidence-threshold = 0.9
+unused-allowed-license = "deny"
 allow = [
     "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause",
     "BSD-3-Clause",
     "CDLA-Permissive-2.0", # webpki-roots: Mozilla's CA list, compiled in
     "ISC",
     "MIT",
-    "OpenSSL", # the OpenSSL libssh2 uses for SSH's cryptography, vendored
     "Unicode-3.0",
-    "Zlib",
 ]
 
 [bans]
-multiple-versions = "warn"
+# Two versions of one crate are two to audit (supply-chain/) and two to patch on the next advisory: a new
+# duplicate fails, and the two the graph carries today are listed with why they cannot be merged yet.
+multiple-versions = "deny"
+skip = [
+    { crate = "base64@0.22", reason = "bollard 0.19 still asks for 0.22; hyper-util has moved to 0.23" },
+    { crate = "syn@2", reason = "curve25519-dalek-derive and the serde/tokio/tracing derives are on syn 2; displaydoc and the ICU crates on 3" },
+]
 wildcards = "deny"
 # The workspace's own crates, by path: nothing here is published, so a path is the version.
 allow-wildcard-paths = true
@@ -52,6 +66,37 @@ deny = [
     # Git is libgit2 in-process: a crate that runs the `git` or `ssh` binaries would bring back what
     # the image was built without, so that a configuration file could not bypass a host-key check.
     { crate = "gix-transport", reason = "its SSH transport runs the system ssh binary" },
+]
+
+# **A build script runs on the build machine with the builder's rights**, before any test: it is the
+# one place a crate executes code on CI and on the release runner without being called. Only the crates
+# listed may have one — a new dependency with a build script fails until someone reads it and adds it
+# here, with what it builds. Executables shipped inside a crate's source are refused outright.
+[bans.build]
+executables = "deny"
+include-dependencies = true
+allow-build-scripts = [
+    { crate = "curve25519-dalek" },  # selects its arithmetic backend from the target
+    { crate = "generic-array" },     # emits cfgs for the compiler version
+    { crate = "getrandom" },
+    { crate = "httparse" },          # detects SIMD support
+    { crate = "icu_normalizer_data" },  # the ICU data the URL parser normalises with
+    { crate = "icu_properties_data" },
+    { crate = "libc" },
+    { crate = "libgit2-sys" },       # compiles the vendored libgit2 (C)
+    { crate = "libssh2-sys" },       # compiles the vendored libssh2 (C)
+    { crate = "libz-sys" },          # compiles the vendored zlib (C)
+    { crate = "openssl-sys" },       # compiles the vendored OpenSSL (C) that libssh2 links
+    { crate = "proc-macro2" },
+    { crate = "quote" },
+    { crate = "ring" },              # assembles its cryptographic primitives (C and assembly)
+    { crate = "rustix" },
+    { crate = "rustls" },
+    { crate = "serde" },
+    { crate = "serde_core" },
+    { crate = "serde_json" },
+    { crate = "thiserror" },
+    { crate = "zmij" },              # serde_json's float formatting; emits cfgs
 ]
 
 [sources]
