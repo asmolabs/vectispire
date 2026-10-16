@@ -54,10 +54,14 @@ final class Placeholders {
 
     /** A one-time code: derived from a random secret and the clock, so never the same twice. */
     private static final Set<String> ONE_TIME_CODE_FIELDS = Set.of("code", "totp", "totpcode", "mfacode", "otp");
-    private static final Pattern ONE_TIME_CODE = Pattern.compile("\\d{6,8}");
+    private static final Pattern ONE_TIME_CODE = Pattern.compile("\\d{6,8}|[a-z0-9]{4}-[a-z0-9]{4}");
 
     /** Integers counted from the epoch: the TOTP step a code was last accepted at. */
     private static final Set<String> CLOCK_COUNTERS = Set.of("totp_last_step", "totplaststep");
+
+    /** A digest cut short in a sentence, {@code evidence sha256 84d6de6c0a57}: of a document holding a date. */
+    private static final Pattern NAMED_DIGEST_PREFIX =
+            Pattern.compile("(?i)(sha-?256[ :])([0-9a-f]{8,63})(?![0-9a-f])");
 
     /** A digest left once the known secrets' have been named: a chain link, a hash of something random. */
     private static final Pattern HEX_DIGEST = Pattern.compile("(?i)[0-9a-f]{32,128}");
@@ -73,11 +77,12 @@ final class Placeholders {
     private static final Pattern RANDOM_TOKEN = Pattern.compile("(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])");
 
     /**
-     * Base64 of random bytes, padded: an agent's sealing or signing public key. Bounded at 200 characters:
+     * Base64 or base64url of random bytes, padded or not: an agent's sealing or signing public key, an
+     * ECDSA signature (whose DER length varies, so its padding does too). Bounded at 200 characters:
      * a registered value is looked for in every string the test renders after it.
      */
     private static final Pattern RANDOM_BASE64 =
-            Pattern.compile("(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{40,198}={1,2}(?![A-Za-z0-9+/=])");
+            Pattern.compile("(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/_-]{40,200}={0,2}(?![A-Za-z0-9+/=_-])");
 
     /** A PEM block: the suites generate their certificate authorities and keys at every run. */
     private static final Pattern PEM = Pattern.compile("-----BEGIN ([A-Z0-9 ]+)-----[\\s\\S]*?-----END \\1-----");
@@ -360,6 +365,8 @@ final class Placeholders {
         // every run, but a document holding a date is not, and its digest names it in a path.
         out = replace(out, HEX_64, match -> "«sha256:" + digests.computeIfAbsent(
                 match.group().toLowerCase(Locale.ROOT), key -> digests.size() + 1) + "»");
+        out = replace(out, NAMED_DIGEST_PREFIX, match -> match.group(1) + "«sha256-prefix:"
+                + digests.computeIfAbsent(match.group(2).toLowerCase(Locale.ROOT), key -> digests.size() + 1) + "»");
         out = replace(out, LOOPBACK_PORT, match -> match.group(1) + ":«port:"
                 + ports.computeIfAbsent(match.group(2), key -> ports.size() + 1) + "»");
         out = replace(out, UUID, match -> "«uuid:" + uuids.computeIfAbsent(

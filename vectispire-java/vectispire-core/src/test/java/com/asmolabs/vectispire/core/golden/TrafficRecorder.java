@@ -356,6 +356,13 @@ public final class TrafficRecorder {
                 Path file = OUTPUT.orElseThrow().resolve(directoryOf(classKey)).resolve(name);
                 try {
                     Files.createDirectories(file.getParent());
+                    if (golden.path("response").path("body").has("file")) {
+                        String sidecar = name.substring(0, name.length() - ".json".length()) + ".response.gz";
+                        try (var out = new java.util.zip.GZIPOutputStream(Files.newOutputStream(file.resolveSibling(sidecar)))) {
+                            out.write(response.getContentAsByteArray());
+                        }
+                        ((ObjectNode) golden.path("response").path("body")).put("file", sidecar);
+                    }
                     if (golden.path("request").path("body").has("file")) {
                         String sidecar = name.substring(0, name.length() - ".json".length()) + ".body.gz";
                         // GZIPOutputStream writes no time and no name: the same bytes give the same file.
@@ -603,6 +610,10 @@ public final class TrafficRecorder {
         node.put("sha256", HexFormat.of().formatHex(Digests.sha256(content)));
         if (exact) {
             node.put("base64", Base64.getEncoder().encodeToString(content));
+        } else {
+            // A PDF, an archive, a workbook: kept whole beside the golden, for phase 5's comparisons, which
+            // read what a document says rather than its digest. Many embed when they were made.
+            node.putNull("file");
         }
         return node;
     }
