@@ -113,12 +113,12 @@ docker compose --profile with-agent up -d
 The composition pulls two published images, so nothing here needs a JDK or a Gradle cache:
 
 ```
-ghcr.io/asmolabs/vectispire:0.11.0
-ghcr.io/asmolabs/vectispire-agent:0.11.0
+ghcr.io/asmolabs/vectispire:0.11.1
+ghcr.io/asmolabs/vectispire-agent:0.11.1
 ```
 
 They are public — no login, no token. Pull one on its own with
-`docker pull ghcr.io/asmolabs/vectispire:0.11.0`, and see
+`docker pull ghcr.io/asmolabs/vectispire:0.11.1`, and see
 [Verifying a release](#verifying-a-release) before you run it.
 
 ## Before the first start
@@ -497,10 +497,10 @@ as the jar is below. Verify before running anything — a security tool you took
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.11.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
+  --bundle vectispire-0.11.1.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.1" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.11.0.jar
+  vectispire-0.11.1.jar
 ```
 
 Each flag pins something, and dropping any one of them gives back most of what signing was
@@ -519,11 +519,11 @@ the tag and then pulling it again checks an image you may not be running. Resolv
 with the command the release workflow uses itself:
 
 ```bash
-DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.11.0 --format '{{.Manifest.Digest}}')"
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.11.1 --format '{{.Manifest.Digest}}')"
 echo "$DIGEST"   # sha256:…
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.1" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -536,7 +536,7 @@ file beside an image is one anybody can swap:
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.1" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
