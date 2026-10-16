@@ -56,7 +56,8 @@ def record(name, method, path, headers=None, body=None, chunks=None):
             v = "<last-modified>"
         lines.append("%s: %s" % (k, v))
     text = data.decode("utf-8", "replace")
-    if r.getheader("Content-Type", "").startswith("text/html") or path.endswith(".js"):
+    # The interface's files are the build's, not the server's: a placeholder keeps the golden small and the diff quiet.
+    if r.getheader("Content-Type", "").startswith(("text/html", "text/javascript")) or path.endswith((".js", ".json")) and path.startswith("/i18n/"):
         text = "<%d bytes>" % len(data)
     with open(os.path.join(out, name + ".http"), "w") as f:
         f.write("\n".join(lines) + "\n\n" + scrub(text))

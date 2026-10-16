@@ -137,6 +137,8 @@ fn unsupported(parts: &Parts) -> Problem {
         Some(value) => format!("{};charset=UTF-8", value.trim()),
     };
     Problem::handler(StatusCode::UNSUPPORTED_MEDIA_TYPE, format!("Content-Type '{quoted}' is not supported."))
+        // Spring lists what the route's converters read — here JSON and YAML — in `Accept`, as RFC 9110 asks of a 415.
+        .header("Accept", "application/json, application/yaml, application/*+json")
 }
 
 #[cfg(test)]
