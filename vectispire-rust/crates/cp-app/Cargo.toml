@@ -15,8 +15,13 @@ path = "src/main.rs"
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+vectispire-cp-http = { path = "../cp-http" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
+
+[dev-dependencies]
+vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
+vectispire-cp-contract = { path = "../cp-contract" }
 
 [lints]
 workspace = true

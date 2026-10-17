@@ -100,6 +100,43 @@ fn a_service_holding_a_query_api_fails() {
 }
 
 #[test]
+fn a_service_holding_the_pool_crates_query_vocabulary_fails() {
+    // The pool crate is not a driver, so naming it is not the rule above — but its query builders, its fixed
+    // queries, its column types and its schema declarations are the repository's, as `jakarta.persistence` was.
+    for named in [
+        "vectispire_cp_db::query::VisibleSelect",
+        "vectispire_cp_db::VisibleSelect",
+        "vectispire_cp_db::TargetTable",
+        "vectispire_cp_db::store::visible_targets",
+        "vectispire_cp_db::types::UtcInstant",
+        "vectispire_cp_db::parity::Declared",
+    ] {
+        let fixture = Fixture::clean();
+        fixture.write(WEB, "src/internal/mod.rs", &format!("pub(crate) fn list() {{ let _ = {named}; }}\n"));
+        let outcome = check(&fixture);
+        assert!(
+            found(&outcome, &format!("names `{named}`: a service holds no query API")),
+            "{named}: {:#?}",
+            outcome.violations
+        );
+    }
+}
+
+#[test]
+fn a_service_holding_what_it_may_of_the_pool_crate_passes() {
+    // Its transaction (`@Transactional`'s place), the pool it begins one on, and the visibility it hands its
+    // repository as criteria: a service holds these, and naming them is not a violation.
+    let fixture = Fixture::clean();
+    fixture.write(
+        WEB,
+        "src/internal/mod.rs",
+        "pub(crate) fn list(db: &vectispire_cp_db::Db, who: vectispire_cp_db::Visibility) {\n    let _ = (db, who, vectispire_cp_db::tx::Mode::ReadOnly);\n}\n",
+    );
+    let outcome = check(&fixture);
+    assert!(!found(&outcome, "vectispire_cp_db"), "{:#?}", outcome.violations);
+}
+
+#[test]
 fn persistence_naming_a_service_fails() {
     let fixture = Fixture::clean();
     fixture.write(WEB, "src/persistence/mod.rs", "pub(crate) fn rows() { crate::internal::list(); }\n");

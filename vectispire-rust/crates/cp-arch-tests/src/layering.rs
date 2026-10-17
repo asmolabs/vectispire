@@ -33,6 +33,24 @@ use crate::source::{SourceFile, read_package};
 /// and the repository writes the query.
 pub const QUERY_API: &[&str] = &["sqlx", "sea_query", "sea_query_binder", "diesel", "tokio_postgres", "mysql_async"];
 
+/// What a service may not name of the pool crate, `vectispire_cp_db` — the part that is the query API of a
+/// pool crate rather than a driver's: the query builders and fixed queries, the table list a visible select is
+/// made for, the column types and the schema declarations. What a service *may* name stays: `Tx`, `Mode` and
+/// `retry_on_lock_conflict` (its transaction, as `@Transactional` was), the pool it begins one on, and the
+/// `Visibility` it hands its repository as criteria.
+pub const CP_DB_QUERY_VOCABULARY: &[&str] = &[
+    "query",
+    "VisibleSelect",
+    "TargetTable",
+    "store",
+    "types",
+    "parity",
+    "settings",
+    "DatabaseUrl",
+    "DbSettings",
+    "PoolSettings",
+];
+
 /// What a `web` module may not name besides the query API: the pool crate. A controller maps HTTP; it holds no
 /// persistence API at all, not even the pool.
 pub const NOT_IN_WEB: &[&str] = &["vectispire_cp_db"];
@@ -295,6 +313,15 @@ fn check_path(
             if *here == Layer::Web && (QUERY_API.contains(&first.as_str()) || NOT_IN_WEB.contains(&first.as_str())) {
                 violations.push(format!(
                     "{at}: web names `{shown}`: a controller holds nothing of the query API or the pool"
+                ));
+            }
+            if here.is_service()
+                && first == "vectispire_cp_db"
+                && path.get(1).is_some_and(|next| CP_DB_QUERY_VOCABULARY.contains(&next.as_str()))
+            {
+                violations.push(format!(
+                    "{at}: {} names `{shown}`: a service holds no query API — the pool crate's query vocabulary is the repository's",
+                    here.name()
                 ));
             }
             if here.is_service() && QUERY_API.contains(&first.as_str()) {
