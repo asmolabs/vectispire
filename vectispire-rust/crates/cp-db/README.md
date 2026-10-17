@@ -68,6 +68,10 @@ What types cannot see — a table named as a string in `Alias::new("t_issue")` o
   Pointed at one `DATABASE_URL`, the macro would try to describe the other engine's statements against
   it and fail, so `crates/cp-db/scripts/sqlx-prepare.sh` compiles one engine's at a time against a
   throwaway server of that engine, migrated by the real Flyway.
+- **A module crate's statements use the same script**, named after the crate: `sqlx-prepare.sh check cp-audit`
+  regenerates `crates/cp-audit/.sqlx/`. Its database is named in a `.env` the script writes beside that crate's
+  manifest and removes, never as `DATABASE_URL` in the environment — cp-db's own macros would then describe their
+  statements against the one engine up, and fail for the other; without a `.env`, a crate compiles from its cache.
 - `sqlx-prepare.sh prepare` rewrites the caches; **`sqlx-prepare.sh check`** regenerates into a scratch
   directory, fails on any difference from the committed one (a removed query leaves its file behind; a
   schema change changes the answers), then compiles offline with both engines on. A schema change and its

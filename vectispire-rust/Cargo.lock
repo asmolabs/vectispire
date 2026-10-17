@@ -3316,6 +3316,7 @@ version = "1.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
 dependencies = [
+ "getrandom 0.4.3",
  "js-sys",
  "serde_core",
  "wasm-bindgen",
@@ -3384,10 +3385,12 @@ dependencies = [
 name = "vectispire-cp-app"
 version = "0.12.0-dev"
 dependencies = [
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",
  "vectispire-cp-arch-tests",
+ "vectispire-cp-audit",
  "vectispire-cp-contract",
  "vectispire-cp-http",
  "vectispire-cp-outbound",
@@ -3404,6 +3407,25 @@ dependencies = [
  "syn 2.0.119",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "vectispire-cp-audit"
+version = "0.12.0-dev"
+dependencies = [
+ "futures-util",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vectispire-cp-db",
+ "vectispire-domain",
+ "vectispire-migrate",
+ "vectispire-testkit",
 ]
 
 [[package]]
@@ -3486,6 +3508,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-platform"
+version = "0.12.0-dev"
+dependencies = [
+ "futures-util",
+ "thiserror",
+ "time",
+ "tokio",
+ "vectispire-cp-audit",
+ "vectispire-cp-db",
+ "vectispire-cp-settings",
+ "vectispire-domain",
+ "vectispire-migrate",
+ "vectispire-testkit",
+]
+
+[[package]]
 name = "vectispire-cp-runtime"
 version = "0.12.0-dev"
 dependencies = [
@@ -3496,6 +3534,22 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vectispire-domain",
+ "vectispire-testkit",
+]
+
+[[package]]
+name = "vectispire-cp-settings"
+version = "0.12.0-dev"
+dependencies = [
+ "regex",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "vectispire-cp-db",
+ "vectispire-domain",
+ "vectispire-migrate",
  "vectispire-testkit",
 ]
 

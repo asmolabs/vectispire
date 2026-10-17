@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select count(*) as \"count!\" from t_audit_log where operation_type = $1 and timestamp >= $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "002bc25af07e6b53d68d464a24aece7a7e2beb7c6a2163fc4397fa64225df992"
+}
