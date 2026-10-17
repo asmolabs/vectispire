@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_session where user_id = $1 and token_hash <> $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5a1b348bbf5c0e969e916db6db75104897177741500f0701d1ca26cc67889c81"
+}

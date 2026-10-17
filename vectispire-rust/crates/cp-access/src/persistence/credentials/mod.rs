@@ -2,10 +2,14 @@
 //! its account may still act. `SessionRepository`, `ApiKeyRepository` and the reads of `UserRepository` the
 //! authentication services make, one statement per engine.
 //!
-//! **Runtime-checked, for now.** The fixed queries here are `sqlx::query` on static strings, proved against both
-//! engines by `tests/credentials_on_both_engines.rs` rather than by `sqlx::query!` at compile time: the offline cache
-//! machinery (`crates/cp-db/scripts/sqlx-prepare.sh`) is written for `cp-db`'s own directory, and generalising it to
-//! every module crate is its own change. Each statement is spelt once per engine, as the checked ones are.
+//! **Checked at compile time, as `cp-db`'s are.** Every statement is `sqlx::query!` / `query_as!`, described by a
+//! real server of its engine and kept in this crate's `.sqlx/` (`crates/cp-db/scripts/sqlx-prepare.sh`, which
+//! prepares every crate it lists), so a renamed column or a result read as the wrong type does not build. Each
+//! statement starts with its engine's tag: the cache file is named after the SQL text alone.
+//!
+//! **Each engine's arm is behind its feature** (`mysql-queries`, `postgres-queries`, both on by default): the cache
+//! script compiles one engine's statements at a time against that engine, and the other's arm then falls to
+//! [`StoreError::not_built`]. Every build that ships has both.
 
 pub(crate) mod accounts;
 pub(crate) mod api_keys;
@@ -15,6 +19,14 @@ pub(crate) mod sessions;
 #[derive(Debug, thiserror::Error)]
 #[error("the credential store failed: {0}")]
 pub struct StoreError(#[from] sqlx::Error);
+
+impl StoreError {
+    /// The database's engine has no statements in this build — only while the cache script prepares the other one.
+    #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+    pub(crate) fn not_built() -> StoreError {
+        StoreError(sqlx::Error::Configuration("this engine's queries are not built into this binary".into()))
+    }
+}
 
 /// A UUID stored as `char(36)` that is not one: a row this side did not write.
 pub(crate) fn uuid_of(text: &str) -> Result<uuid::Uuid, StoreError> {

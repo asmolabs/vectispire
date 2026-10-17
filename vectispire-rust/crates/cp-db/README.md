@@ -58,7 +58,10 @@ What types cannot see — a table named as a string in `Alias::new("t_issue")` o
 ## The two offline query caches
 
 `sqlx::query!` asks a real database to describe each statement while compiling. The answer is kept in
-`crates/cp-db/.sqlx/`, so a build needs no database (`SQLX_OFFLINE=true`).
+`crates/cp-db/.sqlx/`, so a build needs no database (`SQLX_OFFLINE=true`). A module crate with checked queries keeps
+its own `crates/<crate>/.sqlx/` and the same two features, and adds a line to the script's `crates_with_queries`;
+it depends on `cp-db` with `default-features = false`, so a pass over it compiles none of `cp-db`'s statements for
+the other engine. `cp-access` is the first.
 
 - **One directory, both engines.** Offline, the macro reads the cached file's `db_name` and expands for
   that driver, so the files of both engines can sit together.

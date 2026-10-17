@@ -25,6 +25,10 @@ The plan names `src/credentials/`; `cp-arch-tests`' layering rule names a module
 root and `internal`. So the credentials are split as a Java module is: `src/credentials.rs` is the API (re-exports),
 `src/internal/credentials/` the rules and the service, `src/persistence/credentials/` every statement.
 
+Every statement is `sqlx::query!` / `query_as!`, checked against both engines while compiling, from this crate's
+offline cache `.sqlx/` (`crates/cp-db/scripts/sqlx-prepare.sh prepare` rewrites it, `check` proves it current). Each
+engine's statements sit behind the features `mysql-queries` and `postgres-queries`, both on by default, as `cp-db`'s.
+
 ## Sessions and keys survive the switch
 
 - **The stored forms are the same on both sides.** A session row's key is the SHA-256 (lower-case hex) of the token's
@@ -62,8 +66,6 @@ root and `internal`. So the credentials are split as a Java module is: `src/cred
 - **PHC edges no Java hash has**: parameters of zero, negative or written in non-ASCII digits, and salts under eight
   bytes, are refused here; BouncyCastle may accept some of them. `PasswordHasher` writes none.
 - **A user agent cut at 255** keeps a surrogate pair whole, where Java's `substring` would leave half of one.
-- **Queries are checked at run time.** The statements are `sqlx::query` on static strings, proved on both engines by
-  the tests above; `sqlx::query!` with offline caches needs `cp-db`'s cache script generalised to module crates.
 - **The anti-replay record** is a 0.12 change and not on this line; the agent protocol's sealing-key generation check
   is the agents module's.
 

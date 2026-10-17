@@ -24,87 +24,104 @@ pub(crate) struct KeyRow {
     pub owner_user_id: Option<i64>,
 }
 
-type Tuple = (
-    String,
-    String,
-    String,
-    Option<String>,
-    OffsetDateTime,
-    Option<OffsetDateTime>,
-    String,
-    Option<String>,
-    Option<i64>,
-    Option<OffsetDateTime>,
-    Option<i64>,
-);
+/// A row as stored: the id is `char(36)` text, made a [`Uuid`] by [`Stored::row`].
+struct Stored {
+    id: String,
+    name: String,
+    key_hash: String,
+    prefix: Option<String>,
+    created_at: OffsetDateTime,
+    last_used_at: Option<OffsetDateTime>,
+    scopes: String,
+    target_kind: Option<String>,
+    target_id: Option<i64>,
+    expires_at: Option<OffsetDateTime>,
+    owner_user_id: Option<i64>,
+}
 
-fn row_of(tuple: Tuple) -> Result<KeyRow, StoreError> {
-    let (id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, target_id, expires_at, owner) =
-        tuple;
-    Ok(KeyRow {
-        id: uuid_of(&id)?,
-        name,
-        key_hash,
-        prefix,
-        created_at,
-        last_used_at,
-        scopes,
-        target_kind,
-        target_id,
-        expires_at,
-        owner_user_id: owner,
-    })
+impl Stored {
+    fn row(self) -> Result<KeyRow, StoreError> {
+        Ok(KeyRow {
+            id: uuid_of(&self.id)?,
+            name: self.name,
+            key_hash: self.key_hash,
+            prefix: self.prefix,
+            created_at: self.created_at,
+            last_used_at: self.last_used_at,
+            scopes: self.scopes,
+            target_kind: self.target_kind,
+            target_id: self.target_id,
+            expires_at: self.expires_at,
+            owner_user_id: self.owner_user_id,
+        })
+    }
 }
 
 /// `findByPrefix`: the candidates a presented key could be. The order is the engine's, as Java's is.
 pub(crate) async fn find_by_prefix(db: &Db, prefix: &str) -> Result<Vec<KeyRow>, StoreError> {
-    let rows: Vec<Tuple> = match db {
+    // MySQL's `datetime(6)` would be read as a zone-less `PrimitiveDateTime`; Hibernate stores UTC there.
+    let stored = match db {
+        #[cfg(feature = "mysql-queries")]
         Db::MySql(pool) => {
-            sqlx::query_as(
-                "/* mysql */ select id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, \
-                 target_id, expires_at, owner_user_id from t_api_key where prefix = ?",
+            sqlx::query_as!(
+                Stored,
+                r#"/* mysql */ select id, name, key_hash, prefix, created_at as "created_at: _",
+                last_used_at as "last_used_at: _", scopes, target_kind, target_id, expires_at as "expires_at: _",
+                owner_user_id from t_api_key where prefix = ?"#,
+                prefix
             )
-            .bind(prefix)
             .fetch_all(pool)
             .await?
         }
+        #[cfg(feature = "postgres-queries")]
         Db::PostgreSql(pool) => {
-            sqlx::query_as(
+            sqlx::query_as!(
+                Stored,
                 "/* postgres */ select id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, \
                  target_id, expires_at, owner_user_id from t_api_key where prefix = $1",
+                prefix
             )
-            .bind(prefix)
             .fetch_all(pool)
             .await?
         }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     };
-    rows.into_iter().map(row_of).collect()
+    stored.into_iter().map(Stored::row).collect()
 }
 
 /// `findById`.
 pub(crate) async fn find(db: &Db, id: Uuid) -> Result<Option<KeyRow>, StoreError> {
     let id = id.as_hyphenated().to_string();
-    let row: Option<Tuple> = match db {
+    // MySQL's `datetime(6)` would be read as a zone-less `PrimitiveDateTime`; Hibernate stores UTC there.
+    let stored = match db {
+        #[cfg(feature = "mysql-queries")]
         Db::MySql(pool) => {
-            sqlx::query_as(
-                "/* mysql */ select id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, \
-                 target_id, expires_at, owner_user_id from t_api_key where id = ?",
+            sqlx::query_as!(
+                Stored,
+                r#"/* mysql */ select id, name, key_hash, prefix, created_at as "created_at: _",
+                last_used_at as "last_used_at: _", scopes, target_kind, target_id, expires_at as "expires_at: _",
+                owner_user_id from t_api_key where id = ?"#,
+                id
             )
-            .bind(id)
             .fetch_optional(pool)
             .await?
         }
+        #[cfg(feature = "postgres-queries")]
         Db::PostgreSql(pool) => {
-            sqlx::query_as(
+            sqlx::query_as!(
+                Stored,
                 "/* postgres */ select id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, \
                  target_id, expires_at, owner_user_id from t_api_key where id = $1",
+                id
             )
-            .bind(id)
             .fetch_optional(pool)
             .await?
         }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     };
-    row.map(row_of).transpose()
+    stored.map(Stored::row).transpose()
 }
 
 /// `markUsed`: the only trace that lets an operator spot a key issued for a use that never happened.
@@ -112,18 +129,20 @@ pub(crate) async fn mark_used(db: &Db, id: Uuid, at: OffsetDateTime) -> Result<u
     let id = id.as_hyphenated().to_string();
     let at = to_microseconds(at);
     Ok(match db {
-        Db::MySql(pool) => sqlx::query("/* mysql */ update t_api_key set last_used_at = ? where id = ?")
-            .bind(at)
-            .bind(id)
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => sqlx::query!("/* mysql */ update t_api_key set last_used_at = ? where id = ?", at, id)
             .execute(pool)
             .await?
             .rows_affected(),
-        Db::PostgreSql(pool) => sqlx::query("/* postgres */ update t_api_key set last_used_at = $1 where id = $2")
-            .bind(at)
-            .bind(id)
-            .execute(pool)
-            .await?
-            .rows_affected(),
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => {
+            sqlx::query!("/* postgres */ update t_api_key set last_used_at = $1 where id = $2", at, id)
+                .execute(pool)
+                .await?
+                .rows_affected()
+        }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     })
 }
 
@@ -134,44 +153,48 @@ pub(crate) async fn insert(db: &Db, row: &KeyRow) -> Result<(), StoreError> {
     let used = row.last_used_at.map(to_microseconds);
     let expires = row.expires_at.map(to_microseconds);
     match db {
+        #[cfg(feature = "mysql-queries")]
         Db::MySql(pool) => {
-            sqlx::query(
+            sqlx::query!(
                 "/* mysql */ insert into t_api_key (id, name, key_hash, prefix, created_at, last_used_at, scopes, \
                  target_kind, target_id, expires_at, owner_user_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                id,
+                row.name,
+                row.key_hash,
+                row.prefix,
+                created,
+                used,
+                row.scopes,
+                row.target_kind,
+                row.target_id,
+                expires,
+                row.owner_user_id
             )
-            .bind(id)
-            .bind(&row.name)
-            .bind(&row.key_hash)
-            .bind(&row.prefix)
-            .bind(created)
-            .bind(used)
-            .bind(&row.scopes)
-            .bind(&row.target_kind)
-            .bind(row.target_id)
-            .bind(expires)
-            .bind(row.owner_user_id)
             .execute(pool)
             .await?;
         }
+        #[cfg(feature = "postgres-queries")]
         Db::PostgreSql(pool) => {
-            sqlx::query(
+            sqlx::query!(
                 "/* postgres */ insert into t_api_key (id, name, key_hash, prefix, created_at, last_used_at, scopes, \
                  target_kind, target_id, expires_at, owner_user_id) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                id,
+                row.name,
+                row.key_hash,
+                row.prefix,
+                created,
+                used,
+                row.scopes,
+                row.target_kind,
+                row.target_id,
+                expires,
+                row.owner_user_id
             )
-            .bind(id)
-            .bind(&row.name)
-            .bind(&row.key_hash)
-            .bind(&row.prefix)
-            .bind(created)
-            .bind(used)
-            .bind(&row.scopes)
-            .bind(&row.target_kind)
-            .bind(row.target_id)
-            .bind(expires)
-            .bind(row.owner_user_id)
             .execute(pool)
             .await?;
         }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     }
     Ok(())
 }
@@ -181,29 +204,33 @@ pub(crate) async fn insert(db: &Db, row: &KeyRow) -> Result<(), StoreError> {
 pub(crate) async fn delete(db: &Db, id: Uuid) -> Result<u64, StoreError> {
     let id = id.as_hyphenated().to_string();
     Ok(match db {
+        #[cfg(feature = "mysql-queries")]
         Db::MySql(pool) => {
-            sqlx::query("/* mysql */ delete from t_api_key where id = ?").bind(id).execute(pool).await?.rows_affected()
+            sqlx::query!("/* mysql */ delete from t_api_key where id = ?", id).execute(pool).await?.rows_affected()
         }
-        Db::PostgreSql(pool) => sqlx::query("/* postgres */ delete from t_api_key where id = $1")
-            .bind(id)
-            .execute(pool)
-            .await?
-            .rows_affected(),
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => {
+            sqlx::query!("/* postgres */ delete from t_api_key where id = $1", id).execute(pool).await?.rows_affected()
+        }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     })
 }
 
 /// `revokeOwnedBy`: every key an account issued — when the account goes, the keys that borrow its authority go too.
 pub(crate) async fn delete_owned_by(db: &Db, owner: i64) -> Result<u64, StoreError> {
     Ok(match db {
-        Db::MySql(pool) => sqlx::query("/* mysql */ delete from t_api_key where owner_user_id = ?")
-            .bind(owner)
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => sqlx::query!("/* mysql */ delete from t_api_key where owner_user_id = ?", owner)
             .execute(pool)
             .await?
             .rows_affected(),
-        Db::PostgreSql(pool) => sqlx::query("/* postgres */ delete from t_api_key where owner_user_id = $1")
-            .bind(owner)
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => sqlx::query!("/* postgres */ delete from t_api_key where owner_user_id = $1", owner)
             .execute(pool)
             .await?
             .rows_affected(),
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     })
 }

@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select user_id, count(token_hash) as \"sessions!: i64\" from t_session where expires_at > $1\n            group by user_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_session",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "sessions!: i64",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "b800300af3057ea1e9f72214a2ce5d4cd8dd30ef1ce19f0758ad6a8f9bc1f456"
+}

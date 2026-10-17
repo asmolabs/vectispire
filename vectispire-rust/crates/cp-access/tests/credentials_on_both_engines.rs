@@ -325,7 +325,8 @@ async fn api_keys(engine: Engine) {
     let key = credentials.resolve_key(agent_secret.expose()).await.unwrap().unwrap();
     assert!(credentials.integration_for(&key).await.unwrap().is_none());
     // And with its agent gone it is nobody — not the owner's integration key.
-    execute(db, "delete from t_agent where name = 'builder-01'", "delete from t_agent where name = 'builder-01'", &[]).await;
+    execute(db, "delete from t_agent where name = 'builder-01'", "delete from t_agent where name = 'builder-01'", &[])
+        .await;
     assert!(credentials.api_key(agent_secret.expose()).await.is_none());
 
     // ── A key issued before keys had an owner acts for nobody.

@@ -18,70 +18,78 @@ pub(crate) struct SessionRow {
     pub ip_address: Option<String>,
 }
 
-type Tuple = (String, i64, OffsetDateTime, OffsetDateTime, OffsetDateTime, Option<String>, Option<String>);
-
-fn row_of(tuple: Tuple) -> SessionRow {
-    let (token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, ip_address) = tuple;
-    SessionRow { token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, ip_address }
-}
-
 /// `findById(hash)`.
 pub(crate) async fn find(db: &Db, token_hash: &str) -> Result<Option<SessionRow>, StoreError> {
-    let found: Option<Tuple> =
-        match db {
-            Db::MySql(pool) => sqlx::query_as(
-                "/* mysql */ select token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, ip_address \
-                 from t_session where token_hash = ?",
+    // MySQL's `datetime(6)` would be read as a zone-less `PrimitiveDateTime`; Hibernate stores UTC there, which the
+    // field's `OffsetDateTime` says.
+    Ok(match db {
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => {
+            sqlx::query_as!(
+                SessionRow,
+                r#"/* mysql */ select token_hash, user_id, created_at as "created_at: _",
+                last_seen_at as "last_seen_at: _", expires_at as "expires_at: _", user_agent, ip_address
+                from t_session where token_hash = ?"#,
+                token_hash
             )
-            .bind(token_hash)
             .fetch_optional(pool)
-            .await?,
-            Db::PostgreSql(pool) => {
-                sqlx::query_as(
-                    "/* postgres */ select token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, \
+            .await?
+        }
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => {
+            sqlx::query_as!(
+                SessionRow,
+                "/* postgres */ select token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, \
                  ip_address from t_session where token_hash = $1",
-                )
-                .bind(token_hash)
-                .fetch_optional(pool)
-                .await?
-            }
-        };
-    Ok(found.map(row_of))
+                token_hash
+            )
+            .fetch_optional(pool)
+            .await?
+        }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
+    })
 }
 
 /// `save(new SessionEntity)`: the row as opened.
 pub(crate) async fn insert(db: &Db, row: &SessionRow) -> Result<(), StoreError> {
+    let (created, seen, expires) =
+        (to_microseconds(row.created_at), to_microseconds(row.last_seen_at), to_microseconds(row.expires_at));
     match db {
+        #[cfg(feature = "mysql-queries")]
         Db::MySql(pool) => {
-            sqlx::query(
+            sqlx::query!(
                 "/* mysql */ insert into t_session (token_hash, user_id, created_at, last_seen_at, expires_at, \
                  user_agent, ip_address) values (?, ?, ?, ?, ?, ?, ?)",
+                row.token_hash,
+                row.user_id,
+                created,
+                seen,
+                expires,
+                row.user_agent,
+                row.ip_address
             )
-            .bind(&row.token_hash)
-            .bind(row.user_id)
-            .bind(to_microseconds(row.created_at))
-            .bind(to_microseconds(row.last_seen_at))
-            .bind(to_microseconds(row.expires_at))
-            .bind(&row.user_agent)
-            .bind(&row.ip_address)
             .execute(pool)
             .await?;
         }
+        #[cfg(feature = "postgres-queries")]
         Db::PostgreSql(pool) => {
-            sqlx::query(
+            sqlx::query!(
                 "/* postgres */ insert into t_session (token_hash, user_id, created_at, last_seen_at, expires_at, \
                  user_agent, ip_address) values ($1, $2, $3, $4, $5, $6, $7)",
+                row.token_hash,
+                row.user_id,
+                created,
+                seen,
+                expires,
+                row.user_agent,
+                row.ip_address
             )
-            .bind(&row.token_hash)
-            .bind(row.user_id)
-            .bind(to_microseconds(row.created_at))
-            .bind(to_microseconds(row.last_seen_at))
-            .bind(to_microseconds(row.expires_at))
-            .bind(&row.user_agent)
-            .bind(&row.ip_address)
             .execute(pool)
             .await?;
         }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     }
     Ok(())
 }
@@ -90,20 +98,20 @@ pub(crate) async fn insert(db: &Db, row: &SessionRow) -> Result<(), StoreError> 
 pub(crate) async fn touch(db: &Db, token_hash: &str, last_seen_at: OffsetDateTime) -> Result<(), StoreError> {
     let at = to_microseconds(last_seen_at);
     match db {
+        #[cfg(feature = "mysql-queries")]
         Db::MySql(pool) => {
-            sqlx::query("/* mysql */ update t_session set last_seen_at = ? where token_hash = ?")
-                .bind(at)
-                .bind(token_hash)
+            sqlx::query!("/* mysql */ update t_session set last_seen_at = ? where token_hash = ?", at, token_hash)
                 .execute(pool)
                 .await?;
         }
+        #[cfg(feature = "postgres-queries")]
         Db::PostgreSql(pool) => {
-            sqlx::query("/* postgres */ update t_session set last_seen_at = $1 where token_hash = $2")
-                .bind(at)
-                .bind(token_hash)
+            sqlx::query!("/* postgres */ update t_session set last_seen_at = $1 where token_hash = $2", at, token_hash)
                 .execute(pool)
                 .await?;
         }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     }
     Ok(())
 }
@@ -112,52 +120,58 @@ pub(crate) async fn touch(db: &Db, token_hash: &str, last_seen_at: OffsetDateTim
 /// deletes nothing, which is what makes a hand-off single-use.
 pub(crate) async fn delete(db: &Db, token_hash: &str) -> Result<u64, StoreError> {
     Ok(match db {
-        Db::MySql(pool) => sqlx::query("/* mysql */ delete from t_session where token_hash = ?")
-            .bind(token_hash)
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => sqlx::query!("/* mysql */ delete from t_session where token_hash = ?", token_hash)
             .execute(pool)
             .await?
             .rows_affected(),
-        Db::PostgreSql(pool) => sqlx::query("/* postgres */ delete from t_session where token_hash = $1")
-            .bind(token_hash)
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => sqlx::query!("/* postgres */ delete from t_session where token_hash = $1", token_hash)
             .execute(pool)
             .await?
             .rows_affected(),
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     })
 }
 
 /// `deleteByUserId`: every session of an account.
 pub(crate) async fn delete_by_user(db: &Db, user_id: i64) -> Result<u64, StoreError> {
     Ok(match db {
-        Db::MySql(pool) => sqlx::query("/* mysql */ delete from t_session where user_id = ?")
-            .bind(user_id)
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => sqlx::query!("/* mysql */ delete from t_session where user_id = ?", user_id)
             .execute(pool)
             .await?
             .rows_affected(),
-        Db::PostgreSql(pool) => sqlx::query("/* postgres */ delete from t_session where user_id = $1")
-            .bind(user_id)
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => sqlx::query!("/* postgres */ delete from t_session where user_id = $1", user_id)
             .execute(pool)
             .await?
             .rows_affected(),
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     })
 }
 
 /// `deleteByUserIdExcept`: an account's other sessions, keeping the one making the request.
 pub(crate) async fn delete_by_user_except(db: &Db, user_id: i64, keep: &str) -> Result<u64, StoreError> {
     Ok(match db {
-        Db::MySql(pool) => sqlx::query("/* mysql */ delete from t_session where user_id = ? and token_hash <> ?")
-            .bind(user_id)
-            .bind(keep)
-            .execute(pool)
-            .await?
-            .rows_affected(),
-        Db::PostgreSql(pool) => {
-            sqlx::query("/* postgres */ delete from t_session where user_id = $1 and token_hash <> $2")
-                .bind(user_id)
-                .bind(keep)
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => {
+            sqlx::query!("/* mysql */ delete from t_session where user_id = ? and token_hash <> ?", user_id, keep)
                 .execute(pool)
                 .await?
                 .rows_affected()
         }
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => {
+            sqlx::query!("/* postgres */ delete from t_session where user_id = $1 and token_hash <> $2", user_id, keep)
+                .execute(pool)
+                .await?
+                .rows_affected()
+        }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     })
 }
 
@@ -165,16 +179,18 @@ pub(crate) async fn delete_by_user_except(db: &Db, user_id: i64, keep: &str) -> 
 pub(crate) async fn delete_expired(db: &Db, as_of: OffsetDateTime) -> Result<u64, StoreError> {
     let as_of = to_microseconds(as_of);
     Ok(match db {
-        Db::MySql(pool) => sqlx::query("/* mysql */ delete from t_session where expires_at < ?")
-            .bind(as_of)
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => sqlx::query!("/* mysql */ delete from t_session where expires_at < ?", as_of)
             .execute(pool)
             .await?
             .rows_affected(),
-        Db::PostgreSql(pool) => sqlx::query("/* postgres */ delete from t_session where expires_at < $1")
-            .bind(as_of)
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => sqlx::query!("/* postgres */ delete from t_session where expires_at < $1", as_of)
             .execute(pool)
             .await?
             .rows_affected(),
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
     })
 }
 
@@ -182,23 +198,31 @@ pub(crate) async fn delete_expired(db: &Db, as_of: OffsetDateTime) -> Result<u64
 /// on every request; applying it to a count would make the number change while nobody did anything).
 pub(crate) async fn count_active_by_user(db: &Db, as_of: OffsetDateTime) -> Result<Vec<(i64, i64)>, StoreError> {
     let as_of = to_microseconds(as_of);
-    let rows: Vec<(i64, i64)> =
-        match db {
-            Db::MySql(pool) => sqlx::query_as(
-                "/* mysql */ select user_id, count(token_hash) from t_session where expires_at > ? group by user_id",
-            )
-            .bind(as_of)
-            .fetch_all(pool)
-            .await?,
-            Db::PostgreSql(pool) => {
-                sqlx::query_as(
-                    "/* postgres */ select user_id, count(token_hash) from t_session where expires_at > $1 \
-                 group by user_id",
-                )
-                .bind(as_of)
-                .fetch_all(pool)
-                .await?
-            }
-        };
-    Ok(rows)
+    // PostgreSQL describes an aggregate as possibly null; a `count` never is.
+    Ok(match db {
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => sqlx::query!(
+            r#"/* mysql */ select user_id, count(token_hash) as "sessions!: i64" from t_session where expires_at > ?
+            group by user_id"#,
+            as_of
+        )
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .map(|row| (row.user_id, row.sessions))
+        .collect(),
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => sqlx::query!(
+            r#"/* postgres */ select user_id, count(token_hash) as "sessions!: i64" from t_session where expires_at > $1
+            group by user_id"#,
+            as_of
+        )
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .map(|row| (row.user_id, row.sessions))
+        .collect(),
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
+    })
 }
