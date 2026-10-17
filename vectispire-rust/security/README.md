@@ -39,8 +39,9 @@ says how, so that the next person can repeat it rather than believe it.
 - **No cargo-audit.** It reads the same RustSec database `cargo deny`'s advisories check reads, which
   also refuses unmaintained and yanked crates; the shipped binary is audited from what it carries, by
   grype on the image.
-- **cargo-vet starts with exemptions.** 55 crates are audited by an imported set, 311 are exempted at
-  their current version (225 before the control plane's crates joined the workspace): the policy is that the list does not grow by accident — a new crate or a new
+- **cargo-vet starts with exemptions.** 55 crates are audited by an imported set, 314 are exempted at
+  their current version (225 before the control plane's crates joined the workspace, 311 before `cp-access` brought
+  Argon2 — `argon2`, `blake2`, `password-hash`, each exempted with its reason): the policy is that the list does not grow by accident — a new crate or a new
   version fails until it is audited or exempted in a reviewed diff. `cargo vet` without `--locked`
   refreshes the imported audits; `cargo vet prune` drops the exemptions they now cover.
 - **The fuzz targets cover the readers of untrusted input that exist.** Eleven: the URL, the secrets, SAST, IaC,

@@ -69,10 +69,11 @@ wildcards = "deny"
 allow-wildcard-paths = true
 deny = [
     # Decision 0003: the agent holds no database connection, so no crate here may be a client of one.
-    # `wrappers`: the control plane's database layer and its migration runner may use it, and nothing else may
+    # `wrappers`: the control plane's database layer, its migration runner and the persistence of its module crates
+    # (cp-access first; each module that lands adds its line) may use it, and nothing else may
     # — the agent depending on sqlx directly fails here, and `crates/agent/tests/isolation.rs` proves the
     # agent's closure holds none of it. (sea-query-sqlx is the layer's query-builder binding, a dependent of sqlx.)
-    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx"], reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx", "vectispire-cp-access"], reason = "decision 0003: the agent holds no database connection" },
     { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
     { crate = "postgres", reason = "decision 0003: the agent holds no database connection" },
     { crate = "tokio-postgres", reason = "decision 0003: the agent holds no database connection" },

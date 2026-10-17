@@ -1,0 +1,36 @@
+[package]
+name = "vectispire-cp-access"
+description = "The control plane's access module: who a request is — sessions, API keys, agent keys, the SCIM token (Phase 1)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Argon2id over the PHC string `PasswordHasher` writes: an API key's stored hash is one, and Phase 1's passwords are
+# the same format. Only `alloc` — the derivation itself; the PHC string is read and written here, as Java does it, so
+# the `password-hash` crate's own (stricter) parser never decides whether a stored hash verifies.
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+base64.workspace = true
+rand_core.workspace = true
+sha2.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["mysql", "postgres", "runtime-tokio", "time"] }
+subtle.workspace = true
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tracing.workspace = true
+uuid.workspace = true
+vectispire-cp-db = { path = "../cp-db" }
+vectispire-cp-http.workspace = true
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+reqwest = { workspace = true, features = ["json"] }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true
