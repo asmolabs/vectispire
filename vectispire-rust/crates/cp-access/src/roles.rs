@@ -165,4 +165,13 @@ mod tests {
             assert_eq!(role_of(Some(name_of(role))), Some(role));
         }
     }
+
+    #[test]
+    fn a_role_is_written_as_its_name() {
+        // Java's `Role.toString()` is the enum's name: what a message built with `{role}` must say, never the variant.
+        for role in ALL {
+            assert_eq!(role.to_string(), name_of(role));
+        }
+        assert_eq!(Role::SecurityChampion.to_string(), "SECURITY_CHAMPION");
+    }
 }

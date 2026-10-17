@@ -17,9 +17,12 @@ java=${JAVA_HOME:+$JAVA_HOME/bin/}java
 
 if [ ! -s "$classpath_file" ]; then
     mkdir -p "$(dirname "$classpath_file")"
-    (cd "$repo/vectispire-java" && ./gradlew -q -I "$here/classpath.gradle" :vectispire-core:printAuditOracleClasspath) | sed -n 's/^CLASSPATH=//p' > "$classpath_file.tmp"
-    [ -s "$classpath_file.tmp" ] || { echo "oracle.sh: Gradle printed no classpath" >&2; exit 1; }
-    mv "$classpath_file.tmp" "$classpath_file"
+    # One scratch file per process: the suite runs two tests at once, and with no cache yet both ask Gradle — a shared
+    # `.tmp` let one move the file away while the other still wrote it, which read as "no classpath".
+    scratch="$classpath_file.tmp.$$"
+    (cd "$repo/vectispire-java" && ./gradlew -q -I "$here/classpath.gradle" :vectispire-core:printAuditOracleClasspath) | sed -n 's/^CLASSPATH=//p' > "$scratch"
+    [ -s "$scratch" ] || { rm -f "$scratch"; echo "oracle.sh: Gradle printed no classpath" >&2; exit 1; }
+    mv "$scratch" "$classpath_file"
 fi
 
 exec "$java" -Duser.timezone="${ORACLE_TIMEZONE:-UTC}" -cp "$(cat "$classpath_file")" "$here/AuditOracle.java" "$@"
