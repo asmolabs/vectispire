@@ -73,7 +73,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 ## 3. How to take a task
 
 - **One task, one branch.** Phase 2's branches are stacked: `rust/p1-merge` → `rust/p2-1-shared` →
-  `rust/p2-4-fingerprint` → `rust/p2-3-crypto` → `rust/p2-5-protocol`. Start a new Phase 2 task from the newest finished one.
+  `rust/p2-4-fingerprint` → `rust/p2-3-crypto` → `rust/p2-5-protocol` → `rust/p2-2-outbox`. Start a new Phase 2 task from the newest finished one.
   Name it `rust/p<phase>-<n>-<short-name>`.
 - **A task owns its files.** The tables below say which. Touching another task's files is a
   conversation, not a commit. Shared agent crates (`protocol`, `crypto`, the runner) change only
@@ -99,6 +99,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.4 Fingerprint, target vocabulary, Spring cron | done (109/109 mutants) | `rust/p2-4-fingerprint` (2d9ad0768), stacked on 2.1 |
 | 2.3 Encryption at rest and sealing | done (63/63 mutants, 4 equivalents removed) | `rust/p2-3-crypto`, stacked on 2.4 |
 | 2.5 The protocol's server half | done (119/119 mutants, 5 equivalents removed) | `rust/p2-5-protocol`, stacked on 2.3 |
+| 2.2 Outbox | done (72/72 mutants, 4 equivalents removed) | `rust/p2-2-outbox`, stacked on 2.5 |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
@@ -146,7 +147,7 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | # | Task | Starts when |
 |---|---|---|
 | 2.1 | Shared-module rule, `cp-maintenance` turns and their global order | **done** |
-| 2.2 | Outbox: enqueue in the caller's transaction, claim, backoff, abandonment, pruning | after 2.1 |
+| 2.2 | Outbox: enqueue in the caller's transaction, claim, backoff, abandonment, pruning | **done** |
 | 2.3 | Encryption at rest (AES-256-GCM, key from variable / file / `/run/secrets` / Vault), signing key, an additive `seal` in `crates/crypto` | **done** |
 | 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | **done** |
 | 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | **done** |
@@ -217,6 +218,30 @@ What the finished tasks leave to the others:
     case pinned); a root `null` followed by an identifier character is refused for ASCII letters, digits, `_`,
     `$` and anything past ASCII, where Java asks `Character.isJavaIdentifierPart`.
 
+- **The outbox (2.2), for 2.9, Phase 4, Phase 5 and 2.11.** `crates/cp-outbox/README.md` has the semantics, the
+  differences and the Java quirks reproduced.
+  - **Enqueue** with `Outbox::enqueue(&mut tx, &payload, type, team_id)` inside the transaction that writes the state
+    the message describes — never on a transaction of its own. The payload is a JSON object (anything else is refused);
+    the returned id is the `message_id` stamped into it.
+  - **2.9: the agents' audit delivery** is an `OutboxHandler` of type `agent_result_audit` (Java's
+    `AgentResultAuditDelivery`), enqueued by the result route as `AgentProtocolService` does. Register it in
+    `cp-app`'s `maintenance::outbox_registry()`. A failure is `DeliveryError::Failed { kind, message }` with `kind` the
+    simple name of the exception Java's delivery throws; a destination that no longer exists is `DeliveryError::Gone`.
+  - **The relay is held back** until `outbox_registry()` equals `reference/outbox/registry.json` — eleven types Java's
+    started application relays: handlers `agent_result_audit` (2.9), `checklist_answer`, `owasp_report_after_scan`
+    (Phase 5), `siem_event`, `token_alert`, `token_alert_audit` (Phase 4); channels `scan_delta`, `scan_delta_discord`,
+    `scan_delta_mail`, `scan_delta_slack`, `scan_delta_teams` (Phase 4). Nothing else opens it: when the last one is
+    registered, `NotificationRelayTask::is_held()` turns false and `crates/cp-app/tests/maintenance_composition.rs`'s
+    assertion that it is held has to be dropped in that commit. A type added on the Java side regenerates the file
+    (`OutboxRegistryReferenceSetTest`) and holds the relay again.
+  - **Phase 4:** a `NotificationChannel` is handed the stored text, not a parsed `NotificationPayload` (the shape is
+    yours to port); `is_configured` is for the enqueuer (`ScanDeltaNotifier`), the relay never asks it.
+  - **2.11:** the composition is built over `Outbox::on_database(db, maintenance::outbox_registry(), clock)`; the
+    relay task is composed and held, so starting the turns is safe on a database Java wrote. The upgrade drill should
+    check `t_outbox_message` is unchanged across a Rust start (plan, risk "Two relays, at least once").
+  - **Not done here:** a test against the published Java control plane on the same database. The rows are shown
+    identical instead: every row `enqueue` writes is dumped column by column on both engines against the row Java's
+    `enqueue` saves (`tests/engines.rs`), and the relay's calls are Java's call for call (`tests/reference.rs`).
 - **Encryption (2.3), for everyone storing a secret.** `vectispire_cp_crypto::Encryption` is async:
   `encrypt(plain, context)` → `Result<String, EncryptionError>` (`MissingKey` is the 412 of
   `MissingEncryptionKeyException`), `inspect(stored, context)` → `Decrypted` (plain text as a `Secret`, and

@@ -21,6 +21,7 @@ The mutant lists are data, one script per task; the shared logic is in `_runner.
 | `p1-6-audit-settings.py` | 1.6 audit, settings, platform | `cp-audit`, `cp-settings`, `cp-platform`, `cp-app`'s mirror adapter |
 | `p1-merge-role.py` | Phase 1 merge | the one `Role` in `cp-http` and what reads it in `cp-access` |
 | `p2-1-maintenance.py` | 2.1 maintenance, architecture rules | `cp-arch-tests`, `cp-maintenance` |
+| `p2-2-outbox.py` | 2.2 outbox | `cp-outbox`: the retry policy, the stamped payload, the registry and the relay guard, the relay, the tasks, the statements on both engines |
 | `p2-3-crypto.py` | 2.3 encryption | `cp-crypto`, and `seal` in `crates/crypto` |
 | `p2-4-fingerprint.py` | 2.4 fingerprint, vocabulary, cron | `crates/domain` |
 | `p2-5-protocol.py` | 2.5 the protocol's server half | `crates/protocol`: the Jackson reader, coercions, the result, the server's bodies, the claim's writer |
