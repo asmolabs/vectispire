@@ -113,3 +113,10 @@ a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:c
 # passphrase, in a container removed after the test. The line now names a constant marked `gitleaks:allow`; this
 # pins the commit that wrote it inline.
 584a1cc62e162bb6afb31d79a66d9092b09002b9:vectispire-rust/crates/cp-access/tests/against_java.rs:generic-api-key:185
+# The targets' rules reference set (task 2.6 of the Rust port) asks Java's SSH-key form which texts open with a
+# private key's header: header lines alone, "-----BEGIN RSA PRIVATE KEY-----" and its variants, no key material —
+# the rule matches from one case's header to the next case's. Read and judged not a secret.
+deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/targets/TargetRulesReferenceSetTest.java:private-key:419
+deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/targets/TargetRulesReferenceSetTest.java:private-key:420
+deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules.json:private-key:3574
+deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules.json:private-key:3580
