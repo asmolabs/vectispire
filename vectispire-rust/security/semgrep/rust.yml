@@ -27,7 +27,11 @@ rules:
     severity: ERROR
     languages: [rust]
     paths:
-      exclude: [/crates/tls/, /crates/testkit/, "**/tests/**"]
+      # Beside the agent's one trust (`tls`) and the test support: the control plane's outbound door
+      # (`cp-outbound`, whose pinned sender is the one place that crate speaks HTTP outwards — the pin, the
+      # refused redirect, no proxy and the size ceiling are its own tests') and the contract replay's client
+      # of the server under test, on loopback (`cp-contract/src/axum_support.rs`).
+      exclude: [/crates/tls/, /crates/testkit/, /crates/cp-outbound/, /crates/cp-contract/src/axum_support.rs, "**/tests/**"]
     patterns:
       # The in-file unit tests, by the name the workspace gives them (semgrep's Rust grammar does not
       # match the `#[cfg(test)]` attribute itself).
@@ -60,7 +64,9 @@ rules:
     severity: ERROR
     languages: [rust]
     paths:
-      exclude: [/crates/testkit/, "**/tests/**", /fuzz/]
+      # `cp-arch-tests` runs `cargo metadata` to read the workspace's graph: test tooling, linked into nothing
+      # that ships, and the rules it carries are what keep the agent's graph and sources free of the same.
+      exclude: [/crates/testkit/, /crates/cp-arch-tests/, "**/tests/**", /fuzz/]
     patterns:
       # The in-file unit tests, by the name the workspace gives them (semgrep's Rust grammar does not
       # match the `#[cfg(test)]` attribute itself).
