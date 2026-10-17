@@ -43,6 +43,11 @@ criteria = "safe-to-deploy"
 version = "0.1.6"
 criteria = "safe-to-deploy"
 
+[[exemptions.argon2]]
+version = "0.5.3"
+criteria = "safe-to-deploy"
+notes = "RustCrypto's Argon2, for the PHC strings PasswordHasher writes (API keys, passwords) — cp-access; no imported set audits it yet."
+
 [[exemptions.atoi]]
 version = "2.0.0"
 criteria = "safe-to-deploy"
@@ -74,6 +79,11 @@ criteria = "safe-to-deploy"
 [[exemptions.bitflags]]
 version = "2.13.2"
 criteria = "safe-to-deploy"
+
+[[exemptions.blake2]]
+version = "0.10.6"
+criteria = "safe-to-deploy"
+notes = "RustCrypto's BLAKE2, which Argon2 is built on; reached only through argon2."
 
 [[exemptions.block-buffer]]
 version = "0.12.1"
@@ -650,6 +660,11 @@ criteria = "safe-to-deploy"
 [[exemptions.parking_lot_core]]
 version = "0.9.12"
 criteria = "safe-to-deploy"
+
+[[exemptions.password-hash]]
+version = "0.5.0"
+criteria = "safe-to-deploy"
+notes = "RustCrypto's PHC traits, a dependency of argon2; cp-access reads and writes the PHC string itself."
 
 [[exemptions.pin-project-lite]]
 version = "0.2.17"

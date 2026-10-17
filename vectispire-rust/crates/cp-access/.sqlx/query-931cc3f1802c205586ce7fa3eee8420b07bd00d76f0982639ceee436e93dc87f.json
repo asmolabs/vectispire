@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_api_key (id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, target_id, expires_at, owner_user_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "931cc3f1802c205586ce7fa3eee8420b07bd00d76f0982639ceee436e93dc87f"
+}
