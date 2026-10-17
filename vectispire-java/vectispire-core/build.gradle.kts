@@ -534,6 +534,9 @@ tasks.named<Test>("test") {
     inputs.dir(rootProject.file("../vectispire-rust/reference/maintenance")).withPropertyName("maintenanceReferenceSet")
     // `domain::cron`'s: Spring's CronExpression, which only this module links, written by `CronReferenceSetTest`.
     inputs.dir(rootProject.file("../vectispire-rust/reference/cron")).withPropertyName("cronReferenceSet")
+    // `cp-crypto`'s: encryption at rest, the Vault exchanges and the signing key, both ways — `EncryptionService`,
+    // `VaultKmsProvider` and `SigningKeyService` are this module's, written and read by `EncryptionReferenceSetTest`.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/encryption")).withPropertyName("encryptionReferenceSet")
 }
 
 /**
