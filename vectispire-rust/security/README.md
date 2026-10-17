@@ -25,6 +25,8 @@ says how, so that the next person can repeat it rather than believe it.
 | `cargo fuzz` (`../fuzz/`) | a crash, a failed assertion, a timeout or a leak in the URL, the secrets, SAST, IaC, Grype and Syft readers, the failure reason's scrub, a `Location` header, and the sealed envelope, signature and known-hosts readers | nightly `rust-fuzz` | a panic planted behind an input prefix |
 | Miri | undefined behaviour in `domain`, `crypto` and `scanners` and the dependencies they call | nightly `rust-fuzz` | — |
 
+The mutation checks that proved the port's guards — one script per task, rerunnable — are in [`mutants/`](mutants/README.md).
+
 ## Choices, and what was not done
 
 - **Denied, not forbidden, `unsafe`.** A forbidden lint cannot be allowed for the two libgit2 calls;
