@@ -13,7 +13,7 @@ proc-macro2 = { version = "1", features = ["span-locations"] }
 serde = { workspace = true }
 serde_json.workspace = true
 syn = { version = "2", features = ["full", "visit"] }
-toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
+toml = { version = "1", default-features = false, features = ["parse", "serde"] }
 
 [dev-dependencies]
 tempfile.workspace = true

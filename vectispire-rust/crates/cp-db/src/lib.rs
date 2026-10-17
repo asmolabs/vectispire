@@ -14,6 +14,8 @@
 //! **Fixed queries are `sqlx::query!`, checked against both engines** from the two offline caches in
 //! `.sqlx/`; see the crate's README for how they are kept.
 
+#![forbid(unsafe_code)]
+
 pub mod db;
 pub mod engine;
 pub mod parity;

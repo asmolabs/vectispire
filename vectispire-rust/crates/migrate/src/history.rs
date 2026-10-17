@@ -6,12 +6,18 @@
 //! table definition, the same insert, the same `installed_by`, the same lock under the same key. The
 //! key is what makes a Java and a Rust instance starting together exclude each other; it is derived
 //! from the quoted table name exactly as Flyway derives it (`Table.toString().hashCode()`).
+//!
+//! **Every dynamic SQL string here is asserted safe (`AssertSqlSafe`, which sqlx 0.9 requires), and why it is:**
+//! the history statements are built from fixed templates with the table and column names quoted by `quote`
+//! and `qualified` and the values bound as parameters; the lock statements carry one integer the crate computes;
+//! and `execute_raw` runs the migration scripts themselves — files embedded in the binary at build time, which
+//! are the thing this crate exists to run. No string reaches it from a request, a setting or the database.
 
 use std::time::Duration;
 
 use sqlx::mysql::MySqlConnection;
 use sqlx::postgres::PgConnection;
-use sqlx::{Connection as _, Row as _};
+use sqlx::{AssertSqlSafe, Connection as _, Row as _};
 
 use crate::Error;
 use crate::dialect::Engine;
@@ -272,7 +278,7 @@ impl Conn {
         let engine = self.engine();
         let sql = select(engine, schema);
         let rows: Vec<Applied> = match self {
-            Conn::MySql(conn) => sqlx::query(&sql)
+            Conn::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
                 .bind(-1i32)
                 .fetch_all(conn)
                 .await?
@@ -291,7 +297,7 @@ impl Conn {
                     })
                 })
                 .collect::<Result<_, _>>()?,
-            Conn::PostgreSql(conn) => sqlx::query(&sql.replace('?', "$1"))
+            Conn::PostgreSql(conn) => sqlx::query(AssertSqlSafe(sql.replace('?', "$1")))
                 .bind(-1i32)
                 .fetch_all(conn)
                 .await?
@@ -334,7 +340,7 @@ impl Conn {
         let version = version.to_string();
         match self {
             Conn::MySql(conn) => {
-                sqlx::query(&sql)
+                sqlx::query(AssertSqlSafe(sql.clone()))
                     .bind(rank)
                     .bind(&version)
                     .bind(&description)
@@ -348,7 +354,7 @@ impl Conn {
                     .await?;
             }
             Conn::PostgreSql(conn) => {
-                sqlx::query(&sql)
+                sqlx::query(AssertSqlSafe(sql.clone()))
                     .bind(rank)
                     .bind(&version)
                     .bind(&description)
@@ -369,8 +375,8 @@ impl Conn {
     /// procedures and multi-statement bodies are not things a prepared statement may carry.
     pub async fn execute_raw(&mut self, statement: &str) -> Result<(), sqlx::Error> {
         match self {
-            Conn::MySql(conn) => sqlx::raw_sql(statement).execute(conn).await.map(drop),
-            Conn::PostgreSql(conn) => sqlx::raw_sql(statement).execute(conn).await.map(drop),
+            Conn::MySql(conn) => sqlx::raw_sql(AssertSqlSafe(statement.to_owned())).execute(conn).await.map(drop),
+            Conn::PostgreSql(conn) => sqlx::raw_sql(AssertSqlSafe(statement.to_owned())).execute(conn).await.map(drop),
         }
     }
 
@@ -413,9 +419,10 @@ impl Conn {
                 let number = postgres_lock_number(schema);
                 sqlx::raw_sql("BEGIN").execute(&mut *conn).await?;
                 for _ in 0..=50 {
-                    let got: bool = sqlx::query_scalar(&format!("SELECT pg_try_advisory_xact_lock({number})"))
-                        .fetch_one(&mut *conn)
-                        .await?;
+                    let got: bool =
+                        sqlx::query_scalar(AssertSqlSafe(format!("SELECT pg_try_advisory_xact_lock({number})")))
+                            .fetch_one(&mut *conn)
+                            .await?;
                     if got {
                         return Ok(());
                     }

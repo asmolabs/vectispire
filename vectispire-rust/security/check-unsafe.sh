@@ -14,6 +14,11 @@ set -eu
 cd "$(dirname "$0")/.."
 
 ALLOWED='crates/git/src/init.rs'
+# The control plane's boundary tests carry the keyword as *text*: fixtures for their own `unsafe_code`
+# rule, written into temporary crates to prove the rule catches every form. The grep below cannot tell a
+# string from code; that crate's `syn`-based rule (crates/cp-arch-tests/src/unsafe_code.rs) reads tokens,
+# so it can, and it reads these files too — only this textual pass skips them.
+FIXTURES='crates/cp-arch-tests/tests/'
 CODE='(^|[^[:alnum:]_])unsafe[[:space:]]*(\{|fn[[:space:]]|impl([[:space:]]|<)|trait[[:space:]]|extern[[:space:]]|\()'
 LINT='(allow|expect|warn)[[:space:]]*\([^)]*unsafe_code'
 
@@ -24,6 +29,7 @@ count=$(echo "$files" | wc -l | tr -d ' ')
 bad=0
 for f in $files; do
   [ "$f" = "$ALLOWED" ] && continue
+  case "$f" in "$FIXTURES"*) continue ;; esac
   if grep -nE "$CODE|$LINT" "$f" | grep -vE '^[0-9]+:[[:space:]]*//' ; then
     echo "  ^ $f: unsafe outside $ALLOWED"
     bad=1

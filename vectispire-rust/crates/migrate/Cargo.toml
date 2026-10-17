@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 crc32fast = "1"
 regex.workspace = true
-sqlx = { version = "0.8", default-features = false, features = ["mysql", "postgres", "runtime-tokio"] }
+sqlx = { version = "0.9", default-features = false, features = ["mysql", "postgres", "runtime-tokio"] }
 thiserror.workspace = true
 tokio = { workspace = true }
 tracing.workspace = true

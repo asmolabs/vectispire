@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use sqlx::Row as _;
+use sqlx::{AssertSqlSafe, Row as _};
 use vectispire_migrate::{Database, Engine};
 use vectispire_testkit::docker::Container;
 
@@ -145,11 +145,11 @@ async fn ping(database: &Database) -> bool {
     }
 }
 
-/// Runs a statement directly, to set a test's scene.
+/// Runs a statement directly, to set a test's scene. (The statements are the tests' own literals.)
 pub async fn execute(database: &Database, sql: &str) {
     match database {
-        Database::MySql(pool) => drop(sqlx::raw_sql(sql).execute(pool).await.unwrap()),
-        Database::PostgreSql(pool) => drop(sqlx::raw_sql(sql).execute(pool).await.unwrap()),
+        Database::MySql(pool) => drop(sqlx::raw_sql(AssertSqlSafe(sql.to_owned())).execute(pool).await.unwrap()),
+        Database::PostgreSql(pool) => drop(sqlx::raw_sql(AssertSqlSafe(sql.to_owned())).execute(pool).await.unwrap()),
     }
 }
 

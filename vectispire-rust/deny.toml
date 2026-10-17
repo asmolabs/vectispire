@@ -21,16 +21,7 @@ targets = [
 # written here, with its reason, by whoever accepts it.
 yanked = "deny"
 unmaintained = "all"
-ignore = [
-    # RUSTSEC-2023-0071 (the Marvin attack: a timing side channel in RSA *private-key* operations), reached
-    # through sqlx-mysql, which MySQL's caching_sha2_password needs. sqlx-mysql uses `rsa` for one thing:
-    # OAEP-encrypting the password with the server's **public** key (sqlx-mysql 0.8.6, src/connection/auth.rs,
-    # `RsaPublicKey` and `Oaep` only). It holds no private key and decrypts nothing, so there is no private-key
-    # operation to time. Reached only by `vectispire-migrate` and the control-plane crates that follow it: the
-    # agent's isolation test and the `sqlx` ban above keep it out of the agent's graph. Revisit when sqlx moves
-    # to an `rsa` release that carries the fix, or drops the crate; remove this entry then.
-    { id = "RUSTSEC-2023-0071", reason = "sqlx-mysql only encrypts with the server's public key; no private-key operation exists to time" },
-]
+ignore = []
 
 [licenses]
 # Exactly the licences the graph carries on the platforms above: one nobody uses is removed rather than
@@ -45,6 +36,7 @@ allow = [
     "MIT",
     "MIT-0", # borrow-or-share, which jsonschema's URI reader (fluent-uri) uses: no attribution required
     "Unicode-3.0",
+    "Zlib", # foldhash, the default hasher of the hash maps sqlx and indexmap use
 ]
 
 [bans]
@@ -54,6 +46,23 @@ multiple-versions = "deny"
 skip = [
     { crate = "base64@0.22", reason = "bollard 0.19 still asks for 0.22; hyper-util has moved to 0.23" },
     { crate = "syn@2", reason = "curve25519-dalek-derive and the serde/tokio/tracing derives are on syn 2; displaydoc and the ICU crates on 3" },
+    # RustCrypto's two generations. The agent's cryptography and the SSH stack (ed25519-dalek 2, the elliptic
+    # curves 0.13, aes-gcm 0.10, ssh-key 0.6) are on the 0.10 traits; sqlx 0.9's MySQL and PostgreSQL
+    # authentication (the control plane's database crates only) is on the 0.11 traits. They cannot be merged
+    # until the curve and AEAD crates are released on the new ones; the older half is listed, so that a third
+    # generation, or a duplicate of any other crate, still fails.
+    { crate = "digest@0.10", reason = "RustCrypto 0.10 traits: ed25519-dalek 2, elliptic-curve 0.13, aes-gcm 0.10" },
+    { crate = "block-buffer@0.10", reason = "digest 0.10's" },
+    { crate = "crypto-common@0.1", reason = "digest 0.10's" },
+    { crate = "cpufeatures@0.2", reason = "the 0.10 generation's (aes, sha2, poly1305, curve25519-dalek)" },
+    { crate = "sha2@0.10", reason = "ed25519-dalek 2, the elliptic curves and ssh-key 0.6" },
+    { crate = "sha1@0.10", reason = "the SSH stack's, beside sqlx 0.9's sha1 0.11" },
+    { crate = "hmac@0.12", reason = "hkdf 0.12 (vectispire-crypto), rfc6979 0.4 and vectispire-git" },
+    { crate = "hkdf@0.12", reason = "vectispire-crypto's key derivation, on the 0.10 traits" },
+    { crate = "rand_core@0.6", reason = "the 0.10 generation's RNG traits; sqlx 0.9 and tempfile use rand_core 0.10" },
+    { crate = "getrandom@0.2", reason = "rand_core 0.6's" },
+    { crate = "getrandom@0.3", reason = "ahash 0.8, behind jsonschema (the contract checks); the rest are on 0.4" },
+    { crate = "hashbrown@0.16", reason = "hashlink 0.11, behind sqlx-core 0.9; indexmap and jsonschema's referencing are on 0.17" },
 ]
 wildcards = "deny"
 # The workspace's own crates, by path: nothing here is published, so a path is the version.
@@ -91,26 +100,37 @@ deny = [
 executables = "deny"
 include-dependencies = true
 allow-build-scripts = [
+    { crate = "ahash" },             # cfgs from a rustc feature probe and the target architecture
+    { crate = "crc32fast" },         # cfgs from `rustc --version`: which CRC intrinsics are stable
+    { crate = "crossbeam-utils" },   # cfgs from the target: whether it has the atomics it needs
     { crate = "curve25519-dalek" },  # selects its arithmetic backend from the target
     { crate = "generic-array" },     # emits cfgs for the compiler version
     { crate = "getrandom" },
     { crate = "httparse" },          # detects SIMD support
     { crate = "icu_normalizer_data" },  # the ICU data the URL parser normalises with
     { crate = "icu_properties_data" },
+    { crate = "jsonschema-value" },  # empty unless its `pyo3` feature is on, which it is not
     { crate = "libc" },
     { crate = "libgit2-sys" },       # compiles the vendored libgit2 (C)
     { crate = "libssh2-sys" },       # compiles the vendored libssh2 (C)
     { crate = "libz-sys" },          # compiles the vendored zlib (C)
     { crate = "openssl-sys" },       # compiles the vendored OpenSSL (C) that libssh2 links
+    { crate = "mime_guess" },        # writes its MIME-type table into OUT_DIR from the list it ships
+    { crate = "num-traits" },        # an autocfg probe: compiles one expression to see what rustc has
+    { crate = "parking_lot_core" },  # a cfg when the thread sanitizer is on
     { crate = "proc-macro2" },
     { crate = "quote" },
+    { crate = "ref-cast" },          # writes a private module into OUT_DIR; runs `rustc --version`
     { crate = "ring" },              # assembles its cryptographic primitives (C and assembly)
     { crate = "rustix" },
     { crate = "rustls" },
     { crate = "serde" },
     { crate = "serde_core" },
     { crate = "serde_json" },
+    { crate = "target-tuple" },      # writes the build's target and host triples into a macro in OUT_DIR
     { crate = "thiserror" },
+    { crate = "unicode-general-category" },  # writes its category table into OUT_DIR from the tables it ships
+    { crate = "zerocopy" },          # cfgs from `rustc --version` and the crate's own manifest
     { crate = "zmij" },              # serde_json's float formatting; emits cfgs
 ]
 

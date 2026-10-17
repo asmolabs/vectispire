@@ -16,6 +16,8 @@
 //! moved by `reference/refresh.sh`), and the list of routes not ported yet is committed beside them:
 //! each is something a check could otherwise be satisfied by editing.
 
+#![forbid(unsafe_code)]
+
 mod axum_support;
 mod document;
 mod finding;

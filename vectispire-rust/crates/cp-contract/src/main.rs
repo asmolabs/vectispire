@@ -4,6 +4,9 @@
 //! nothing: every documented route. It is run **once**, when the document moves (`refresh.sh`), and
 //! never to make a check pass — the list only shrinks.
 
+#![forbid(unsafe_code)]
+
+use std::io::Write;
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -15,7 +18,7 @@ fn main() -> ExitCode {
         Some("allowlist-write") => write_allowlist(),
         Some("summary") => summary(),
         _ => {
-            eprintln!("usage: cp-contract allowlist-write | summary");
+            err("usage: cp-contract allowlist-write | summary\n");
             ExitCode::from(2)
         }
     }
@@ -31,11 +34,11 @@ fn write_allowlist() -> ExitCode {
         .and_then(|()| std::fs::write(reference.join("not-yet-ported.ceiling"), format!("{count}\n")));
     match written {
         Ok(()) => {
-            println!("{count} routes written to {}", reference.join("not-yet-ported.txt").display());
+            out(&format!("{count} routes written to {}\n", reference.join("not-yet-ported.txt").display()));
             ExitCode::SUCCESS
         }
         Err(error) => {
-            eprintln!("cannot write the allowlist: {error}");
+            err(&format!("cannot write the allowlist: {error}\n"));
             ExitCode::FAILURE
         }
     }
@@ -44,12 +47,23 @@ fn write_allowlist() -> ExitCode {
 fn summary() -> ExitCode {
     let document = Document::embedded();
     let allowlist = Allowlist::embedded();
-    println!(
-        "openapi {} — {} operations; {} not ported yet (ceiling {})",
+    out(&format!(
+        "openapi {} — {} operations; {} not ported yet (ceiling {})\n",
         document.version(),
         document.operations().len(),
         allowlist.entries().len(),
         allowlist.ceiling()
-    );
+    ));
     ExitCode::SUCCESS
+}
+
+/// What the command says on stdout. A closed pipe is not a failure of the command, so the write's result
+/// is dropped; the print macros are denied workspace-wide (`Cargo.toml`).
+fn out(text: &str) {
+    drop(std::io::stdout().lock().write_all(text.as_bytes()));
+}
+
+/// The same on stderr.
+fn err(text: &str) {
+    drop(std::io::stderr().lock().write_all(text.as_bytes()));
 }

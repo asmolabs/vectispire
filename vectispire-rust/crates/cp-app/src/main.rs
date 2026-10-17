@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 
+use std::io::Write;
 use std::process::ExitCode;
 
 use vectispire_cp_outbound::guard::OutboundUrlGuard;
@@ -52,33 +53,45 @@ impl Service for NotWired {
     }
 }
 
+/// What the command line says on stdout. A closed pipe (`| head`) is not a failure of the command, so the
+/// write's result is dropped on purpose; the print macros are denied workspace-wide (`Cargo.toml`) and a
+/// binary that answers a flag is the one place that needs a way to speak.
+fn out(text: &str) {
+    drop(std::io::stdout().lock().write_all(text.as_bytes()));
+}
+
+/// The same on stderr, for what a refused start says before the logs exist.
+fn err(text: &str) {
+    drop(std::io::stderr().lock().write_all(text.as_bytes()));
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let argument = std::env::args().nth(1);
     match argument.as_deref() {
         Some("--version") => {
-            println!("vectispire-control-plane {}", env!("CARGO_PKG_VERSION"));
+            out(&format!("vectispire-control-plane {}\n", env!("CARGO_PKG_VERSION")));
             ExitCode::SUCCESS
         }
         Some("--help" | "-h") => {
-            print!("{USAGE}");
+            out(USAGE);
             ExitCode::SUCCESS
         }
         Some("--check-config") => match start_checks() {
             Ok((_, report, _)) => {
                 for line in report {
-                    println!("{} = {}  [{}]", line.key, line.shown, line.origin);
+                    out(&format!("{} = {}  [{}]\n", line.key, line.shown, line.origin));
                 }
                 ExitCode::SUCCESS
             }
             Err(problem) => {
-                eprintln!("{problem}");
+                err(&format!("{problem}\n"));
                 ExitCode::FAILURE
             }
         },
         None => serve().await,
         Some(other) => {
-            eprintln!("Unknown argument {other:?}\n\n{USAGE}");
+            err(&format!("Unknown argument {other:?}\n\n{USAGE}\n"));
             ExitCode::from(2)
         }
     }
@@ -88,12 +101,12 @@ async fn serve() -> ExitCode {
     let format = match LogFormat::from_variable(std::env::var("VECTISPIRE_LOG_FORMAT").ok().as_deref()) {
         Ok(format) => format,
         Err(problem) => {
-            eprintln!("{problem}");
+            err(&format!("{problem}\n"));
             return ExitCode::FAILURE;
         }
     };
     if let Err(problem) = telemetry::init(format, "vectispire") {
-        eprintln!("The logs could not be set up: {problem}");
+        err(&format!("The logs could not be set up: {problem}\n"));
         return ExitCode::FAILURE;
     }
     let (settings, _, _guard) = match start_checks() {
