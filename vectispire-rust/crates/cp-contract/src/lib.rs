@@ -23,6 +23,7 @@ mod document;
 mod finding;
 mod golden;
 mod json;
+mod plan;
 mod published;
 mod routes;
 mod schema;
@@ -37,6 +38,7 @@ pub use golden::{
     load_dir, replay,
 };
 pub use json::{Compare, Difference, DifferenceKind, Json, MAX_DEPTH, Numbers, ParseError, compare};
+pub use plan::{Plan, plan};
 pub use published::{Published, check_published};
 pub use routes::{Allowlist, ParamDecl, RouteDecl, RouteSource, SecurityDecl, check_routes};
 pub use schema::{Check, SchemaError, Schemas};

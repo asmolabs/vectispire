@@ -1,5 +1,9 @@
 //! `cp-contract` — the one command of the crate.
 //!
+//! `replay-plan <dir>` reads every recording the Java suite's recorder wrote under `<dir>` and says what a replay
+//! of them owes (`plan.rs`): exit 0 when nothing is owed, 1 when a recording cannot be read, 3 when a route that has
+//! been ported has recordings waiting to be replayed, 2 on a bad command line.
+//!
 //! `allowlist-write` writes `reference/not-yet-ported.txt` and its ceiling for a router that serves
 //! nothing: every documented route. It is run **once**, when the document moves (`refresh.sh`), and
 //! never to make a check pass — the list only shrinks.
@@ -10,15 +14,16 @@ use std::io::Write;
 use std::path::Path;
 use std::process::ExitCode;
 
-use vectispire_cp_contract::{Allowlist, Document};
+use vectispire_cp_contract::{Allowlist, Document, load_dir, plan};
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     match arguments.first().map(String::as_str) {
         Some("allowlist-write") => write_allowlist(),
         Some("summary") => summary(),
+        Some("replay-plan") => replay_plan(arguments.get(1).map(String::as_str)),
         _ => {
-            err("usage: cp-contract allowlist-write | summary\n");
+            err("usage: cp-contract allowlist-write | summary | replay-plan <golden dir>\n");
             ExitCode::from(2)
         }
     }
@@ -42,6 +47,47 @@ fn write_allowlist() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn replay_plan(dir: Option<&str>) -> ExitCode {
+    let Some(dir) = dir else {
+        err("usage: cp-contract replay-plan <golden dir>\n");
+        return ExitCode::from(2);
+    };
+    let (goldens, _normaliser) = match load_dir(Path::new(dir)) {
+        Ok(read) => read,
+        Err(error) => {
+            err(&format!("cannot read the recordings: {error}\n"));
+            return ExitCode::FAILURE;
+        }
+    };
+    if goldens.is_empty() {
+        err(&format!("{dir} holds no recording: a plan of nothing would pass whatever the recorder did\n"));
+        return ExitCode::FAILURE;
+    }
+    let document = Document::embedded();
+    let not_ported = Allowlist::embedded();
+    let found = plan(&goldens, &document, &not_ported);
+    out(&format!(
+        "{} recordings; {} of routes not yet ported, {} to replay, {} outside the contract; {} of {} operations recorded\n",
+        found.total,
+        found.not_ported,
+        found.to_replay.len(),
+        found.outside_contract.len(),
+        found.operations_recorded,
+        document.operations().len()
+    ));
+    for request in &found.outside_contract {
+        out(&format!("  outside the contract: {request}\n"));
+    }
+    if found.owes_nothing() {
+        return ExitCode::SUCCESS;
+    }
+    for owed in &found.to_replay {
+        err(&format!("  owed a replay: {owed}\n"));
+    }
+    err("a ported route has recordings and nothing replays them: run the replay of cp-app's tests on them\n");
+    ExitCode::from(3)
 }
 
 fn summary() -> ExitCode {
