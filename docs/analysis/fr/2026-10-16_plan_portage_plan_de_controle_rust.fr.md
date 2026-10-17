@@ -5,8 +5,8 @@ partie de `vectispire-common` que le portage de l'agent ne couvre pas déjà · 
 la ligne 0.11.1 (`release/0.11.1-merge` b8bd7e8d0 : Flyway V1–V91, `openapi.json` à 245 chemins)
 
 Ce plan est l'étape d'avant le code. Il mesure ce qu'il y a à porter, fixe ce qui ne doit pas changer,
-choisit les bibliothèques, retient une stratégie de migration et un oracle de test, et finit par une liste
-de tâches de phase 0 et de phase 1 que des agents en parallèle peuvent exécuter. Il s'appuie sur l'étude
+choisit les bibliothèques, retient une stratégie de migration et un oracle de test, et finit par les listes
+de tâches des phases 0, 1 et 2 que des agents en parallèle peuvent exécuter. Il s'appuie sur l'étude
 de l'agent (« Étude : porter l'agent distant en Rust », 2026-10-16, branche `docs/rust-agent-study`) et
 sur le portage de l'agent en cours dans `vectispire-rust/` (branche `feat/rust-agent` : crates `agent`,
 `protocol`, `crypto`, `git`, `container`, `scanners`, `domain`, `tls`, `testkit`). Le plan de contrôle
@@ -107,7 +107,7 @@ portage :
 ### 1.5 Travail planifié et asynchrone
 
 - **28 implémentations de `MaintenanceTask`** sur trois tours à délai fixe (relais 60 s, planification 60 s, horaire), plus 8 autres méthodes `@Scheduled`.
-- Pas d'élection de leader : chaque tâche doit supporter de tourner sur chaque instance. `MaintenanceJobsTest` vérifie la composition.
+- Les tours n'ont pas d'élection de leader : chaque tâche doit supporter de tourner sur chaque instance. `MaintenanceJobsTest` vérifie la composition. Le planificateur des analyses fait exception : son tic ne tourne que sur le leader, au moyen d'une ligne de bail (phase 2, §7).
 - Une **boîte d'envoi** (outbox) porte les notifications, les événements SIEM et la synchronisation des tickets.
 
 ### 1.6 Mécanique de sécurité
@@ -431,7 +431,7 @@ Le job de l'espace de travail fournit l'essentiel ; le plan de contrôle y ajout
 - **Publication :** **signature cosign inchangée.** L'identité nomme `release.yml`, pas le langage, et les consommateurs continuent de vérifier la même identité.
 - **Revues :** la **compétence `security-audit`**, les quatre domaines en parallèle, lancée à la fin de chaque phase. Une phase ne sort pas avec un constat au-dessus de bas.
 
-## 7. Tâches des phases 0 et 1
+## 7. Tâches des phases 0, 1 et 2
 
 Chaque tâche possède ses fichiers, pour que des agents en parallèle ne se marchent pas dessus. Les crates
 sont sous `vectispire-rust/crates/`.
@@ -462,10 +462,237 @@ routeur de 0.3 ; 0.5 est purement Java. Toutes démarrent ensemble ; 0.2 et 0.4 
 | 1.2 | **Sessions et jetons** : magasin des sessions (SHA-256), durées, extraction du jeton, clés d'API (préfixe + hachage), clés d'agent, jeton SCIM | `crates/cp-access/src/credentials/` |
 | 1.3 | **MFA et limites** : TOTP, récupération, verrouillage, limites de connexion, de jeton et de webhook aux clés de Bucket4j | `crates/cp-access/src/mfa/`, `crates/cp-http/src/limits.rs` |
 | 1.4 | **OIDC** : client openidconnect, règles de rattachement (adresse vérifiée, pas de rattachement privilégié), cookie de passage | `crates/cp-access/src/sso/` |
-| 1.5 | **Rôles, visibilité, double validation** : drapeaux de `Role`, `VisibilityService`, droits d'équipe et directs, restriction de la clé, réglages de double validation | `crates/cp-access/src/authz/` |
-| 1.6 | **Audit et réglages** : journal d'audit avec la chaîne continuée depuis la tête stockée, miroir fichier, magasin et types des réglages, plateforme | `crates/cp-audit/`, `crates/cp-settings/` |
+| 1.5 | **Rôles, visibilité, double validation** : drapeaux de `Role`, `VisibilityService`, droits d'équipe et directs, restriction de la clé, réglages de double validation | `crates/cp-access/src/` à la racine de la crate (`roles.rs`, `visibility.rs`, `rows.rs`, `four_eyes.rs`, `approvers.rs`), leurs requêtes dans `persistence/`. Pas `src/authz/` : `cp-arch-tests` n'admet comme places d'un module que sa racine, `web`, `internal`, `persistence` et ses interfaces nommées, et refuse tout autre répertoire |
+| 1.6 | **Audit et réglages** : journal d'audit avec la chaîne continuée depuis la tête stockée, miroir fichier, magasin et types des réglages, plateforme. **L'enregistrement des réglages écrit toutes ses modifications en une transaction**, là où Java valide chacune séparément et où un échec à mi-chemin laisse les précédentes écrites. C'est un écart délibéré par rapport à Java, décidé par l'utilisateur à la fusion de la phase 1 le 2026-10-17 et consigné dans le README de `cp-platform` | `crates/cp-audit/`, `crates/cp-settings/`, `crates/cp-platform/` |
 | 1.7 | **Routes d'accès** : `auth`, `users`, `teams`, `api-keys`, `admin`, `security`, SCIM, contre les réponses de référence | `crates/cp-access/src/web/` |
 | 1.8 | **Revue de sécurité de la phase 1** : la compétence `security-audit` sur le diff de la phase | — |
+
+La colonne *Possède* nomme des répertoires pour la lisibilité. La même règle de disposition que pour
+1.5 range les fichiers de chaque tâche à la racine de sa crate, dans `internal` et dans `persistence`,
+comme l'ont fait 1.1 et 1.2.
+
+### Phase 2, en parallèle après la sortie de la phase 1
+
+La phase 2 couvre les cibles et l'analyse : le parc qu'un compte déclare, la file qui l'examine, les
+agents qui y puisent, et l'ingestion qui transforme leurs rapports en constats. C'est là que se trouve la
+deuxième des parties les plus difficiles (§5). Le côté Java est mesuré sur **b8bd7e8d0**, la tête de
+`release/0.11.1-merge` et le commit que le §1 a mesuré. La base de cette branche (312b7cc8b) a 102
+commits de retard sur lui : la ligne 0.11.1 est donc la plus à jour. Le côté Rust est lu sur
+`rust/p1-merge` (44f36aff3).
+
+#### Ce que la phase 2 porte
+
+| Module | Fichiers principaux | Lignes | Fichiers de test (unitaires + intégration) | Tables |
+|---|---|---|---|---|
+| targets | 46 | 3 947 | 5 + 3 | `t_solution`, `t_project`, `t_repository`, `t_container`, `t_git_token`, `t_ssh_key` |
+| scanning | 52 | 4 443 | 21 + 6 | `t_scan`, `t_finding`, `t_leader_lease` |
+| agents | 17 | 1 929 | 5 + 2 | `t_agent` |
+| outbox | 9 | 416 | 2 + 1 | `t_outbox_message` |
+| maintenance | 6 | 170 | 2 + 0 | `t_one_shot_job` |
+| crypto | 7 | 600 | 5 + 0 | aucune (la clé de signature est une ligne de `t_setting`) |
+| **Total** | **137** | **11 505** | **40 + 12** | **12 sur 78** |
+
+`crypto` et `maintenance` ne figurent pas dans le titre de la phase. Ils appartiennent au socle partagé
+de Java, que la phase 1 n'a pas porté, et la phase 2 ne peut pas s'en passer :
+
+- `targets` stocke chiffrés les jetons git et les clés SSH ;
+- le répartiteur scelle les secrets pour les agents ;
+- sept des tâches planifiées de la phase sont des `MaintenanceTask`.
+
+Le reste de l'inventaire :
+
+- **`vectispire-common`, environ 2 600 lignes de plus :**
+  - `domain.targets`, `scans`, `agents`, `dependencies` (`DependencyGraph`), `sbom`, `scheduling`, `licenses`, `retention` ;
+  - de `domain.issues`, l'empreinte et son vocabulaire (`IssueFingerprint`, `FindingType`, `ToolKeys`) ;
+  - `Digests.sha256Fields`, `BoundedText` ;
+  - `ScanArtifacts`, `PluginStep`, `ScanTask`.
+
+  Le portage de l'agent tient déjà `FailureReason`, `RepositoryUrl`, `Severity`, la règle des
+  sous-chemins, l'écriture de `ScanArtifacts`, et les primitives Ed25519 et X25519.
+- **Tests :** 240 fichiers de test de `core` importent l'un des six modules. **69 fichiers MockMvc appellent une route de la phase 2**, et leurs enregistrements sont les réponses de référence de la phase.
+- **HTTP : 49 opérations sur 35 chemins**, soit 16 % des 311 :
+  - cibles : 29 (solutions 5, projets 7, dépôts 6, conteneurs 5, jetons git 3, clés SSH 3) ;
+  - analyses : 3 ;
+  - protocole des agents : 8 ;
+  - administration des agents : 9.
+
+  Les neuf autres chemins sous `/repositories` et `/solutions` relèvent de l'inventaire, de la
+  conformité et des greffons, et attendent leurs phases.
+- **Migrations :** 35 des 91 versions touchent ces douze tables (V1 à V86).
+- **Travail planifié :**
+  - sept `MaintenanceTask` : le tic de planification et l'arriéré à secrets délégués sur le tour de planification ; le relais des notifications sur le tour de relais ; la rétention des analyses, les lignes orphelines de cibles, les identités de dépôt et les messages envoyés sur le tour horaire ;
+  - la boucle propre du travailleur intégré ;
+  - deux réparations au démarrage : les revendications retenues, et les suppressions de cibles qu'un arrêt a interrompues.
+
+  L'ordre dans un tour est une seule `Sequence` à travers tous les modules : les tours Rust gardent donc
+  une liste ordonnée unique, et non une par crate. **Le « pas d'élection de leader » du §1.5 vaut pour les
+  tours, pas pour le planificateur.** Le tic de planification ne tourne que sur le leader, au moyen de
+  `t_leader_lease` : un `UPDATE` conditionnel dont le nombre de lignes désigne le gagnant. Deux instances
+  qui battraient ensemble analyseraient chaque cible due une fois par instance.
+
+#### Les contrats de données qu'elle porte
+
+1. **L'empreinte.** C'est le SHA-256 en hexadécimal minuscule des octets UTF-8 de cinq champs joints par NUL, un champ nul étant joint comme vide :
+   - la clé de cible, `repo:<id>` ou `container:<id>` ;
+   - le nom de fil du type ;
+   - l'identifiant ;
+   - le purl, ou le nom du paquet quand le purl est nul **ou vide** ;
+   - le chemin.
+
+   Un type rattaché à un outil (greffon, import) met sa clé d'outil à la place du paquet. La fonction est
+   appelée par `issues` (`IssueSyncService.fingerprintOf`) sur l'`Observation` que l'ingesteur lui remet,
+   **avant** que le constat soit tronqué à ses colonnes. La phase 2 possède donc la fonction et chacune de
+   ses entrées ; la phase 3 possède l'arriéré qui stocke le résultat. Trois comportements de Java sont à
+   reproduire, pas à corriger :
+   - `getBytes(UTF_8)` écrit une demi-paire de substitution isolée comme `?` ;
+   - `ToolKeys` rogne avec `String.strip()`, dont `Character.isWhitespace` exclut l'espace insécable, que `char::is_whitespace` de Rust inclut ;
+   - les noms d'outil passent en minuscules avec `Locale.ROOT`.
+2. **Absent n'est jamais vide** ([0007](../../architecture/fr/decisions/0007-none-is-not-an-empty-list.md)). L'`Optional` d'une étape décide si son type est examiné :
+   - SAST et qualité entrent ensemble ;
+   - la fin de vie n'entre que si la détection est active, qu'un SBOM existe et que la recherche a réussi ;
+   - les licences entrent dès qu'un catalogue existe ;
+   - le périmètre d'un greffon n'entre que s'il a produit.
+
+   L'ensemble est conservé sur l'analyse (`examined_types`,
+   [0032](../../architecture/fr/decisions/0032-security-checklists.md)). Les deux `Optional` des API
+   arrivent intacts à l'inventaire : Java les a aplatis une fois, et cela a vidé les contrats d'un dépôt.
+3. **La règle de statut d'une analyse.** Toutes les étapes absentes avec un échec enregistré donnent `failed` : la cible n'a jamais été examinée, et `completed` dirait qu'elle est saine. Rien d'observé et rien d'échoué reste `completed`, car une tâche à qui l'on n'a demandé aucune étape est une configuration à regarder, pas une erreur. Un type de projet absent d'un résultat laisse le précédent en place. Les langages détectés sont écrits même nuls, et nul se lit « inconnu ».
+4. **La troncature vient après l'empreinte.** `BoundedText.clip` compte en unités UTF-16 et ne coupe jamais une paire de substitution. La colonne stockée est une copie d'affichage ; la clé est la valeur entière de l'analyseur.
+5. **Le fil.**
+   - `ScanArtifacts` est lu comme le lit le mapper de l'agent Java : les champs inconnus sont ignorés, et `null` veut dire absent.
+   - Le numéro de contrat est comparé strictement au hello, et un écart répond 409.
+   - Les résultats et les rapports d'échec sont signés sur le corps brut.
+   - Une clé de scellement n'est crue que sur la clé de signature épinglée ([0031](../../architecture/fr/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)).
+6. **La boîte d'envoi.**
+   - Un message est mis en file dans la transaction de l'appelant, jamais dans une transaction à lui ([0033](../../architecture/fr/decisions/0033-internal-reactions-leave-through-the-outbox.md)).
+   - Son identifiant est estampillé dans la charge utile, car la livraison est « au moins une fois ».
+   - Chaque message est réglé dans sa propre transaction.
+   - Un type que personne ne traite est réessayé puis abandonné avec sa raison, jamais sauté.
+
+#### Ce qu'elle attend de la phase 1
+
+| Pièce | Sert à | Sur `rust/p1-merge` |
+|---|---|---|
+| visibilité de `cp-access` : `VisibilityService`, `rows::NotFound`, `CallerScope` | chaque route qui nomme une cible, chaque lecture d'analyse ; 404, jamais 403 | fusionnée (1.5) |
+| `GrantableTargets`, `IssuerSees` : ports que déclare `access` | `cp-targets` les implémente | déclarés, en attente de `cp-targets` |
+| `AgentDirectory` (identifiants) | une clé d'agent désigne son agent ; `cp-agents` l'implémente | déclaré (1.2) |
+| `cp-audit` | chaque service d'administration écrit son enregistrement (cibles : 14 imports, agents : 7) | fusionné (1.6) |
+| `cp-settings` | rétention, liste de licences bloquées, planification par défaut | fusionné (1.6) |
+| `cp-http` : constructeur de routes, `Caller`, limites de corps (résultat d'agent : 256 Mo) | les routes | phase 0 |
+| `cp-outbound` | le fournisseur de clé Vault | phase 0 |
+
+La MFA (1.3), l'authentification unique (1.4) et les routes d'accès (1.7) ne sont pas sur
+`rust/p1-merge`, et la phase 2 n'en a pas besoin : le rejeu des réponses de référence sème les sessions
+comme des lignes, que 1.2 lit déjà. Le point de décision 1 reste entre les phases. La phase 2 n'attend
+pas que ces tâches soient **prêtes**, seulement qu'elles soient **décidées**.
+
+**Une règle de la phase 0 doit bouger d'abord.** Java déclare partagés sur `VectispireApplication` sept
+modules du socle : `settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting` et `maintenance`.
+Modulith les autorise à tout module sans ligne dans `allowedDependencies`.
+`cp-arch-tests/data/edges.toml` n'a pas cette notion : `targets` ne peut utiliser que `access`, et
+`cp-targets` dépendant de `cp-audit` échoue aujourd'hui. La correction est la liste partagée sous forme
+de règle, prouvée cassée d'une façon comme les autres. Ce ne sont pas sept lignes par module, qui
+passeraient chacune pour une décision de revue que personne n'a prise.
+
+#### Ce qu'elle attend des phases suivantes, et la découpe
+
+Chacun de ces points est déjà un port en Java depuis la décision
+[0029](../../architecture/fr/decisions/0029-core-domains-become-modules.md). Chacun devient un trait dans
+la crate qui le déclare. Le binaire compose un remplaçant nommé d'après le module qui le remplacera. Un
+test de composition liste les implémentations Java et échoue à la bascule tant qu'un remplaçant reste :
+c'est la leçon de `MaintenanceJobsTest`, un appelant manquant ne se voit qu'au niveau de la composition.
+
+| Port (déclaré par) | Implémentation Java | Phase | Remplaçant de la phase 2 |
+|---|---|---|---|
+| `ScanIngestor.Backlog` (scanning) | `issues` `IssueBacklog` | 3 | enregistre l'`Observation`, répond la `Reconciliation` enregistrée côté Java |
+| `ScanIngestor.InventorySink` (scanning) | `inventory` `ScanInventory` | 3 | enregistre les appels |
+| `Enricher`, `EndOfLifeSource` (scanning) | `threatintel` | 4 | absents : le chemin « enrichissement désactivé » de Java lui-même ; la fin de vie n'est alors pas examinée |
+| `ScanRuleSets` (scanning) | `rules` | 3 | aucun jeu actif : les règles embarquées |
+| `ScanPlugins` (scanning) | `plugins` | 4 | aucun greffon |
+| `TargetBacklog` (targets) | `issues` | 3 | chiffres à zéro |
+| écouteurs de `TargetPurge` (targets) | access, issues, inventory, compliance, forges, gate, plugins, tickets, checklists, greffons de rapport | 1, 3–5 | ceux de targets, de scanning et d'access |
+| `OutboxHandler`, `NotificationChannel` (outbox) | notifications, SIEM, checklists, compliance | 4–5 | la seule livraison d'audit des agents |
+| réactions à `RepositoryScanned` | checklists, compliance | 5 | aucune |
+
+Le remplaçant de la boîte d'envoi a une contrainte. Un relais dont le registre est incomplet abandonne,
+après ses essais, tout message d'un type qu'il ne connaît pas, et les lignes de Java seraient détruites
+lors d'un exercice sur une copie de la base. Le binaire Rust ne démarre donc pas le tour de relais tant
+que son registre de gestionnaires n'égale pas celui de Java. Le relais est exercé en test avec les
+gestionnaires qui existent.
+
+#### Phase 2, tâches
+
+| # | Tâche | Possède | Interfaces fournies | Oracle |
+|---|---|---|---|---|
+| 2.1 | **Socle et frontières** : la règle des modules partagés ; les lignes de la phase 2 ; `cp-maintenance` avec ses trois tours (30 s de délai initial, un verrou par cadence, une tâche en échec termine son exécution et non le tour), la `Sequence` globale avec les places des modules suivants réservées, les tâches ponctuelles | `crates/cp-maintenance/`, `crates/cp-arch-tests/` (la seule tâche qui modifie `edges.toml`) | `MaintenanceTask`, `Cadence`, `Sequence`, `Turns`, `OneShotJobs` | `MaintenanceJobsTest` et `MaintenanceCompositionTest` portés ; `t_one_shot_job` sur les deux moteurs ; la règle partagée cassée d'une façon sur l'espace de travail synthétique |
+| 2.2 | **Boîte d'envoi** : mise en file dans le `Tx` de l'appelant, prise par mise à jour conditionnelle, attente croissante, abandon avec sa raison, purge, comptes | `crates/cp-outbox/` | `Outbox::enqueue(&mut Tx, …) -> Uuid`, `relay`, `prune_sent`, `counts` ; `OutboxHandler`, `NotificationChannel` | `OutboxServiceTest`, `OutboxDatabaseTest` ; `OutboxClaimIntegrationTest` avec deux relais en course sur MySQL et PostgreSQL ; vidages des lignes comparés à ceux de Java |
+| 2.3 | **Chiffrement au repos et scellement** : `EncryptionService` (AES-256-GCM, contexte en données associées), les sources de la clé (variable, fichier, `/run/secrets`, Vault par `cp-outbound`), la clé de signature ; le côté scellement ajouté à la crate partagée `crypto` | `crates/cp-crypto/` ; un `seal` additif dans `crates/crypto/`, revu par le flux de l'agent | `Encryption::{encrypt, inspect}(text, context)`, `SigningKeys`, `crypto::seal` | un jeu de référence dans les deux sens : Java déchiffre et ouvre ce que Rust écrit, et l'inverse, par contexte ; `EncryptionServiceTest`, `EncryptionKeyFile*`, `VaultKmsProviderTest` contre un Vault wiremock |
+| 2.4 | **L'empreinte et le vocabulaire des cibles**, purs : `FindingType`, `ToolKeys`, l'empreinte, `ScanTarget`, `BoundedText`, `DependencyGraph`, `Sbom::is_catalogue`, `ScanStatus`, l'analyseur cron de Spring, liste de licences bloquées, rétention | de nouveaux fichiers dans `crates/domain/src/` ; `vectispire-rust/reference/{fingerprints,cron,…}/` ; leurs écrivains Java dans `vectispire-common/src/test/` | `fingerprint::{of, of_tool}`, `ScanTarget::fingerprint_key`, `clip`, `DependencyGraph::of`, `CronSchedule::next` | des jeux de référence écrits par Java, identiques à l'octet : les cas d'`IssueFingerprintTest` et de `ToolFingerprintTest`, plus des demi-paires isolées, des espaces insécables, des purls vides et nuls, des caractères astraux à la troncature ; des corpus proptest hachés des deux côtés ; les prochains déclenchements d'un corpus d'expressions Spring |
+| 2.5 | **Le protocole, moitié serveur** : lecture typée de `ScanArtifacts` telle que Jackson la fait, chaque `Option` conservée ; les corps de revendication, de hello, de clé de scellement et d'échec que le serveur écrit ; une fonctionnalité `client` que le plan de contrôle laisse éteinte, pour ne pas lier le client HTTP de l'agent | `crates/protocol/` : additif, revu par le flux de l'agent | `ScanArtifacts::read`, l'écriture d'`AssignedTask`, les corps | `reference/artifacts/` dans les deux sens, plus des corps de revendication écrits par Java ; la suite `against_a_stub` de l'agent Rust ; des cibles de fuzzing sur le corps du résultat |
+| 2.6 | **Cibles** : les 29 routes ; planifications, identité et doublons de dépôt, nommage, imports ; la suppression en deux temps, reprise au démarrage ; les tâches des lignes orphelines et des identités | `crates/cp-targets/` | `TargetCatalog` ; les traits `TargetScans`, `TargetBacklog` et `TargetPurge` ; `GrantableTargets` et `IssuerSees` pour `cp-access` | réponses de référence des 29 ; `TargetDeletionTest`, `TargetPurgeOrderTest`, `UnnamedTargetTest`, `CronExpressionsTest` ; `RepositoryDuplicateIntegrationTest` et `TargetDeletionIntegrationTest` sur les deux moteurs ; la règle de couverture d'autorisation sur chaque route qui nomme une cible |
+| 2.7 | **File, répartition et planification** : la revendication (lecture, puis une mise à jour conditionnelle par candidat, étiquettes et `notBefore` dans la sélection, exclusion des secrets délégués par pages) ; le répartiteur (revendication, scellement, battement, résultat écrit en une transaction, échec, reprise, tentatives) ; le bail de leader et le planificateur ; rétention, purge, catalogue ; les routes des analyses | `crates/cp-scanning/` sauf les fichiers de 2.8 ; elle crée la crate et y déclare `ingestion` vide dès le premier jour | `ScanQueue::claim_within` ; les traits `AgentClaimLock`, `ScanRuleSets` et `ScanPlugins` ; `ScanDispatcher` ; `TargetScans` pour `cp-targets` | `ScanQueueIntegrationTest`, `ScanLabelsIntegrationTest`, `LeaderElectionIntegrationTest`, `SchedulerDatabaseTest`, `RetentionDatabaseTest` sur MySQL et PostgreSQL ; N revendicateurs en course sur les deux moteurs (chaque analyse prise une fois, personne affamé) ; les cas de `ScanDispatcherTest` ; les 3 réponses de référence |
+| 2.8 | **Ingestion** : des étapes aux constats, l'ensemble examiné, l'enrichissement appliqué avant l'écriture, l'arriéré nourri des valeurs entières, la troncature ensuite, la règle de statut, les licences tirées du catalogue | `crates/cp-scanning/src/ingestion.rs`, `src/internal/ingestion/`, `src/persistence/findings.rs` ; un écrivain de référence Java sous `vectispire-core/src/test/…/scanning/` | `ScanIngestor::{prepare, ingest}` ; `Backlog`, `InventorySink`, `Enricher`, `EndOfLifeSource`, `LicenseSource` ; `Observation`, `Reconciliation` | **le jeu de référence de l'ingestion** (plus bas) ; `ScanIngestorTest`, `ExaminedTypes*`, `SecretsReportFateTest`, `NoOutboundDuringIngestionTest`, `EnrichmentOutsideTransactionTest` ; `LongFindingIntegrationTest` sur les deux moteurs |
+| 2.9 | **Agents, côté serveur** : les 8 routes du protocole avec l'attente longue et son en-tête de concurrence, et les 9 routes d'administration ; le contrôle du contrat au hello ; l'épinglage de la clé de scellement ; les signatures vérifiées sur le corps brut avant toute lecture ; l'arriéré à secrets délégués et sa tâche ; la réparation des revendications retenues ; le travailleur intégré comme exécutant que la file compte ; le gestionnaire de livraison d'audit | `crates/cp-agents/` | les implémentations d'`AgentClaimLock` et d'`AgentDirectory` ; `AgentResultAuditDelivery` | réponses de référence de 15 des 17 (deux différées, plus bas) ; `AgentSealingKeyIntegrationTest`, `WithheldClaimRepairIntegrationTest` sur les deux moteurs ; `AgentJobPollerTest`, `UnroutableWorkerTest`, `CredentialedBacklog*` |
+| 2.10 | **Le travailleur intégré** : la chaîne d'analyse de l'agent sortie de son binaire (`agent/src/scan.rs`) vers une bibliothèque que les deux programmes utilisent, et la boucle de revendication du travailleur par-dessus | `crates/runner/`, déplacée avec le flux de l'agent ; `crates/cp-scanning/src/internal/worker/` | `Runner::run(task) -> ScanArtifacts` | **une application démarrée, travailleur actif, fait passer une analyse en file à terminée sur les deux moteurs** : le défaut de câblage d'`AGENTS.md`, qu'aucun test unitaire ne voit ; `ScanWorkerOffloadTest`, `CloneFailureFateTest` ; les suites de l'agent inchangées |
+| 2.11 | **Composition et oracle** : la phase 2 câblée dans le binaire avec ses remplaçants nommés ; la liste des différés ; l'exercice de montée de version étendu ; les deux agents contre l'image Rust | `crates/cp-app/` (la composition de la phase 2), `vectispire-rust/golden/deferred.txt`, `scripts/upgrade-drill.sh` | — | les réponses de référence de la phase rejouées ; l'exercice écrit solutions, projets, dépôts, conteneurs, jetons git, clés SSH, agents et une analyse par l'API de la dernière version Java, puis les relit par Rust sur MySQL et PostgreSQL ; `scripts/composition-scan-check.sh` avec les deux agents ; les douze tables comparées à celles de Java après le même scénario ; le test de composition des remplaçants |
+| 2.12 | **Revue de sécurité de la phase 2** : la compétence `security-audit` sur le diff de la phase. Accent sur le parc que sert une route de cible ; sur l'appartenance d'une analyse rapportée à l'agent qui l'a prise ; sur la signature avant la lecture ; sur l'épinglage de la clé de scellement ; sur la SSRF par les URL de dépôt et les références d'image ; sur la limite de 256 Mo des résultats ; et sur les jetons et clés de déploiement jamais journalisés | — | — | aucun constat au-dessus de bas |
+
+**Le jeu de référence de l'ingestion.** Java fait tourner `ScanIngestor` sur un corpus avec un
+`Backlog` enregistreur, et écrit, pour chaque cas :
+
+- l'`Observation`, avec chaque empreinte ;
+- les lignes de constats ;
+- l'ensemble examiné ;
+- le statut.
+
+L'ingestion Rust doit produire les mêmes octets. Le corpus :
+
+- les sorties de référence des analyseurs du portage de l'agent (dépendances 79, SAST 85, IaC 62, secrets 28) ;
+- pour chaque étape, un cas absent et un cas vide ;
+- toutes les étapes absentes avec un échec ;
+- un greffon qui a produit, un non applicable et un refusé ;
+- des valeurs qui dépassent leurs colonnes ;
+- des demi-paires isolées ;
+- un SBOM proche de la limite du corps.
+
+C'est « jeux de référence d'ingestion identiques à l'octet » rendu exécutable. Il est écrit avant que
+2.8 commence, parce qu'une référence écrite après le code tend à donner raison au code.
+
+Dépendances :
+
+- **2.1 arrive en premier, en une journée.** Le `Cargo.toml` de chaque crate est vérifié contre sa règle d'arêtes, et 2.2, 2.6, 2.7 et 2.9 implémentent son `MaintenanceTask`. Seule 2.1 modifie `edges.toml` ; les autres lui demandent une ligne.
+- **2.4 livre ses types avant leur comportement.** `FindingType`, `ScanTarget` et `ToolKeys` d'abord, pour que 2.6 à 2.8 compilent contre eux pendant que les jeux de référence s'écrivent.
+- **2.3 et 2.5 publient d'abord leurs signatures.** 2.6 a besoin d'`Encryption` ; 2.7 de `seal` et du corps de revendication ; 2.8 des artefacts typés ; 2.9 des corps.
+- **2.7 possède le `lib.rs` de `cp-scanning`.** 2.8 ne possède que ses fichiers déclarés.
+- **2.10 attend l'accord du flux de l'agent sur l'extraction de la chaîne.** D'ici là, le répartiteur de 2.7 est prouvé avec des agents distants seulement.
+- **2.11 démarre le premier jour**, puisque les réponses de référence existent depuis la tâche 0.5, et clôt la phase. 2.12 vient en dernier.
+
+#### Ce qui ne se découpe pas, et ne peut qu'être différé
+
+1. **Les identifiants d'issue des constats, et les comptes de nouvelles et de résolues d'une analyse.** Ce sont les réponses de l'arriéré. La phase 2 les compare à la `Reconciliation` que Java a enregistrée ; les vraies arrivent avec `issues` en phase 3.
+2. **`GET /agent/rules/{hash}` et `GET /agent/plugins/{id}/{digest}`.** Leur contenu appartient à `rules` (phase 3) et à `plugins` (phase 4). Ils sont servis par `ScanRuleSets` et `ScanPlugins`, donc leurs réponses de référence sont différées, comme les revendications qui nomment un jeu de règles propre ou un greffon.
+3. **Les chiffres d'arriéré des listes de cibles.** Les réponses de référence enregistrées avec des issues ouvertes attendent la phase 3.
+4. **La suppression complète d'une cible.** Les lignes des modules suivants attendent leurs purges ; la comparaison d'une suppression en phase 2 couvre ses douze tables.
+5. **La livraison du contenu de la boîte d'envoi.** Les notifications de delta d'analyse sont écrites par l'arriéré (phase 3) et livrées par `notifications` (phase 4), comme les événements SIEM.
+6. **Les crates du portage de l'agent.** `protocol`, `crypto` et la chaîne d'analyse changent dans les flux de l'agent : de façon additive, et revus là-bas.
+
+Aucun de ces points ne rend fausse une réponse de référence de la phase 2. Ils en rendent certaines plus
+tardives. `golden/deferred.txt` porte une raison par réponse et ne fait que rétrécir, comme
+`sql-known.toml`.
+
+#### Risques propres à la phase 2
+
+| Risque | Pourquoi ici | Parade |
+|---|---|---|
+| **Une empreinte dérive** | rien n'échoue : l'arriéré est résolu puis recréé, et tout le tri est perdu (`AGENTS.md`). La différence se cache dans le comportement de Java : `?` pour une demi-paire isolée, `strip()` et l'espace insécable, nul joint comme vide, purl vide qui retombe sur le nom | le jeu de référence de 2.4 écrit par Java, avec ces cas ; des corpus proptest hachés des deux côtés ; toute différence fait échouer la construction, sans tolérance |
+| **Un `Optional` est aplati** | il résout en silence tout l'historique d'un type ([0007](../../architecture/fr/decisions/0007-none-is-not-an-empty-list.md)) ; Java l'a corrigé deux fois, pour les contrats d'API et pour la fin de vie | un cas absent et un cas vide par étape dans le jeu de référence de l'ingestion ; dans `cp-scanning`, pas d'`unwrap_or_default` sur l'`Option<Vec<_>>` d'un analyseur, imposé par une règle de lint |
+| **Gros SBOM** | un résultat peut atteindre 256 Mo ; un arbre `serde_json::Value` coûte plusieurs fois le corps, qu'il faut aussi garder pour la signature | vérifier sur les octets bruts, puis lire les étapes dans des structures typées et garder le SBOM en JSON brut ; un test de mémoire avec un corps à la limite ; le `max_allowed_packet` de MySQL dans les tests moteurs |
+| **Revendications concurrentes** | la revendication est une lecture, puis une mise à jour conditionnelle par candidat, sans verrou de ligne. `SKIP LOCKED` a été abandonné pour ce qu'il faisait sous MySQL, et une fenêtre plus large affamait PostgreSQL. Les deux ne se sont vus que sur de vrais serveurs | des revendicateurs en course sur MySQL et PostgreSQL, à la place d'`integrationTestAll`. Un test contre une base simulée ne compte pas comme test de revendication |
+| **Deux relais, au moins une fois** | la prise d'un message est une mise à jour conditionnelle sur `next_attempt_at` ; un relais Rust à qui il manque un gestionnaire abandonne les messages en attente de Java | `OutboxClaimIntegrationTest` sur les deux moteurs ; le relais est retenu tant que le registre est incomplet ; l'exercice vérifie que `t_outbox_message` n'a pas changé |
+| **Le cron de Spring** | les planifications sont stockées en texte `CronExpression` de Spring : un champ des secondes, le jour de semaine de 0 à 7, des macros. Aucune crate Rust ne les lit de la même façon | un portage de l'analyseur dans `domain`, tenu aux prochains déclenchements et aux messages de refus de Java |
+| **Longueurs UTF-16** | `BoundedText` et les contrôles de longueur comptent en unités UTF-16, là où Rust compte en octets ou en caractères | portés en unités UTF-16 ; des cas de référence avec des caractères astraux |
+| **Les crates de l'agent bougent** | `protocol` et `crypto` sont partagées ; un changement fait pour le serveur peut modifier les octets de l'agent | additif seulement ; les jeux de référence de l'agent restent en CI ; le flux de l'agent relit |
+| **Câblé mais pas exercé** | le travailleur intégré Java n'a rien revendiqué tant qu'il a existé | 2.10 est acceptée sur une application démarrée, pas sur un test unitaire |
 
 ## 8. Recommandation
 
