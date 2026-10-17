@@ -21,6 +21,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+vectispire-domain.workspace = true
 tower = { version = "0.5", default-features = false, features = ["util"] }
 
 [lints]

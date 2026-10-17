@@ -7,28 +7,11 @@
 //! such, and **key order is the order the document is written in** — `serde_json` without
 //! `preserve_order` sorts keys, and Spring's actuator answers `name` first.
 
-use std::fmt::Write;
-
-/// `s` as a JSON string, quotes included.
+/// `s` as a JSON string, quotes included — the escaping is `vectispire_domain::wire`'s, shared with every other
+/// place the port writes what Java would.
 pub fn string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                let _ = write!(out, "\\u{:04X}", c as u32);
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
+    vectispire_domain::wire::write_string(&mut out, s);
     out
 }
 
@@ -37,15 +20,9 @@ pub fn nullable(s: Option<&str>) -> String {
     s.map_or_else(|| "null".to_owned(), string)
 }
 
-/// A `double` as Jackson writes it: `3.0`, never `3`.
+/// A `double` as Jackson writes it — `Double.toString`: `3.0`, `1.5E10`, `1.0E-5` — and `null` where it is not finite.
 pub fn double(value: f64) -> String {
-    if value.is_finite() && value.fract() == 0.0 && value.abs() < 1e15 {
-        format!("{value:.1}")
-    } else if value.is_finite() {
-        format!("{value}")
-    } else {
-        "null".to_owned()
-    }
+    if value.is_finite() { vectispire_domain::wire::java_double_to_string(value) } else { "null".to_owned() }
 }
 
 /// An object from already-encoded values, in the order given.

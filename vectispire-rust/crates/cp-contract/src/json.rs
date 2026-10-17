@@ -135,22 +135,7 @@ impl Json {
 }
 
 fn write_string(text: &str, out: &mut String) {
-    out.push('"');
-    for character in text.chars() {
-        match character {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            control if (control as u32) < 0x20 => {
-                // Jackson writes the hexadecimal digits of an escape in upper case.
-                out.push_str(&format!("\\u{:04X}", control as u32));
-            }
-            other => out.push(other),
-        }
-    }
-    out.push('"');
+    vectispire_domain::wire::write_string(out, text);
 }
 
 struct Reader<'a> {

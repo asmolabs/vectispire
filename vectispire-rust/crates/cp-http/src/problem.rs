@@ -120,9 +120,9 @@ impl Problem {
             if out.len() > 1 {
                 out.push(',');
             }
-            write_string(out, name);
+            vectispire_domain::wire::write_string(out, name);
             out.push(':');
-            write_value(out, value);
+            out.push_str(&vectispire_domain::wire::to_wire_string(value));
         };
         let status = Value::from(self.0.status.as_u16());
         let detail = Value::from(self.0.detail.as_str());
@@ -178,56 +178,6 @@ impl IntoResponse for Problem {
     }
 }
 
-/// A JSON string the way Jackson's default writer spells it: `"` and `\` escaped, the short escapes for the
-/// five control characters that have one, `\u00XX` with **upper-case** hex for the rest below 0x20, everything
-/// else — non-ASCII included — as it is.
-pub fn write_string(out: &mut String, text: &str) {
-    out.push('"');
-    for c in text.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04X}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-}
-
-fn write_value(out: &mut String, value: &Value) {
-    match value {
-        Value::String(text) => write_string(out, text),
-        Value::Array(items) => {
-            out.push('[');
-            for (index, item) in items.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                write_value(out, item);
-            }
-            out.push(']');
-        }
-        Value::Object(members) => {
-            out.push('{');
-            for (index, (name, member)) in members.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                write_string(out, name);
-                out.push(':');
-                write_value(out, member);
-            }
-            out.push('}');
-        }
-        other => out.push_str(&other.to_string()),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,13 +208,6 @@ mod tests {
         let body =
             Problem::chain(StatusCode::TOO_MANY_REQUESTS, "slow down").at("/x").with("retryAfterSeconds", 2).body();
         assert!(body.ends_with(r#""instance":"/x","retryAfterSeconds":2}"#), "{body}");
-    }
-
-    #[test]
-    fn strings_are_escaped_as_jackson_escapes_them() {
-        let mut out = String::new();
-        write_string(&mut out, "a\"b\\c\n\u{1f}\u{7f}é");
-        assert_eq!(out, "\"a\\\"b\\\\c\\n\\u001F\u{7f}é\"");
     }
 
     #[test]
