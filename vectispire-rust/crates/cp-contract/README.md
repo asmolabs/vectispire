@@ -1,6 +1,6 @@
 # vectispire-cp-contract — the control plane's contract, kept identical
 
-Task 0.4 of the Rust port of the control plane ([plan §3.4, §4.3, §7](../../../docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md)).
+Task 0.4 of the Rust port of the control plane (plan §3.4, §4.3, §7: `docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md` on branch `docs/rust-control-plane-plan`, not on this branch yet).
 
 The Angular client is generated from `openapi.json`, the agents call eight of its routes and customers'
 pipelines call the CLI and the gate against it. **The document is what the port must not change**, so the

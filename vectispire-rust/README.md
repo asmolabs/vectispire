@@ -234,7 +234,7 @@ Java writer like `SecretsReferenceSetTest`.
 
 ## The control plane's crates (`cp-*`) — Phase 0 of the control plane's port
 
-The same workspace holds the control plane's crates, whose plan is `docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md`.
+The same workspace holds the control plane's crates, whose plan is `docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md`, on branch `docs/rust-control-plane-plan` (it joins this branch with it).
 **They are the one place the encryption key is named**, and `crates/agent/tests/isolation.rs` exempts `crates/cp-*` from the
 test that no source names it — and from nothing else: the agent's graph still links no database client and no server, and the
 shared crates (`domain`, `crypto`, …) still may not name the key.
