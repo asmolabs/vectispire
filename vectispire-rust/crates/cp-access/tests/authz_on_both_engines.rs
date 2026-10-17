@@ -3,12 +3,13 @@
 //!
 //! For each engine: a throwaway server (`vs-rs-acc-*`, removed when the test ends; a missing Docker fails the
 //! test), the migrations, the matrix's accounts, teams, grants, projects, targets and backlog seeded as rows, then
-//! for every case the real [`VisibilityService`] — its read-only transaction, its three statements, the guard on
-//! an empty team list — and a real [`VisibleSelect`] on `t_issue` with the allowance it produced. Both must equal
+//! for every case the real [`VisibilityService`] — its read-only transaction and its two statements (the direct
+//! grants, and the teams' through a join) — and a real [`VisibleSelect`] on `t_issue` with the allowance it produced. Both must equal
 //! what the Java side answered for the same accounts. Then [`TriageApprovers`] counts on the same rows.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::print_stdout)]
 
+#[path = "authz_support/mod.rs"]
 mod support;
 
 use std::collections::BTreeSet;
@@ -23,6 +24,7 @@ use std::net::SocketAddr;
 use support::{allowance, reference, visibility};
 use tower::ServiceExt;
 use vectispire_cp_access::TriageApprovers;
+use vectispire_cp_access::four_eyes::SwitchOnRefusal;
 use vectispire_cp_access::security::{CallerScope, CallerVisibility, PrincipalDirectory};
 use vectispire_cp_access::visibility::{
     AccessError, AccessSettings, AccountRef, Allowance, GrantableTargets, VisibilityService,
@@ -475,11 +477,20 @@ async fn the_approvers_on(database: &Database, db: &Db) {
     assert!(approvals.any_active().await.unwrap());
     assert!(approvals.two_can_publish_templates().await.unwrap());
     assert!(approvals.two_can_sign_off_checklists().await.unwrap());
+    assert_eq!(approvals.refusal_to_switch_on("true").await.unwrap(), None);
 
     let (active, inactive) = match database {
         Database::MySql(_) => ("b'1'", "b'0'"),
         Database::PostgreSql(_) => ("true", "false"),
     };
+    // Exactly two active approvers: the boundary — two may sign a checklist off, and four-eyes may be switched on.
+    execute(
+        database,
+        &[format!("update t_user set is_active = {inactive} where role in ({approvers}) and id not in (select id from (select id from t_user where role in ({approvers}) order by id limit 2) lowest)")],
+    )
+    .await;
+    assert!(approvals.two_can_sign_off_checklists().await.unwrap(), "two approvers are two");
+    assert_eq!(approvals.refusal_to_switch_on("true").await.unwrap(), None);
     // One active approver left: some approver at all, but not two to sign a checklist off.
     execute(
         database,
@@ -488,17 +499,21 @@ async fn the_approvers_on(database: &Database, db: &Db) {
     .await;
     assert!(approvals.any_active().await.unwrap());
     assert!(!approvals.two_can_sign_off_checklists().await.unwrap());
+    assert_eq!(approvals.refusal_to_switch_on(" true ").await.unwrap(), Some(SwitchOnRefusal::OneSignatory));
     // None: four-eyes would put every decision in a queue nobody can empty.
     execute(database, &[format!("update t_user set is_active = {inactive} where role in ({approvers})")]).await;
     assert!(!approvals.any_active().await.unwrap());
+    assert_eq!(approvals.refusal_to_switch_on("1").await.unwrap(), Some(SwitchOnRefusal::NoApprover));
+    // Switching off is never refused, whoever is left.
+    assert_eq!(approvals.refusal_to_switch_on("false").await.unwrap(), None);
     // Publishers: SUPERUSER is one and approves nothing; with every approver gone, the governors still publish.
     let governors_publish = approvals.two_can_publish_templates().await.unwrap();
     assert!(governors_publish, "the platform governors are two active publishers");
     execute(database, &[format!("update t_user set is_active = {inactive} where role in ({publishers})")]).await;
     assert!(!approvals.two_can_publish_templates().await.unwrap());
     // **An account whose stored role is `admin` counts as an approver on MySQL and not on PostgreSQL** — the
-    // Java query's behaviour, and this one's, because both send `role in ('ADMIN', …)` and MySQL's default
-    // collation compares without case. `Role.of("admin")` is unreadable and authorizes nothing; the count is the
+    // Java query's behaviour, and this one's, because both compare `role` with `'ADMIN'` in SQL (Java's `in`, this
+    // crate's `=` per role) and MySQL's default collation compares without case. `Role.of("admin")` is unreadable and authorizes nothing; the count is the
     // settings screen's "could four-eyes be honoured", so on MySQL such an account makes it answer yes for an
     // approver who cannot approve. Pinned per engine, as the Java side behaves, and recorded in the README.
     let only_lowercase = match database {

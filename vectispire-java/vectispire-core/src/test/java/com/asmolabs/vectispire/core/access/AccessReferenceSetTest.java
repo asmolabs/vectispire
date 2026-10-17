@@ -15,6 +15,15 @@ import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.core.ai.AiReviewService;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.notifications.NotificationService;
+import com.asmolabs.vectispire.core.platform.SettingsAdministrationService;
+import com.asmolabs.vectispire.core.settings.persistence.SettingEntity;
+import com.asmolabs.vectispire.core.settings.persistence.SettingRepository;
+import com.asmolabs.vectispire.core.tickets.TicketService;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
@@ -36,6 +45,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -492,6 +502,76 @@ class AccessReferenceSetTest {
             }
         }
         expect("access/four-eyes.json", out);
+    }
+
+    /**
+     * The four-eyes setting as the rest of the code reads it, and the three refusals that keep it from being switched
+     * on where it could not be honoured — {@code SettingsService.isEnabled} over stored spellings, and
+     * {@code SettingsAdministrationService.update} itself, called by the platform governor over value spellings and
+     * every answer {@link TriageApprovers} could give. The outcome is the refusal's sentence or what the save did
+     * otherwise: whatever comes after the four-eyes guards (the type's validation, mostly) is the settings module's.
+     */
+    @Test
+    void theFourEyesSwitch() {
+        ObjectNode out = JSON.createObjectNode();
+        ArrayNode read = out.putArray("isEnabled");
+        List<String> stored = new ArrayList<>();
+        stored.add("<absent>");
+        stored.add("<null>");
+        stored.addAll(List.of("true", "TRUE", " true", "true ", "false", "", "1", "yes"));
+        for (String value : stored) {
+            SettingRepository repository = mock(SettingRepository.class);
+            Optional<SettingEntity> row = Optional.empty();
+            if (!value.equals("<absent>")) {
+                SettingEntity entity = new SettingEntity();
+                entity.setKey(Setting.FOUR_EYES_APPROVAL_REQUIRED.key());
+                entity.setValue(value.equals("<null>") ? null : value);
+                row = Optional.of(entity);
+            }
+            when(repository.findById(Setting.FOUR_EYES_APPROVAL_REQUIRED.key())).thenReturn(row);
+            ObjectNode line = read.addObject();
+            line.put("stored", value);
+            line.put("enabled", new SettingsService(repository).isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED));
+        }
+
+        ArrayNode switches = out.putArray("switchOn");
+        List<String> values = List.of("true", "TRUE", "tRuE", " true\t", "\u0001true", "\u00a0true", "1", " 1 ", "01",
+                "false", "0", "yes", "");
+        for (String value : values) {
+            for (int answers = 0; answers < 8; answers++) {
+                boolean anyActive = (answers & 1) != 0;
+                boolean twoPublish = (answers & 2) != 0;
+                boolean twoSignOff = (answers & 4) != 0;
+                SettingsService settings = mock(SettingsService.class);
+                when(settings.get(org.mockito.ArgumentMatchers.any(Setting.class)))
+                        .thenAnswer(call -> ((Setting) call.getArgument(0)).defaultValue());
+                AiReviewService aiReview = mock(AiReviewService.class);
+                when(aiReview.openAiUrl()).thenReturn("");
+                when(aiReview.ollamaUrl()).thenReturn("");
+                TriageApprovers approvers = mock(TriageApprovers.class);
+                when(approvers.anyActive()).thenReturn(anyActive);
+                when(approvers.twoCanPublishTemplates()).thenReturn(twoPublish);
+                when(approvers.twoCanSignOffChecklists()).thenReturn(twoSignOff);
+                SettingsAdministrationService service = new SettingsAdministrationService(settings, aiReview, approvers,
+                        mock(TicketService.class), mock(NotificationService.class), mock(AuditLogService.class),
+                        Clock.systemUTC());
+                ObjectNode line = switches.addObject();
+                line.put("value", value);
+                line.put("anyActive", anyActive);
+                line.put("twoCanPublishTemplates", twoPublish);
+                line.put("twoCanSignOffChecklists", twoSignOff);
+                String outcome;
+                try {
+                    service.update(Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), value),
+                            Optional.of(user(1, "SUPERUSER")), new RequestActor("u1", "127.0.0.1", "test"));
+                    outcome = "saved";
+                } catch (InvalidInputException refused) {
+                    outcome = refused.getMessage();
+                }
+                line.put("outcome", outcome);
+            }
+        }
+        expect("access/four-eyes-switch.json", out);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────────────────

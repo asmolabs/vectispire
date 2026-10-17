@@ -1,12 +1,13 @@
 #!/bin/sh
-# The offline caches of the checked queries: one directory, `crates/cp-db/.sqlx/`, holding both engines.
+# The offline caches of the checked queries: one directory per crate that declares them (`crates/<crate>/.sqlx/`,
+# listed in `crates` below), each holding both engines.
 #
 #   crates/cp-db/scripts/sqlx-prepare.sh prepare   regenerate the caches from real databases and leave them in place
 #   crates/cp-db/scripts/sqlx-prepare.sh check     regenerate into a scratch directory and fail if it differs from the
 #                                     committed one, then compile offline with both engines on
 #
 # **Why a script and not `cargo sqlx prepare`.** The tool describes every query against *one*
-# DATABASE_URL, and this crate has queries for two engines: pointed at MySQL, the PostgreSQL statements
+# DATABASE_URL, and each crate has queries for two engines: pointed at MySQL, the PostgreSQL statements
 # fail to describe. Each engine's queries are a feature (`mysql-queries`, `postgres-queries`); a pass
 # compiles only that engine's against a database of that engine, with SQLX_OFFLINE_DIR set so that the
 # macro writes what it learnt. The migrated schema comes from the real Flyway, as the tests' does.
@@ -23,7 +24,12 @@ cd "$(dirname "$0")/../../.." # the workspace root, vectispire-rust/
 mode="${1:-}"
 case "$mode" in prepare | check) ;; *) echo "usage: $0 prepare|check" >&2; exit 2 ;; esac
 
-committed="crates/cp-db/.sqlx"
+# Every crate with checked statements: the database layer's own, and each module's persistence. A module crate
+# depends on cp-db without its default features, so its pass compiles none of cp-db's statements against an engine
+# they were not written for. The source touched forces the macros to describe again (they re-run only when their
+# crate changes).
+crates="cp-db:src/store.rs cp-access:src/persistence/grants.rs cp-access:src/persistence/accounts.rs"
+crate_names="cp-db cp-access"
 migrations="$(cd ../vectispire-java/vectispire-core/src/main/resources/db/migration && pwd)"
 # The campaign's engines and the Flyway Spring Boot's BOM brings, by digest (Engine.java, upgrade-drill.sh).
 mysql_image="mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2"
@@ -91,11 +97,20 @@ prepare_engine() { # engine feature
       url="postgres://vectispire:$password@127.0.0.1:$port/vectispire"
       ;;
   esac
-  # The macros re-run only when their crate's source changes: touching the file forces a describe.
-  touch crates/cp-db/src/store.rs
-  DATABASE_URL="$url" SQLX_OFFLINE_DIR="$out" \
-    cargo check -p vectispire-cp-db --lib --no-default-features --features "$feature" --locked
+  touch_sources
+  for crate in $crate_names; do
+    mkdir -p "$out/$crate"
+    DATABASE_URL="$url" SQLX_OFFLINE_DIR="$out/$crate" \
+      cargo check -p "vectispire-$crate" --lib --no-default-features --features "$feature" --locked
+  done
   docker rm -f "$name" >/dev/null
+}
+
+# The macros re-run only when their crate's source changes: touching the files forces a describe.
+touch_sources() {
+  for entry in $crates; do
+    touch "crates/${entry%%:*}/${entry#*:}"
+  done
 }
 
 fresh="$scratch/sqlx"
@@ -105,19 +120,27 @@ prepare_engine postgres postgres-queries "$fresh"
 
 case "$mode" in
   prepare)
-    rm -rf "$committed"
-    mkdir -p "$committed"
-    cp "$fresh"/query-*.json "$committed"/
-    echo "wrote $(find "$committed" -name 'query-*.json' | wc -l | tr -d ' ') query files to $committed"
+    for crate in $crate_names; do
+      committed="crates/$crate/.sqlx"
+      rm -rf "$committed"
+      mkdir -p "$committed"
+      cp "$fresh/$crate"/query-*.json "$committed"/
+      echo "wrote $(find "$committed" -name 'query-*.json' | wc -l | tr -d ' ') query files to $committed"
+    done
     ;;
   check)
-    if ! diff -r "$fresh" "$committed"; then
-      echo "the committed $committed is stale: run crates/cp-db/scripts/sqlx-prepare.sh prepare and commit the result" >&2
-      exit 1
-    fi
-    # And the committed cache alone, no database, both engines on: what a build and CI compile with.
-    touch crates/cp-db/src/store.rs
-    SQLX_OFFLINE=true cargo check -p vectispire-cp-db --lib --locked
+    for crate in $crate_names; do
+      committed="crates/$crate/.sqlx"
+      if ! diff -r "$fresh/$crate" "$committed"; then
+        echo "the committed $committed is stale: run crates/cp-db/scripts/sqlx-prepare.sh prepare and commit the result" >&2
+        exit 1
+      fi
+    done
+    # And the committed caches alone, no database, both engines on: what a build and CI compile with.
+    touch_sources
+    for crate in $crate_names; do
+      SQLX_OFFLINE=true cargo check -p "vectispire-$crate" --lib --locked
+    done
     echo "the offline caches are complete and current"
     ;;
 esac

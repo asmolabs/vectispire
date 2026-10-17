@@ -53,7 +53,7 @@ impl VisibilityMode {
     /// included — and no other; `str::trim` strips Unicode white space, a no-break space among it, and leaves the
     /// controls. A no-break space before `everyone` is unreadable on the Java side, so here too (`modes.json`).
     pub fn by_wire_name(value: Option<&str>) -> Option<VisibilityMode> {
-        let normalized = value.unwrap_or("").trim_matches(|c: char| c <= '\u{20}').to_lowercase();
+        let normalized = java_trim(value.unwrap_or("")).to_lowercase();
         [VisibilityMode::Everyone, VisibilityMode::Assigned].into_iter().find(|mode| mode.wire_name() == normalized)
     }
 
@@ -62,6 +62,13 @@ impl VisibilityMode {
     pub fn of(value: Option<&str>) -> VisibilityMode {
         VisibilityMode::by_wire_name(value).unwrap_or(VisibilityMode::Assigned)
     }
+}
+
+/// `String.trim`: every character up to U+0020 off both ends — the ASCII controls included — and no other. Not
+/// `str::trim`, which strips Unicode white space (a no-break space among it) and leaves the controls: the settings
+/// the Java side trims this way would read differently here.
+pub(crate) fn java_trim(value: &str) -> &str {
+    value.trim_matches(|c: char| c <= '\u{20}')
 }
 
 /// `VisibilityService.Allowance`: what a caller may see, and which projects it was granted as such.

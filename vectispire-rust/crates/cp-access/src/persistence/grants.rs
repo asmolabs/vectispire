@@ -1,13 +1,16 @@
 //! The grants: `t_user_target`, `t_team_member`, `t_team_target` — `UserTargetRepository.findByUserId`,
 //! `TeamMemberRepository.findByUserId` and `TeamTargetRepository.findByTeamIdIn`.
 //!
-//! Read inside the caller's read-only transaction, so the three answers come from one snapshot. **Each statement is
-//! spelled per engine and fixed** except the team list, built by sea-query with bound values in batches; the
-//! live suite (`tests/engines.rs`) runs every one of them on both engines against the schema the migrations built.
+//! **Checked statements** (`sqlx::query_as!`), described against both engines' migrated schema at compile time and
+//! cached in `crates/cp-access/.sqlx/` (`crates/cp-db/scripts/sqlx-prepare.sh`). Every one is fixed text, so none
+//! needs a query builder:
+//!
+//! - the Java side reads the account's teams, then the teams' grants with `team_id in :teamIds`, behind a guard
+//!   for the empty list — `in ()` is a syntax error on some engines and every row on others, and "every row" here
+//!   would hand an account in no team the whole backlog. **One join replaces both statements and the guard**: an
+//!   account in no team joins no row, so the hazard the guard stood against has no statement left to occur in.
+//!   The two answers are the same set, which `tests/authz_on_both_engines.rs` holds to the Java matrix.
 
-use sea_query::{Alias, Expr, ExprTrait, MysqlQueryBuilder, PostgresQueryBuilder, Query};
-use sea_query_sqlx::SqlxBinder;
-use sqlx::{AssertSqlSafe, Row};
 use vectispire_cp_db::{Db, Mode, Tx};
 
 use super::StoreError;
@@ -19,119 +22,75 @@ pub struct Grant {
     pub id: i64,
 }
 
-/// Every grant the account holds — directly, then through each of its teams — read in **one read-only
-/// transaction**, as `@Transactional(readOnly = true)` gave the Java side: the three answers come from one
-/// snapshot.
+/// Every grant the account holds — directly, then through its teams — read in **one read-only transaction**, as
+/// `@Transactional(readOnly = true)` gave the Java side: both answers come from one snapshot, so a grant moved from
+/// the account to its team between the two reads is neither lost nor doubled.
 pub(crate) async fn of_account(db: &Db, user_id: i64) -> Result<Vec<Grant>, StoreError> {
     let mut tx = db.begin(Mode::ReadOnly).await?;
-    let mut grants = of_user(&mut tx, user_id).await?;
-    let teams = teams_of(&mut tx, user_id).await?;
-    // **The guard, not an optimisation**: `in ()` is a syntax error on some engines and matches every row on
-    // others, and "matches everything" here means an account in no team sees the entire backlog.
-    if !teams.is_empty() {
-        grants.extend(of_teams(&mut tx, &teams).await?);
-    }
+    let grants = match &mut tx {
+        #[cfg(feature = "mysql-queries")]
+        Tx::MySql(tx) => mysql::of_account(tx, user_id).await?,
+        #[cfg(feature = "postgres-queries")]
+        Tx::PostgreSql(tx) => postgres::of_account(tx, user_id).await?,
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::EngineNotBuilt),
+    };
     tx.commit().await?;
     Ok(grants)
 }
 
-/// How many team ids one statement binds: far under every engine's limit, as the Java side's batches are.
-const TEAM_BATCH: usize = 1_000;
+#[cfg(feature = "mysql-queries")]
+mod mysql {
+    use sqlx::{MySql, Transaction};
 
-/// The grants made to the account directly.
-async fn of_user(tx: &mut Tx, user_id: i64) -> Result<Vec<Grant>, sqlx::Error> {
-    let rows = match tx {
-        Tx::MySql(tx) => sqlx::query("select target_kind, target_id from t_user_target where user_id = ?")
-            .bind(user_id)
-            .fetch_all(&mut **tx)
-            .await?
-            .into_iter()
-            .map(|row| Ok(Grant { kind: row.try_get(0)?, id: row.try_get(1)? }))
-            .collect::<Result<Vec<_>, sqlx::Error>>()?,
-        Tx::PostgreSql(tx) => sqlx::query("select target_kind, target_id from t_user_target where user_id = $1")
-            .bind(user_id)
-            .fetch_all(&mut **tx)
-            .await?
-            .into_iter()
-            .map(|row| Ok(Grant { kind: row.try_get(0)?, id: row.try_get(1)? }))
-            .collect::<Result<Vec<_>, sqlx::Error>>()?,
-    };
-    Ok(rows)
-}
+    use super::Grant;
 
-/// The teams the account is a member of.
-async fn teams_of(tx: &mut Tx, user_id: i64) -> Result<Vec<i64>, sqlx::Error> {
-    match tx {
-        Tx::MySql(tx) => {
-            sqlx::query_scalar("select team_id from t_team_member where user_id = ?")
-                .bind(user_id)
-                .fetch_all(&mut **tx)
-                .await
-        }
-        Tx::PostgreSql(tx) => {
-            sqlx::query_scalar("select team_id from t_team_member where user_id = $1")
-                .bind(user_id)
-                .fetch_all(&mut **tx)
-                .await
-        }
+    pub(super) async fn of_account(tx: &mut Transaction<'static, MySql>, user_id: i64) -> sqlx::Result<Vec<Grant>> {
+        let mut grants = sqlx::query_as!(
+            Grant,
+            "/* mysql */ select target_kind as kind, target_id as id from t_user_target where user_id = ?",
+            user_id
+        )
+        .fetch_all(&mut **tx)
+        .await?;
+        grants.extend(
+            sqlx::query_as!(
+                Grant,
+                "/* mysql */ select t.target_kind as kind, t.target_id as id from t_team_target t \
+                 join t_team_member m on m.team_id = t.team_id where m.user_id = ?",
+                user_id
+            )
+            .fetch_all(&mut **tx)
+            .await?,
+        );
+        Ok(grants)
     }
 }
 
-/// The grants made to these teams. **Never called with no team** — the caller's guard: `team_id in ()` is a syntax
-/// error on some engines and every row on others.
-async fn of_teams(tx: &mut Tx, teams: &[i64]) -> Result<Vec<Grant>, sqlx::Error> {
-    let mut grants = Vec::new();
-    for batch in teams.chunks(TEAM_BATCH) {
-        let mut statement = Query::select();
-        statement
-            .columns([Alias::new("target_kind"), Alias::new("target_id")])
-            .from(Alias::new("t_team_target"))
-            .and_where(Expr::col(Alias::new("team_id")).is_in(batch.iter().copied()));
-        // Sound: the text is sea-query's rendering of the identifiers above; the team ids are bound.
-        let rows = match tx {
-            Tx::MySql(tx) => {
-                let (sql, values) = statement.build_sqlx(MysqlQueryBuilder);
-                sqlx::query_with(AssertSqlSafe(sql), values)
-                    .fetch_all(&mut **tx)
-                    .await?
-                    .into_iter()
-                    .map(|row| Ok(Grant { kind: row.try_get(0)?, id: row.try_get(1)? }))
-                    .collect::<Result<Vec<_>, sqlx::Error>>()?
-            }
-            Tx::PostgreSql(tx) => {
-                let (sql, values) = statement.build_sqlx(PostgresQueryBuilder);
-                sqlx::query_with(AssertSqlSafe(sql), values)
-                    .fetch_all(&mut **tx)
-                    .await?
-                    .into_iter()
-                    .map(|row| Ok(Grant { kind: row.try_get(0)?, id: row.try_get(1)? }))
-                    .collect::<Result<Vec<_>, sqlx::Error>>()?
-            }
-        };
-        grants.extend(rows);
-    }
-    Ok(grants)
-}
+#[cfg(feature = "postgres-queries")]
+mod postgres {
+    use sqlx::{Postgres, Transaction};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    use super::Grant;
 
-    /// **What the empty-team guard stands on, pinned.** The guard in [`of_account`] keeps `team_id in ()` from being
-    /// sent at all; were it removed, sea-query renders an empty list as a condition no row meets on both engines —
-    /// not the syntax error, nor the "every row" some drivers read it as. Removing the guard is therefore not
-    /// observable through the database (the mutation campaign records it as surviving), and this test is what says
-    /// why it is safe: an empty grant list from teams stays empty.
-    #[test]
-    fn an_empty_team_list_is_a_condition_no_row_meets() {
-        let mut statement = Query::select();
-        statement
-            .column(Alias::new("target_id"))
-            .from(Alias::new("t_team_target"))
-            .and_where(Expr::col(Alias::new("team_id")).is_in(Vec::<i64>::new()));
-        // Rendered with the values written in: bound, it is `? = ?` over 1 and 2.
-        for sql in [statement.to_string(MysqlQueryBuilder), statement.to_string(PostgresQueryBuilder)] {
-            assert!(sql.ends_with("WHERE 1 = 2"), "{sql}");
-        }
+    pub(super) async fn of_account(tx: &mut Transaction<'static, Postgres>, user_id: i64) -> sqlx::Result<Vec<Grant>> {
+        let mut grants = sqlx::query_as!(
+            Grant,
+            "/* postgres */ select target_kind as kind, target_id as id from t_user_target where user_id = $1",
+            user_id
+        )
+        .fetch_all(&mut **tx)
+        .await?;
+        grants.extend(
+            sqlx::query_as!(
+                Grant,
+                "/* postgres */ select t.target_kind as kind, t.target_id as id from t_team_target t \
+                 join t_team_member m on m.team_id = t.team_id where m.user_id = $1",
+                user_id
+            )
+            .fetch_all(&mut **tx)
+            .await?,
+        );
+        Ok(grants)
     }
 }

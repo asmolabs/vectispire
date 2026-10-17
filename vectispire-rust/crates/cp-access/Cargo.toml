@@ -7,17 +7,27 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+# Each engine's checked statements are a feature, as in vectispire-cp-db and for the same reason: the offline cache
+# (`.sqlx/`, beside this file) is generated one engine at a time against a server of that engine
+# (crates/cp-db/scripts/sqlx-prepare.sh). Both are on in every build, which compiles from the cache with no database.
+default = ["mysql-queries", "postgres-queries"]
+mysql-queries = []
+postgres-queries = []
+
 [dependencies]
 http.workspace = true
-sea-query = { version = "1", default-features = false, features = ["backend-mysql", "backend-postgres"] }
-sea-query-sqlx = { version = "0.9", default-features = false, features = ["sqlx-mysql", "sqlx-postgres", "runtime-tokio"] }
-sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros"] }
 thiserror.workspace = true
 tracing.workspace = true
-vectispire-cp-db = { path = "../cp-db" }
+# Without its default features: cp-db's own checked statements are not this crate's, and a cache pass for one engine
+# must not compile the other engine's statements of cp-db against it. A workspace build turns them on anyway.
+vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-cp-http.workspace = true
 
 [dev-dependencies]
+# The engine test reads the backlog through a real `VisibleSelect`, ordered with cp-db's query vocabulary.
+sea-query = { version = "1", default-features = false, features = ["backend-mysql", "backend-postgres"] }
 # The route test drives a `.scoped()` route through the real chain: the request and the peer address are axum's.
 axum.workspace = true
 http-body-util.workspace = true

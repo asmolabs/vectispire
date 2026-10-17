@@ -1,0 +1,26 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select count(*) from t_user where is_active = true and role = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count(*)",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b98386b6b84657daacb11aa7e4556e0927c8ce37f369a764293eee5740c9facf"
+}

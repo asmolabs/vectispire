@@ -2,34 +2,41 @@
 //!
 //! The Java query excludes an id, and every caller passes `-1`, which no account holds; the exclusion is not
 //! ported, since nothing asks for it.
+//!
+//! **One checked statement per role, summed**, rather than `role in (…)` built at run time: the list is derived
+//! from the flags (`roles::approver_roles`), so its length is not fixed text, and a checked statement must be. The
+//! sum is the same count — a row holds one role, and the names are distinct under any collation — and each
+//! comparison is still the engine's: on MySQL, `role = 'ADMIN'` matches a stored `admin`, as the Java `in` does
+//! (`tests/authz_on_both_engines.rs` pins both engines).
 
-use sea_query::{Alias, Expr, ExprTrait, MysqlQueryBuilder, PostgresQueryBuilder, Query};
-use sea_query_sqlx::SqlxBinder;
-use sqlx::AssertSqlSafe;
 use vectispire_cp_db::Db;
 
 use super::StoreError;
 
-/// How many active accounts hold one of `roles`. `roles` empty answers 0 without asking: `role in ()`.
+/// How many active accounts hold one of `roles`.
 pub(crate) async fn count_active_holding(db: &Db, roles: &[&str]) -> Result<i64, StoreError> {
-    if roles.is_empty() {
-        return Ok(0);
+    let mut total = 0_i64;
+    for role in roles {
+        let holding = match db {
+            #[cfg(feature = "mysql-queries")]
+            Db::MySql(pool) => {
+                sqlx::query_scalar!("/* mysql */ select count(*) from t_user where is_active = true and role = ?", role)
+                    .fetch_one(pool)
+                    .await?
+            }
+            #[cfg(feature = "postgres-queries")]
+            Db::PostgreSql(pool) => {
+                sqlx::query_scalar!(
+                    r#"/* postgres */ select count(*) as "count!" from t_user where is_active = true and role = $1"#,
+                    role
+                )
+                .fetch_one(pool)
+                .await?
+            }
+            #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+            _ => return Err(StoreError::EngineNotBuilt),
+        };
+        total = total.saturating_add(holding);
     }
-    let mut statement = Query::select();
-    statement
-        .expr(Expr::cust("count(*)"))
-        .from(Alias::new("t_user"))
-        .and_where(Expr::col(Alias::new("is_active")).eq(true))
-        .and_where(Expr::col(Alias::new("role")).is_in(roles.iter().map(|role| (*role).to_owned())));
-    // Sound: sea-query's rendering of the identifiers above; the roles and the flag are bound.
-    match db {
-        Db::MySql(pool) => {
-            let (sql, values) = statement.build_sqlx(MysqlQueryBuilder);
-            Ok(sqlx::query_scalar_with(AssertSqlSafe(sql), values).fetch_one(pool).await?)
-        }
-        Db::PostgreSql(pool) => {
-            let (sql, values) = statement.build_sqlx(PostgresQueryBuilder);
-            Ok(sqlx::query_scalar_with(AssertSqlSafe(sql), values).fetch_one(pool).await?)
-        }
-    }
+    Ok(total)
 }

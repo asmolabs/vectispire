@@ -7,13 +7,16 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+#[path = "authz_support/mod.rs"]
 mod support;
 
 use std::collections::BTreeSet;
 
 use serde_json::Value;
 use support::{allowance, filed_in, grants_of_setup, reference, target, targets, visibility};
-use vectispire_cp_access::four_eyes::{Decider, settles_by_hand, settles_by_import};
+use vectispire_cp_access::four_eyes::{
+    ApproverCounts, Decider, SwitchOnRefusal, required, settles_by_hand, settles_by_import, switch_on_refusal,
+};
 use vectispire_cp_access::roles::{self, ALL, Role, RoleFlags, flags_of, name_of, role_of};
 use vectispire_cp_access::rows::{
     self, NotFound, VisibleScope, require_every_target_of_project, require_visible, require_visible_issue,
@@ -211,6 +214,49 @@ fn four_eyes_settles_as_java_settles() {
             "import: {case}"
         );
     }
+}
+
+/// `SettingsService.isEnabled` and the guards of `SettingsAdministrationService.update`, over the spellings and every
+/// answer the approver count could give. Where Rust refuses, Java refused in the same words; where Rust lets the
+/// value through, Java refused it with none of the four-eyes sentences (its type's validation is the settings
+/// module's) or saved it.
+#[test]
+fn the_four_eyes_switch_is_the_java_one() {
+    let file = reference("four-eyes-switch.json");
+    for line in file["isEnabled"].as_array().unwrap() {
+        let row = match line["stored"].as_str().unwrap() {
+            "<absent>" => None,
+            "<null>" => Some(""),
+            stored => Some(stored),
+        };
+        assert_eq!(required(row), line["enabled"].as_bool().unwrap(), "{line}");
+    }
+
+    let ours = [SwitchOnRefusal::NoApprover, SwitchOnRefusal::OnePublisher, SwitchOnRefusal::OneSignatory]
+        .map(SwitchOnRefusal::message);
+    let lines = file["switchOn"].as_array().unwrap();
+    assert!(lines.len() >= 100, "the matrix is read whole: {} lines", lines.len());
+    let mut refused = 0;
+    for line in lines {
+        let counts = ApproverCounts {
+            any_active: line["anyActive"].as_bool().unwrap(),
+            two_can_publish_templates: line["twoCanPublishTemplates"].as_bool().unwrap(),
+            two_can_sign_off_checklists: line["twoCanSignOffChecklists"].as_bool().unwrap(),
+        };
+        let java = line["outcome"].as_str().unwrap();
+        match switch_on_refusal(line["value"].as_str().unwrap(), counts) {
+            Some(refusal) => {
+                refused += 1;
+                assert_eq!(refusal.message(), java, "{line}");
+            }
+            None => assert!(!ours.contains(&java), "Java refused what Rust lets through: {line}"),
+        }
+    }
+    // Each of the three sentences is reached, so none of the comparisons above is vacuous.
+    for message in ours {
+        assert!(lines.iter().any(|line| line["outcome"] == message), "never reached: {message}");
+    }
+    assert!(refused > 40, "{refused} refusals");
 }
 
 #[test]
