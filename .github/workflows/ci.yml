@@ -1361,7 +1361,9 @@ jobs:
       - name: the migration runner, held to Flyway
         run: ./crates/migrate/oracle/check-oracle.sh
       # **The checked queries' offline caches** are the committed ones, for both engines: regenerated against
-      # throwaway servers and compared, then compiled offline (crates/cp-db/README.md).
+      # throwaway servers and compared, then compiled offline (crates/cp-db/README.md). One script for every crate
+      # with checked statements — cp-db and each module's persistence, its `crates_with_queries` — each crate's
+      # cache beside it.
       - name: the queries' caches are current
         run: ./crates/cp-db/scripts/sqlx-prepare.sh check
       # **The contract the control plane is held to**: its routes against `openapi.json` in both directions

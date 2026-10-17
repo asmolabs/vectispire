@@ -1,6 +1,6 @@
 [package]
 name = "vectispire-cp-access"
-description = "The control plane's access module: who a request is — sessions, API keys, agent keys, the SCIM token — roles and their flags, what a caller may see (VisibilityService), the row guards that refuse with a 404, four-eyes, and who could approve."
+description = "The control plane's access module: accounts and their passwords, who a request is — sessions, API keys, agent keys, the SCIM token — roles and their flags, what a caller may see (VisibilityService), the row guards that refuse with a 404, four-eyes, and who could approve."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -29,12 +29,14 @@ subtle.workspace = true
 thiserror.workspace = true
 time = { version = "0.3", features = ["std"] }
 tracing.workspace = true
-uuid.workspace = true
+uuid = { workspace = true, features = ["v4"] }
 # Without its default features: cp-db's own checked statements are not this crate's, and a cache pass for one engine
 # must not compile the other engine's statements of cp-db against it. A workspace build turns them on anyway.
 vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-cp-http.workspace = true
 vectispire-domain.workspace = true
+# The password a hash is derived from, wiped when dropped.
+zeroize = "1"
 
 [dev-dependencies]
 # The engine test reads the backlog through a real `VisibleSelect`, ordered with cp-db's query vocabulary.
@@ -45,6 +47,7 @@ http-body-util.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 serde_json.workspace = true
+time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }

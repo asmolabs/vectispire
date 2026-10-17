@@ -5,7 +5,11 @@
 //! [`Credentials`](crate::credentials::Credentials) it is handed.
 
 /// `Role` and its flags, as the Java enum spells them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+///
+/// **The one `Role` of the control plane**: the chain reads it here, `cp-access` adds the six flags as a table
+/// (`roles::RoleFlags`), and the accounts' rules read both. The variants are in the Java enum's declaration order,
+/// which the derived `Ord` and [`Role::ALL`] follow.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Role {
     Superuser,
     Admin,
@@ -16,6 +20,33 @@ pub enum Role {
 }
 
 impl Role {
+    /// Every role, in the Java enum's declaration order — `Role.values()`.
+    pub const ALL: [Role; 6] =
+        [Role::Superuser, Role::Admin, Role::Ciso, Role::SecurityChampion, Role::Auditor, Role::User];
+
+    /// The name stored in `t_user.role`, sent on the wire and named in a `hasAnyRole` expression.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Role::Superuser => "SUPERUSER",
+            Role::Admin => "ADMIN",
+            Role::Ciso => "CISO",
+            Role::SecurityChampion => "SECURITY_CHAMPION",
+            Role::Auditor => "AUDITOR",
+            Role::User => "USER",
+        }
+    }
+
+    /// `Role.of`: the exact name, case included; anything else — `admin` for `ADMIN` too — is no role. An
+    /// unreadable stored role authorizes nothing; it is never read as the least privileged one.
+    pub fn of(value: Option<&str>) -> Option<Role> {
+        value.and_then(Role::parse)
+    }
+
+    /// `Role.administrative()`: the administrative roles, in declaration order — derived, never listed again.
+    pub fn administrative() -> Vec<Role> {
+        Role::ALL.into_iter().filter(|role| role.is_administrative()).collect()
+    }
+
     pub fn parse(value: &str) -> Option<Role> {
         Some(match value {
             "SUPERUSER" => Role::Superuser,
@@ -36,6 +67,12 @@ impl Role {
     /// `Role.canCauseEffects()`: may start a scan, answer a checklist, change what a project holds.
     pub fn can_cause_effects(self) -> bool {
         matches!(self, Role::Admin | Role::Ciso | Role::SecurityChampion | Role::User)
+    }
+}
+
+impl std::fmt::Display for Role {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.name())
     }
 }
 

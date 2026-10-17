@@ -3442,6 +3442,7 @@ dependencies = [
  "vectispire-domain",
  "vectispire-migrate",
  "vectispire-testkit",
+ "zeroize",
 ]
 
 [[package]]

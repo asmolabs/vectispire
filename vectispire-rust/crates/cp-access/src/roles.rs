@@ -13,8 +13,7 @@ pub use vectispire_cp_http::principal::Role;
 
 /// Every role, in the Java enum's declaration order — the order `Role.values()` iterates in, which decides
 /// the order of [`approver_roles`] and [`publisher_roles`] as `TriageApprovers` builds them.
-pub const ALL: [Role; 6] =
-    [Role::Superuser, Role::Admin, Role::Ciso, Role::SecurityChampion, Role::Auditor, Role::User];
+pub const ALL: [Role; 6] = Role::ALL;
 
 /// The six flags a role carries, positional as the Java constructor takes them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -107,19 +106,12 @@ impl RoleFlags for Role {
 /// `Role.of`: **case-sensitive**, and `None` for anything else — including `admin` for `ADMIN`. An unreadable
 /// stored role authorizes nothing; it is never read as the least privileged role.
 pub fn role_of(value: Option<&str>) -> Option<Role> {
-    value.and_then(Role::parse)
+    Role::of(value)
 }
 
 /// The wire spelling of a role, as stored in `t_user.role` and named in a `hasAnyRole` expression.
 pub fn name_of(role: Role) -> &'static str {
-    match role {
-        Role::Superuser => "SUPERUSER",
-        Role::Admin => "ADMIN",
-        Role::Ciso => "CISO",
-        Role::SecurityChampion => "SECURITY_CHAMPION",
-        Role::Auditor => "AUDITOR",
-        Role::User => "USER",
-    }
+    role.name()
 }
 
 /// `Role.administrative()`: derived from the flag, never listed again.
