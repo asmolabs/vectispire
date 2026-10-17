@@ -24,8 +24,15 @@ composes are ported. In progress, not shipped: the Java control plane is the pro
 (`access`' `TriageApprovers`), `Tracker` (`tickets`' CA pinning), `AiDestination` (`ai`'s guard and acceptance record).
 The writer's two role properties come as a `Caller`, resolved by `access`.
 
-**One difference, on purpose:** Java writes each change in a transaction of its own; here they share one, which keeps
-the rule "all or nothing" true when a write fails half-way, and changes nothing a reader can see otherwise.
+## Differences from Java, on purpose
+
+- **A save's changes are written in one transaction.** `SettingsAdministrationService.update` validates every change
+  first and then writes each in a transaction of its own (`SettingsService.set`), so a write that fails half-way
+  leaves the earlier ones committed — the configuration between two intended states, which the validation-first
+  rule exists to prevent. `SettingsAdministration::update` writes them all in one read-write transaction: every
+  change or none. This was decided when the streams of Phase 1 were merged, and is kept: nothing a reader sees
+  differs when every write succeeds, and when one fails nothing of the save is left written here.
+  The acknowledgement of a remote AI destination is still stamped or erased after that commit, as in Java.
 
 ## Not here yet
 
