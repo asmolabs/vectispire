@@ -1,0 +1,49 @@
+{
+  "keys" : [ {
+    "targetKind" : null,
+    "targetId" : null,
+    "restriction" : "everything"
+  }, {
+    "targetKind" : "repository",
+    "targetId" : null,
+    "restriction" : "everything"
+  }, {
+    "targetKind" : null,
+    "targetId" : 5,
+    "restriction" : "everything"
+  }, {
+    "targetKind" : "repository",
+    "targetId" : 4,
+    "restriction" : {
+      "only" : [ {
+        "repository" : 4
+      } ]
+    }
+  }, {
+    "targetKind" : "container",
+    "targetId" : 4,
+    "restriction" : {
+      "only" : [ {
+        "container" : 4
+      } ]
+    }
+  }, {
+    "targetKind" : "project",
+    "targetId" : 4,
+    "restriction" : {
+      "only" : [ ]
+    }
+  }, {
+    "targetKind" : "Repository",
+    "targetId" : 4,
+    "restriction" : {
+      "only" : [ ]
+    }
+  }, {
+    "targetKind" : "",
+    "targetId" : 4,
+    "restriction" : {
+      "only" : [ ]
+    }
+  } ]
+}

@@ -72,7 +72,7 @@ deny = [
     # `wrappers`: the control plane's database layer and its migration runner may use it, and nothing else may
     # — the agent depending on sqlx directly fails here, and `crates/agent/tests/isolation.rs` proves the
     # agent's closure holds none of it. (sea-query-sqlx is the layer's query-builder binding, a dependent of sqlx.)
-    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx"], reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "vectispire-cp-access", "sea-query-sqlx"], reason = "decision 0003: the agent holds no database connection" },
     { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
     { crate = "postgres", reason = "decision 0003: the agent holds no database connection" },
     { crate = "tokio-postgres", reason = "decision 0003: the agent holds no database connection" },
@@ -83,7 +83,7 @@ deny = [
     # The agent opens no port: the server stack is linkable by the control plane's crates only. A wrapper is a
     # crate allowed to depend on it directly; any other dependent — the agent above all — fails the check, and
     # crates/agent/tests/isolation.rs forbids it in the agent's graph whatever this says.
-    { crate = "axum", wrappers = ["vectispire-cp-http", "vectispire-cp-contract"], reason = "the agent opens no port; the control plane's crates may" },
+    { crate = "axum", wrappers = ["vectispire-cp-http", "vectispire-cp-contract", "vectispire-cp-access"], reason = "the agent opens no port; the control plane's crates may" },
     { crate = "actix-web", reason = "the agent opens no port" },
     { crate = "warp", reason = "the agent opens no port" },
     { crate = "rocket", reason = "the agent opens no port" },

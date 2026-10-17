@@ -524,6 +524,19 @@ tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configure
  * Used by `ClientContractSpecTest` to rewrite `vectispire-angular/openapi.json` instead of
  * asserting against it.
  */
+/**
+ * The reference sets the Rust control plane's `access` crate is held to — `vectispire-rust/reference/access/`,
+ * written and checked by `AccessReferenceSetTest` exactly as `vectispire-common`'s are by its own (see
+ * `common.rust.ReferenceSet`): checked on every build, regenerated with `-Dvectispire.rust.reference.write=true`.
+ */
+tasks.named<Test>("test") {
+    systemProperty("vectispire.rust.reference", rootProject.file("../vectispire-rust/reference").absolutePath)
+    systemProperty(
+        "vectispire.rust.reference.write",
+        providers.systemProperty("vectispire.rust.reference.write").getOrElse("false"))
+    inputs.dir(rootProject.file("../vectispire-rust/reference/access")).withPropertyName("accessReferenceSet")
+}
+
 tasks.named<Test>("test") {
     systemProperty(
         "vectispire.openapi.write",
