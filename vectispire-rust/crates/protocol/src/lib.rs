@@ -11,14 +11,32 @@
 //! slots, heartbeats, giving up a lost lease, a graceful stop — is the agent's loop
 //! (`crates/agent/src/serve.rs`).
 
+//!
+//! **The control plane's half lives here too** (task 2.5 of the port): reading a result as the Java
+//! control plane's mapper reads it ([`ScanArtifacts::read`]), the bodies it writes and the requests it reads
+//! around it ([`server`]). It is compiled without the `client` feature, which only the agent turns on, so
+//! that a control-plane crate depending on this one links no HTTP client of the agent's.
+
 mod artifacts;
+#[cfg(feature = "client")]
 mod client;
+mod coerce;
 pub mod concurrency;
 pub mod failure_reason;
+pub mod jackson;
+mod received;
+pub mod server;
 mod wire;
 
 pub use artifacts::{Failure, Findings, PluginStep, Project, Refusal, ScanArtifacts, Signature, java_duration};
+#[cfg(feature = "client")]
 pub use client::{AgentClient, CONCURRENCY_HEADER, Claim, FailureReported, ProtocolError, SealingKeyOutcome};
+pub use coerce::{JavaDuration, parse_duration};
+pub use received::{
+    ApiContract, ApiEndpoint, ApiVisibility, DependencyFinding, IacFinding, LANGUAGES, Listed,
+    PRODUCED_WITHOUT_FINDINGS, Received, ReceivedFailure, ReceivedStep, SarifFinding, SastFinding, SecretFinding,
+    Unreadable,
+};
 pub use wire::{
     AssignedTask, CredentialsMode, Description, HttpsCredential, Identity, Image, ImageReference, PluginRef,
     Repository, ScanTask, Step, StoredFile, Target,

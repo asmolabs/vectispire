@@ -31,6 +31,12 @@ for path in sys.argv[2:]:
     for item in items:
         if isinstance(item, str):
             put(item.encode())
+        elif isinstance(item, list):  # result_body: artifacts/*.json, a list of cases each with its body
+            for case in item:
+                if isinstance(case, dict) and isinstance(case.get("body"), str):
+                    put(case["body"].encode())
+        elif isinstance(item, dict) and isinstance(item.get("body"), str):  # result_body: rust-written.json
+            put(item["body"].encode())
         elif isinstance(item, dict) and isinstance(item.get("raw"), str):  # failure_scrub: raw, NUL, a secret
             secrets = [s for s in item.get("secrets") or [] if isinstance(s, str)]
             put((item["raw"] + "\0" + (secrets[0] if secrets else "")).encode())
@@ -47,6 +53,7 @@ seed grype_matches ../reference/dependencies/matches/*.json
 seed syft_sbom ../reference/dependencies/sboms/*.json
 seed failure_scrub ../reference/failure-reason/inputs.json
 seed https_location ../reference/repository-url/inputs.json
+seed result_body ../reference/artifacts/*.json
 
 failed=""
 for target in $targets; do

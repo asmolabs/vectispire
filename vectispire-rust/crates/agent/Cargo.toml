@@ -23,7 +23,7 @@ vectispire-container.workspace = true
 vectispire-crypto.workspace = true
 vectispire-domain.workspace = true
 vectispire-git.workspace = true
-vectispire-protocol.workspace = true
+vectispire-protocol = { workspace = true, features = ["client"] }
 vectispire-scanners.workspace = true
 vectispire-tls.workspace = true
 

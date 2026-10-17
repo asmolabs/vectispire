@@ -7,23 +7,37 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+# The agent's HTTP client (`AgentClient`). Off by default: the control plane depends on this crate for the
+# wire and the server half, and must not link the agent's `reqwest` and trust store with it.
+client = ["dep:reqwest", "dep:tracing", "dep:vectispire-tls"]
+
 [dependencies]
 regex = { workspace = true, features = ["unicode-case"] }
-reqwest.workspace = true
+reqwest = { workspace = true, optional = true }
 serde.workspace = true
-serde_json = { workspace = true, features = ["raw_value"] }
+# `unbounded_depth`: Jackson reads 1,000 levels and `serde_json` stops at 128; `jackson::prepare` bounds the
+# depth before `serde_json` is let past its own limit.
+serde_json = { workspace = true, features = ["raw_value", "unbounded_depth"] }
 thiserror.workspace = true
-tracing.workspace = true
+tracing = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde"] }
 vectispire-crypto.workspace = true
 vectispire-domain.workspace = true
-vectispire-tls.workspace = true
+vectispire-tls = { workspace = true, optional = true }
 
 [dev-dependencies]
 base64.workspace = true
 tokio.workspace = true
 sha2.workspace = true
 vectispire-testkit = { path = "../testkit" }
+
+# The client's suite needs the client. In the workspace's build the agent turns the feature on for every
+# member, so `check.sh` runs it; alone, run it with `--features client`. (Not a dev-dependency of the crate on
+# itself: cargo-deny's graph walk recurses on that cycle until its stack overflows.)
+[[test]]
+name = "against_a_stub"
+required-features = ["client"]
 
 [lints]
 workspace = true

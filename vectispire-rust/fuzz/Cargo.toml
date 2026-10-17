@@ -17,6 +17,8 @@ members = ["."]
 
 [dependencies]
 libfuzzer-sys = "=0.4.13"
+serde = "1"
+serde_json = { version = "1", features = ["unbounded_depth"] }
 tempfile = "3"
 vectispire-container = { path = "../crates/container" }
 vectispire-crypto = { path = "../crates/crypto" }
@@ -103,6 +105,13 @@ bench = false
 [[bin]]
 name = "https_location"
 path = "fuzz_targets/https_location.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "result_body"
+path = "fuzz_targets/result_body.rs"
 test = false
 doc = false
 bench = false

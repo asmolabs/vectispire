@@ -2260,6 +2260,8 @@ version = "0.12.0-dev"
 dependencies = [
  "regex",
  "serde",
+ "serde_json",
+ "sha2",
  "thiserror",
 ]
 
@@ -2268,6 +2270,8 @@ name = "vectispire-fuzz"
 version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
+ "serde",
+ "serde_json",
  "tempfile",
  "vectispire-container",
  "vectispire-crypto",
@@ -2298,15 +2302,12 @@ name = "vectispire-protocol"
 version = "0.12.0-dev"
 dependencies = [
  "regex",
- "reqwest",
  "serde",
  "serde_json",
  "thiserror",
- "tracing",
  "uuid",
  "vectispire-crypto",
  "vectispire-domain",
- "vectispire-tls",
 ]
 
 [[package]]
