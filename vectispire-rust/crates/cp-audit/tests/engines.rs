@@ -154,19 +154,26 @@ async fn a_deletion_is_found_by_the_chain_or_by_the_mirror(engine: Engine) {
     assert_eq!(log.verify().await.unwrap().broken, None, "the tip's deletion is invisible to the chain");
     let comparison = log.verify_against_mirror().await.unwrap();
     assert_eq!((comparison.missing_from_table, comparison.missing_from_mirror), (1, 0), "but not to the mirror");
+    // And the report does not call it intact because the chain holds: the mirror's word counts.
+    let heard = Arc::new(Heard::default());
+    let query = AuditLogQuery::new(log.clone(), Arc::new(SystemClock), vec![heard.clone()]);
+    let integrity = query.verify().await.unwrap();
+    assert_eq!((integrity.intact, integrity.broken.as_deref(), integrity.missing_from_table), (false, None, 1));
+    assert_eq!(
+        heard.events.lock().unwrap().last().map(|event| (event.broken_at.clone(), event.missing_from_table)),
+        Some((None, 1))
+    );
 
     server.sql_as_admin(&format!("delete from t_audit_log where id = '{}'", all[1].id.as_hyphenated()));
     let broken = log.verify().await.unwrap().broken.unwrap();
     assert!(broken.contains("has vanished from the log"), "{broken}");
 
-    let heard = Arc::new(Heard::default());
-    let query = AuditLogQuery::new(log.clone(), Arc::new(SystemClock), vec![heard.clone()]);
     let integrity = query.verify().await.unwrap();
     assert!(!integrity.intact);
     assert_eq!((integrity.total, integrity.missing_from_table, integrity.mirrored), (2, 2, true));
-    assert_eq!(heard.events.lock().unwrap().len(), 1, "the SIEM hears every broken verification");
+    assert_eq!(heard.events.lock().unwrap().len(), 2, "the SIEM hears every broken verification");
     query.verify().await.unwrap();
-    assert_eq!(heard.events.lock().unwrap().len(), 2, "every time, not once");
+    assert_eq!(heard.events.lock().unwrap().len(), 3, "every time, not once");
 }
 
 #[derive(Default)]

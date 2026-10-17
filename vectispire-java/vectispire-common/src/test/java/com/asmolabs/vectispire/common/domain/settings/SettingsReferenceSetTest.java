@@ -60,7 +60,7 @@ class SettingsReferenceSetTest {
                 "١٢", // Arabic-Indic digits, which Integer.parseInt reads
                 "critical", "high", "medium", "low", "negligible", "unknown", "Critical", " high",
                 "https://jira.example.com", "https://jira.example.com/", "https://user:token@jira.example.com",
-                "https://user@jira.example.com", " https://user@jira.example.com ", "HTTP://U@H", "ssh://git@host/x",
+                "https://user@jira.example.com", " https://user@jira.example.com ", "HTTP://U@H", "ssh://git@host/x", "ssh://git@/x", "ssh://git@",
                 "ssh://git:pw@host/x", "//user@host/path", "//@host", "http://host?x@y", "http://host#x@y",
                 "http://user@host:notaport", "http://user@[::1]/", "http://[::1]/", "mailto:user@host",
                 "https://host/path@thing", "ftp://@host", "https://us er@host", "not a url", "http://",

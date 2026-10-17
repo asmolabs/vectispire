@@ -156,6 +156,48 @@ impl Settings {
     }
 }
 
+/// The settings a **fresh** installation is written, where the safe value and the backwards-compatible value
+/// disagree (`FirstInstallDefaults`).
+///
+/// A default answers two questions that want opposite answers. For a deployment that already runs, changing it is
+/// a silent change of behaviour: `target_visibility` moving to `assigned` on an upgrade would blank every
+/// non-administrator's screens overnight. For one being created, the permissive value means the partitioning
+/// exists in the catalog and is off in reality. So the catalog keeps the compatible value — what an absent row is
+/// worth — and a database with no account in it, the one moment nothing can be broken, is written the safe one.
+/// A list rather than a special case, so the next one lands beside this reasoning.
+pub const FIRST_INSTALL_DEFAULTS: [(Setting, &str); 1] = [
+    // Restricted rather than open: an account with no assignment sees nothing, and the administrator who creates
+    // it is the one who can assign — where `everyone` has no partitioning and no moment anybody is told so.
+    (Setting::TargetVisibility, "assigned"),
+];
+
+impl Settings {
+    /// Writes [`FIRST_INSTALL_DEFAULTS`] for the keys nobody has set, in the caller's transaction, and says which
+    /// it wrote. **A written row, not a second default**: the value lands in `t_setting` like an operator's choice,
+    /// so one rule decides what applies. **Never overwrites**: a key with a row — an operator who chose `everyone`
+    /// before creating the first account — is left alone.
+    ///
+    /// Only for a caller that established this database is new — the bootstrap, which holds that condition in one
+    /// place: a second "is this a fresh install" decided elsewhere would race the first account's creation.
+    pub async fn apply_first_install_defaults(&self, tx: &mut Tx) -> Result<Vec<Setting>, SettingsError> {
+        let mut written = Vec::new();
+        for (setting, value) in FIRST_INSTALL_DEFAULTS {
+            if persistence::find_in(tx, setting.key()).await?.is_some() {
+                continue;
+            }
+            self.set(tx, setting, value).await?;
+            tracing::info!(
+                "Fresh installation: \"{}\" set to \"{}\" rather than the compatible default \"{}\".",
+                setting.key(),
+                value,
+                setting.default_value()
+            );
+            written.push(setting);
+        }
+        Ok(written)
+    }
+}
+
 fn refuse_catalog_key(key: &str, how: &str) -> Result<(), SettingsError> {
     match Setting::by_key(key) {
         Some(_) => Err(SettingsError::CatalogKey(format!("{key} is a catalog setting, {how}."))),

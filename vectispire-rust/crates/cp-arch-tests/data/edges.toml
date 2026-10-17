@@ -136,6 +136,9 @@ allowed = ["maintenance"]
 
 [module.platform]
 status = "pending"
+# Open, as Java's bare `@ApplicationModule` is (decision 0029, step 5; `tests/workspace.rs` holds it so). The crate
+# landed with task 1.6 and uses `audit` and `settings`; the modules a save also consults (access' approvers, tickets'
+# CA pinning, ai's destination guard) are seams the binary fills until they are ported.
 open = true
 allowed = []
 

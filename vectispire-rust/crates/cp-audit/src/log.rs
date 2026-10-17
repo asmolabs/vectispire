@@ -367,6 +367,33 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct Frozen(std::sync::Mutex<OffsetDateTime>);
+
+    impl Clock for Frozen {
+        fn now(&self) -> OffsetDateTime {
+            *self.0.lock().unwrap()
+        }
+    }
+
+    /// Strictly increasing on this instance whatever the clock does — standing still, or stepping back — so two
+    /// entries of one millisecond are never ordered by a random id.
+    #[tokio::test]
+    async fn instants_handed_out_strictly_increase() {
+        let at = OffsetDateTime::from_unix_timestamp(1_792_224_000).unwrap();
+        let clock = Arc::new(Frozen(std::sync::Mutex::new(at)));
+        // Never connected: the pool is lazy, and this test asks only for instants.
+        let pool = sqlx::mysql::MySqlPoolOptions::new().connect_lazy("mysql://nobody@127.0.0.1:9/none").unwrap();
+        let log = AuditLog::new(Db::MySql(pool), Arc::new(crate::NoMirror), clock.clone(), Vec::new());
+        let millisecond = Duration::milliseconds(1);
+        assert_eq!(log.monotonic_now(), at);
+        assert_eq!(log.monotonic_now(), at + millisecond, "the clock stood still");
+        *clock.0.lock().unwrap() = at - Duration::seconds(5);
+        assert_eq!(log.monotonic_now(), at + millisecond * 2, "the clock stepped back");
+        *clock.0.lock().unwrap() = at + Duration::seconds(1);
+        assert_eq!(log.monotonic_now(), at + Duration::seconds(1), "a later clock is taken as it is");
+    }
+
     #[test]
     fn an_entry_is_dated_after_the_head_it_chains_onto() {
         let head = stored_at(2_000_000_000_000_000);

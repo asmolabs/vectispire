@@ -156,6 +156,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "ENRICHMENT_ENABLED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "ENRICHMENT_ENABLED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "ENRICHMENT_ENABLED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -394,6 +402,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "EOL_ENABLED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "EOL_ENABLED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "EOL_ENABLED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -632,6 +648,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "EOL_WARN_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "EOL_WARN_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "EOL_WARN_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -870,6 +894,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "SAST_ENABLED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "SAST_ENABLED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "SAST_ENABLED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -1108,6 +1140,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "SCAN_DEFAULT_INTERVAL_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SCAN_DEFAULT_INTERVAL_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SCAN_DEFAULT_INTERVAL_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -1346,6 +1386,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "RETENTION_KEEP_PER_TARGET",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "RETENTION_KEEP_PER_TARGET",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "RETENTION_KEEP_PER_TARGET",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -1584,6 +1632,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "RETENTION_MAX_AGE_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "RETENTION_MAX_AGE_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "RETENTION_MAX_AGE_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -1822,6 +1878,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "EVIDENCE_RETENTION_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "EVIDENCE_RETENTION_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "EVIDENCE_RETENTION_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -2057,6 +2121,14 @@
 }, {
   "setting" : "WEBHOOK_URL",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "WEBHOOK_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "WEBHOOK_URL",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "WEBHOOK_URL",
@@ -2298,6 +2370,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "TEAMS_ENABLED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "TEAMS_ENABLED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "TEAMS_ENABLED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -2533,6 +2613,14 @@
 }, {
   "setting" : "TEAMS_WEBHOOK_URL",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "TEAMS_WEBHOOK_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TEAMS_WEBHOOK_URL",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "TEAMS_WEBHOOK_URL",
@@ -2774,6 +2862,14 @@
   "refusal" : null
 }, {
   "setting" : "SLACK_WEBHOOK_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "SLACK_WEBHOOK_URL",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "SLACK_WEBHOOK_URL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -3012,6 +3108,14 @@
   "refusal" : null
 }, {
   "setting" : "DISCORD_WEBHOOK_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "DISCORD_WEBHOOK_URL",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "DISCORD_WEBHOOK_URL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -3250,6 +3354,14 @@
   "refusal" : null
 }, {
   "setting" : "WEBHOOK_SIGNING_SECRET",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "WEBHOOK_SIGNING_SECRET",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "WEBHOOK_SIGNING_SECRET",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -3488,6 +3600,14 @@
   "refusal" : null
 }, {
   "setting" : "MAIL_RECIPIENTS",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "MAIL_RECIPIENTS",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "MAIL_RECIPIENTS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -3726,6 +3846,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "DIGEST_ENABLED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "DIGEST_ENABLED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "DIGEST_ENABLED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -3964,6 +4092,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "CHECKLIST_REMINDERS_ENABLED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "CHECKLIST_REMINDERS_ENABLED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "CHECKLIST_REMINDERS_ENABLED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -4202,6 +4338,14 @@
   "refusal" : "Expected value: critical, high, medium or low."
 }, {
   "setting" : "NOTIFICATION_MIN_SEVERITY",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: critical, high, medium or low."
+}, {
+  "setting" : "NOTIFICATION_MIN_SEVERITY",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: critical, high, medium or low."
+}, {
+  "setting" : "NOTIFICATION_MIN_SEVERITY",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: critical, high, medium or low."
 }, {
@@ -4440,6 +4584,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "NOTIFY_ON_KEV",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "NOTIFY_ON_KEV",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "NOTIFY_ON_KEV",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -4678,6 +4830,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "NOTIFICATION_ALLOW_PRIVATE_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "NOTIFICATION_ALLOW_PRIVATE_URL",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "NOTIFICATION_ALLOW_PRIVATE_URL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -4916,6 +5076,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "SIEM_ALLOW_PRIVATE_DESTINATION",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "SIEM_ALLOW_PRIVATE_DESTINATION",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "SIEM_ALLOW_PRIVATE_DESTINATION",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -5151,6 +5319,14 @@
 }, {
   "setting" : "LICENSE_BLOCKLIST",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "LICENSE_BLOCKLIST",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "LICENSE_BLOCKLIST",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "LICENSE_BLOCKLIST",
@@ -5392,6 +5568,14 @@
   "refusal" : null
 }, {
   "setting" : "TARGET_VISIBILITY",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TARGET_VISIBILITY",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TARGET_VISIBILITY",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -5627,6 +5811,14 @@
 }, {
   "setting" : "TICKET_PROVIDER",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_PROVIDER",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_PROVIDER",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "TICKET_PROVIDER",
@@ -5868,6 +6060,14 @@
   "refusal" : "the address carries a user name or a token: type the address alone, the token has a field of its own."
 }, {
   "setting" : "TICKET_BASE_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_BASE_URL",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_BASE_URL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "the address carries a user name or a token: type the address alone, the token has a field of its own."
 }, {
@@ -6106,6 +6306,14 @@
   "refusal" : null
 }, {
   "setting" : "TICKET_PROJECT",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_PROJECT",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_PROJECT",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -6344,6 +6552,14 @@
   "refusal" : null
 }, {
   "setting" : "TICKET_TOKEN",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_TOKEN",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_TOKEN",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -6582,6 +6798,14 @@
   "refusal" : null
 }, {
   "setting" : "TICKET_WEBHOOK_SECRET",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_WEBHOOK_SECRET",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_WEBHOOK_SECRET",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -6820,6 +7044,14 @@
   "refusal" : null
 }, {
   "setting" : "TICKET_TOKEN_EXPIRES_ON",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_TOKEN_EXPIRES_ON",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_TOKEN_EXPIRES_ON",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -7058,6 +7290,14 @@
   "refusal" : null
 }, {
   "setting" : "TICKET_USER",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_USER",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_USER",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -7296,6 +7536,14 @@
   "refusal" : null
 }, {
   "setting" : "TICKET_ISSUE_TYPE",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_ISSUE_TYPE",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_ISSUE_TYPE",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -7534,6 +7782,14 @@
   "refusal" : null
 }, {
   "setting" : "TICKET_LABELS",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_LABELS",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_LABELS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -7772,6 +8028,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "TICKET_ALLOW_PRIVATE_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "TICKET_ALLOW_PRIVATE_URL",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "TICKET_ALLOW_PRIVATE_URL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -8007,6 +8271,14 @@
 }, {
   "setting" : "TICKET_CA",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_CA",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "TICKET_CA",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "TICKET_CA",
@@ -8248,6 +8520,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "AI_REVIEW_ENABLED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "AI_REVIEW_ENABLED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "AI_REVIEW_ENABLED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -8486,6 +8766,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "AI_REVIEW_OWASP_AFTER_SCAN",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "AI_REVIEW_OWASP_AFTER_SCAN",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "AI_REVIEW_OWASP_AFTER_SCAN",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -8721,6 +9009,14 @@
 }, {
   "setting" : "AI_REVIEW_PROVIDER",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_PROVIDER",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_PROVIDER",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "AI_REVIEW_PROVIDER",
@@ -8962,6 +9258,14 @@
   "refusal" : null
 }, {
   "setting" : "AI_REVIEW_OLLAMA_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_OLLAMA_URL",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_OLLAMA_URL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -9200,6 +9504,14 @@
   "refusal" : null
 }, {
   "setting" : "AI_REVIEW_OPENAI_URL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_OPENAI_URL",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_OPENAI_URL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -9438,6 +9750,14 @@
   "refusal" : null
 }, {
   "setting" : "AI_REVIEW_OPENAI_KEY",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_OPENAI_KEY",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_OPENAI_KEY",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -9676,6 +9996,14 @@
   "refusal" : null
 }, {
   "setting" : "AI_REVIEW_MODEL",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_MODEL",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_MODEL",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -9914,6 +10242,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "AI_REVIEW_TIMEOUT_SECONDS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "AI_REVIEW_TIMEOUT_SECONDS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "AI_REVIEW_TIMEOUT_SECONDS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -10152,6 +10488,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "AI_REVIEW_ALLOW_REMOTE",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "AI_REVIEW_ALLOW_REMOTE",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "AI_REVIEW_ALLOW_REMOTE",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -10387,6 +10731,14 @@
 }, {
   "setting" : "AI_REVIEW_RISK_ACKNOWLEDGED_BY",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_RISK_ACKNOWLEDGED_BY",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_RISK_ACKNOWLEDGED_BY",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "AI_REVIEW_RISK_ACKNOWLEDGED_BY",
@@ -10628,6 +10980,14 @@
   "refusal" : null
 }, {
   "setting" : "AI_REVIEW_RISK_ACKNOWLEDGED_AT",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_RISK_ACKNOWLEDGED_AT",
+  "input" : "ssh://git@",
+  "refusal" : null
+}, {
+  "setting" : "AI_REVIEW_RISK_ACKNOWLEDGED_AT",
   "input" : "ssh://git:pw@host/x",
   "refusal" : null
 }, {
@@ -10866,6 +11226,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "COMPLIANCE_FRESHNESS_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "COMPLIANCE_FRESHNESS_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "COMPLIANCE_FRESHNESS_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -11101,6 +11469,14 @@
 }, {
   "setting" : "ISMS_SCOPE_STATEMENT",
   "input" : "ssh://git@host/x",
+  "refusal" : null
+}, {
+  "setting" : "ISMS_SCOPE_STATEMENT",
+  "input" : "ssh://git@/x",
+  "refusal" : null
+}, {
+  "setting" : "ISMS_SCOPE_STATEMENT",
+  "input" : "ssh://git@",
   "refusal" : null
 }, {
   "setting" : "ISMS_SCOPE_STATEMENT",
@@ -11342,6 +11718,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "ISMS_SCOPE_ASSETS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "ISMS_SCOPE_ASSETS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "ISMS_SCOPE_ASSETS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -11580,6 +11964,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "SLA_CRITICAL_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_CRITICAL_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_CRITICAL_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -11818,6 +12210,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "SLA_HIGH_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_HIGH_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_HIGH_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -12056,6 +12456,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "SLA_MEDIUM_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_MEDIUM_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_MEDIUM_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -12294,6 +12702,14 @@
   "refusal" : "Expected value: a positive integer or zero."
 }, {
   "setting" : "SLA_LOW_DAYS",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_LOW_DAYS",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: a positive integer or zero."
+}, {
+  "setting" : "SLA_LOW_DAYS",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: a positive integer or zero."
 }, {
@@ -12532,6 +12948,14 @@
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "FOUR_EYES_APPROVAL_REQUIRED",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "FOUR_EYES_APPROVAL_REQUIRED",
+  "input" : "ssh://git@",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "FOUR_EYES_APPROVAL_REQUIRED",
   "input" : "ssh://git:pw@host/x",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
@@ -12767,6 +13191,14 @@
 }, {
   "setting" : "CHECKLIST_AUTO_ANSWER",
   "input" : "ssh://git@host/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "CHECKLIST_AUTO_ANSWER",
+  "input" : "ssh://git@/x",
+  "refusal" : "Expected value: \"true\" or \"false\"."
+}, {
+  "setting" : "CHECKLIST_AUTO_ANSWER",
+  "input" : "ssh://git@",
   "refusal" : "Expected value: \"true\" or \"false\"."
 }, {
   "setting" : "CHECKLIST_AUTO_ANSWER",

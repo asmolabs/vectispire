@@ -8,10 +8,13 @@
 //! - [`Setting::validate`] is what a value must look like, in Java's words ([`types`]).
 //! - [`Settings`] is the store of `t_setting`: reads with the catalog's defaults, and the conditional writes the
 //!   deployment's own rows need between instances — [`Settings::store_internal_if_absent`] and
-//!   [`Settings::replace_internal`].
+//!   [`Settings::replace_internal`] — and the safe values a fresh installation is written,
+//!   [`Settings::apply_first_install_defaults`].
+//! - [`about`] is what the deployment says about itself: its brand, and the version its documents state.
 
 #![forbid(unsafe_code)]
 
+pub mod about;
 pub mod catalog;
 mod persistence;
 pub mod rules;
@@ -19,5 +22,5 @@ mod store;
 pub mod types;
 
 pub use catalog::{Definition, Setting};
-pub use store::{Settings, SettingsError};
+pub use store::{FIRST_INSTALL_DEFAULTS, Settings, SettingsError};
 pub use types::{Section, Sensitivity, SettingType, THRESHOLDS};

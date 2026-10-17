@@ -175,6 +175,27 @@ async fn a_row_without_a_value(engine: Engine) {
     );
 }
 
+/// A fresh installation is written the safe visibility, as a row; a choice already made is never undone.
+async fn first_install_defaults_fill_only_what_nobody_set(engine: Engine) {
+    let server = Migrated::start(engine).await;
+    let db = server.connect().await;
+    let settings = Settings::new(db.clone());
+    assert_eq!(settings.get(Setting::TargetVisibility).await.unwrap(), "everyone", "the compatible default");
+
+    let mut tx = db.begin(Mode::ReadWrite).await.unwrap();
+    assert_eq!(settings.apply_first_install_defaults(&mut tx).await.unwrap(), vec![Setting::TargetVisibility]);
+    tx.commit().await.unwrap();
+    assert!(settings.is_stored(Setting::TargetVisibility).await.unwrap(), "a written row, not a second default");
+    assert_eq!(settings.get(Setting::TargetVisibility).await.unwrap(), "assigned");
+
+    // The operator chooses `everyone`; a restart that applies the defaults again leaves the choice alone.
+    let mut tx = db.begin(Mode::ReadWrite).await.unwrap();
+    settings.set(&mut tx, Setting::TargetVisibility, "everyone").await.unwrap();
+    assert_eq!(settings.apply_first_install_defaults(&mut tx).await.unwrap(), Vec::<Setting>::new());
+    tx.commit().await.unwrap();
+    assert_eq!(settings.get(Setting::TargetVisibility).await.unwrap(), "everyone");
+}
+
 macro_rules! on_both_engines {
     ($($name:ident),* $(,)?) => {
         mod mysql {
@@ -195,4 +216,5 @@ on_both_engines!(
     store_if_absent_lets_exactly_one_writer_win,
     replace_internal_arbitrates_between_two_transactions,
     a_row_without_a_value,
+    first_install_defaults_fill_only_what_nobody_set,
 );

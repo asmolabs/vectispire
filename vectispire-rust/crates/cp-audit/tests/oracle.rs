@@ -32,15 +32,15 @@ fn rust_entry(label: &str, index: usize) -> Record {
     ];
     Record {
         operation: operations[index % operations.len()],
-        resource_id: (index % 5 != 0).then(|| format!("resource-{index}")),
+        resource_id: (!index.is_multiple_of(5)).then(|| format!("resource-{index}")),
         description: Some(if index % 7 == 3 {
             format!("{label} {index} {}", "é".repeat(300))
         } else {
             format!("{label} {index} — Rust wrote this, \"quoted\" \\ and\nbroken")
         }),
         user_id: Some(format!("rust-{label}")),
-        ip_address: (index % 3 != 0).then(|| format!("203.0.113.{}", index % 250)),
-        user_agent: Some(if index % 4 == 0 { "   ".to_owned() } else { format!("cp-audit/{index}") }),
+        ip_address: (!index.is_multiple_of(3)).then(|| format!("203.0.113.{}", index % 250)),
+        user_agent: Some(if index.is_multiple_of(4) { "   ".to_owned() } else { format!("cp-audit/{index}") }),
         signal: None,
     }
 }
@@ -105,6 +105,27 @@ async fn rust_starts_and_java_continues(engine: Engine) {
     let all = entries(&log).await;
     assert_eq!(all.len(), 48);
     assert_linear(&all);
+}
+
+/// Turn and turn about, as a rolling switch-over would have it: Java, Rust, Java, Rust — each run chaining onto the
+/// other's last entry, and each verifying the whole log after every turn.
+async fn java_and_rust_take_turns(engine: Engine) {
+    let server = Migrated::start(engine).await;
+    let db = server.connect().await;
+    let log = plain_log(&db);
+    for turn in 0..3 {
+        server.oracle(&["append", "5", &format!("java-turn-{turn}"), "1"]).unwrap();
+        assert_rust_intact(&log).await;
+        rust_appends(&log, &format!("turn-{turn}"), 5).await;
+        assert_java_intact(&server);
+    }
+    let all = entries(&log).await;
+    assert_eq!(all.len(), 30);
+    assert_linear(&all);
+    for (index, entry) in all.iter().enumerate() {
+        let java = (index / 5).is_multiple_of(2);
+        assert_eq!(entry.user_id.as_deref().unwrap().starts_with("java-"), java, "entry {index} written by its turn");
+    }
 }
 
 /// A Java and a Rust writer at once, each several threads deep: the one-row lock serialises them across
@@ -204,6 +225,7 @@ macro_rules! on_both_engines {
 on_both_engines!(
     java_starts_and_rust_continues,
     rust_starts_and_java_continues,
+    java_and_rust_take_turns,
     java_and_rust_write_at_once,
     the_bundle_lines_are_java_s_bytes,
     both_find_a_tampered_field_and_say_where,

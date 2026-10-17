@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select distinct resource_id from t_audit_log where operation_type = $1 and resource_id = any($2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "resource_id",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_audit_log",
+            "name": "resource_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dccee2cbe2875ebfa9427363a77931b923609525937acaf56991f50352e7ca97"
+}

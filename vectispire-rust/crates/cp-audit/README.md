@@ -8,7 +8,7 @@ In progress, not shipped: the Java control plane is the product.
 | Guarantee | Held by |
 |---|---|
 | An entry hashes to the bytes Java computes: NUL separator, field order, absent = empty, the instant in ISO-8601 UTC with exactly three fraction digits, truncated | `tests/reference_set.rs` against `reference/audit/chain.json` (written by `AuditChainReferenceSetTest`) |
-| A chain Java started continues here, and one Rust extended continues in Java; each verifies the other's | `tests/oracle.rs`, both engines, the application's own `AuditLogService` |
+| A chain Java started continues here, and one Rust extended continues in Java — also turn and turn about; each verifies the other's | `tests/oracle.rs`, both engines, the application's own `AuditLogService` |
 | A Java and a Rust writer at once keep one unbroken chain | `tests/oracle.rs` (`java_and_rust_write_at_once`) — the `t_audit_chain_head` row lock serialises them |
 | Two Rust instances at once keep one chain, instants strictly increasing | `tests/engines.rs` |
 | Changing any column, deleting an entry somebody descends from, is found — Java's words | `tests/engines.rs`, `tests/oracle.rs` |
@@ -29,7 +29,9 @@ listener's failure writes the entry again alone and tells the listeners after th
 ## What is outside the module
 
 - **The mirror's file writer** is `vectispire-cp-runtime`'s `AuditMirror`: a module crate does not depend on the
-  runtime, so `Mirror` is the seam and the binary adapts one to the other.
+  runtime, so `Mirror` is the seam and the binary adapts one to the other (`vectispire-cp-app`'s `audit_mirror`,
+  held to the line's bytes by its tests). The binary does not open the database yet, so nothing constructs the log
+  there today.
 - **The SIEM** hears entries through `Listener` and broken verifications through `ChainBrokenListener`. The
   security-event vocabulary (`SecurityEventType`) is the SIEM module's; `Signal` carries its wire name until then.
 - **The routes** of the audit-log screen belong to the module that serves them.
@@ -47,7 +49,15 @@ each test; a missing prerequisite fails the run.
 
 ## Statements
 
-Run-time `sqlx::query` with fixed text, exercised on both engines by the live suites, rather than `query!` with
-an offline cache: that machinery is `cp-db`'s, for its own statements. The one text that varies is MySQL's
-`resource_id in (?, …)`, whose length follows the batch, as Hibernate expands a collection — a JSON test would
-compare bytes where the column's collation compares without case.
+**Checked: `sqlx::query!`, one module per engine** (`src/persistence/{mysql,postgres}.rs`), described while compiling
+by a server of that engine migrated by the real Flyway, the answers kept in `.sqlx/`:
+
+```sh
+crates/cp-db/scripts/sqlx-prepare.sh check cp-audit     # regenerate, fail on any difference, compile offline
+crates/cp-db/scripts/sqlx-prepare.sh prepare cp-audit   # after a statement or a schema change; commit the result
+```
+
+Each engine's statements are a feature (`mysql-queries`, `postgres-queries`, both on by default), as in `cp-db`. The one
+text that is not checked is MySQL's `resource_id in (?, …)`, whose length follows the batch, as Hibernate expands a
+collection — a JSON test would compare bytes where the column's collation compares without case; it runs on its
+engine in the live suite.

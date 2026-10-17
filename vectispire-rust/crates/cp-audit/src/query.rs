@@ -225,3 +225,18 @@ pub fn iso_instant(instant: OffsetDateTime) -> String {
     out.push('Z');
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `ISO_INSTANT`, as `Instant.toString` and Jackson print it: no fraction on the second, else in groups of three.
+    #[test]
+    fn the_bundle_instant_is_iso_instant() {
+        let at = |nanos: i128| iso_instant(OffsetDateTime::from_unix_timestamp_nanos(nanos).unwrap());
+        assert_eq!(at(1_792_224_000_000_000_000), "2026-10-17T08:00:00Z");
+        assert_eq!(at(1_792_224_000_120_000_000), "2026-10-17T08:00:00.120Z");
+        assert_eq!(at(1_792_224_000_123_400_000), "2026-10-17T08:00:00.123400Z");
+        assert_eq!(at(1_792_224_000_000_000_001), "2026-10-17T08:00:00.000000001Z");
+    }
+}

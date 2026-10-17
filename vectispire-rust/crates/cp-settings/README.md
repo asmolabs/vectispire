@@ -38,6 +38,16 @@ arbitrate between instances, each tested on both engines with real concurrency:
 - `replace_internal` — an update conditioned on the value read, in the caller's transaction: the second of two
   waits on the first's row lock and is told the value moved.
 
+The statements are checked `sqlx::query!`, one module per engine, with their offline cache in `.sqlx/`
+(`crates/cp-db/scripts/sqlx-prepare.sh check cp-settings`) — `cp-audit`'s README says how.
+
+**The first-install defaults** (`FirstInstallDefaults`): `apply_first_install_defaults` writes the safe value of each
+setting whose safe and compatible values disagree — `target_visibility = assigned`, today — as a row, never over one,
+for the bootstrap to call on a database with no account.
+
+**What the deployment says about itself** (`about`): the brand (`BrandingProperties`, blank as the default), the public
+URL, and the version every document states (`ProductVersion`), from the values the runtime read raw.
+
 MySQL answers an update with the rows it *found*, as Connector/J has Hibernate see it, because sqlx asks for
 found rows (`CLIENT_FOUND_ROWS`): writing a value a row already holds is still a write onto that row.
 
