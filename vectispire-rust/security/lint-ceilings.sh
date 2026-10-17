@@ -26,6 +26,7 @@ trap 'rm -f "$tmp"' EXIT
 cargo clippy --workspace --lib --bins --locked --message-format=json -q -- $args 2>/dev/null > "$tmp"
 
 # One "<lint> <scope> <count>" line per lint and scope, zero included, so a lint that vanished is seen.
+# shellcheck disable=SC2086 # one argument per lint, split on purpose
 counts=$(python3 - "$tmp" $lints <<'PY'
 import collections, json, sys
 

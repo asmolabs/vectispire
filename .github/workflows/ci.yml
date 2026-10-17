@@ -1263,8 +1263,8 @@ jobs:
             vectispire-angular/test-results/
           retention-days: 7
 
-  # **The Rust port of the agent, on any change under `vectispire-rust/`** (the port is not shipped yet;
-  # README.md there). Detected like `engines` and `e2e`: this file is in the list so that a change to the
+  # **The Rust port — the agent and the control plane's foundations — on any change under `vectispire-rust/`**
+  # (the port is not shipped yet; README.md there). Detected like `engines` and `e2e`: this file is in the list so that a change to the
   # job runs the job, and a range that cannot be resolved counts as changed.
   rust-changes:
     runs-on: ubuntu-24.04
@@ -1285,7 +1285,10 @@ jobs:
             echo "touched=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          RUST_PATHS='^\.github/workflows/ci\.yml$|^vectispire-rust/'
+          # Beyond the Rust tree: the migrations the Rust runner must keep reading as Flyway does, and the
+          # recorder whose output the replay reads. (The Java parsers' answers the Rust ones are held to are
+          # read by the `jvm` job's tests from vectispire-rust/reference/, which this job's paths already cover.)
+          RUST_PATHS='^\.github/workflows/ci\.yml$|^vectispire-rust/|^vectispire-java/vectispire-core/src/main/resources/db/migration/|^vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/golden/'
           changed=$(git diff --name-only "$BASE" HEAD | grep -E "$RUST_PATHS" || true)
           if [ -n "$changed" ]; then
             echo "le code Rust a changé — ses contrôles sont exécutés :"
@@ -1307,7 +1310,7 @@ jobs:
   # per version, checked against the index's checksum, and the tool's own lockfile decides its graph.
   rust:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 70
     needs: [rust-changes]
     if: needs.rust-changes.outputs.touched == 'true'
     defaults:
@@ -1317,6 +1320,18 @@ jobs:
       CARGO_TERM_COLOR: never
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # A JDK for the suites that run Flyway itself — the migration runner is held to it, and the checked
+      # queries' schema is the one Flyway builds — with the Gradle caches the `jvm` job keeps.
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
       - name: the pinned toolchain, and the two supply-chain tools at their versions
         run: |
           rustup show active-toolchain || rustup toolchain install
@@ -1339,6 +1354,21 @@ jobs:
       # support in the agent's resolved graph (decision 0003).
       - name: tests, with Docker
         run: cargo test --workspace --locked
+      # **The migration runner against the real Flyway**, both engines: a database Java migrated is validated and
+      # left alone by Rust, one Rust migrated is accepted by Java with the same schema, Java to V89 then Rust then
+      # Java, a Java and a Rust instance starting together (crates/migrate/README.md). Not in `cargo test`: it
+      # needs the JDK above and Gradle's cache.
+      - name: the migration runner, held to Flyway
+        run: ./crates/migrate/oracle/check-oracle.sh
+      # **The checked queries' offline caches** are the committed ones, for both engines: regenerated against
+      # throwaway servers and compared, then compiled offline (crates/cp-db/README.md).
+      - name: the queries' caches are current
+        run: ./crates/cp-db/scripts/sqlx-prepare.sh check
+      # **The contract the control plane is held to**: its routes against `openapi.json` in both directions
+      # (a `cargo test` of cp-contract) and what is not yet ported, which only shrinks. The summary is printed
+      # so a run can be read for how far the port is.
+      - name: the contract and what is not yet ported
+        run: cargo run --locked -q -p vectispire-cp-contract -- summary
       - name: advisories, bans, licences, sources, build scripts (cargo-deny)
         run: cargo deny --locked check
       # `--locked`: the audits imported in supply-chain/imports.lock, not today's — a crate not
@@ -1350,6 +1380,61 @@ jobs:
       - if: failure()
         name: containers left by the suites
         run: docker ps -a --filter name=vs-rs- --format '{{.Names}} {{.Status}}' || true
+
+  # **The Java suite's HTTP traffic, recorded at this commit and read by the Rust control plane's replay.** The
+  # recorder (vectispire-java/…/core/golden/) writes one file per request of every HTTP test; the Rust port
+  # is to answer every one as Java did. Nothing of the control plane is ported yet, so the replay's plan is
+  # what is held today: every recording is read (a format that drifted fails now), each is matched to an
+  # operation of the contract and sorted — not yet ported, owed a replay, outside the contract — and a ported
+  # route whose recordings nothing replays fails the step (`cp-contract replay-plan`, exit 3). The recordings
+  # are generated here, not committed (66 MB, 7,000 files), kept as an artifact for a few days, and scanned: they
+  # carry no credential but the one invented value the export test plants, allowed by name.
+  rust-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: [rust-changes]
+    if: needs.rust-changes.outputs.touched == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      # Two tests are expected to fail under the recorder, and no others (reference/recording-known-failures.txt).
+      - name: the suite, recorded
+        run: vectispire-rust/crates/cp-contract/scripts/record-goldens.sh "$RUNNER_TEMP/goldens"
+      - name: the recordings hold no credential but the one invented value
+        run: |
+          set -eu
+          cp vectispire-rust/security/recordings.gitleaks.toml "$RUNNER_TEMP/recordings.gitleaks.toml"
+          status=0
+          docker run --rm -v "$RUNNER_TEMP/goldens:/recordings:ro" -v "$RUNNER_TEMP/recordings.gitleaks.toml:/gitleaks.toml:ro" \
+            zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --no-git --source=/recordings --config /gitleaks.toml --redact > gitleaks.log 2>&1 || status=$?
+          cat gitleaks.log
+          if grep -q ' ERR ' gitleaks.log; then echo "::error::gitleaks logged an error: the scan cannot be trusted"; exit 1; fi
+          if ! grep -Eq 'scanned ~[0-9]+ bytes' gitleaks.log; then echo "::error::gitleaks scanned nothing"; exit 1; fi
+          [ "$status" -eq 0 ] || { echo "::error::a recording holds a credential the recorder let through"; exit 1; }
+      - name: the pinned toolchain
+        working-directory: vectispire-rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
+            || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
+      - name: what a replay owes
+        working-directory: vectispire-rust
+        run: cargo run --locked -q -p vectispire-cp-contract -- replay-plan "$RUNNER_TEMP/goldens"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: java-recordings
+          path: ${{ runner.temp }}/goldens
+          retention-days: 3
 
   # **The Rust agent's image: reproducible, inventoried, scanned.** Built twice from nothing with the
   # commit's time as SOURCE_DATE_EPOCH, and refused if the two differ (security/reproducible-image.sh);

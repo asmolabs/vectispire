@@ -127,6 +127,24 @@ lowered when a use goes away, never raised.
 When the image changed: `security/reproducible-image.sh linux/arm64` (or `linux/amd64`, as CI) must say
 `reproducible`.
 
+**The control plane's crates (`cp-*`, `migrate`) are held to the Java side by suites `check.sh` does not run**,
+because they need a JDK 25 and Gradle beside Docker; CI's `rust` and `rust-replay` jobs run them, and so should
+you when you touch those crates or a Flyway migration:
+
+```bash
+cd vectispire-rust
+./crates/migrate/oracle/check-oracle.sh             # the migration runner against the real Flyway, both engines
+./crates/cp-db/scripts/sqlx-prepare.sh check        # the checked queries' caches are current (both engines)
+crates/cp-contract/scripts/record-goldens.sh /tmp/vs-recordings    # the Java suite's traffic, recorded
+cargo run -p vectispire-cp-contract -- replay-plan /tmp/vs-recordings
+```
+
+A route ported to the control plane leaves `crates/cp-contract/reference/not-yet-ported.txt` (the list, and its
+ceiling, only shrink) in the same commit — and its recordings are then owed a replay, which `replay-plan` refuses
+to let pass (exit 3). `cp-arch-tests` holds the module edges, the layers, `unsafe`, the agent's isolation and the
+route-authorization rules; a new module crate adds its edges to `crates/cp-arch-tests/data/edges.toml` with their
+reason.
+
 ## 5. Contract — when a route's shape changed
 
 `ClientContractSpecTest` fails with the command. Regenerate, then the client types, and commit both:

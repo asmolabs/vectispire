@@ -95,15 +95,22 @@ not mean portability was checked** — a service that hands an existing query ne
 touches none of the engine paths, and a renamed response field touches no front-end file. Those are the nightly's, and a
 release should not go out on a nightly that has not been green.
 
-**The Rust port (`vectispire-rust/`, not shipped) has jobs of its own, run when anything under it or
-`ci.yml` changed** (`rust-changes`, a range that cannot be resolved counting as changed). `rust` runs
+**The Rust port (`vectispire-rust/`, not shipped — the agent, and the control plane's foundations) has jobs
+of its own, run when anything under it, `ci.yml`, a Flyway migration or the Java traffic recorder changed**
+(`rust-changes`, a range that cannot be resolved counting as changed). `rust` runs
 fmt, clippy with `-D warnings` over the lints `Cargo.toml` denies (`unwrap`/`expect` and `print!` in
 shipped code, undocumented `unsafe`), `security/check-unsafe.sh` (`unsafe` in `crates/git/src/init.rs`
 only), `security/lint-ceilings.sh` (indexing, slicing and unchecked arithmetic held to counts that only
 go down), the tests with Docker — the isolation test among them —, `cargo deny` (advisories, bans,
 licences, crates.io only, no new duplicate, **build scripts only for the crates listed**), `cargo vet
 --locked` (every crate audited by an imported set or exempted by name) and semgrep with the workspace's
-own rules. `rust-image` builds the image twice from nothing and refuses two different digests, writes
+own rules — and, with a JDK, the suites that hold the port to the Java side: `vectispire-migrate` against the
+real Flyway in both directions on both engines (`crates/migrate/oracle/check-oracle.sh`), the checked queries'
+offline caches regenerated and compared (`crates/cp-db/scripts/sqlx-prepare.sh check`), and the contract summary.
+`rust-replay` records the Java suite's HTTP traffic at the commit (`crates/cp-contract/scripts/record-goldens.sh`:
+two tests are expected to fail under the recorder, and no others), scans the recordings for credentials, and
+reads them with `cp-contract replay-plan` — a recording of a route that has left the list of routes not yet
+ported, with nothing replaying it, fails the step. `rust-image` builds the image twice from nothing and refuses two different digests, writes
 the CycloneDX SBOM, and runs grype on the image at `ScannerImages`' digest — refusing a scan that saw
 too few crates, since a static binary shows none without cargo-auditable's list. The nightly's
 `rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each
