@@ -21,3 +21,8 @@ cargo deny --locked check
 ./security/lint-ceilings.sh
 cargo vet --locked
 ./security/semgrep.sh
+
+# Each mutation script's guards must still be found in the sources, exactly once. This runs no mutant
+# (security/mutants/README.md): it keeps the lists from rotting silently when the code they break moves,
+# so that the next full run still means something.
+for script in security/mutants/p*.py; do python3 "$script" --check; done
