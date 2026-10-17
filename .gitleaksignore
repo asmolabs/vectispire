@@ -108,3 +108,8 @@ a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:c
 # UUID that only shows as an identifier on the sources page. No credential; the line now carries
 # `gitleaks:allow`, and this pins the commit that introduced it.
 487bd9f8347b31e20772b1d2ecb55ee110d07e9d:vectispire-angular/e2e/screens.spec.ts:generic-api-key:644
+
+# The Rust port's accounts test signs in on the real control plane with an account it creates there: an invented
+# passphrase, in a container removed after the test. The line now names a constant marked `gitleaks:allow`; this
+# pins the commit that wrote it inline.
+584a1cc62e162bb6afb31d79a66d9092b09002b9:vectispire-rust/crates/cp-access/tests/against_java.rs:generic-api-key:185

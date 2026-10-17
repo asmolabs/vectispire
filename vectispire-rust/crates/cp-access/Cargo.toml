@@ -7,6 +7,14 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+# Each engine's checked statements are a feature, as in cp-db: the cache of one engine is generated while only that
+# engine's database is up (scripts/sqlx-prepare.sh, beside this file). Both are on in a build, compiled offline
+# from `.sqlx/`.
+default = ["mysql-queries", "postgres-queries"]
+mysql-queries = []
+postgres-queries = []
+
 [dependencies]
 # RustCrypto's Argon2, used for its raw derivation only: the PHC string is written and read here, the way
 # `PasswordHasher` writes and reads it, so the bytes stored by either side are the same.
@@ -14,13 +22,15 @@ argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
 base64.workspace = true
 rand_core.workspace = true
 # The account rows, through the module's persistence only (deny.toml lists this crate among sqlx's wrappers).
-sqlx = { version = "0.9", default-features = false, features = ["mysql", "postgres", "time"] }
+sqlx = { version = "0.9", default-features = false, features = ["mysql", "postgres", "macros", "time"] }
 subtle.workspace = true
 thiserror.workspace = true
 time = { version = "0.3", features = ["std"] }
 tracing.workspace = true
 uuid = { workspace = true, features = ["v4"] }
-vectispire-cp-db = { path = "../cp-db" }
+# Without cp-db's own checked statements: this crate's cache passes (scripts/sqlx-prepare.sh) compile one engine's
+# statements against one database, and cp-db's other engine would fail to describe there.
+vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-domain.workspace = true
 zeroize = "1"
 

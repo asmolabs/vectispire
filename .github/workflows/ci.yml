@@ -1364,6 +1364,9 @@ jobs:
       # throwaway servers and compared, then compiled offline (crates/cp-db/README.md).
       - name: the queries' caches are current
         run: ./crates/cp-db/scripts/sqlx-prepare.sh check
+      # Each module's checked statements are cached beside the module, by a script of the same shape.
+      - name: the access module's query caches are current
+        run: ./crates/cp-access/scripts/sqlx-prepare.sh check
       # **The contract the control plane is held to**: its routes against `openapi.json` in both directions
       # (a `cargo test` of cp-contract) and what is not yet ported, which only shrinks. The summary is printed
       # so a run can be read for how far the port is.

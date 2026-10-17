@@ -17,9 +17,11 @@
 //!
 //! What differs from Java, on purpose, and only for a hash nobody wrote through `hash` (a row edited by hand):
 //! a parameter Java's `Integer.parseInt` reads as a non-ASCII digit is refused here; a memory cost above
-//! [`MAX_MEMORY_KIB`] is refused here rather than allocated; a parameter set BouncyCastle throws on (a memory
-//! below 8 × lanes, no lanes, no pass) answers false here where Java's `verify` lets the exception reach the
-//! sign-in. The reference set lists each such case with what Java does.
+//! [`MAX_MEMORY_KIB`] is refused here rather than allocated; a parameter set BouncyCastle throws on (no lanes, no
+//! pass) answers false here where Java's `verify` lets the exception reach the sign-in; a memory below 8 × lanes,
+//! which BouncyCastle does not refuse but silently raises to 8 × lanes, is refused here — false on both sides for
+//! every digest but one derived at that raised cost, which `hash` never writes. The reference set lists each such
+//! case with what Java does.
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::Engine as _;
@@ -58,7 +60,8 @@ const DECODER: GeneralPurpose = GeneralPurpose::new(
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum HashError {
-    /// Parameters the derivation refuses — BouncyCastle throws for the same ones.
+    /// Parameters the derivation refuses. BouncyCastle throws for no lanes and no pass, but hashes a memory below
+    /// 8 × lanes at 8 × lanes while writing the cost it was given: a string that says what was not done.
     #[error("Argon2 refused the parameters m={memory_kib}, t={iterations}, p={parallelism}")]
     Parameters { memory_kib: u32, iterations: u32, parallelism: u32 },
 }

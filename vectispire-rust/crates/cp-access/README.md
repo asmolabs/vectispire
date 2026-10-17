@@ -38,11 +38,22 @@ single sign-on (1.4), authorization (1.5) and the audit log (1.6) plug into the 
 - **The rehash writes the password column only.** Java saves the whole entity loaded at the sign-in, so a
   deactivation committed between that load and the rehash was written back as active.
 - **A stored memory cost above 1 GiB is refused**, not allocated; **a parameter Java's `parseInt` reads as a
-  non-ASCII digit is refused**; **`t=0` and `p=0` answer `false`** where Java throws. Each concerns only a row
-  edited by hand.
-- **The fixed statements are `sqlx::query`, not yet the checked `query!`**: that needs this crate's own offline
-  cache and generation script (`cp-db`'s covers `cp-db` only). Every statement runs in `tests/engines.rs` on both
-  engines meanwhile.
+  non-ASCII digit is refused**; **`t=0` and `p=0` answer `false`** where Java throws; **a memory below 8 × lanes is
+  refused**, where BouncyCastle silently derives at 8 × lanes — `false` on both sides unless the digest was made at
+  that raised cost, which `hash` never does. Each concerns only a row edited by hand.
+
+## The checked statements
+
+The statements are `sqlx::query!`, checked against both engines' migrated schema, as `cp-db`'s are: the answers live
+in `crates/cp-access/.sqlx/`, both engines in one directory, each statement tagged with its engine.
+`scripts/sqlx-prepare.sh prepare` rewrites the cache from throwaway servers migrated by the real Flyway; `check`
+(a step of CI's `rust` job) fails when the committed cache differs from a regenerated one. Each engine's statements
+are a feature (`mysql-queries`, `postgres-queries`), and cp-db is depended on without its own, so that a pass
+describes one engine's statements against one database.
+
+One statement is not checked: the count of the other active administrators on **MySQL**, whose `in (…)` holds one
+placeholder per role the caller names. PostgreSQL's `= any($1)` is checked; MySQL has no array parameter, and the
+spellings that would fake one compare under another collation than `in` does.
 
 ## Observed in the Java code while porting (not changed there)
 

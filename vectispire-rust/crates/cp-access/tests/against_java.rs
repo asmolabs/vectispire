@@ -37,6 +37,7 @@ const DB_PASSWORD: &str = "vs-rs-accj-database-password"; // gitleaks:allow
 const CONTROL_PLANE_KEY: &str = "dnMtcnMtYWNjai1lbmNyeXB0aW9uLWtleS1pbnZlbnQ="; // gitleaks:allow — base64 of an invented label
 const BOOTSTRAP: &str = "Vs-rs-accj-bootstrap-Invented-1!";
 const ROTATED: &str = "Vs-rs-accj-rotated-Invented-2!";
+const JUNO: &str = "Juno-Invented-Passphrase-3"; // gitleaks:allow — invented, for an account in a container removed after the test
 
 struct Network(String);
 impl Drop for Network {
@@ -182,7 +183,7 @@ async fn accounts_written_by_either_program_sign_in_on_the_other() {
     let created = http
         .post(format!("{base}/api/v1/users"))
         .bearer_auth(&admin)
-        .json(&json!({"username": "juno", "password": "Juno-Invented-Passphrase-3", "role": "ADMIN", "email": "juno@example.org"}))
+        .json(&json!({"username": "juno", "password": JUNO, "role": "ADMIN", "email": "juno@example.org"}))
         .send()
         .await
         .unwrap();
@@ -192,7 +193,7 @@ async fn accounts_written_by_either_program_sign_in_on_the_other() {
         (juno.role.as_str(), juno.email.as_deref(), juno.must_change_password),
         ("ADMIN", Some("juno@example.org"), true)
     );
-    assert!(passwords::verify(Some("Juno-Invented-Passphrase-3"), juno.password.as_ref().map(PasswordHash::encoded)));
+    assert!(passwords::verify(Some(JUNO), juno.password.as_ref().map(PasswordHash::encoded)));
     assert!(!passwords::needs_rehash(juno.password.as_ref().map(PasswordHash::encoded)));
     let rotated = store.find_by_username("admin").await.unwrap().unwrap();
     assert!(!rotated.must_change_password, "Java's own password change cleared the flag");
@@ -241,13 +242,13 @@ async fn accounts_written_by_either_program_sign_in_on_the_other() {
     assert_eq!((status, answer["user"]["mustChangePassword"].as_bool()), (200, Some(true)));
 
     // A weaker hash written here is verified by Java's sign-in, which rewrites it under today's cost.
-    let weaker = PasswordHash::new(passwords::hash_with("Juno-Invented-Passphrase-3", 4096, 1, 1).unwrap());
+    let weaker = PasswordHash::new(passwords::hash_with(JUNO, 4096, 1, 1).unwrap());
     store.rehash(juno.id, weaker.clone()).await.unwrap();
-    assert_eq!(login(&http, &base, "juno", "Juno-Invented-Passphrase-3").await.0, 200);
+    assert_eq!(login(&http, &base, "juno", JUNO).await.0, 200);
     let rewritten = store.find_by_id(juno.id).await.unwrap().unwrap().password.unwrap();
     assert_ne!(rewritten, weaker, "Java rewrote it");
     assert!(!passwords::needs_rehash(Some(rewritten.encoded())));
-    assert!(passwords::verify(Some("Juno-Invented-Passphrase-3"), Some(rewritten.encoded())));
+    assert!(passwords::verify(Some(JUNO), Some(rewritten.encoded())));
 
     // A lift done here discards the password Java would have accepted.
     let reset = accounts
