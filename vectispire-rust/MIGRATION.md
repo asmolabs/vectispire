@@ -26,7 +26,7 @@ These are prerequisites, not tasks. Until they are done, a new person cannot sta
    `feat/rust-agent`, `docs/rust-control-plane-plan` and any task branch you hand over.
 2. **The mutation scripts are not in the repository.** Each task's mutation check was run with a
    throwaway script (`p1acc-mutate.py`, `p1c-mutate.py`, `mutate-authz.py`, `p1aud-mutate.py`,
-   `p1merge-mutate.py`, `p2-1-mutate.py`, `p2-4-mutate.py`, `p2-3-mutate.py`) kept in a session scratch directory. Move them under
+   `p1merge-mutate.py`, `p2-1-mutate.py`, `p2-4-mutate.py`, `p2-3-mutate.py`, `p2-5-mutate.py` — the last takes the workspace as its argument) kept in a session scratch directory. Move them under
    `vectispire-rust/security/mutants/` with a short README, or the next person cannot rerun them.
 3. **The work trees were in a temporary directory.** The branches hold everything; recreate a work tree
    per task with `git worktree add`.
@@ -75,7 +75,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 ## 3. How to take a task
 
 - **One task, one branch.** Phase 2's branches are stacked: `rust/p1-merge` → `rust/p2-1-shared` →
-  `rust/p2-4-fingerprint` → `rust/p2-3-crypto`. Start a new Phase 2 task from the newest finished one.
+  `rust/p2-4-fingerprint` → `rust/p2-3-crypto` → `rust/p2-5-protocol`. Start a new Phase 2 task from the newest finished one.
   Name it `rust/p<phase>-<n>-<short-name>`.
 - **A task owns its files.** The tables below say which. Touching another task's files is a
   conversation, not a commit. Shared agent crates (`protocol`, `crypto`, the runner) change only
@@ -100,6 +100,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.1 Shared-module rule and maintenance turns | done (48/48 mutants) | `rust/p2-1-shared` (cf1b2aa22) |
 | 2.4 Fingerprint, target vocabulary, Spring cron | done (109/109 mutants) | `rust/p2-4-fingerprint` (2d9ad0768), stacked on 2.1 |
 | 2.3 Encryption at rest and sealing | done (63/63 mutants, 4 equivalents removed) | `rust/p2-3-crypto`, stacked on 2.4 |
+| 2.5 The protocol's server half | done (119/119 mutants, 5 equivalents removed) | `rust/p2-5-protocol`, stacked on 2.3 |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
@@ -150,7 +151,7 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.2 | Outbox: enqueue in the caller's transaction, claim, backoff, abandonment, pruning | after 2.1 |
 | 2.3 | Encryption at rest (AES-256-GCM, key from variable / file / `/run/secrets` / Vault), signing key, an additive `seal` in `crates/crypto` | **done** |
 | 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | **done** |
-| 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | after 2.1; publishes the bodies early |
+| 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | **done** |
 | 2.6 | Targets: 29 routes, two-phase deletion, purge registry | after 2.3, 2.4 |
 | 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | after 2.3, 2.4, 2.5 |
 | 2.8 | Ingestion; the **ingestion reference set is written before the code** | after 2.4, 2.5; files declared by 2.7 |
@@ -172,10 +173,51 @@ What the finished tasks leave to the others:
 - **2.7:** `Schedules` (`isDue`, the SplitMix offset, `runsAtLeastEvery`, `inForce`) is not ported; build
   it on `cron::crontab::parse` and `Stored::next_after`. Retention uses `RetentionPolicy::prunable`, with
   candidates newest first, target by target.
-- **2.8:** compute the fingerprint **before** clipping. And decide how to read a lone-surrogate escape
-  (`\uD800`) in a result: Jackson accepts it, `serde_json` refuses the whole body, so a result Java
-  ingests today would be refused by Rust. Mapping the escape to `?` before parsing keeps fingerprints
-  equal, since Java writes that surrogate as `?` anyway.
+- **2.8:** compute the fingerprint **before** clipping. The lone surrogate is decided (2.5): a result is
+  read through `vectispire_protocol::jackson`, which writes an unpaired `\uD800` as `?` before `serde_json`
+  sees it — what Java's `getBytes(UTF_8)` makes of it in the fingerprint and the database.
+
+- **The protocol's server half (2.5), for 2.7, 2.8 and 2.9.** Depend on `vectispire-protocol` **without** its
+  `client` feature (only the agent turns it on; `cargo tree -p vectispire-protocol -e normal` shows no
+  `reqwest`, `hyper`, `rustls` or `tokio` without it). Everything is held to `reference/artifacts/java-read.json`
+  and `server-wire.json`, written by `AgentWireReferenceSetTest` in `vectispire-core` with the application's own
+  mappers — `CoreConfiguration`'s Jackson 2 bean for the bytes of the result and the failure report, Spring
+  Boot's auto-configured Jackson 3 for every other body. They differ: Jackson 2 never reads past the first
+  document and nests 1,000 deep; Jackson 3 refuses trailing content and nests 500 deep.
+  - **2.8:** `ScanArtifacts::read(&body) -> Result<Received<'_>, Unreadable>`, on the bytes the signature was
+    verified on. Every step stays an `Option`: `None` is absent, `Some(vec![])` ran and found nothing — never
+    `unwrap_or_default` one. A `null` element of a finding list is kept as `None` (`Listed<T>`), because Java's
+    record keeps it: decide what ingestion does with it as Java's ingestion does (it was not looked at here).
+    The SBOM is `Cow<RawValue>` borrowed from the body (a 250 MB SBOM costs nothing more to read, measured in
+    `tests/memory.rs`; a body that needs a rewrite costs one more body); it is **not** checked against
+    `StreamReadConstraints` beyond depth, number and string lengths, which the reader applies everywhere —
+    parse it as a stream, never into a `Value`. Coercions are Jackson's and pinned case by case: a number as
+    text, text as a number in any Unicode digit, a decimal truncated to an `int`, an enum by name trimmed or
+    by index, `"null"` as null for numbers and booleans; `ApiEndpoint` is normalised as its record is;
+    `produced` without findings is `Absent` with Java's reason; a plugin step may come in the wrapper-array
+    form `["absent", {…}]`. `duration` is a `JavaDuration` (seconds and a non-negative nanosecond part),
+    including Java's wrap-around past a `long` for a decimal.
+  - **2.9:** `Unreadable::Refused` is the route's 400 (`refusals::result_unreadable()`); `Unreadable::Null` is
+    the body `null`, which Java's mapper returns as no result and `submitResult` then dereferences — a 500 in
+    Java. Answer it as a 400 and record the difference in the crate README, or reproduce the 500 on purpose;
+    either way decide it, it is not decided here. `server::{HelloRequest, SealingKeyRequest}::read` bind as
+    Spring MVC binds (`Ok(None)` is the JSON `null`, which Spring answers 400 as a missing body);
+    `FailureReport::read` reads as `reportFailure` does, an attempt below 1 or a `null` body included in the
+    400. `contract_is_compatible` and `refusals::incompatible_contract` are the hello's 409; every other refusal
+    of `AgentsController` is in `server::refusals` with its status. `HelloAnswer` and `FailureAnswer` write the
+    answers byte for byte (`server::write` escapes control characters in upper-case hex, as Jackson does, and
+    `iso_instant` writes `retryAt` in `ISO_INSTANT`'s groups of three digits). `SealingKeyRequest::has_usable_generation`
+    is the service's first test; the key itself through `crypto::is_usable_sealing_key`.
+  - **2.7:** `AssignedTask::to_body()` writes the claim as Spring MVC writes `AgentTask`; put the sealed envelope
+    (`crypto::seal`) in `private_key` or `https.token`, never a key in the clear. Steps are written in the
+    enum's order; Java writes `Set.copyOf`'s, which changes from one JVM start to the next — any order is the
+    same set to the agent, and the reference set pins the enum's.
+  - **Fuzzing:** `fuzz/fuzz_targets/result_body.rs` runs the result, failure, hello and sealing-key readers on
+    any bytes, seeded with the reference bodies (1.18 million runs, 60 s, no failure, on 2026-10-17).
+  - **Deliberate approximations**, each where no Java case could be cheap: a malformed UTF-16 body is decoded
+    as the JDK's `UTF_16` decoder is understood to (U+FFFD, a high surrogate swallowing the unit after it; one
+    case pinned); a root `null` followed by an identifier character is refused for ASCII letters, digits, `_`,
+    `$` and anything past ASCII, where Java asks `Character.isJavaIdentifierPart`.
 
 - **Encryption (2.3), for everyone storing a secret.** `vectispire_cp_crypto::Encryption` is async:
   `encrypt(plain, context)` → `Result<String, EncryptionError>` (`MissingKey` is the 412 of
