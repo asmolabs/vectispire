@@ -18,6 +18,7 @@ tracing.workspace = true
 vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-http = { path = "../cp-http" }
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
 
@@ -25,6 +26,8 @@ vectispire-cp-runtime = { path = "../cp-runtime" }
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
 vectispire-cp-contract = { path = "../cp-contract" }
 tempfile.workspace = true
+time = { version = "0.3", features = ["std"] }
+uuid.workspace = true
 
 [lints]
 workspace = true

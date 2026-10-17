@@ -8,7 +8,7 @@
 resolver = "3"
 # fuzz/ is a workspace of its own, on a nightly compiler: none of it ships (fuzz/Cargo.toml).
 exclude = ["fuzz"]
-members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db", "crates/cp-http", "crates/cp-contract", "crates/cp-outbound", "crates/cp-runtime", "crates/cp-app", "crates/cp-arch-tests", "crates/cp-audit", "crates/cp-settings", "crates/cp-platform", "crates/cp-access", "crates/cp-maintenance", "crates/cp-crypto"]
+members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db", "crates/cp-http", "crates/cp-contract", "crates/cp-outbound", "crates/cp-runtime", "crates/cp-app", "crates/cp-arch-tests", "crates/cp-audit", "crates/cp-settings", "crates/cp-platform", "crates/cp-access", "crates/cp-maintenance", "crates/cp-crypto", "crates/cp-outbox"]
 
 [workspace.package]
 version = "0.12.0-dev"

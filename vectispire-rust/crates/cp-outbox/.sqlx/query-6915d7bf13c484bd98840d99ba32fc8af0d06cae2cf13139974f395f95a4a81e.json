@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_outbox_message where status = $1 and sent_at is not null and sent_at < $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6915d7bf13c484bd98840d99ba32fc8af0d06cae2cf13139974f395f95a4a81e"
+}

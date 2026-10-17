@@ -33,7 +33,7 @@ the scan scheduler's lease is scanning's (task 2.7), the relay claims each messa
 by a task of the binary's composition (`crates/cp-app/src/maintenance.rs`, checked by
 `crates/cp-app/tests/maintenance_composition.rs`) or named in `data/deferred.txt` with who fills it — never both,
 never neither. The list is therefore exactly the slots still missing, and it shrinks by one line in the commit that
-registers a task. Twenty-eight today.
+registers a task: twenty-six since the outbox filled its two (task 2.2).
 
 ## One-shot jobs
 

@@ -4,12 +4,10 @@
 # check, as a Java task without its @Component would have run nowhere; a slot filled and still listed fails too. So
 # the list only shrinks, by one line in the commit that registers the task in the binary's composition
 # (crates/cp-app/src/maintenance.rs). Twenty-eight on the day cp-maintenance landed (task 2.1 of Phase 2).
-NOTIFICATION_RELAY | outbox, task 2.2 — and the relay turn is not started until the handler registry equals Java's, or Java's pending messages of unknown types would be abandoned (plan §7, Phase 2)
 SCHEDULING_TICK | scanning, task 2.7 — leader-only inside the service, through t_leader_lease, not here
 CREDENTIALED_BACKLOG | agents, task 2.9
 REPORT_RUN_SWEEP | reportplugins, a later phase
 SCAN_RETENTION | scanning, task 2.7
-SENT_MESSAGES | outbox, task 2.2
 TICKET_SWEEP | tickets, a later phase
 TICKET_TOKEN_CHECK | tickets, a later phase
 FORGE_TOKEN_WATCH | forges, a later phase

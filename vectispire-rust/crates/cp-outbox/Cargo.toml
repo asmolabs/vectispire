@@ -1,0 +1,38 @@
+[package]
+name = "vectispire-cp-outbox"
+description = "The control plane's outbox: messages enqueued in the caller's transaction, a relay that claims, retries and abandons them with their reason, the purge of delivered ones."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Each engine's checked queries are a feature of their own, as in cp-db: the offline cache of one engine is
+# generated while only that engine's database is up (crates/cp-db/scripts/sqlx-prepare.sh, with this crate's name).
+# Both are on in every other build.
+default = ["mysql-queries", "postgres-queries"]
+mysql-queries = []
+postgres-queries = []
+
+[dependencies]
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+vectispire-cp-db = { path = "../cp-db" }
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+
+[dev-dependencies]
+time = { version = "0.3", features = ["std", "parsing", "formatting", "macros"] }
+tokio = { workspace = true, features = ["test-util"] }
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+vectispire-domain.workspace = true
+
+[lints]
+workspace = true
