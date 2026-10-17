@@ -338,6 +338,64 @@ fn sigma_is_final(chars: &[char], index: usize) -> bool {
     before.iter().any(|&c| is_cased(c)) && !after.iter().any(|&c| is_cased(c))
 }
 
+/// `String.CASE_INSENSITIVE_ORDER`: code point by code point (a surrogate pair read as one), each pair compared as
+/// is, then upper-cased, then lower-cased, **by the simple one-to-one mappings** `Character.toUpperCase(int)` and
+/// `toLowerCase(int)` use — and the shorter string, in UTF-16 units, first when one is a prefix of the other.
+///
+/// Not Rust's `to_lowercase` comparison: its full mappings turn `ß` into `SS` and `İ` into two characters, where
+/// Java's simple mappings leave `ß` alone and make `İ` an `i`. The solutions tree is sorted by this, and a list
+/// sorted otherwise is a screen that differs from the Java one.
+pub fn compare_ignore_case(left: &str, right: &str) -> std::cmp::Ordering {
+    let mut a = left.chars();
+    let mut b = right.chars();
+    loop {
+        match (a.next(), b.next()) {
+            (Some(x), Some(y)) => {
+                if x == y {
+                    continue;
+                }
+                let (ux, uy) = (simple_upper(x), simple_upper(y));
+                if ux == uy {
+                    continue;
+                }
+                let (lx, ly) = (simple_lower(ux), simple_lower(uy));
+                if lx != ly {
+                    return (lx as u32).cmp(&(ly as u32));
+                }
+            }
+            // A pair can only be equal in UTF-16 length up to here; what is left decides, in units.
+            (rest_a, rest_b) => {
+                let left_units = rest_a.map_or(0, char::len_utf16) + a.map(char::len_utf16).sum::<usize>();
+                let right_units = rest_b.map_or(0, char::len_utf16) + b.map(char::len_utf16).sum::<usize>();
+                return left_units.cmp(&right_units);
+            }
+        }
+    }
+}
+
+/// `Character.toUpperCase(int)`: Rust's mapping where it is one character — Java's simple mapping is that one —
+/// and the character itself where Rust's full mapping expands (`ß`, the ligatures), as Java has no simple one.
+fn simple_upper(c: char) -> char {
+    let mut upper = c.to_uppercase();
+    match (upper.next(), upper.next()) {
+        (Some(only), None) => only,
+        _ => c,
+    }
+}
+
+/// `Character.toLowerCase(int)`: as [`simple_upper`], and `İ` (U+0130) to `i`, its simple mapping, where Rust's
+/// full one adds a combining dot.
+fn simple_lower(c: char) -> char {
+    if c == '\u{130}' {
+        return 'i';
+    }
+    let mut lower = c.to_lowercase();
+    match (lower.next(), lower.next()) {
+        (Some(only), None) => only,
+        _ => c,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

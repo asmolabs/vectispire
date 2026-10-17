@@ -38,3 +38,37 @@ pub fn clip(value: Option<&str>, max: usize) -> Option<&str> {
 pub fn too_long(value: Option<&str>, max: usize, what: &str) -> Option<String> {
     value.filter(|value| java::utf16_len(value) > max).map(|_| format!("{what} is longer than {max} characters."))
 }
+
+/// What a refusing variant refuses with: `InvalidInputException`'s message, which a form shows as it is.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0}")]
+pub struct Refused(pub String);
+
+/// `BoundedText.required`: trimmed (`String.trim`, so a no-break space stays), refused as `<what> is required.`
+/// when nothing is left, then held to `max` units by [`within`].
+pub fn required(value: Option<&str>, max: usize, what: &str) -> Result<String, Refused> {
+    let trimmed = java::trim(value.unwrap_or(""));
+    if trimmed.is_empty() {
+        return Err(Refused(format!("{what} is required.")));
+    }
+    within(trimmed, max, what).map(str::to_owned)
+}
+
+/// `BoundedText.optional`: trimmed, `None` when nothing is left — the one spelling of "not set" a column
+/// stores — otherwise held to `max` units.
+pub fn optional(value: Option<&str>, max: usize, what: &str) -> Result<Option<String>, Refused> {
+    let trimmed = java::trim(value.unwrap_or(""));
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    within(trimmed, max, what).map(|kept| Some(kept.to_owned()))
+}
+
+/// `BoundedText.within`: `value` untouched, or refused when it is longer than `max` UTF-16 units — **before**
+/// the write, where the database refused it as a 500.
+pub fn within<'a>(value: &'a str, max: usize, what: &str) -> Result<&'a str, Refused> {
+    match too_long(Some(value), max, what) {
+        Some(problem) => Err(Refused(problem)),
+        None => Ok(value),
+    }
+}

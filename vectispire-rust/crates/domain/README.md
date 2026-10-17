@@ -23,7 +23,16 @@ Java behaviour under it is ported as Java has it, and held to `reference/fingerp
 | `String.length()` counts UTF-16 units | `len()` bytes, `chars().count()` characters | `java::utf16_len`, `bounded_text` |
 | `Integer.parseInt` reads any BMP decimal digit (`٣`, `５`), and its two overloads word refusals differently | `str::parse` reads ASCII only | `java::read_int`, `parse_int`, `parse_int_in` |
 | Jackson's `asText(null)`: a number or boolean is its text, a container `""` | — | `java::as_text` |
+| `String.CASE_INSENSITIVE_ORDER` folds by the simple one-to-one mappings (`ß` stays, `İ` is `i`), code point by code point | `to_lowercase` uses the full mappings (`ß` → `ss`, `İ` → `i̇`) | `java::compare_ignore_case` |
 | `equalsIgnoreCase` matches `İ` and `ı` to `i`, `K` (Kelvin) to `k`; `toUpperCase(ROOT)` makes `ſ` an `S` | `eq_ignore_ascii_case` does not | `cron` |
+
+## The targets' rules (task 2.6)
+
+`bounded_text::{required, optional, within}`, `repository_url::{identity, carries_credential, short_name,
+display_name, is_masked_form_of}`, `repository_identity`, `image_reference`, `asset_tier`, `agent_labels`,
+`list_window`, `git_host_allowlist` and `schedules::in_force` are held to `reference/targets/rules.json`
+(`TargetRulesReferenceSetTest`, written before the port). `java_uri::Parsed` gained `raw_path`, which `identity`
+reads as `URI.getRawPath`. `schedules` holds only what the listings need; the scheduler's `isDue` is task 2.7's.
 
 ## Differences from Java, known
 

@@ -6,6 +6,8 @@
 //! under `vectispire-rust/reference/` holds the Java side's answers and this crate's tests read
 //! them (see `README.md`, "The reference sets").
 
+pub mod agent_labels;
+pub mod asset_tier;
 pub mod bounded_text;
 pub mod contract;
 pub mod cron;
@@ -13,14 +15,19 @@ pub mod dependency_graph;
 pub mod failure;
 pub mod finding_type;
 pub mod fingerprint;
+pub mod git_host_allowlist;
+pub mod image_reference;
 pub mod instant;
 pub mod java;
+pub mod list_window;
 pub mod net;
+pub mod repository_identity;
 pub mod repository_url;
 pub mod retention;
 pub mod sbom;
 pub mod scan_status;
 pub mod scan_target;
+pub mod schedules;
 pub mod secret;
 pub mod severity;
 pub mod sub_path;

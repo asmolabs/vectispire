@@ -178,6 +178,106 @@ pub fn redact(url: &str) -> String {
     if ssh_login { url.to_owned() } else { format!("{}***@{}", scheme.as_str(), &url[whole.end()..]) }
 }
 
+/// `carriesCredential`: whether the URL carries a secret of its own — any user part over HTTPS, a password over
+/// SSH. Refused for new URLs (decision 0022): a token there is stored in the clear and travels to every agent.
+/// `ssh://git@host` and `git@host:path` carry a login, not a secret.
+pub fn carries_credential(url: &str) -> bool {
+    let Some(captures) = USER_INFO.captures(crate::java::trim(url)) else {
+        return false;
+    };
+    let (Some(scheme), Some(user)) = (captures.get(1), captures.get(2)) else {
+        return false;
+    };
+    !scheme.as_str().eq_ignore_ascii_case("ssh://") || user.as_str().contains(':')
+}
+
+/// `identity`: what makes two URLs the same repository — `host/path`, whichever transport and spelling names it
+/// (decision 0037, §4): the host lower-cased without its trailing dots, nothing of the scheme, the user part or
+/// the port; the path's runs of `/` folded, its outer slashes and one trailing `.git` removed, lower-cased.
+/// `None` when no host can be read.
+///
+/// **A stored value** (`t_repository.url_identity`), and its digest a unique index: computed differently here, a
+/// Rust instance would accept the twin a Java instance refuses during a switch. Held to `reference/targets/`.
+pub fn identity(url: &str) -> Option<String> {
+    let trimmed = crate::java::trim(url);
+    let path = match scp_host(trimmed) {
+        Some((_, path)) => path.to_owned(),
+        None => {
+            host(trimmed)?;
+            java_uri::parse(trimmed).ok()?.raw_path.unwrap_or_default()
+        }
+    };
+    let mut host = crate::java::to_lower_root(&host(trimmed)?);
+    while host.ends_with('.') {
+        host.pop();
+    }
+    if host.is_empty() {
+        return None;
+    }
+    Some(format!("{host}/{}", identity_path(&path)))
+}
+
+fn identity_path(path: &str) -> String {
+    let lowered = crate::java::to_lower_root(path);
+    let mut folded = String::with_capacity(lowered.len());
+    for c in lowered.chars() {
+        if !(c == '/' && folded.ends_with('/')) {
+            folded.push(c);
+        }
+    }
+    let stripped = folded.trim_matches('/');
+    match stripped.strip_suffix(".git") {
+        Some(bare) => bare.trim_matches('/').to_owned(),
+        None => stripped.to_owned(),
+    }
+}
+
+/// `isMaskedFormOf`: whether `submitted` is the masked form of `stored`, sent back unchanged — an edit form shows
+/// the masked URL, and saving it untouched must not replace a working URL with three asterisks.
+pub fn is_masked_form_of(submitted: &str, stored: &str) -> bool {
+    submitted != stored && submitted == redact(stored)
+}
+
+/// `shortName`: `org/project` from a git URL, whatever its form — masked first, so that `https://token@host/x`
+/// never comes out as `token@host/x`.
+pub fn short_name(url: &str) -> String {
+    let redacted = redact(url);
+    let without_git = strip_at_java_end(&redacted, |body| body.strip_suffix(".git").map(str::to_owned));
+    let without_suffix = strip_at_java_end(&without_git, |body| {
+        let kept = body.trim_end_matches('/');
+        (kept.len() != body.len()).then(|| kept.to_owned())
+    });
+    let parts: Vec<&str> = without_suffix.split(['/', ':']).filter(|part| !part.is_empty()).collect();
+    match parts.len() {
+        0 => without_suffix,
+        1 => parts[0].to_owned(),
+        n => format!("{}/{}", parts[n - 2], parts[n - 1]),
+    }
+}
+
+/// A `replaceAll` of a pattern anchored with Java's `$`, which matches at the end **and before a final line
+/// terminator**: `strip` is applied to what precedes the terminator, which is kept.
+fn strip_at_java_end(text: &str, strip: impl Fn(&str) -> Option<String>) -> String {
+    let terminator = ["\r\n", "\n", "\r", "\u{85}", "\u{2028}", "\u{2029}"]
+        .into_iter()
+        .find(|ending| text.ends_with(*ending))
+        .unwrap_or("");
+    let body = &text[..text.len() - terminator.len()];
+    match strip(body) {
+        Some(stripped) => format!("{stripped}{terminator}"),
+        None => text.to_owned(),
+    }
+}
+
+/// `displayName`: the name the operator chose — trimmed as `String.trim` trims — or, when there is none or it is
+/// blank as `isBlank` reads it, [`short_name`]. One rule, whichever screen names the repository.
+pub fn display_name(chosen: Option<&str>, url: &str) -> String {
+    match chosen {
+        Some(name) if !crate::java::is_blank(name) => crate::java::trim(name).to_owned(),
+        _ => short_name(url),
+    }
+}
+
 /// `String.isBlank`: empty or only white space, as Java's `Character.isWhitespace` reads it.
 fn is_blank(value: &str) -> bool {
     value.chars().all(java_uri::is_java_whitespace)
@@ -193,6 +293,8 @@ pub mod java_uri {
         pub scheme: Option<String>,
         /// The host as `URI.getHost` returns it — an IPv6 literal with its brackets.
         pub host: Option<String>,
+        /// The path as `URI.getRawPath` returns it — escapes kept; `None` for an opaque URI.
+        pub raw_path: Option<String>,
     }
 
     /// The URI does not parse: the JDK would throw `URISyntaxException`.
@@ -243,13 +345,14 @@ pub mod java_uri {
         input: Vec<char>,
         scheme: Option<String>,
         host: Option<String>,
+        raw_path: Option<String>,
     }
 
     /// Parses as `new URI(text)` does.
     pub fn parse(text: &str) -> Result<Parsed, Syntax> {
-        let mut parser = Parser { input: text.chars().collect(), scheme: None, host: None };
+        let mut parser = Parser { input: text.chars().collect(), scheme: None, host: None, raw_path: None };
         parser.parse()?;
-        Ok(Parsed { scheme: parser.scheme, host: parser.host })
+        Ok(Parsed { scheme: parser.scheme, host: parser.host, raw_path: parser.raw_path })
     }
 
     impl Parser {
@@ -361,6 +464,7 @@ pub mod java_uri {
             }
             let q = self.scan_until(p, n, "", "?#").unwrap_or(n);
             self.check(p, q, PATH)?;
+            self.raw_path = Some(self.substring(p, q));
             p = q;
             if self.at(p, n, '?') {
                 p += 1;
