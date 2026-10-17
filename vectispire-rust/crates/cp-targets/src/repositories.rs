@@ -654,8 +654,10 @@ pub(crate) fn java_uuid(text: &str) -> Option<Uuid> {
         }
         // `Long.parseLong` overflows past 2^63 - 1 and throws.
         let parsed = i64::from_str_radix(digits, 16).ok()?;
-        let mask = (1u128 << (width * 4)) - 1;
-        value = (value << (width * 4)) | (u128::from(parsed.unsigned_abs()) & mask);
+        // Widths of at most twelve digits: the shifts stay inside 128 bits, and the mask below them.
+        let bits = width.saturating_mul(4);
+        let mask = 1u128.checked_shl(bits).map_or(u128::MAX, |bit| bit.saturating_sub(1));
+        value = value.checked_shl(bits).unwrap_or(0) | (u128::from(parsed.unsigned_abs()) & mask);
     }
     Some(Uuid::from_u128(value))
 }

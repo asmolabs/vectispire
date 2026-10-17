@@ -76,8 +76,8 @@ impl Targets {
             }
             .await;
             match outcome {
-                Ok(Some(true)) => done.keyed += 1,
-                Ok(Some(false)) => done.twins += 1,
+                Ok(Some(true)) => done.keyed = done.keyed.saturating_add(1),
+                Ok(Some(false)) => done.twins = done.twins.saturating_add(1),
                 Ok(None) => {}
                 Err(refused) => {
                     tracing::debug!(repository = row.id, error = %refused, "Repository was not keyed this turn");

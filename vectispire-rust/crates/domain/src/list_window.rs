@@ -16,7 +16,7 @@ impl ListWindow {
         if !(1..=MAX_LIMIT).contains(&limit) {
             return Err(format!("The limit is between 1 and {MAX_LIMIT}."));
         }
-        if offset < 0 || offset % limit != 0 {
+        if offset < 0 || offset.checked_rem(limit) != Some(0) {
             return Err("The offset is zero or a multiple of the limit.".to_owned());
         }
         Ok(ListWindow { limit, offset })
@@ -39,9 +39,6 @@ impl ListWindow {
         let (Ok(start), Ok(limit)) = (usize::try_from(self.offset), usize::try_from(self.limit)) else {
             return Vec::new();
         };
-        if start >= rows.len() {
-            return Vec::new();
-        }
-        rows[start..rows.len().min(start.saturating_add(limit))].to_vec()
+        rows.iter().skip(start).take(limit).cloned().collect()
     }
 }

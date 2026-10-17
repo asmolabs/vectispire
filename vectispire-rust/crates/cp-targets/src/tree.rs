@@ -48,19 +48,19 @@ impl OpenIssues {
             low,
             negligible,
             unknown,
-            total: critical + high + medium + low + negligible + unknown,
+            total: [critical, high, medium, low, negligible, unknown].into_iter().fold(0, i64::saturating_add),
         }
     }
 
     fn add(self, other: OpenIssues) -> OpenIssues {
         OpenIssues {
-            critical: self.critical + other.critical,
-            high: self.high + other.high,
-            medium: self.medium + other.medium,
-            low: self.low + other.low,
-            negligible: self.negligible + other.negligible,
-            unknown: self.unknown + other.unknown,
-            total: self.total + other.total,
+            critical: self.critical.saturating_add(other.critical),
+            high: self.high.saturating_add(other.high),
+            medium: self.medium.saturating_add(other.medium),
+            low: self.low.saturating_add(other.low),
+            negligible: self.negligible.saturating_add(other.negligible),
+            unknown: self.unknown.saturating_add(other.unknown),
+            total: self.total.saturating_add(other.total),
         }
     }
 }
@@ -177,7 +177,8 @@ impl Targets {
             .filter_map(|row| row.project_id)
             .chain(all_containers.iter().filter_map(|row| row.project_id))
         {
-            *filed_by_project.entry(project).or_default() += 1;
+            let filed = filed_by_project.entry(project).or_default();
+            *filed = filed.saturating_add(1);
         }
         // Every filed repository, visible or not: what the checklists' guard compares.
         let mut repository_ids_by_project: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
@@ -229,7 +230,8 @@ impl Targets {
         let mut filed_by_solution: BTreeMap<i64, i64> = BTreeMap::new();
         for (project, count) in &filed_by_project {
             if let Some(solution) = solution_of_project.get(project) {
-                *filed_by_solution.entry(*solution).or_default() += count;
+                let filed = filed_by_solution.entry(*solution).or_default();
+                *filed = filed.saturating_add(*count);
             }
         }
         let shown_solutions: Vec<_> = all_solutions
@@ -247,7 +249,8 @@ impl Targets {
                     name: solution.name.clone(),
                     description: solution.description.clone(),
                     created_at: solution.created_at,
-                    partial: repositories + containers < filed_by_solution.get(&solution.id).copied().unwrap_or(0),
+                    partial: repositories.saturating_add(containers)
+                        < filed_by_solution.get(&solution.id).copied().unwrap_or(0),
                     repository_count: repositories,
                     open_issues: projects.iter().fold(OpenIssues::default(), |sum, node| sum.add(node.open_issues)),
                     projects,
@@ -323,7 +326,7 @@ impl Targets {
             &project,
             &visible,
             &visible_containers,
-            count(filed_repositories.len() + filed_containers.len()),
+            count(filed_repositories.len().saturating_add(filed_containers.len())),
             rows::sees_whole_project(project_id, &repository_ids, allowance),
             &open,
             &languages,
@@ -460,7 +463,7 @@ fn project_node(
         name: project.name.clone(),
         description: project.description.clone(),
         created_at: project.created_at,
-        partial: count(visible.len() + visible_containers.len()) < filed,
+        partial: count(visible.len().saturating_add(visible_containers.len())) < filed,
         checklists_visible,
         repository_count: count(visible.len()),
         open_issues: sum(visible, visible_containers, open),
@@ -486,7 +489,8 @@ fn sum(
     for target in targets {
         if let Some(counts) = open.get(&target) {
             for (severity, count) in counts {
-                *total.entry(*severity).or_default() += count;
+                let sum = total.entry(*severity).or_default();
+                *sum = sum.saturating_add(*count);
             }
         }
     }

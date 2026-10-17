@@ -365,8 +365,8 @@ pub fn compare_ignore_case(left: &str, right: &str) -> std::cmp::Ordering {
             }
             // A pair can only be equal in UTF-16 length up to here; what is left decides, in units.
             (rest_a, rest_b) => {
-                let left_units = rest_a.map_or(0, char::len_utf16) + a.map(char::len_utf16).sum::<usize>();
-                let right_units = rest_b.map_or(0, char::len_utf16) + b.map(char::len_utf16).sum::<usize>();
+                let left_units = rest_a.into_iter().chain(a).map(char::len_utf16).fold(0usize, usize::saturating_add);
+                let right_units = rest_b.into_iter().chain(b).map(char::len_utf16).fold(0usize, usize::saturating_add);
                 return left_units.cmp(&right_units);
             }
         }

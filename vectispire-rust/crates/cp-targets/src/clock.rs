@@ -21,5 +21,7 @@ impl Clock for SystemClock {
 /// `instant`, truncated to the microsecond — what `datetime(6)` and `timestamp` keep.
 pub fn microseconds(instant: OffsetDateTime) -> OffsetDateTime {
     let nanoseconds = instant.nanosecond();
-    instant.replace_nanosecond(nanoseconds - nanoseconds % 1_000).unwrap_or(instant)
+    instant
+        .replace_nanosecond(nanoseconds.saturating_sub(nanoseconds.checked_rem(1_000).unwrap_or(0)))
+        .unwrap_or(instant)
 }

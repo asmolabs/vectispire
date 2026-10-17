@@ -558,6 +558,24 @@ async fn every_service_refuses_what_its_caller_cannot_see(db: &Db) {
         assert_eq!(targets.listed_repository(hidden, repository).await.unwrap(), None);
         assert!(targets.duplicates(hidden).await.unwrap().is_empty());
     }
+    // A move to a solution that exists is an administrator's whole gesture: refused to anyone else as its absence.
+    let elsewhere = targets.create_solution(Some("Elsewhere"), None, &actor).await.unwrap().id;
+    entries.taken();
+    for hidden in [&nothing, &other] {
+        refused(
+            targets.update_project(project, None, None, Some(elsewhere), hidden, &actor).await.map(drop),
+            "Solution not found.",
+        );
+    }
+    // The twin of a target the caller cannot see is refused without naming it: one bit about a URL the caller holds.
+    match targets.create_repository(&changes("git@gitlab.example.org:team/guarded.git"), &nothing, &actor).await {
+        Err(TargetError::Conflict { message, cause, members }) => {
+            assert_eq!(message, "This repository is already registered, on this branch and sub-path.");
+            assert_eq!(cause, Some("target-already-registered"));
+            assert!(members.is_empty(), "{members:?}");
+        }
+        other => panic!("the twin was not refused: {other:?}"),
+    }
     let reader = vectispire_cp_access::Allowance {
         visibility: Visibility::only([]),
         granted_projects: std::collections::BTreeSet::new(),

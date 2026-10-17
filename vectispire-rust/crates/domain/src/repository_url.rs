@@ -248,10 +248,10 @@ pub fn short_name(url: &str) -> String {
         (kept.len() != body.len()).then(|| kept.to_owned())
     });
     let parts: Vec<&str> = without_suffix.split(['/', ':']).filter(|part| !part.is_empty()).collect();
-    match parts.len() {
-        0 => without_suffix,
-        1 => parts[0].to_owned(),
-        n => format!("{}/{}", parts[n - 2], parts[n - 1]),
+    match parts.as_slice() {
+        [] => without_suffix,
+        [only] => (*only).to_owned(),
+        [.., org, project] => format!("{org}/{project}"),
     }
 }
 
@@ -262,7 +262,7 @@ fn strip_at_java_end(text: &str, strip: impl Fn(&str) -> Option<String>) -> Stri
         .into_iter()
         .find(|ending| text.ends_with(*ending))
         .unwrap_or("");
-    let body = &text[..text.len() - terminator.len()];
+    let body = text.strip_suffix(terminator).unwrap_or(text);
     match strip(body) {
         Some(stripped) => format!("{stripped}{terminator}"),
         None => text.to_owned(),
