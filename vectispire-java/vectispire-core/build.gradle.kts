@@ -532,6 +532,8 @@ tasks.named<Test>("test") {
     // written by `ModulesReferenceSetTest` and `MaintenanceReferenceSetTest` through `core.RustReference`.
     inputs.dir(rootProject.file("../vectispire-rust/reference/modules")).withPropertyName("modulesReferenceSet")
     inputs.dir(rootProject.file("../vectispire-rust/reference/maintenance")).withPropertyName("maintenanceReferenceSet")
+    // `domain::cron`'s: Spring's CronExpression, which only this module links, written by `CronReferenceSetTest`.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/cron")).withPropertyName("cronReferenceSet")
 }
 
 /**

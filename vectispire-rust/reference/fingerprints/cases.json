@@ -1,0 +1,1068 @@
+[ {
+  "name" : "pinned",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "CVE-2024-1234",
+  "purl" : "pkg:pypi/requests@2.31.0",
+  "package_name" : "requests",
+  "file_path" : "requirements.txt",
+  "fingerprint" : "44c39a41c912df031c920698f4698aa76cdcf27617f2e99f4f6759de1f97851d"
+}, {
+  "name" : "upgraded purl",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "CVE-2024-1234",
+  "purl" : "pkg:pypi/requests@2.32.0",
+  "package_name" : "requests",
+  "file_path" : "requirements.txt",
+  "fingerprint" : "6d17d5325507b3a026b703c20838f547d1643b53b7e4d17b114568737400a907"
+}, {
+  "name" : "empty purl",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "CVE-2024-1234",
+  "purl" : "",
+  "package_name" : "requests",
+  "file_path" : null,
+  "fingerprint" : "867a57b5f1b1cfafdbe910ec6292a42d0c3155b0a2e9a5ba422354c726f2c5c6"
+}, {
+  "name" : "null purl",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "CVE-2024-1234",
+  "purl" : null,
+  "package_name" : "requests",
+  "file_path" : null,
+  "fingerprint" : "867a57b5f1b1cfafdbe910ec6292a42d0c3155b0a2e9a5ba422354c726f2c5c6"
+}, {
+  "name" : "container target",
+  "op" : "of",
+  "target" : {
+    "container" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "CVE-2024-1234",
+  "purl" : "pkg:pypi/requests@2.31.0",
+  "package_name" : "requests",
+  "file_path" : "requirements.txt",
+  "fingerprint" : "2f344b3262534df49516e0f7528bc2d4d7d97e401593c09f27f983060ca5db98"
+}, {
+  "name" : "repository zero",
+  "op" : "of",
+  "target" : {
+    "repository" : 0
+  },
+  "type" : "secret",
+  "identifier" : "aws-key",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : "app.py",
+  "fingerprint" : "4d5d2fd85208907323f428d1a0f2951de8e262221a5ce1f22584e83fde3588ac"
+}, {
+  "name" : "container zero",
+  "op" : "of",
+  "target" : {
+    "container" : 0
+  },
+  "type" : "secret",
+  "identifier" : "aws-key",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : "app.py",
+  "fingerprint" : "750b539a18dea9a728fd5536c21d5db03049b6e1cf094e3950a61f04a6785ad0"
+}, {
+  "name" : "purl wins over the name",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "CVE-2024-1234",
+  "purl" : "pkg:pypi/requests@2.31.0",
+  "package_name" : "other-name",
+  "file_path" : "requirements.txt",
+  "fingerprint" : "44c39a41c912df031c920698f4698aa76cdcf27617f2e99f4f6759de1f97851d"
+}, {
+  "name" : "bar in the name",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "sast",
+  "identifier" : "rule.a",
+  "purl" : null,
+  "package_name" : "pkg|b",
+  "file_path" : "c.py",
+  "fingerprint" : "df9f77ef9c386cbd878c5fa76c3e05ca3d9c13e49cee1d378e7e9a3532afd250"
+}, {
+  "name" : "bar moved to the path",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "sast",
+  "identifier" : "rule.a",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "b/c.py",
+  "fingerprint" : "dbd0db03ca5f317bac48690898f58a1eb2d7f877fe0ac86af3f87ef739534e69"
+}, {
+  "name" : "every optional field null",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "iac",
+  "identifier" : null,
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : null,
+  "fingerprint" : "c4a5583ff9c0fa13bd8a47dd8326325402ecbf833d1be6cb33b3192a275eac5e"
+}, {
+  "name" : "every optional field empty",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "iac",
+  "identifier" : "",
+  "purl" : "",
+  "package_name" : "",
+  "file_path" : "",
+  "fingerprint" : "c4a5583ff9c0fa13bd8a47dd8326325402ecbf833d1be6cb33b3192a275eac5e"
+}, {
+  "name" : "empty purl and null name",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "license",
+  "identifier" : "MIT",
+  "purl" : "",
+  "package_name" : null,
+  "file_path" : "pom.xml",
+  "fingerprint" : "5514496d1369be03c90cd42462da263874902e17b910f988365ff613b1bf4735"
+}, {
+  "name" : "whitespace purl is not empty",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "license",
+  "identifier" : "MIT",
+  "purl" : " ",
+  "package_name" : "name",
+  "file_path" : "pom.xml",
+  "fingerprint" : "848af2b20515f45710f56c2f6a1995dad0972c94a0914e7cef3248c76602a991"
+}, {
+  "name" : "negative id",
+  "op" : "of",
+  "target" : {
+    "repository" : -7
+  },
+  "type" : "eol",
+  "identifier" : "eol",
+  "purl" : null,
+  "package_name" : "debian",
+  "file_path" : null,
+  "fingerprint" : "b3834ad9120766199bd91f3f60a81a7cfda238c9063b0b1eeffb387e4d59cfcb"
+}, {
+  "name" : "largest id",
+  "op" : "of",
+  "target" : {
+    "container" : 9223372036854775807
+  },
+  "type" : "quality",
+  "identifier" : "q",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : null,
+  "fingerprint" : "aea15e599b0cdcdeed510cb5b5edc4df8afc8e4b38f8fb8662c2fc3fd78ae484"
+}, {
+  "name" : "smallest id",
+  "op" : "of",
+  "target" : {
+    "repository" : -9223372036854775808
+  },
+  "type" : "ai_review",
+  "identifier" : "a",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : null,
+  "fingerprint" : "eba5b6b25504f403028606c2eb7f4903a7a32b95f9c59275521562e533996e93"
+}, {
+  "name" : "type vulnerability",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "eb68181350f162311a52d4cf7b86d0498905d334f135989fa6ba68bc27c35a0a"
+}, {
+  "name" : "type secret",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "secret",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "eb9486fb3630956a8e2e8f27aadd6238cbec23150ab45e585d1a6dca98b6a693"
+}, {
+  "name" : "type iac",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "iac",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "2165995d0e36269118cd3370e896523daec8d57531f7e089e4f44f4057be4808"
+}, {
+  "name" : "type license",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "license",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "e0fa088896764b24150ef34328b237461df5085f8e23a844968838132814ad5e"
+}, {
+  "name" : "type eol",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "eol",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "9a66a1853a540c3e212f186a5978e4f64cc4afd0b3f850c0853f8979a430eceb"
+}, {
+  "name" : "type sast",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "sast",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "40a79a0ee45312ca01a61e9155718747694fca4b9b98d4865a9c224a2dcc2c1c"
+}, {
+  "name" : "type ai_review",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "ai_review",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "7ffb621a211cd4139e83b9d98b34d284f63cd2dd53e23f921739a8774155b750"
+}, {
+  "name" : "type plugin",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "5ee8dbbe9f71458aa8c4fb1312b9a1433468b438e5ba3b6b38ee2d5b5f997390"
+}, {
+  "name" : "type imported",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "imported",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "333b3c12e4c7059f9990df53a7bb3375ad53d1eec3d8766580ece5b0712c4806"
+}, {
+  "name" : "type quality",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "quality",
+  "identifier" : "id",
+  "purl" : null,
+  "package_name" : "pkg",
+  "file_path" : "path",
+  "fingerprint" : "1f6ce9751cc1e45107227c97b6de0912920f0083dde4c96369fd8d177d89eb86"
+}, {
+  "name" : "lone high surrogate in the identifier",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "secret",
+  "identifier" : {
+    "utf16" : [ 107, 101, 121, 55357 ]
+  },
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : "a",
+  "fingerprint" : "2aac4d9c3fd7df00aa1668e6ffe9b52310880de8188fd8ed6eb9463f4745f18f"
+}, {
+  "name" : "lone low surrogate in the path",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "secret",
+  "identifier" : "key",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : {
+    "utf16" : [ 56832, 46, 116, 120, 116 ]
+  },
+  "fingerprint" : "1799a03bf011e8a4a1a8977ced9c6cf96fb01bf314e8ed73f71a263e65aedb82"
+}, {
+  "name" : "reversed pair",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "secret",
+  "identifier" : {
+    "utf16" : [ 56832, 55357 ]
+  },
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : null,
+  "fingerprint" : "a579128513d0ba5d3ba5dddbd4e9f1ca792e0a88a3cacd7222e99bc476b878cd"
+}, {
+  "name" : "the question mark itself",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "secret",
+  "identifier" : "key?",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : "a",
+  "fingerprint" : "2aac4d9c3fd7df00aa1668e6ffe9b52310880de8188fd8ed6eb9463f4745f18f"
+}, {
+  "name" : "an astral character",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "sast",
+  "identifier" : "rule",
+  "purl" : null,
+  "package_name" : "😀",
+  "file_path" : "src/😀.py",
+  "fingerprint" : "c5a02b39b812b74bb7ecdb249654520f2f5ea5591334543e107339b6136f92af"
+}, {
+  "name" : "lone surrogate in the purl",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "vulnerability",
+  "identifier" : "CVE",
+  "purl" : {
+    "utf16" : [ 112, 107, 103, 58, 110, 112, 109, 47, 56319 ]
+  },
+  "package_name" : "name",
+  "file_path" : null,
+  "fingerprint" : "7da38a6f642b6eccc93777764b3406cb292e4a05dc959bee5afa97741649b612"
+}, {
+  "name" : "NUL inside a field",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "sast",
+  "identifier" : "a\u0000b",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : null,
+  "fingerprint" : "7da041ad68ceb3406ffdd987cf0d47d8a7f3428d19e2cc4b2fa150b1e3b7b6e5"
+}, {
+  "name" : "non-ASCII path",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "iac",
+  "identifier" : "CKV_1",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : "répertoire/naïve ΣΑΣ.tf",
+  "fingerprint" : "7a7478586d6542f1716d5b2a9dd7fd7a92f93a1cca74ed86340879b489849942"
+}, {
+  "name" : "no-break space kept",
+  "op" : "of",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "secret",
+  "identifier" : " key ",
+  "purl" : null,
+  "package_name" : null,
+  "file_path" : " p",
+  "fingerprint" : "b921af704111ab5e5dc3a9e04577e82c237e6710efdcd74312e2861e2e24d714"
+}, {
+  "name" : "plugin formula",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : "plugin:acme-lint",
+  "rule_id" : "ACME001",
+  "file_path" : "src/a.py",
+  "answer" : {
+    "value" : "0567801c19c95ed638d202997c7ecc672a4b90e94bf9c0a5277bea636e22e616"
+  }
+}, {
+  "name" : "plugin renamed",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : "plugin:acme-lint-2",
+  "rule_id" : "ACME001",
+  "file_path" : "src/a.py",
+  "answer" : {
+    "value" : "7148fd103c8825d695e1069028e1ed53eb18163c18591ad4c718ac9c4563b9e8"
+  }
+}, {
+  "name" : "plugin rule renamed",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : "plugin:acme-lint",
+  "rule_id" : "ACME002",
+  "file_path" : "src/a.py",
+  "answer" : {
+    "value" : "64f999734330e500a5eca16d05e3a3b3de06e776819cbbe40ddacafb3a6bf3cc"
+  }
+}, {
+  "name" : "plugin file moved",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : "plugin:acme-lint",
+  "rule_id" : "ACME001",
+  "file_path" : "src/b.py",
+  "answer" : {
+    "value" : "f853ece509de357c4f30132a86399b0c463e9bc1a79b4cd9ef03fa707e824fb5"
+  }
+}, {
+  "name" : "imported, same tool name",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "imported",
+  "tool_key" : "import:ci/acme-lint",
+  "rule_id" : "ACME001",
+  "file_path" : "src/a.py",
+  "answer" : {
+    "value" : "003819a892ebb7f370bdbcbecc805090b09d36bfe9328fdf07b147bb3b3e3b66"
+  }
+}, {
+  "name" : "blank key",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : " ",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "refused" : "A plugin finding carries the key of the tool that made it."
+  }
+}, {
+  "name" : "empty key",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "imported",
+  "tool_key" : "",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "refused" : "A imported finding carries the key of the tool that made it."
+  }
+}, {
+  "name" : "null key",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : null,
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "refused" : "A plugin finding carries the key of the tool that made it."
+  }
+}, {
+  "name" : "key of no-break spaces is not blank",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : "  ",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "value" : "182828626bdbf8a7642cb3f7e2b28807b20ebce629cdcbb4630c21d8bcb18e7a"
+  }
+}, {
+  "name" : "key of U+001C is blank",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : "\u001C\u001F",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "refused" : "A plugin finding carries the key of the tool that made it."
+  }
+}, {
+  "name" : "key of U+0085 is not blank",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "imported",
+  "tool_key" : "",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "value" : "862bd34dcaf70d2f6ffa8d15e7e57533ebe2d89e09bed034050f5050e4e501f7"
+  }
+}, {
+  "name" : "key of ideographic space is blank",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "imported",
+  "tool_key" : "　 ",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "refused" : "A imported finding carries the key of the tool that made it."
+  }
+}, {
+  "name" : "not tool-scoped",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "sast",
+  "tool_key" : "plugin:x",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "refused" : "Only a tool-scoped type is fingerprinted by tool; sast is fingerprinted by package."
+  }
+}, {
+  "name" : "not tool-scoped, and blank",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "secret",
+  "tool_key" : " ",
+  "rule_id" : "r",
+  "file_path" : "f",
+  "answer" : {
+    "refused" : "Only a tool-scoped type is fingerprinted by tool; secret is fingerprinted by package."
+  }
+}, {
+  "name" : "null rule and path",
+  "op" : "of_tool",
+  "target" : {
+    "repository" : 3
+  },
+  "type" : "plugin",
+  "tool_key" : "plugin:x",
+  "rule_id" : null,
+  "file_path" : null,
+  "answer" : {
+    "value" : "d8a7ea56dc0004a9c6954e69036503a311b00206c0f38a78c9ff51f06bd7e672"
+  }
+}, {
+  "name" : "plugin id",
+  "op" : "plugin_key",
+  "id" : "acme-lint",
+  "answer" : {
+    "value" : "plugin:acme-lint"
+  }
+}, {
+  "name" : "plugin id stripped",
+  "op" : "plugin_key",
+  "id" : " acme-lint\t",
+  "answer" : {
+    "value" : "plugin:acme-lint"
+  }
+}, {
+  "name" : "plugin id keeps its case",
+  "op" : "plugin_key",
+  "id" : "ACME",
+  "answer" : {
+    "value" : "plugin:ACME"
+  }
+}, {
+  "name" : "plugin id null",
+  "op" : "plugin_key",
+  "id" : null,
+  "answer" : {
+    "refused" : "A tool key needs a plugin id."
+  }
+}, {
+  "name" : "plugin id blank",
+  "op" : "plugin_key",
+  "id" : " \n ",
+  "answer" : {
+    "refused" : "A tool key needs a plugin id."
+  }
+}, {
+  "name" : "plugin id of no-break spaces",
+  "op" : "plugin_key",
+  "id" : " ",
+  "answer" : {
+    "value" : "plugin: "
+  }
+}, {
+  "name" : "plugin id keeps no-break spaces",
+  "op" : "plugin_key",
+  "id" : " acme ",
+  "answer" : {
+    "value" : "plugin: acme "
+  }
+}, {
+  "name" : "plugin id keeps U+0085",
+  "op" : "plugin_key",
+  "id" : "acme",
+  "answer" : {
+    "value" : "plugin:acme"
+  }
+}, {
+  "name" : "plugin id strips U+001C to U+001F",
+  "op" : "plugin_key",
+  "id" : "\u001Cacme\u001F",
+  "answer" : {
+    "value" : "plugin:acme"
+  }
+}, {
+  "name" : "plugin id strips U+2000 and U+3000",
+  "op" : "plugin_key",
+  "id" : " acme　",
+  "answer" : {
+    "value" : "plugin:acme"
+  }
+}, {
+  "name" : "plugin id keeps U+180E and U+200B",
+  "op" : "plugin_key",
+  "id" : "᠎acme​",
+  "answer" : {
+    "value" : "plugin:᠎acme​"
+  }
+}, {
+  "name" : "plugin id with a lone surrogate",
+  "op" : "plugin_key",
+  "id" : {
+    "utf16" : [ 55296, 97, 99, 109, 101 ]
+  },
+  "answer" : {
+    "value" : {
+      "utf16" : [ 112, 108, 117, 103, 105, 110, 58, 55296, 97, 99, 109, 101 ]
+    }
+  }
+}, {
+  "name" : "imported",
+  "op" : "imported_key",
+  "source" : "ci-main",
+  "tool" : " ESLint ",
+  "answer" : {
+    "value" : "import:ci-main/eslint"
+  }
+}, {
+  "name" : "imported lower",
+  "op" : "imported_key",
+  "source" : "ci-main",
+  "tool" : "eslint",
+  "answer" : {
+    "value" : "import:ci-main/eslint"
+  }
+}, {
+  "name" : "imported upper",
+  "op" : "imported_key",
+  "source" : "ci-main",
+  "tool" : "ESLINT",
+  "answer" : {
+    "value" : "import:ci-main/eslint"
+  }
+}, {
+  "name" : "source keeps its case",
+  "op" : "imported_key",
+  "source" : "CI-Main",
+  "tool" : "x",
+  "answer" : {
+    "value" : "import:CI-Main/x"
+  }
+}, {
+  "name" : "source null",
+  "op" : "imported_key",
+  "source" : null,
+  "tool" : "x",
+  "answer" : {
+    "refused" : "A tool key needs a source."
+  }
+}, {
+  "name" : "tool null",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : null,
+  "answer" : {
+    "refused" : "A tool key needs a tool name."
+  }
+}, {
+  "name" : "tool blank",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "\t",
+  "answer" : {
+    "refused" : "A tool key needs a tool name."
+  }
+}, {
+  "name" : "both blank: the source is named",
+  "op" : "imported_key",
+  "source" : " ",
+  "tool" : " ",
+  "answer" : {
+    "refused" : "A tool key needs a source."
+  }
+}, {
+  "name" : "dotted capital I",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "İSTANBUL",
+  "answer" : {
+    "value" : "import:ci/i̇stanbul"
+  }
+}, {
+  "name" : "dotless i stays",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "ı",
+  "answer" : {
+    "value" : "import:ci/ı"
+  }
+}, {
+  "name" : "final sigma",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "ΟΔΟΣ ΣΑΣ.Σ",
+  "answer" : {
+    "value" : "import:ci/οδος σασ.ς"
+  }
+}, {
+  "name" : "sigma alone",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "Σ",
+  "answer" : {
+    "value" : "import:ci/σ"
+  }
+}, {
+  "name" : "Kelvin sign",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "K",
+  "answer" : {
+    "value" : "import:ci/k"
+  }
+}, {
+  "name" : "sharp s stays",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "Straße",
+  "answer" : {
+    "value" : "import:ci/straße"
+  }
+}, {
+  "name" : "title case digraph",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "ǅ",
+  "answer" : {
+    "value" : "import:ci/ǆ"
+  }
+}, {
+  "name" : "astral capital",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : "𐐀",
+  "answer" : {
+    "value" : "import:ci/𐐨"
+  }
+}, {
+  "name" : "tool with a lone surrogate",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : {
+    "utf16" : [ 65, 56320, 66 ]
+  },
+  "answer" : {
+    "value" : {
+      "utf16" : [ 105, 109, 112, 111, 114, 116, 58, 99, 105, 47, 97, 56320, 98 ]
+    }
+  }
+}, {
+  "name" : "tool stripped of no-break spaces? no",
+  "op" : "imported_key",
+  "source" : "ci",
+  "tool" : " Tool ",
+  "answer" : {
+    "value" : "import:ci/ tool "
+  }
+}, {
+  "name" : "no field",
+  "op" : "fields",
+  "fields" : [ ],
+  "hash" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}, {
+  "name" : "one empty field",
+  "op" : "fields",
+  "fields" : [ "" ],
+  "hash" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}, {
+  "name" : "one null field",
+  "op" : "fields",
+  "fields" : [ null ],
+  "hash" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}, {
+  "name" : "two null fields",
+  "op" : "fields",
+  "fields" : [ null, null ],
+  "hash" : "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+}, {
+  "name" : "fields with a NUL",
+  "op" : "fields",
+  "fields" : [ "a\u0000", "b" ],
+  "hash" : "2d8dbcddf40617a662bcf1f1c70eb5232f26fa6055e7aa69a90432d2dd8a12b0"
+}, {
+  "name" : "fields shifted",
+  "op" : "fields",
+  "fields" : [ "a", "\u0000b" ],
+  "hash" : "2d8dbcddf40617a662bcf1f1c70eb5232f26fa6055e7aa69a90432d2dd8a12b0"
+}, {
+  "name" : "utf-8 of ",
+  "op" : "utf8",
+  "text" : "",
+  "bytes" : ""
+}, {
+  "name" : "utf-8 of 006100620063",
+  "op" : "utf8",
+  "text" : "abc",
+  "bytes" : "616263"
+}, {
+  "name" : "utf-8 of 00e9",
+  "op" : "utf8",
+  "text" : "é",
+  "bytes" : "c3a9"
+}, {
+  "name" : "utf-8 of 20ac",
+  "op" : "utf8",
+  "text" : "€",
+  "bytes" : "e282ac"
+}, {
+  "name" : "utf-8 of d83dde00",
+  "op" : "utf8",
+  "text" : "😀",
+  "bytes" : "f09f9880"
+}, {
+  "name" : "utf-8 of fffd",
+  "op" : "utf8",
+  "text" : {
+    "utf16" : [ 55357 ]
+  },
+  "bytes" : "3f"
+}, {
+  "name" : "utf-8 of fffd",
+  "op" : "utf8",
+  "text" : {
+    "utf16" : [ 56832 ]
+  },
+  "bytes" : "3f"
+}, {
+  "name" : "utf-8 of fffdfffd",
+  "op" : "utf8",
+  "text" : {
+    "utf16" : [ 56832, 55357 ]
+  },
+  "bytes" : "3f3f"
+}, {
+  "name" : "utf-8 of 0061fffd0062",
+  "op" : "utf8",
+  "text" : {
+    "utf16" : [ 97, 55357, 98 ]
+  },
+  "bytes" : "613f62"
+}, {
+  "name" : "utf-8 of 0000",
+  "op" : "utf8",
+  "text" : "\u0000",
+  "bytes" : "00"
+}, {
+  "name" : "null stays null",
+  "op" : "clip",
+  "value" : null,
+  "max" : 3,
+  "clipped" : null
+}, {
+  "name" : "shorter",
+  "op" : "clip",
+  "value" : "abc",
+  "max" : 5,
+  "clipped" : "abc"
+}, {
+  "name" : "exact",
+  "op" : "clip",
+  "value" : "abc",
+  "max" : 3,
+  "clipped" : "abc"
+}, {
+  "name" : "cut",
+  "op" : "clip",
+  "value" : "abcdef",
+  "max" : 3,
+  "clipped" : "abc"
+}, {
+  "name" : "to zero",
+  "op" : "clip",
+  "value" : "abc",
+  "max" : 0,
+  "clipped" : ""
+}, {
+  "name" : "empty to zero",
+  "op" : "clip",
+  "value" : "",
+  "max" : 0,
+  "clipped" : ""
+}, {
+  "name" : "astral fits exactly",
+  "op" : "clip",
+  "value" : "ab😀",
+  "max" : 4,
+  "clipped" : "ab😀"
+}, {
+  "name" : "astral at the boundary is dropped whole",
+  "op" : "clip",
+  "value" : "ab😀c",
+  "max" : 3,
+  "clipped" : "ab"
+}, {
+  "name" : "astral after the boundary",
+  "op" : "clip",
+  "value" : "ab😀c",
+  "max" : 2,
+  "clipped" : "ab"
+}, {
+  "name" : "astral first, max one",
+  "op" : "clip",
+  "value" : "😀x",
+  "max" : 1,
+  "clipped" : ""
+}, {
+  "name" : "two astral, max three",
+  "op" : "clip",
+  "value" : "😀😁",
+  "max" : 3,
+  "clipped" : "😀"
+}, {
+  "name" : "astral counts two",
+  "op" : "clip",
+  "value" : "😀",
+  "max" : 1,
+  "clipped" : ""
+}, {
+  "name" : "BMP non-ASCII counts one",
+  "op" : "clip",
+  "value" : "ééé",
+  "max" : 2,
+  "clipped" : "éé"
+}, {
+  "name" : "combining mark is cut",
+  "op" : "clip",
+  "value" : "éé",
+  "max" : 3,
+  "clipped" : "ée"
+}, {
+  "name" : "fits",
+  "op" : "too_long",
+  "value" : "abc",
+  "max" : 3,
+  "message" : null
+}, {
+  "name" : "too long",
+  "op" : "too_long",
+  "value" : "abcd",
+  "max" : 3,
+  "message" : "The comment is longer than 3 characters."
+}, {
+  "name" : "astral is two units",
+  "op" : "too_long",
+  "value" : "😀😀",
+  "max" : 3,
+  "message" : "The comment is longer than 3 characters."
+}, {
+  "name" : "null fits",
+  "op" : "too_long",
+  "value" : null,
+  "max" : 0,
+  "message" : null
+} ]

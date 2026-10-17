@@ -1,0 +1,288 @@
+[ {
+  "name" : "no artifacts member",
+  "is_catalogue" : false,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "empty catalogue",
+  "is_catalogue" : true,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "artifacts is an object",
+  "is_catalogue" : false,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "artifacts is null",
+  "is_catalogue" : false,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "the document is an array",
+  "is_catalogue" : false,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "the document is null",
+  "is_catalogue" : false,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "the document is a string",
+  "is_catalogue" : false,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "artifacts without relationships",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "left-pad",
+    "version" : "1.0.0",
+    "purl" : "pkg:npm/left-pad@1.0.0",
+    "licenses" : [ ]
+  } ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "only contains relationships",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "x",
+    "version" : "1",
+    "purl" : null,
+    "licenses" : [ ]
+  } ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "an empty parent is no edge",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "x",
+    "version" : "1",
+    "purl" : null,
+    "licenses" : [ ]
+  } ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "relationships is an object",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "x",
+    "version" : "1",
+    "purl" : null,
+    "licenses" : [ ]
+  } ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "polyglot graph",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "app",
+    "version" : "0.1.0",
+    "purl" : "pkg:npm/app@0.1.0",
+    "licenses" : [ "MIT" ]
+  }, {
+    "name" : "express",
+    "version" : "4.18.2",
+    "purl" : "pkg:npm/express@4.18.2",
+    "licenses" : [ "MIT" ]
+  }, {
+    "name" : "qs",
+    "version" : "6.5.0",
+    "purl" : "pkg:npm/qs@6.5.0",
+    "licenses" : [ "BSD-3-Clause" ]
+  }, {
+    "name" : "qs",
+    "version" : "6.11.0",
+    "purl" : "pkg:npm/qs@6.11.0",
+    "licenses" : [ "GPL-3.0-only" ]
+  }, {
+    "name" : "dup",
+    "version" : "1",
+    "purl" : "pkg:npm/dup@1",
+    "licenses" : [ " agpl-3.0 " ]
+  }, {
+    "name" : "dup",
+    "version" : "1",
+    "purl" : "pkg:npm/dup@1",
+    "licenses" : [ ]
+  }, {
+    "name" : "no-id",
+    "version" : "2",
+    "purl" : "pkg:npm/no-id@2",
+    "licenses" : [ "GPL-2.0" ]
+  }, {
+    "name" : "nopurl",
+    "version" : "3.0",
+    "purl" : null,
+    "licenses" : [ ]
+  }, {
+    "name" : null,
+    "version" : "9",
+    "purl" : "pkg:npm/nameless@9",
+    "licenses" : [ ]
+  }, {
+    "name" : "numeric-id",
+    "version" : null,
+    "purl" : "pkg:npm/numeric-id@5",
+    "licenses" : [ ]
+  }, {
+    "name" : "spaced",
+    "version" : null,
+    "purl" : null,
+    "licenses" : [ "  " ]
+  } ],
+  "distro" : {
+    "id" : "debian",
+    "version" : "12",
+    "label" : "Debian GNU/Linux"
+  },
+  "graph_available" : true,
+  "direct_count" : 4,
+  "probes" : [ "DIRECT", "TRANSITIVE", "TRANSITIVE", "DIRECT", "TRANSITIVE", "DIRECT", "UNKNOWN", "DIRECT", "DIRECT", "DIRECT", "TRANSITIVE", "DIRECT", "DIRECT", "UNKNOWN", "TRANSITIVE", "TRANSITIVE", "TRANSITIVE", "UNKNOWN", "UNKNOWN" ],
+  "violations" : [ {
+    "license" : "GPL-3.0-only",
+    "package_name" : "qs",
+    "package_version" : "6.11.0",
+    "purl" : "pkg:npm/qs@6.11.0"
+  }, {
+    "license" : "GPL-2.0",
+    "package_name" : "no-id",
+    "package_version" : "2",
+    "purl" : "pkg:npm/no-id@2"
+  } ]
+}, {
+  "name" : "an edge to an artifact nobody lists",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "a",
+    "version" : "1",
+    "purl" : "pkg:a@1",
+    "licenses" : [ ]
+  } ],
+  "distro" : null,
+  "graph_available" : true,
+  "direct_count" : 1,
+  "probes" : [ "DIRECT", "DIRECT" ],
+  "violations" : [ ]
+}, {
+  "name" : "distro without a name, versionID a number",
+  "is_catalogue" : true,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "distro without a name",
+  "is_catalogue" : true,
+  "artifacts" : [ ],
+  "distro" : {
+    "id" : "alpine",
+    "version" : "3.19.1",
+    "label" : "ALPINE"
+  },
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "distro is a string",
+  "is_catalogue" : true,
+  "artifacts" : [ ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ]
+}, {
+  "name" : "licences of every shape",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "a",
+    "version" : "1",
+    "purl" : "pkg:a@1",
+    "licenses" : [ "MIT", "mit", "Apache-2.0", "ΣΑΣ", "straße" ]
+  }, {
+    "name" : null,
+    "version" : null,
+    "purl" : null,
+    "licenses" : [ "GPL-3.0", "gpl-3.0" ]
+  }, {
+    "name" : null,
+    "version" : null,
+    "purl" : null,
+    "licenses" : [ ]
+  }, {
+    "name" : null,
+    "version" : null,
+    "purl" : null,
+    "licenses" : [ ]
+  } ],
+  "distro" : null,
+  "graph_available" : false,
+  "direct_count" : 0,
+  "probes" : [ ],
+  "violations" : [ {
+    "license" : "MIT",
+    "package_name" : "a",
+    "package_version" : "1",
+    "purl" : "pkg:a@1"
+  }, {
+    "license" : "mit",
+    "package_name" : "a",
+    "package_version" : "1",
+    "purl" : "pkg:a@1"
+  }, {
+    "license" : "ΣΑΣ",
+    "package_name" : "a",
+    "package_version" : "1",
+    "purl" : "pkg:a@1"
+  }, {
+    "license" : "straße",
+    "package_name" : "a",
+    "package_version" : "1",
+    "purl" : "pkg:a@1"
+  }, {
+    "license" : "GPL-3.0",
+    "package_name" : null,
+    "package_version" : null,
+    "purl" : null
+  }, {
+    "license" : "gpl-3.0",
+    "package_name" : null,
+    "package_version" : null,
+    "purl" : null
+  } ]
+} ]
