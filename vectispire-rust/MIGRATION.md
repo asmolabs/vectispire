@@ -74,7 +74,8 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 
 ## 3. How to take a task
 
-- **One task, one branch, from `rust/p1-merge`** (or from the merged result of the phase before).
+- **One task, one branch.** Phase 2's branches are stacked: `rust/p1-merge` → `rust/p2-1-shared` →
+  `rust/p2-4-fingerprint` → `rust/p2-3-crypto`. Start a new Phase 2 task from the newest finished one.
   Name it `rust/p<phase>-<n>-<short-name>`.
 - **A task owns its files.** The tables below say which. Touching another task's files is a
   conversation, not a commit. Shared agent crates (`protocol`, `crypto`, the runner) change only
@@ -96,7 +97,9 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 1.5 Roles, visibility, four-eyes | done | merged |
 | 1.6 Audit chain, settings, platform service | done | merged |
 | Phase 1 merge | done, full gate green (771 tests) | `rust/p1-merge` (7474e7e72) |
-| 2.1 Shared-module rule and maintenance turns | in progress | `rust/p2-1-shared` |
+| 2.1 Shared-module rule and maintenance turns | done (48/48 mutants) | `rust/p2-1-shared` (cf1b2aa22) |
+| 2.4 Fingerprint, target vocabulary, Spring cron | done (109/109 mutants) | `rust/p2-4-fingerprint` (2d9ad0768), stacked on 2.1 |
+| 2.3 Encryption at rest and sealing | in progress | `rust/p2-3-crypto`, stacked on 2.4 |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
@@ -130,6 +133,9 @@ Follow-ups found during Phase 1, small enough to go with 1.7 or before it:
   `/* postgres */` tag. It does not exist: write it or remove the claim.
 - **The Java-oracle suite of `cp-audit` and the mutation checks are not in `check.sh`.** Decide which
   belong in CI.
+- **Session cleanup has no maintenance task.** `cp-access` has `purge_expired`, but Java's
+  `SessionCleanupService.prune` does more; its slot is `SESSION_CLEANUP` in
+  `crates/cp-maintenance/data/deferred.txt`.
 - **The platform routes** (settings, audit log, crypto), the four credential-storing endpoints and the
   AI endpoint check wait for their modules.
 
@@ -140,10 +146,10 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 
 | # | Task | Starts when |
 |---|---|---|
-| 2.1 | Shared-module rule, `cp-maintenance` turns and their global order | **first** (in progress) |
+| 2.1 | Shared-module rule, `cp-maintenance` turns and their global order | **done** |
 | 2.2 | Outbox: enqueue in the caller's transaction, claim, backoff, abandonment, pruning | after 2.1 |
 | 2.3 | Encryption at rest (AES-256-GCM, key from variable / file / `/run/secrets` / Vault), signing key, an additive `seal` in `crates/crypto` | after 2.1; publishes `Encryption` early |
-| 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | after 2.1; ships the types before the behaviour |
+| 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | **done** |
 | 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | after 2.1; publishes the bodies early |
 | 2.6 | Targets: 29 routes, two-phase deletion, purge registry | after 2.3, 2.4 |
 | 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | after 2.3, 2.4, 2.5 |
@@ -153,12 +159,32 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.11 | Composition with named stand-ins, `golden/deferred.txt`, the upgrade drill extended, both agents against the Rust image | from day one; closes the phase |
 | 2.12 | Phase 2 security review | last |
 
+What the finished tasks leave to the others:
+
+- **Maintenance slots.** All 28 of Java's slots are reserved in `cp-maintenance`'s `Sequence` and listed
+  in `crates/cp-maintenance/data/deferred.txt`. A task implementing a `MaintenanceTask` registers it in
+  `crates/cp-app/src/maintenance.rs` and removes its line from `deferred.txt` **in the same commit**.
+  The binary does not start the turns yet (2.11, with `vectispire.jobs.initial-delay` mapped).
+- **One-shot repairs** (withheld claims in 2.9, resumed deletions in 2.6) claim through
+  `OneShotJobs::claim(&mut tx, name)`; on failure, roll back, then `has_run`.
+- **2.6:** `BoundedText`'s refusing variants (`required`, `optional`, `within`) are not ported; only
+  `clip` and `too_long` are.
+- **2.7:** `Schedules` (`isDue`, the SplitMix offset, `runsAtLeastEvery`, `inForce`) is not ported; build
+  it on `cron::crontab::parse` and `Stored::next_after`. Retention uses `RetentionPolicy::prunable`, with
+  candidates newest first, target by target.
+- **2.8:** compute the fingerprint **before** clipping. And decide how to read a lone-surrogate escape
+  (`\uD800`) in a result: Jackson accepts it, `serde_json` refuses the whole body, so a result Java
+  ingests today would be refused by Rust. Mapping the escape to `?` before parsing keeps fingerprints
+  equal, since Java writes that surrogate as `?` anyway.
+
 The two things that fail nowhere if they go wrong, and so need the most care:
 
 - **The fingerprint.** Any change resolves every existing issue and recreates it, losing all triage.
   Reproduce Java exactly: `?` for an unpaired surrogate, `strip()` keeps the no-break space, null
   joined as empty, an empty purl falls back to the package name, UTF-16 lengths for clipping, clipping
-  after the fingerprint.
+  after the fingerprint — and lower-casing through `domain::java::to_lower_root`, never Rust's
+  `to_lowercase`, which places the final sigma differently (task 2.4 found it; see
+  `crates/domain/README.md`).
 - **Absent is never empty.** An analyzer's `Option<Vec<_>>` is never `unwrap_or_default`-ed; an empty
   list resolves the backlog of that type.
 
