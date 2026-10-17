@@ -57,6 +57,19 @@ impl Db {
         }
     }
 
+    /// The pool, **not connected**: its first statement connects. For a composition built where no server is
+    /// reachable — a route table or a maintenance composition read by a test, which runs no statement. The binary
+    /// opens its pool with [`Db::connect`], which proves a connection at start.
+    pub fn connect_lazy(settings: &DbSettings) -> Result<Db, ConnectError> {
+        settings.pool.validate()?;
+        Ok(match settings.url.engine {
+            Engine::MySql => Db::MySql(mysql_pool(&settings.pool).connect_lazy_with(mysql_options(settings))),
+            Engine::PostgreSql => {
+                Db::PostgreSql(postgres_pool(&settings.pool).connect_lazy_with(postgres_options(settings)?))
+            }
+        })
+    }
+
     pub fn engine(&self) -> Engine {
         match self {
             Db::MySql(_) => Engine::MySql,

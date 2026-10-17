@@ -244,7 +244,17 @@ async fn api_keys(engine: Engine) {
         Resolved::Integration(integration.clone()).credential_restriction(),
         Visibility::only([ScanTarget::Repository(7)])
     );
-    assert_eq!(Resolved::Integration(integration).actor(), "pipeline-owner (API key one repo)");
+    assert_eq!(Resolved::Integration(integration.clone()).actor(), "pipeline-owner (API key one repo)");
+    // …and the principal the chain hands the routes carries all three: the account, the restriction every scoped
+    // route intersects with it, and the attribution.
+    let grounds = Resolved::Integration(integration).principal().grounds;
+    assert_eq!(grounds.account_id, Some(owner));
+    assert_eq!(
+        grounds.restriction,
+        vectispire_cp_http::Restriction::Target(vectispire_domain::ScanTarget::Repository(7))
+    );
+    assert_eq!(grounds.actor.as_deref(), Some("pipeline-owner (API key one repo)"));
+    assert!(grounds.stored_role.is_some());
 
     // ── Expired: refused, its row kept, and its last use not moved.
     let before = credentials.key(restricted.key.id).await.unwrap().unwrap().last_used_at;

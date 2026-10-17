@@ -9,10 +9,10 @@
 use std::sync::Arc;
 
 use http::StatusCode;
-use vectispire_cp_db::Visibility;
+use vectispire_cp_db::{ScanTarget, Visibility};
 use vectispire_cp_http::Problem;
 use vectispire_cp_http::credentials::BoxFuture;
-use vectispire_cp_http::principal::{Credential, Principal};
+use vectispire_cp_http::principal::{Credential, Principal, Restriction};
 use vectispire_cp_http::routes::VisibilityOf;
 
 use crate::rows::NotFound;
@@ -24,6 +24,43 @@ use crate::visibility::{AccessError, AccountRef, Allowance, VisibilityService};
 pub trait PrincipalDirectory: Send + Sync {
     fn account<'a>(&'a self, principal: &'a Principal) -> BoxFuture<'a, Result<Option<AccountRef>, AccessError>>;
     fn restriction<'a>(&'a self, principal: &'a Principal) -> BoxFuture<'a, Result<Visibility, AccessError>>;
+}
+
+/// The [`PrincipalDirectory`] the binary composes: what the credentials module resolved, read back from the
+/// principal it built (`Principal::grounds`) — the account's id and stored role, and **the credential's restriction**,
+/// which the allowance is intersected with (`VisibilityService.allowance(user, credentialRestriction)`). No table is
+/// read again per request: the credential was resolved against the tables a moment before, in the chain.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PrincipalGrounds;
+
+impl PrincipalDirectory for PrincipalGrounds {
+    fn account<'a>(&'a self, principal: &'a Principal) -> BoxFuture<'a, Result<Option<AccountRef>, AccessError>> {
+        Box::pin(async move {
+            Ok(principal.grounds.account_id.map(|id| AccountRef {
+                id,
+                // An unreadable role travels as none, which is no global scope.
+                role: principal.grounds.stored_role.clone().unwrap_or_default(),
+            }))
+        })
+    }
+
+    fn restriction<'a>(&'a self, principal: &'a Principal) -> BoxFuture<'a, Result<Visibility, AccessError>> {
+        Box::pin(async move { Ok(visibility_of(principal.grounds.restriction)) })
+    }
+}
+
+/// A restriction as the visibility reads it.
+pub fn visibility_of(restriction: Restriction) -> Visibility {
+    match restriction {
+        Restriction::None => Visibility::everything(),
+        Restriction::Target(vectispire_domain::ScanTarget::Repository(id)) => {
+            Visibility::only([ScanTarget::Repository(id)])
+        }
+        Restriction::Target(vectispire_domain::ScanTarget::Container(id)) => {
+            Visibility::only([ScanTarget::Container(id)])
+        }
+        Restriction::Nothing => Visibility::only([]),
+    }
 }
 
 /// What a scoped handler reads: the allowance, or the failure to make one.
@@ -82,4 +119,42 @@ impl VisibilityOf<CallerScope> for CallerVisibility {
 /// The problem document a refused row is answered with: 404, the guard's one sentence.
 pub fn not_found(refusal: NotFound) -> Problem {
     Problem::handler(StatusCode::NOT_FOUND, refusal.message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vectispire_cp_http::Grounds;
+    use vectispire_cp_http::principal::Account;
+
+    fn grounded(restriction: Restriction, account_id: Option<i64>, role: Option<&str>) -> Principal {
+        let account = Account { username: "u".into(), role: None, must_change_password: false };
+        Principal::session(account).with_grounds(Grounds {
+            account_id,
+            stored_role: role.map(str::to_owned),
+            restriction,
+            actor: None,
+        })
+    }
+
+    #[tokio::test]
+    async fn the_grounds_carry_the_restriction_to_the_visibility() {
+        let directory = PrincipalGrounds;
+        let narrowed =
+            grounded(Restriction::Target(vectispire_domain::ScanTarget::Repository(7)), Some(3), Some("ADMIN"));
+        assert_eq!(directory.restriction(&narrowed).await.unwrap(), Visibility::only([ScanTarget::Repository(7)]));
+        let image = grounded(Restriction::Target(vectispire_domain::ScanTarget::Container(8)), Some(3), Some("ADMIN"));
+        assert_eq!(directory.restriction(&image).await.unwrap(), Visibility::only([ScanTarget::Container(8)]));
+        // A key nobody understands sees nothing, never everything.
+        let unknown = grounded(Restriction::Nothing, Some(3), Some("ADMIN"));
+        assert_eq!(directory.restriction(&unknown).await.unwrap(), Visibility::only([]));
+        let session = grounded(Restriction::None, Some(3), Some("USER"));
+        assert_eq!(directory.restriction(&session).await.unwrap(), Visibility::everything());
+        assert_eq!(directory.account(&session).await.unwrap(), Some(AccountRef { id: 3, role: "USER".into() }));
+        // An unreadable role travels as none, which is no global scope.
+        let unreadable = grounded(Restriction::None, Some(4), None);
+        assert_eq!(directory.account(&unreadable).await.unwrap(), Some(AccountRef { id: 4, role: String::new() }));
+        // No account: the visibility resolves to nothing.
+        assert_eq!(directory.account(&grounded(Restriction::None, None, None)).await.unwrap(), None);
+    }
 }

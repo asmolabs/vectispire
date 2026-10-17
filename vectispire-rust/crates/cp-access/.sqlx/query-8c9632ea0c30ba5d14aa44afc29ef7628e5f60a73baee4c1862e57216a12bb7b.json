@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_user_target where target_kind = $1 and target_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8c9632ea0c30ba5d14aa44afc29ef7628e5f60a73baee4c1862e57216a12bb7b"
+}

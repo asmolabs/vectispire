@@ -18,7 +18,7 @@ use uuid::Uuid;
 use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_http::credentials::{BoxFuture, Credentials, secret_equals};
 use vectispire_cp_http::principal::Account;
-use vectispire_cp_http::{ApiKeyScope, Principal, Role};
+use vectispire_cp_http::{ApiKeyScope, Grounds, Principal, Restriction, Role};
 use vectispire_domain::secret::Secret;
 
 pub use crate::persistence::credentials::StoreError;
@@ -206,7 +206,7 @@ pub enum Resolved {
 impl Resolved {
     /// The principal the chain reads.
     pub fn principal(&self) -> Principal {
-        match self {
+        let principal = match self {
             Resolved::Session { account, .. } => Principal::session(account.account()),
             Resolved::Integration(integration) => Principal::integration(
                 integration.owner.account(),
@@ -216,6 +216,26 @@ impl Resolved {
             // `VectispirePrincipal.getName()` of an agent, which is what the audit entries it causes name.
             Resolved::Agent { agent, .. } => Principal::agent(&format!("agent:{}", agent.name)),
             Resolved::Scim => Principal::scim(),
+        };
+        principal.with_grounds(self.grounds())
+    }
+
+    /// What the routes need beyond the chain's reading: the account for the visibility, **the credential's
+    /// restriction**, which every scoped route intersects with it, and the audit actor.
+    fn grounds(&self) -> Grounds {
+        let account = match self {
+            Resolved::Session { account, .. } => Some(account),
+            Resolved::Integration(integration) => Some(&integration.owner),
+            Resolved::Agent { .. } | Resolved::Scim => None,
+        };
+        Grounds {
+            account_id: account.map(|account| account.id),
+            stored_role: account.and_then(|account| account.role).map(|role| role.name().to_owned()),
+            restriction: restriction_of_visibility(&self.credential_restriction()),
+            actor: match self {
+                Resolved::Session { .. } | Resolved::Integration(_) => Some(self.actor()),
+                Resolved::Agent { .. } | Resolved::Scim => None,
+            },
         }
     }
 
@@ -599,6 +619,19 @@ impl CredentialService {
     }
 }
 
+/// A credential's restriction as the chain carries it. A key restricted to one target is the only shape
+/// `restriction_of_key` writes besides everything and nothing; anything else is read as nothing, never as everything.
+fn restriction_of_visibility(visibility: &Visibility) -> Restriction {
+    match visibility {
+        Visibility::Everything => Restriction::None,
+        Visibility::Only(targets) => match targets.iter().collect::<Vec<_>>().as_slice() {
+            [ScanTarget::Repository(id)] => Restriction::Target(vectispire_domain::ScanTarget::Repository(*id)),
+            [ScanTarget::Container(id)] => Restriction::Target(vectispire_domain::ScanTarget::Container(*id)),
+            _ => Restriction::Nothing,
+        },
+    }
+}
+
 /// `instant + duration`, at the far future when it would overflow.
 fn plus(instant: OffsetDateTime, duration: Duration) -> OffsetDateTime {
     instant.checked_add(duration).unwrap_or(OffsetDateTime::new_utc(time::Date::MAX, time::Time::MIDNIGHT))
@@ -633,5 +666,21 @@ impl Credentials for CredentialService {
 
     fn scim<'a>(&'a self, token: &'a str) -> BoxFuture<'a, bool> {
         Box::pin(async move { self.scim_matches(token) })
+    }
+}
+
+#[cfg(test)]
+mod grounds_tests {
+    use super::*;
+
+    #[test]
+    fn a_key_s_restriction_travels_with_its_principal() {
+        let target = |kind, id| restriction_of_visibility(&crate::visibility::restriction_of_key(Some(kind), Some(id)));
+        assert_eq!(target("repository", 4), Restriction::Target(vectispire_domain::ScanTarget::Repository(4)));
+        assert_eq!(target("container", 5), Restriction::Target(vectispire_domain::ScanTarget::Container(5)));
+        assert_eq!(target("project", 6), Restriction::Nothing, "a kind nobody wrote sees nothing");
+        assert_eq!(restriction_of_visibility(&Visibility::everything()), Restriction::None);
+        let two = Visibility::only([ScanTarget::Repository(1), ScanTarget::Repository(2)]);
+        assert_eq!(restriction_of_visibility(&two), Restriction::Nothing, "never widened to everything");
     }
 }

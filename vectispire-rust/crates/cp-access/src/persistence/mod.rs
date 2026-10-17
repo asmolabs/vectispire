@@ -13,6 +13,7 @@ pub(crate) mod accounts;
 pub(crate) mod credentials;
 pub(crate) mod grants;
 pub(crate) mod model;
+pub(crate) mod target_grants;
 pub(crate) mod users;
 
 pub use model::{AccountStore, NewUser, PasswordHash, RevokedKey, Sealed, SessionHash, User};

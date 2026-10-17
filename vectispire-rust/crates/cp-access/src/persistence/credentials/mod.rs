@@ -21,6 +21,13 @@ pub(crate) mod sessions;
 pub struct StoreError(#[from] sqlx::Error);
 
 impl StoreError {
+    /// A port's failure in this error's shape — the targets module answering `IssuerSees` from its own tables and
+    /// the visibility. Carried as the driver's configuration error, the one variant whose cause is anything at all;
+    /// it is logged and answered as the store failure it is, never read as "no".
+    pub fn from_port(cause: Box<dyn std::error::Error + Send + Sync>) -> StoreError {
+        StoreError(sqlx::Error::Configuration(cause))
+    }
+
     /// The database's engine has no statements in this build — only while the cache script prepares the other one.
     #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
     pub(crate) fn not_built() -> StoreError {

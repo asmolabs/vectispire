@@ -12,7 +12,7 @@
 //!
 //! The module's places, as `cp-arch-tests` reads them (`layering.rs`): the root files are its API and services
 //! ([`accounts`], [`account_rules`], [`passwords`], [`credentials`], [`roles`], [`visibility`], [`rows`],
-//! [`four_eyes`], [`approvers`]); `internal` the implementation; `persistence` holds every statement; [`security`]
+//! [`four_eyes`], [`approvers`], [`target_grants`]); `internal` the implementation; `persistence` holds every statement; [`security`]
 //! is the named interface `access::security` every other module's routes use.
 
 #![forbid(unsafe_code)]
@@ -28,13 +28,14 @@ mod persistence;
 pub mod roles;
 pub mod rows;
 pub mod security;
+pub mod target_grants;
 pub mod visibility;
 
 pub use approvers::TriageApprovers;
 pub use persistence::{SessionsAndKeys, SqlAccountStore};
 pub use roles::{Role, RoleFlags};
 pub use rows::NotFound;
-pub use security::{CallerScope, CallerVisibility, PrincipalDirectory};
+pub use security::{CallerScope, CallerVisibility, PrincipalDirectory, PrincipalGrounds};
 pub use visibility::{
     AccessError, AccessSettings, AccountRef, Allowance, GrantableTargets, VisibilityMode, VisibilityService,
 };

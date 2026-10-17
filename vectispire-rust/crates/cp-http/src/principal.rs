@@ -123,29 +123,66 @@ pub enum Credential {
     Scim,
 }
 
+/// What a credential may see on its own, before its account's grants: an integration key issued for one target is
+/// narrowed to it (decision 0024) — `VectispirePrincipal.credentialRestriction()`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Restriction {
+    /// A session, an agent, the SCIM client, an unrestricted key.
+    #[default]
+    None,
+    /// A key issued for this target.
+    Target(vectispire_domain::ScanTarget),
+    /// A key restricted to a kind nobody wrote: it sees nothing, never everything.
+    Nothing,
+}
+
+/// What the credentials module knew of the caller when it resolved them, beyond what the chain itself reads: the
+/// account's row id and stored role — what the visibility is resolved for — the credential's own restriction, and the
+/// name an audit entry is attributed to. **The restriction travels with the principal** so that every scoped route
+/// intersects the account's visibility with it; a principal that lost it would read with its account's whole estate.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Grounds {
+    pub account_id: Option<i64>,
+    /// The role as stored, unparsed: an unreadable role is no global scope, never the least privileged one.
+    pub stored_role: Option<String>,
+    pub restriction: Restriction,
+    /// `RequestActors.of`: the username, or `user (key name)` for an integration key.
+    pub actor: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Principal {
     /// Absent for an agent and for the SCIM client.
     pub account: Option<Account>,
     pub credential: Credential,
+    /// Empty for a principal built by a test double that does not say more.
+    pub grounds: Grounds,
 }
 
 impl Principal {
     pub fn session(account: Account) -> Principal {
-        Principal { account: Some(account), credential: Credential::Session }
+        Principal { account: Some(account), credential: Credential::Session, grounds: Grounds::default() }
     }
 
     pub fn integration(account: Account, key_id: &str, scopes: Vec<ApiKeyScope>) -> Principal {
-        Principal { account: Some(account), credential: Credential::Integration { key_id: key_id.to_owned(), scopes } }
+        Principal {
+            account: Some(account),
+            credential: Credential::Integration { key_id: key_id.to_owned(), scopes },
+            grounds: Grounds::default(),
+        }
     }
 
     pub fn agent(agent: &str) -> Principal {
-        Principal { account: None, credential: Credential::Agent { agent: agent.to_owned() } }
+        Principal {
+            account: None,
+            credential: Credential::Agent { agent: agent.to_owned() },
+            grounds: Grounds::default(),
+        }
     }
 
     /// The SCIM client acts as an administrator on `/scim`: its authorities are `ROLE_ADMIN` and `SCOPE_SCIM`.
     pub fn scim() -> Principal {
-        Principal { account: None, credential: Credential::Scim }
+        Principal { account: None, credential: Credential::Scim, grounds: Grounds::default() }
     }
 
     /// The roles the principal's authorities carry.
@@ -155,6 +192,17 @@ impl Principal {
             Credential::Agent { .. } => None,
             _ => self.account.as_ref().and_then(|account| account.role),
         }
+    }
+
+    /// The same principal, with what its credential's resolution knew.
+    pub fn with_grounds(mut self, grounds: Grounds) -> Principal {
+        self.grounds = grounds;
+        self
+    }
+
+    /// The name an audit entry is attributed to: what the resolution said, else the account's username.
+    pub fn actor(&self) -> Option<String> {
+        self.grounds.actor.clone().or_else(|| self.account.as_ref().map(|account| account.username.clone()))
     }
 
     pub fn must_change_password(&self) -> bool {

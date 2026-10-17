@@ -40,6 +40,6 @@ pub mod routing;
 pub use access::Access;
 pub use chain::{Chain, ChainConfig};
 pub use extract::{Caller, ClientAddress, JsonBody, Scoped};
-pub use principal::{ApiKeyScope, Principal, Role};
+pub use principal::{ApiKeyScope, Grounds, Principal, Restriction, Role};
 pub use problem::Problem;
 pub use routes::{Route, Routes, require_visible};

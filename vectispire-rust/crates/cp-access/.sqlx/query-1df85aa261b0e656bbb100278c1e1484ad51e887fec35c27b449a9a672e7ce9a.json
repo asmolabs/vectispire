@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_user_target where target_kind = ? and target_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1df85aa261b0e656bbb100278c1e1484ad51e887fec35c27b449a9a672e7ce9a"
+}
