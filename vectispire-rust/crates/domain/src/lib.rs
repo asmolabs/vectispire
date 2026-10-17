@@ -7,13 +7,21 @@
 //! them (see `README.md`, "The reference sets").
 
 pub mod contract;
+pub mod dependency_graph;
 pub mod failure;
+pub mod finding_type;
 pub mod net;
 pub mod repository_url;
+pub mod scan_status;
+pub mod scan_target;
 pub mod secret;
 pub mod severity;
 pub mod sub_path;
+pub mod tool_keys;
 pub mod wire;
 
 pub use failure::FailureKind;
+pub use finding_type::FindingType;
+pub use scan_status::ScanStatus;
+pub use scan_target::ScanTarget;
 pub use severity::Severity;
