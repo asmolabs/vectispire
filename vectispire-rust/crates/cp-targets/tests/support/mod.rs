@@ -236,6 +236,11 @@ pub fn encryption() -> Arc<Encryption> {
 
 /// The module over `db`, its entries recorded, with the stand-ins the binary composes until 2.7 and Phase 3.
 pub fn targets(db: &Db, purge: PurgeRegistry) -> (Arc<Targets>, Arc<Entries>) {
+    targets_cloning_from(db, purge, GitHostAllowlist::default())
+}
+
+/// The same, cloning only from `hosts` (`vectispire.git.allowed-hosts`).
+pub fn targets_cloning_from(db: &Db, purge: PurgeRegistry, hosts: GitHostAllowlist) -> (Arc<Targets>, Arc<Entries>) {
     let entries = Arc::new(Entries::default());
     let targets = Targets::new(TargetsConfig {
         db: db.clone(),
@@ -244,7 +249,7 @@ pub fn targets(db: &Db, purge: PurgeRegistry) -> (Arc<Targets>, Arc<Entries>) {
         backlog: Arc::new(IssuesStandIn),
         purge,
         encryption: encryption(),
-        allowed_hosts: GitHostAllowlist::default(),
+        allowed_hosts: hosts,
         clock: Arc::new(SystemClock),
         visibility: None,
     });
@@ -257,6 +262,15 @@ pub struct Mode(pub &'static str);
 impl AccessSettings for Mode {
     fn target_visibility(&self) -> BoxFuture<'_, Result<String, AccessError>> {
         Box::pin(async move { Ok(self.0.to_owned()) })
+    }
+}
+
+/// A settings store that does not answer.
+pub struct Unanswering;
+
+impl AccessSettings for Unanswering {
+    fn target_visibility(&self) -> BoxFuture<'_, Result<String, AccessError>> {
+        Box::pin(async { Err(AccessError::Port("the settings did not answer".into())) })
     }
 }
 
@@ -304,7 +318,17 @@ pub fn principal(username: &str, id: i64, role: Role, restriction: Restriction, 
 
 /// The module's routes behind the real chain, the visibility resolved by `cp-access` from the principal's grounds.
 pub fn router(db: &Db, targets: Arc<Targets>, credentials: StaticCredentials, mode: &'static str) -> axum::Router {
-    let visibility = VisibilityService::new(db.clone(), Arc::new(Mode(mode)), Arc::new(TargetsForAccess(db.clone())));
+    router_with(db, targets, credentials, Arc::new(Mode(mode)))
+}
+
+/// The same over another settings store — one that fails, for the failure that must not read as "nothing visible".
+pub fn router_with(
+    db: &Db,
+    targets: Arc<Targets>,
+    credentials: StaticCredentials,
+    settings: Arc<dyn AccessSettings>,
+) -> axum::Router {
+    let visibility = VisibilityService::new(db.clone(), settings, Arc::new(TargetsForAccess(db.clone())));
     let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)));
     for entry in vectispire_cp_targets::routes(targets) {
         routes = routes.route(entry);

@@ -56,6 +56,8 @@ async fn on_both_engines() {
         one_twin_wins_the_other_is_told(&database, &db).await;
         twins_found_by_the_upgrade_keep_their_rows(&db).await;
         credentials_are_stored_encrypted_under_their_contexts(&db).await;
+        every_service_refuses_what_its_caller_cannot_see(&db).await;
+        the_forms_refuse_as_java_does(&db).await;
         println!("{engine}: the targets' suite passed");
         db.close().await;
     }
@@ -492,6 +494,8 @@ async fn credentials_are_stored_encrypted_under_their_contexts(db: &Db) {
     let listed = targets.git_tokens().await.unwrap();
     assert_eq!(listed.iter().find(|view| view.id == token.id).map(|view| view.used_by_repositories), Some(1));
 
+    let keys = targets.ssh_keys().await.unwrap();
+    assert_eq!(keys.iter().find(|view| view.id == key.id).map(|view| view.encryption_state.as_str()), Some("current"));
     // Unreadable once its ciphertext is not what this key wrote.
     exec(db, &format!("update t_ssh_key set private_key = 'v2:AAAA' where id = '{}'", key.id)).await;
     let keys = targets.ssh_keys().await.unwrap();
@@ -504,4 +508,266 @@ async fn credentials_are_stored_encrypted_under_their_contexts(db: &Db) {
     assert!(recorded.contains(&"HTTPS token added: Forge (gitlab.example.org)".to_owned()), "{recorded:?}");
     assert!(recorded.contains(&"SSH key deleted: deploy".to_owned()), "{recorded:?}");
     assert!(recorded.iter().all(|line| !line.contains("glpat-secret-value")), "no entry carries a secret");
+}
+
+/// Every service that takes the caller's visibility refuses a target outside it — as the row's absence, in the
+/// sentence the absence gets — whatever route reaches it: the routes' coverage cannot reach an administrator's
+/// gestures as a restricted caller, so the services are asked directly.
+async fn every_service_refuses_what_its_caller_cannot_see(db: &Db) {
+    let (targets, entries) = support::targets(db, PurgeRegistry::stand_ins());
+    let actor = actor();
+    let repository = targets
+        .create_repository(&changes("https://gitlab.example.org/team/guarded"), &Visibility::Everything, &actor)
+        .await
+        .unwrap()
+        .id;
+    let image =
+        vectispire_cp_targets::containers::Changes { image_name: Some("team/guarded".into()), ..Default::default() };
+    let container = targets.create_container(&image, &actor).await.unwrap().id;
+    let solution = targets.create_solution(Some("Guarded"), None, &actor).await.unwrap().id;
+    let project = targets.create_project(solution, Some("Guarded"), None, &actor).await.unwrap().id;
+    entries.taken();
+    let nothing = Visibility::only([]);
+    let other =
+        Visibility::only([ScanTarget::Repository(repository + 1_000), ScanTarget::Container(container + 1_000)]);
+    let refused = |outcome: Result<(), TargetError>, sentence: &str| match outcome {
+        Err(TargetError::NotFound(message)) => assert_eq!(message, sentence),
+        other => panic!("not refused as an absence ({sentence}): {other:?}"),
+    };
+    for hidden in [&nothing, &other] {
+        refused(
+            targets.update_repository(repository, &Changes::default(), hidden, &actor).await.map(drop),
+            "Target not found.",
+        );
+        refused(targets.trigger_repository(repository, hidden, &actor).await.map(drop), "Target not found.");
+        refused(targets.delete_repository(repository, hidden, &actor).await, "Repository not found.");
+        let none = vectispire_cp_targets::containers::Changes::default();
+        refused(targets.update_container(container, &none, hidden, &actor).await.map(drop), "Target not found.");
+        refused(targets.trigger_container(container, hidden, &actor).await.map(drop), "Target not found.");
+        refused(targets.delete_container(container, hidden, &actor).await, "Image not found.");
+        refused(targets.file_repository(project, repository, hidden, &actor).await, "Repository not found.");
+        refused(targets.remove_repository(project, repository, hidden, &actor).await, "Repository not found.");
+        refused(targets.file_container(project, container, hidden, &actor).await, "Target not found.");
+        refused(targets.remove_container(project, container, hidden, &actor).await, "Target not found.");
+        refused(
+            targets.update_project(project, None, None, Some(solution + 1), hidden, &actor).await.map(drop),
+            "Solution not found.",
+        );
+        assert!(targets.list_repositories(hidden, None, None).await.unwrap().is_empty());
+        assert!(targets.list_containers(hidden, None, None).await.unwrap().is_empty());
+        assert_eq!(targets.listed_repository(hidden, repository).await.unwrap(), None);
+        assert!(targets.duplicates(hidden).await.unwrap().is_empty());
+    }
+    let reader = vectispire_cp_access::Allowance {
+        visibility: Visibility::only([]),
+        granted_projects: std::collections::BTreeSet::new(),
+        narrowed_by_credential: false,
+    };
+    assert!(
+        matches!(targets.project_detail(project, &reader).await, Err(TargetError::NotFound(ref m)) if m == "Project not found.")
+    );
+    assert!(
+        matches!(targets.visible_project(project, &reader).await, Err(TargetError::NotFound(ref m)) if m == "Project not found.")
+    );
+    assert!(
+        matches!(targets.visible_solution(solution, &reader).await, Err(TargetError::NotFound(ref m)) if m == "Solution not found.")
+    );
+    assert!(targets.tree(&reader).await.unwrap().solutions.is_empty());
+    // Granted the project as such, the reader sees it — and the tree shows it — though it holds nothing it sees.
+    let granted = vectispire_cp_access::Allowance {
+        granted_projects: std::collections::BTreeSet::from([project]),
+        ..reader.clone()
+    };
+    assert_eq!(targets.project_detail(project, &granted).await.unwrap().node.id, project);
+    assert_eq!(targets.tree(&granted).await.unwrap().solutions.len(), 1);
+    // Nothing above was written or recorded.
+    assert!(entries.taken().is_empty());
+    assert_eq!(
+        count(db, &format!("select count(*) from t_repository where id = {repository} and project_id is null")).await,
+        1
+    );
+    // And the caller who sees it is served.
+    targets.file_repository(project, repository, &Visibility::Everything, &actor).await.unwrap();
+    targets
+        .file_container(project, container, &Visibility::only([ScanTarget::Container(container)]), &actor)
+        .await
+        .unwrap();
+    let detail = targets.project_detail(project, &vectispire_cp_access::Allowance::everything()).await.unwrap();
+    assert_eq!((detail.node.repository_count, detail.node.container_count), (1, 1));
+    let partial = vectispire_cp_access::Allowance {
+        visibility: Visibility::only([ScanTarget::Repository(repository)]),
+        ..reader
+    };
+    let seen = targets.project_detail(project, &partial).await.unwrap();
+    assert!(seen.node.partial, "one of two filed targets seen: partial");
+    assert_eq!((seen.node.repository_count, seen.node.container_count), (1, 0));
+}
+
+/// The repository form's refusals that need the database or the configuration: a credential paired with the wrong
+/// transport or host, an identifier of nothing, a host off the allow-list, a URL with a credential in it — and the
+/// masked URL a form sends back, which leaves the stored one as it was.
+async fn the_forms_refuse_as_java_does(db: &Db) {
+    let hosts = vectispire_domain::git_host_allowlist::GitHostAllowlist::parse(Some("gitlab.example.org")).unwrap();
+    let (targets, entries) = support::targets_cloning_from(db, PurgeRegistry::stand_ins(), hosts);
+    let actor = actor();
+    let token = targets
+        .add_git_token(Some("forge"), Some("gitlab.example.org"), None, Some("glpat-x"), &actor)
+        .await
+        .unwrap()
+        .id;
+    let key = targets
+        .add_ssh_key(
+            Some("deploy"),
+            Some("-----BEGIN OPENSSH PRIVATE KEY-----\nA\n-----END OPENSSH PRIVATE KEY-----"),
+            None,
+            &actor,
+        )
+        .await
+        .unwrap()
+        .id;
+    let form = |url: &str, ssh: Option<String>, https: Option<String>| Changes {
+        url: Some(url.to_owned()),
+        ssh_key_id: ssh,
+        https_token_id: https,
+        ..Changes::default()
+    };
+    let refused =
+        |outcome: Result<vectispire_cp_targets::views::RepositoryView, TargetError>, sentence: &str| match outcome {
+            Err(TargetError::Invalid(message)) => assert_eq!(message, sentence),
+            other => panic!("not refused ({sentence}): {other:?}"),
+        };
+    let everything = Visibility::Everything;
+    refused(
+        targets
+            .create_repository(
+                &form("https://gitlab.example.org/a/both", Some(key.to_string()), Some(token.to_string())),
+                &everything,
+                &actor,
+            )
+            .await,
+        "A repository uses an SSH key or an HTTPS token, not both.",
+    );
+    refused(
+        targets
+            .create_repository(
+                &form("git@gitlab.example.org:a/token", None, Some(token.to_string())),
+                &everything,
+                &actor,
+            )
+            .await,
+        "An HTTPS token only works with an https:// URL.",
+    );
+    refused(
+        targets
+            .create_repository(
+                &form("https://gitlab.example.org/a/key", Some(key.to_string()), None),
+                &everything,
+                &actor,
+            )
+            .await,
+        "An SSH key is not used over HTTPS. Use an ssh:// or git@ URL, or attach an HTTPS token.",
+    );
+    let absent = uuid::Uuid::new_v4();
+    refused(
+        targets
+            .create_repository(
+                &form("https://gitlab.example.org/a/none", None, Some(absent.to_string())),
+                &everything,
+                &actor,
+            )
+            .await,
+        &format!("No HTTPS token with id {absent}."),
+    );
+    refused(
+        targets
+            .create_repository(
+                &form("git@gitlab.example.org:a/none", Some(absent.to_string()), None),
+                &everything,
+                &actor,
+            )
+            .await,
+        &format!("No SSH key with id {absent}."),
+    );
+    refused(
+        targets
+            .create_repository(&form("git@gitlab.example.org:a/bad", Some("xyz".into()), None), &everything, &actor)
+            .await,
+        "\"xyz\" is not a valid SSH key identifier.",
+    );
+    refused(
+        targets
+            .create_repository(
+                &form("https://gitlab.example.org/a/bad", None, Some(" xyz ".into())),
+                &everything,
+                &actor,
+            )
+            .await,
+        "\"xyz\" is not a valid HTTPS token identifier.",
+    );
+    refused(
+        targets.create_repository(&form("https://evil.example/a/b", None, None), &everything, &actor).await,
+        "Cloning from evil.example is not allowed on this instance; allowed hosts: gitlab.example.org.",
+    );
+    refused(
+        targets
+            .create_repository(&form("https://user:pw@gitlab.example.org/a/cred", None, None), &everything, &actor)
+            .await,
+        "The URL carries a credential. Remove it from the URL and attach an HTTPS token instead: it is stored encrypted and sent only to its own host.",
+    );
+    // Accepted pairings.
+    let over_https = targets
+        .create_repository(&form("https://gitlab.example.org/a/ok", None, Some(token.to_string())), &everything, &actor)
+        .await
+        .unwrap();
+    assert_eq!(over_https.https_token_id, Some(token));
+    let over_ssh = targets
+        .create_repository(&form("git@gitlab.example.org:a/ok-ssh", Some(key.to_string()), None), &everything, &actor)
+        .await
+        .unwrap();
+    assert_eq!(over_ssh.ssh_key_id, Some(key));
+    // A token pointed at another host by a later edit of the URL is refused, the row unchanged.
+    let moved = Changes { url: Some("https://other.gitlab.example.org/a/ok".into()), ..Changes::default() };
+    let hosts = vectispire_domain::git_host_allowlist::GitHostAllowlist::parse(Some("*.example.org")).unwrap();
+    let (anywhere, _) = support::targets_cloning_from(db, PurgeRegistry::stand_ins(), hosts);
+    refused(
+        anywhere.update_repository(over_https.id, &moved, &everything, &actor).await,
+        "This token is issued for gitlab.example.org and would be sent to no other host; the URL names another one.",
+    );
+    // An edit that makes a row another target's twin is refused, naming the other.
+    let twin = Changes {
+        url: Some("https://gitlab.example.org/a/ok-ssh".into()),
+        https_token_id: Some(String::new()),
+        ..Changes::default()
+    };
+    match targets.update_repository(over_https.id, &twin, &everything, &actor).await {
+        Err(TargetError::Conflict { members, .. }) => {
+            assert_eq!(members, vec![("existingRepositoryId", serde_json::Value::from(over_ssh.id))]);
+        }
+        other => panic!("an edit to a twin was accepted: {other:?}"),
+    }
+    // An empty identifier clears the pairing.
+    let cleared = Changes { https_token_id: Some(String::new()), ..Changes::default() };
+    assert_eq!(
+        targets.update_repository(over_https.id, &cleared, &everything, &actor).await.unwrap().https_token_id,
+        None
+    );
+    // A row stored with a credential in its URL (before decision 0022) keeps it when the form sends the mask back.
+    exec(db, "insert into t_repository (url, branch, tier) values ('https://user:secret@gitlab.example.org/a/legacy', 'main', 'TIER_2_BUSINESS_OPERATIONAL')").await;
+    let legacy = count(db, "select max(id) from t_repository").await;
+    let masked = Changes {
+        url: Some("https://***@gitlab.example.org/a/legacy".into()),
+        name: Some("Legacy".into()),
+        ..Changes::default()
+    };
+    targets.update_repository(legacy, &masked, &everything, &actor).await.unwrap();
+    assert_eq!(
+        text(db, &format!("select url from t_repository where id = {legacy}")).await.as_deref(),
+        Some("https://user:secret@gitlab.example.org/a/legacy")
+    );
+    let recorded: Vec<String> = entries.taken().into_iter().filter_map(|entry| entry.description).collect();
+    assert!(recorded.iter().all(|line| !line.contains("secret")), "an entry carried the credential: {recorded:?}");
+    assert!(
+        recorded.contains(&"Repository updated: https://***@gitlab.example.org/a/legacy".to_owned()),
+        "{recorded:?}"
+    );
 }

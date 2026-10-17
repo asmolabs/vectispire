@@ -438,12 +438,28 @@ async fn the_answers_are_javas(db: &Db) {
         (400, "This does not look like a private key: expected a \"-----BEGIN … PRIVATE KEY-----\" block.")
     );
     assert_eq!(send(&router, "GET", "/api/v1/ssh-keys", admin, None).await, (200, "[]".to_owned()));
+    // A number where a string is read is its text, as Jackson coerces it.
+    let (status, body) = send(&router, "POST", "/api/v1/solutions", admin, Some(r#"{"name":42}"#)).await;
+    assert_eq!((status, serde_json::from_str::<Value>(&body).unwrap()["name"].clone()), (201, Value::from("42")));
+    // A URL stored with a credential (before decision 0022) is listed masked, never as stored.
+    exec(db, "insert into t_repository (url, branch, tier) values ('https://user:tok@gitlab.example.org/team/legacy', 'main', 'TIER_2_BUSINESS_OPERATIONAL')").await;
+    let (_, body) = send(&router, "GET", "/api/v1/repositories", admin, None).await;
+    assert!(body.contains(r#""url":"https://***@gitlab.example.org/team/legacy""#) && !body.contains("tok@"), "{body}");
     // A body that is not an object is refused in Java's sentence; `null` included.
     let (status, body) = send(&router, "POST", "/api/v1/solutions", admin, Some("null")).await;
     assert_eq!(
         (status, serde_json::from_str::<Value>(&body).unwrap()["detail"].as_str().unwrap()),
         (400, "The request body could not be read: it is not JSON, or not the shape this route expects.")
     );
+
+    // A visibility that cannot be resolved is a failure of the server, never an empty list (decision 0007).
+    let (failing, _) = support::targets(db, PurgeRegistry::stand_ins());
+    let credentials = StaticCredentials::default()
+        .session("tok-admin", support::principal("answers-admin", 1, Role::Admin, Restriction::None, false));
+    let unresolved = support::router_with(db, failing, credentials, std::sync::Arc::new(support::Unanswering));
+    let (status, body) = send(&unresolved, "GET", "/api/v1/repositories", admin, None).await;
+    assert_eq!(status, 500, "{body}");
+    assert!(body.contains("correlationId"), "{body}");
 
     // And the repository goes, with nothing left.
     assert_eq!(send(&router, "DELETE", &format!("/api/v1/repositories/{id}"), admin, None).await.0, 204);
