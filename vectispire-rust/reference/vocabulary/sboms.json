@@ -1,121 +1,535 @@
 [
-  { "name": "no artifacts member", "document": { "source": {} } },
-  { "name": "empty catalogue", "document": { "artifacts": [] } },
-  { "name": "artifacts is an object", "document": { "artifacts": { "a": {} } } },
-  { "name": "artifacts is null", "document": { "artifacts": null } },
-  { "name": "the document is an array", "document": [ { "artifacts": [] } ] },
-  { "name": "the document is null", "document": null },
-  { "name": "the document is a string", "document": "artifacts" },
+  {
+    "name": "no artifacts member",
+    "document": {
+      "source": {}
+    }
+  },
+  {
+    "name": "empty catalogue",
+    "document": {
+      "artifacts": []
+    }
+  },
+  {
+    "name": "artifacts is an object",
+    "document": {
+      "artifacts": {
+        "a": {}
+      }
+    }
+  },
+  {
+    "name": "artifacts is null",
+    "document": {
+      "artifacts": null
+    }
+  },
+  {
+    "name": "the document is an array",
+    "document": [
+      {
+        "artifacts": []
+      }
+    ]
+  },
+  {
+    "name": "the document is null",
+    "document": null
+  },
+  {
+    "name": "the document is a string",
+    "document": "artifacts"
+  },
   {
     "name": "artifacts without relationships",
-    "document": { "artifacts": [ { "id": "a", "name": "left-pad", "version": "1.0.0", "purl": "pkg:npm/left-pad@1.0.0" } ] }
+    "document": {
+      "artifacts": [
+        {
+          "id": "a",
+          "name": "left-pad",
+          "version": "1.0.0",
+          "purl": "pkg:npm/left-pad@1.0.0"
+        }
+      ]
+    }
   },
   {
     "name": "only contains relationships",
     "document": {
-      "artifacts": [ { "id": "a", "name": "x", "version": "1" } ],
-      "artifactRelationships": [ { "parent": "a", "child": "src", "type": "contains" } ]
+      "artifacts": [
+        {
+          "id": "a",
+          "name": "x",
+          "version": "1"
+        }
+      ],
+      "artifactRelationships": [
+        {
+          "parent": "a",
+          "child": "src",
+          "type": "contains"
+        }
+      ]
     }
   },
   {
     "name": "an empty parent is no edge",
     "document": {
-      "artifacts": [ { "id": "a", "name": "x", "version": "1" } ],
-      "artifactRelationships": [ { "parent": "", "child": "a", "type": "dependency-of" } ]
+      "artifacts": [
+        {
+          "id": "a",
+          "name": "x",
+          "version": "1"
+        }
+      ],
+      "artifactRelationships": [
+        {
+          "parent": "",
+          "child": "a",
+          "type": "dependency-of"
+        }
+      ]
     }
   },
   {
     "name": "relationships is an object",
     "document": {
-      "artifacts": [ { "id": "a", "name": "x", "version": "1" } ],
-      "artifactRelationships": { "parent": "a", "type": "dependency-of" }
+      "artifacts": [
+        {
+          "id": "a",
+          "name": "x",
+          "version": "1"
+        }
+      ],
+      "artifactRelationships": {
+        "parent": "a",
+        "type": "dependency-of"
+      }
     }
   },
   {
     "name": "polyglot graph",
     "document": {
       "artifacts": [
-        { "id": "app", "name": "app", "version": "0.1.0", "purl": "pkg:npm/app@0.1.0", "licenses": [ "MIT" ] },
-        { "id": "express", "name": "express", "version": "4.18.2", "purl": "pkg:npm/express@4.18.2",
-          "licenses": [ { "value": "MIT", "spdxExpression": "MIT" } ] },
-        { "id": "qs-old", "name": "qs", "version": "6.5.0", "purl": "pkg:npm/qs@6.5.0",
-          "licenses": [ { "spdxExpression": "BSD-3-Clause" } ] },
-        { "id": "qs-new", "name": "qs", "version": "6.11.0", "purl": "pkg:npm/qs@6.11.0",
-          "licenses": [ { "value": "", "spdxExpression": "GPL-3.0-only" } ] },
-        { "id": "dup-a", "name": "dup", "version": "1", "purl": "pkg:npm/dup@1", "licenses": [ " agpl-3.0 ", 7, null, { "value": 3 } ] },
-        { "id": "dup-b", "name": "dup", "version": "1", "purl": "pkg:npm/dup@1", "licenses": { "value": "MIT" } },
-        { "name": "no-id", "version": "2", "purl": "pkg:npm/no-id@2", "licenses": [ "GPL-2.0" ] },
-        { "id": "nopurl", "name": "nopurl", "version": "3.0", "purl": "" },
-        { "id": "nameless", "name": "", "version": "9", "purl": "pkg:npm/nameless@9" },
-        { "id": 5, "name": "numeric-id", "version": 5, "purl": "pkg:npm/numeric-id@5" },
-        { "id": "true", "name": " spaced ", "purl": null, "licenses": [ "  " ] }
+        {
+          "id": "app",
+          "name": "app",
+          "version": "0.1.0",
+          "purl": "pkg:npm/app@0.1.0",
+          "licenses": [
+            "MIT"
+          ]
+        },
+        {
+          "id": "express",
+          "name": "express",
+          "version": "4.18.2",
+          "purl": "pkg:npm/express@4.18.2",
+          "licenses": [
+            {
+              "value": "MIT",
+              "spdxExpression": "MIT"
+            }
+          ]
+        },
+        {
+          "id": "qs-old",
+          "name": "qs",
+          "version": "6.5.0",
+          "purl": "pkg:npm/qs@6.5.0",
+          "licenses": [
+            {
+              "spdxExpression": "BSD-3-Clause"
+            }
+          ]
+        },
+        {
+          "id": "qs-new",
+          "name": "qs",
+          "version": "6.11.0",
+          "purl": "pkg:npm/qs@6.11.0",
+          "licenses": [
+            {
+              "value": "",
+              "spdxExpression": "GPL-3.0-only"
+            }
+          ]
+        },
+        {
+          "id": "dup-a",
+          "name": "dup",
+          "version": "1",
+          "purl": "pkg:npm/dup@1",
+          "licenses": [
+            " agpl-3.0 ",
+            7,
+            null,
+            {
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "dup-b",
+          "name": "dup",
+          "version": "1",
+          "purl": "pkg:npm/dup@1",
+          "licenses": {
+            "value": "MIT"
+          }
+        },
+        {
+          "name": "no-id",
+          "version": "2",
+          "purl": "pkg:npm/no-id@2",
+          "licenses": [
+            "GPL-2.0"
+          ]
+        },
+        {
+          "id": "nopurl",
+          "name": "nopurl",
+          "version": "3.0",
+          "purl": ""
+        },
+        {
+          "id": "nameless",
+          "name": "",
+          "version": "9",
+          "purl": "pkg:npm/nameless@9"
+        },
+        {
+          "id": 5,
+          "name": "numeric-id",
+          "version": 5,
+          "purl": "pkg:npm/numeric-id@5"
+        },
+        {
+          "id": "true",
+          "name": " spaced ",
+          "purl": null,
+          "licenses": [
+            "  "
+          ]
+        }
       ],
       "artifactRelationships": [
-        { "parent": "express", "child": "app", "type": "dependency-of" },
-        { "parent": "qs-old", "child": "express", "type": "dependency-of" },
-        { "parent": "dup-a", "child": "express", "type": "dependency-of" },
-        { "parent": 5, "child": "app", "type": "dependency-of" },
-        { "parent": true, "child": "app", "type": "dependency-of" },
-        { "parent": "app", "child": "src", "type": "contains" },
-        { "parent": "nopurl", "child": "app", "type": "DEPENDENCY-OF" },
-        { "parent": "nameless", "child": "app" }
+        {
+          "parent": "express",
+          "child": "app",
+          "type": "dependency-of"
+        },
+        {
+          "parent": "qs-old",
+          "child": "express",
+          "type": "dependency-of"
+        },
+        {
+          "parent": "dup-a",
+          "child": "express",
+          "type": "dependency-of"
+        },
+        {
+          "parent": 5,
+          "child": "app",
+          "type": "dependency-of"
+        },
+        {
+          "parent": true,
+          "child": "app",
+          "type": "dependency-of"
+        },
+        {
+          "parent": "app",
+          "child": "src",
+          "type": "contains"
+        },
+        {
+          "parent": "nopurl",
+          "child": "app",
+          "type": "DEPENDENCY-OF"
+        },
+        {
+          "parent": "nameless",
+          "child": "app"
+        }
       ],
-      "distro": { "id": " Debian ", "versionID": "12", "name": "Debian GNU/Linux" }
+      "distro": {
+        "id": " Debian ",
+        "versionID": "12",
+        "name": "Debian GNU/Linux"
+      }
     },
     "probes": [
-      [ "pkg:npm/app@0.1.0", "app", "0.1.0" ],
-      [ "pkg:npm/express@4.18.2", "express", "4.18.2" ],
-      [ "pkg:npm/qs@6.5.0", null, null ],
-      [ "pkg:npm/qs@6.11.0", null, null ],
-      [ null, "qs", "6.5.0" ],
-      [ null, "qs", "6.11.0" ],
-      [ null, "qs", null ],
-      [ "", "qs", "6.11.0" ],
-      [ "pkg:npm/unknown@1", "qs", "6.11.0" ],
-      [ "pkg:npm/dup@1", null, null ],
-      [ "pkg:npm/no-id@2", "no-id", "2" ],
-      [ null, "nopurl", "3.0" ],
-      [ "pkg:npm/nameless@9", null, null ],
-      [ null, "", "9" ],
-      [ "pkg:npm/numeric-id@5", "numeric-id", "5" ],
-      [ null, " spaced ", null ],
-      [ null, " spaced ", "" ],
-      [ null, "spaced", "" ],
-      [ null, null, null ]
+      [
+        "pkg:npm/app@0.1.0",
+        "app",
+        "0.1.0"
+      ],
+      [
+        "pkg:npm/express@4.18.2",
+        "express",
+        "4.18.2"
+      ],
+      [
+        "pkg:npm/qs@6.5.0",
+        null,
+        null
+      ],
+      [
+        "pkg:npm/qs@6.11.0",
+        null,
+        null
+      ],
+      [
+        null,
+        "qs",
+        "6.5.0"
+      ],
+      [
+        null,
+        "qs",
+        "6.11.0"
+      ],
+      [
+        null,
+        "qs",
+        null
+      ],
+      [
+        "",
+        "qs",
+        "6.11.0"
+      ],
+      [
+        "pkg:npm/unknown@1",
+        "qs",
+        "6.11.0"
+      ],
+      [
+        "pkg:npm/dup@1",
+        null,
+        null
+      ],
+      [
+        "pkg:npm/no-id@2",
+        "no-id",
+        "2"
+      ],
+      [
+        null,
+        "nopurl",
+        "3.0"
+      ],
+      [
+        "pkg:npm/nameless@9",
+        null,
+        null
+      ],
+      [
+        null,
+        "",
+        "9"
+      ],
+      [
+        "pkg:npm/numeric-id@5",
+        "numeric-id",
+        "5"
+      ],
+      [
+        null,
+        " spaced ",
+        null
+      ],
+      [
+        null,
+        " spaced ",
+        ""
+      ],
+      [
+        null,
+        "spaced",
+        ""
+      ],
+      [
+        null,
+        null,
+        null
+      ]
     ],
     "blocklist": "gpl-3.0-only, AGPL-3.0 ,,gpl-2.0"
   },
   {
     "name": "an edge to an artifact nobody lists",
     "document": {
-      "artifacts": [ { "id": "a", "name": "a", "version": "1", "purl": "pkg:a@1" } ],
-      "artifactRelationships": [ { "parent": "ghost", "child": "a", "type": "dependency-of" } ]
+      "artifacts": [
+        {
+          "id": "a",
+          "name": "a",
+          "version": "1",
+          "purl": "pkg:a@1"
+        }
+      ],
+      "artifactRelationships": [
+        {
+          "parent": "ghost",
+          "child": "a",
+          "type": "dependency-of"
+        }
+      ]
     },
-    "probes": [ [ "pkg:a@1", "a", "1" ], [ null, "a", "1" ] ],
+    "probes": [
+      [
+        "pkg:a@1",
+        "a",
+        "1"
+      ],
+      [
+        null,
+        "a",
+        "1"
+      ]
+    ],
     "blocklist": "MIT"
   },
   {
     "name": "distro without a name, versionID a number",
-    "document": { "artifacts": [], "distro": { "id": "Alpine", "versionID": 3.19 } }
+    "document": {
+      "artifacts": [],
+      "distro": {
+        "id": "Alpine",
+        "versionID": 3.19
+      }
+    }
   },
   {
     "name": "distro without a name",
-    "document": { "artifacts": [], "distro": { "id": "ALPINE", "versionID": " 3.19.1 ", "name": "  " } }
+    "document": {
+      "artifacts": [],
+      "distro": {
+        "id": "ALPINE",
+        "versionID": " 3.19.1 ",
+        "name": "  "
+      }
+    }
   },
   {
     "name": "distro is a string",
-    "document": { "artifacts": [], "distro": "debian" }
+    "document": {
+      "artifacts": [],
+      "distro": "debian"
+    }
   },
   {
     "name": "licences of every shape",
     "document": {
       "artifacts": [
-        { "name": "a", "version": "1", "purl": "pkg:a@1", "licenses": [ "MIT", "mit", "Apache-2.0", "ΣΑΣ", "straße" ] },
-        { "name": 7, "version": true, "purl": 3, "licenses": [ { "value": "GPL-3.0" }, { "spdxExpression": " gpl-3.0 " } ] },
+        {
+          "name": "a",
+          "version": "1",
+          "purl": "pkg:a@1",
+          "licenses": [
+            "MIT",
+            "mit",
+            "Apache-2.0",
+            "ΣΑΣ",
+            "straße"
+          ]
+        },
+        {
+          "name": 7,
+          "version": true,
+          "purl": 3,
+          "licenses": [
+            {
+              "value": "GPL-3.0"
+            },
+            {
+              "spdxExpression": " gpl-3.0 "
+            }
+          ]
+        },
         "not an object",
-        { "licenses": "MIT" }
+        {
+          "licenses": "MIT"
+        }
       ]
     },
     "blocklist": "mit, STRASSE, σας, gpl-3.0"
+  },
+  {
+    "name": "a direct duplicate listed first, an object id, a value and an expression that differ",
+    "document": {
+      "artifacts": [
+        {
+          "id": "first",
+          "name": "twice",
+          "version": "1",
+          "purl": "pkg:twice@1"
+        },
+        {
+          "id": "second",
+          "name": "twice",
+          "version": "1",
+          "purl": "pkg:twice@1"
+        },
+        {
+          "id": {
+            "nested": "x"
+          },
+          "name": "objid",
+          "version": "2",
+          "purl": "pkg:objid@2",
+          "licenses": [
+            {
+              "value": "Apache-2.0",
+              "spdxExpression": "MIT"
+            }
+          ]
+        },
+        {
+          "id": [],
+          "name": "arrid",
+          "version": "3",
+          "purl": "pkg:arrid@3"
+        }
+      ],
+      "artifactRelationships": [
+        {
+          "parent": "second",
+          "child": "first",
+          "type": "dependency-of"
+        },
+        {
+          "parent": {},
+          "child": "first",
+          "type": "dependency-of"
+        }
+      ]
+    },
+    "probes": [
+      [
+        "pkg:twice@1",
+        null,
+        null
+      ],
+      [
+        null,
+        "twice",
+        "1"
+      ],
+      [
+        "pkg:objid@2",
+        null,
+        null
+      ],
+      [
+        "pkg:arrid@3",
+        null,
+        null
+      ]
+    ],
+    "blocklist": "apache-2.0, mit"
   }
 ]

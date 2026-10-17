@@ -285,4 +285,38 @@
     "package_version" : null,
     "purl" : null
   } ]
+}, {
+  "name" : "a direct duplicate listed first, an object id, a value and an expression that differ",
+  "is_catalogue" : true,
+  "artifacts" : [ {
+    "name" : "twice",
+    "version" : "1",
+    "purl" : "pkg:twice@1",
+    "licenses" : [ ]
+  }, {
+    "name" : "twice",
+    "version" : "1",
+    "purl" : "pkg:twice@1",
+    "licenses" : [ ]
+  }, {
+    "name" : "objid",
+    "version" : "2",
+    "purl" : "pkg:objid@2",
+    "licenses" : [ "Apache-2.0" ]
+  }, {
+    "name" : "arrid",
+    "version" : "3",
+    "purl" : "pkg:arrid@3",
+    "licenses" : [ ]
+  } ],
+  "distro" : null,
+  "graph_available" : true,
+  "direct_count" : 3,
+  "probes" : [ "DIRECT", "DIRECT", "DIRECT", "DIRECT" ],
+  "violations" : [ {
+    "license" : "Apache-2.0",
+    "package_name" : "objid",
+    "package_version" : "2",
+    "purl" : "pkg:objid@2"
+  } ]
 } ]

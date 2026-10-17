@@ -166,6 +166,7 @@ class FingerprintReferenceSetTest {
         tooLong(cases, "too long", "abcd", 3);
         tooLong(cases, "astral is two units", "😀😀", 3);
         tooLong(cases, "null fits", null, 0);
+        tooLong(cases, "three units in six bytes fit", "\u00E9\u00E9\u00E9", 4);
 
         ReferenceSet.expect("fingerprints/cases.json", JSON.writeValueAsString(cases) + "\n");
     }

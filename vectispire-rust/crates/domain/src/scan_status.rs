@@ -31,4 +31,11 @@ impl ScanStatus {
     pub fn is_in_flight(self) -> bool {
         matches!(self, ScanStatus::Pending | ScanStatus::Scanning)
     }
+
+    /// `ScanStatus.fromWireName`: trimmed as `String.trim` trims (U+001F goes, U+00A0 stays), lower-cased,
+    /// matched against the wire names.
+    pub fn from_wire_name(value: Option<&str>) -> Option<ScanStatus> {
+        let normalized = crate::java::trim(value?).to_lowercase();
+        ScanStatus::ALL.into_iter().find(|status| status.wire_name() == normalized)
+    }
 }

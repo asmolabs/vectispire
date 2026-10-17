@@ -1065,4 +1065,10 @@
   "value" : null,
   "max" : 0,
   "message" : null
+}, {
+  "name" : "three units in six bytes fit",
+  "op" : "too_long",
+  "value" : "ééé",
+  "max" : 4,
+  "message" : null
 } ]

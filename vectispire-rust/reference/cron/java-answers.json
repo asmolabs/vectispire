@@ -8987,5 +8987,327 @@
       "schedule" : "never",
       "next" : [ null, null, null, null ]
     }
+  }, {
+    "expression" : "0 0 0 * * 1#2147483647",
+    "spring" : {
+      "next" : [ [ null ], [ null ], [ null ], [ null ] ]
+    },
+    "crontab" : {
+      "valid" : true,
+      "schedule" : "parsed",
+      "next" : [ null, null, null, null ]
+    }
+  }, {
+    "expression" : "0 0 0 * * 1#613566757",
+    "spring" : {
+      "next" : [ [ {
+        "epoch_second" : 1790812800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1790812800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1790812800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1790812800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1790812800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1790812800,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1706745600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1706745600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1706745600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1706745600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1706745600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1706745600,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1767225600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767225600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767225600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767225600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767225600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767225600,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1796256000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1796256000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1796256000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1796256000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1796256000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1796256000,
+        "nano" : 0
+      } ] ]
+    },
+    "crontab" : {
+      "valid" : true,
+      "schedule" : "parsed",
+      "next" : [ {
+        "epoch_second" : 1790812800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1706745600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767225600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1796256000,
+        "nano" : 0
+      } ]
+    }
+  }, {
+    "expression" : "0 0 0 * * 3#6",
+    "spring" : {
+      "next" : [ [ null ], [ null ], [ null ], [ null ] ]
+    },
+    "crontab" : {
+      "valid" : true,
+      "schedule" : "parsed",
+      "next" : [ null, null, null, null ]
+    }
+  }, {
+    "expression" : "0 0 0 1W * MON",
+    "spring" : {
+      "next" : [ [ {
+        "epoch_second" : 1793577600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801440000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1803859200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1809302400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1817164800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1825027200,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1711929600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1717372800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1719792000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1725235200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1733097600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1738540800,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1769990400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1772409600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1780272000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1785715200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1793577600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801440000,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1801440000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1803859200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1809302400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1817164800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1825027200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1830470400,
+        "nano" : 0
+      } ] ]
+    },
+    "crontab" : {
+      "valid" : true,
+      "schedule" : "parsed",
+      "next" : [ {
+        "epoch_second" : 1793577600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1711929600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1769990400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801440000,
+        "nano" : 0
+      } ]
+    }
+  }, {
+    "expression" : "99 99 99 99 99 99",
+    "spring" : {
+      "refused" : "Invalid value for SecondOfMinute (valid values 0 - 59): 99 '99' in cron expression \"99 99 99 99 99 99\""
+    },
+    "crontab" : {
+      "valid" : false,
+      "schedule" : "never",
+      "next" : [ null, null, null, null ]
+    }
+  }, {
+    "expression" : "0\u001F 0 2 * * *",
+    "spring" : {
+      "next" : [ [ {
+        "epoch_second" : 1792288800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1792375200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1792461600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1792548000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1792634400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1792720800,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1709172000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1709258400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1709344800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1709431200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1709517600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1709604000,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1767232800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767319200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767405600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767492000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767578400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767664800,
+        "nano" : 0
+      } ], [ {
+        "epoch_second" : 1801360800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801447200,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801533600,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801620000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801706400,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801792800,
+        "nano" : 0
+      } ] ]
+    },
+    "crontab" : {
+      "valid" : true,
+      "schedule" : "parsed",
+      "next" : [ {
+        "epoch_second" : 1792288800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1709172000,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1767232800,
+        "nano" : 0
+      }, {
+        "epoch_second" : 1801360800,
+        "nano" : 0
+      } ]
+    }
+  }, {
+    "expression" : "0 0 2 * * * \u001F *",
+    "spring" : {
+      "refused" : "Cron expression must consist of 6 fields (found 7 in \"0 0 2 * * * \u001F *\")"
+    },
+    "crontab" : {
+      "valid" : false,
+      "schedule" : "never",
+      "next" : [ null, null, null, null ]
+    }
   } ]
 }
