@@ -9,6 +9,10 @@
 //! differ, because a relay missing a handler abandons Java's pending messages of that type after eight attempts (plan
 //! §7, Phase 2; `crates/cp-outbox/README.md`). The composition test asserts it is held today.
 //!
+//! **Targets (task 2.6)** fill `REPOSITORY_IDENTITIES` and `ORPHANED_TARGET_ROWS`: the identity keying of rows filed
+//! before V73 or by an instance of the previous version, and the orphan sweep through the purge's listeners — which
+//! the binary also runs once at every start (`Targets::purge_orphans`), as Java does on `ApplicationReadyEvent`.
+//!
 //! The turns are not started by `main` yet, because nothing composed needs a database the binary does not open;
 //! when one does (2.11), `Turns::run_until` runs beside the server with the shutdown signal as its stop.
 
@@ -16,6 +20,7 @@ use std::sync::Arc;
 
 use vectispire_cp_maintenance::{CompositionError, MaintenanceTask, Turns};
 use vectispire_cp_outbox::{Outbox, Registry, UnreadableRegistry};
+use vectispire_cp_targets::Targets;
 
 /// Why the maintenance composition could not be built.
 #[derive(Debug, thiserror::Error)]
@@ -36,11 +41,13 @@ pub fn outbox_registry() -> Registry {
 }
 
 /// Every module's maintenance task.
-pub fn tasks(outbox: Arc<Outbox>) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
-    Ok(vectispire_cp_outbox::tasks(outbox)?)
+pub fn tasks(outbox: Arc<Outbox>, targets: Arc<Targets>) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
+    let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
+    tasks.extend(vectispire_cp_targets::tasks(targets));
+    Ok(tasks)
 }
 
 /// The turns over [`tasks`].
-pub fn turns(outbox: Arc<Outbox>) -> Result<Turns, MaintenanceError> {
-    Ok(Turns::new(tasks(outbox)?)?)
+pub fn turns(outbox: Arc<Outbox>, targets: Arc<Targets>) -> Result<Turns, MaintenanceError> {
+    Ok(Turns::new(tasks(outbox, targets)?)?)
 }

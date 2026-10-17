@@ -48,9 +48,47 @@ fn outbox() -> Arc<Outbox> {
     Arc::new(Outbox::new(Arc::new(Unused), vectispire_cp_app::maintenance::outbox_registry(), Arc::new(SystemClock)))
 }
 
-#[test]
-fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
-    let turns = vectispire_cp_app::maintenance::turns(outbox()).unwrap();
+/// The targets module over a pool that never connects: the composition runs no task.
+fn targets() -> Arc<vectispire_cp_targets::Targets> {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+    use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
+    let settings = DbSettings {
+        url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&settings).unwrap();
+    let door = VaultDoor {
+        sender: PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
+        db,
+        audit: Arc::new(Silent),
+        scans: Arc::new(vectispire_cp_targets::ScanningStandIn),
+        backlog: Arc::new(vectispire_cp_targets::IssuesStandIn),
+        purge: vectispire_cp_targets::PurgeRegistry::stand_ins(),
+        encryption: Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
+        allowed_hosts: vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
+        clock: Arc::new(vectispire_cp_targets::SystemClock),
+        visibility: None,
+    }))
+}
+
+struct Silent;
+
+impl vectispire_cp_targets::AuditSink for Silent {
+    fn record(&self, _: vectispire_cp_audit::Record) -> vectispire_cp_http::credentials::BoxFuture<'_, ()> {
+        Box::pin(async {})
+    }
+}
+
+#[tokio::test]
+async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
+    let turns = vectispire_cp_app::maintenance::turns(outbox(), targets()).unwrap();
     let problems = check(&turns.composition(), DEFERRED);
     assert!(problems.is_empty(), "the maintenance composition:\n  {}", problems.join("\n  "));
 }

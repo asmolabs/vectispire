@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
 use vectispire_cp_contract::{
-    Allowlist, Check, Document, Published, RouteDecl, Schemas, assert_none, check_published, check_routes,
+    Allowlist, Check, Document, Finding, Published, RouteDecl, Schemas, assert_none, check_published, check_routes,
     fill_parameters, path_parameters, split_parameter,
 };
 
@@ -31,11 +31,18 @@ fn every_operation_id_of_the_document_is_unique_and_every_published_one_survives
     assert!(Published::embedded().entries().len() >= 300, "the published list was read");
 }
 
+/// A router serving nothing misses exactly the routes that have left the list — which the modules that serve them
+/// hold to the document where their routes are composed (`cp-targets`' `tests/contract.rs` for the twenty-nine of
+/// task 2.6), and the binary's registry will once it carries them (task 2.11).
 #[test]
-fn a_router_that_serves_nothing_conforms_because_every_route_is_on_the_allowlist() {
+fn a_router_that_serves_nothing_misses_exactly_the_ported_routes() {
     let document = Document::embedded();
     let nothing: Vec<RouteDecl> = Vec::new();
-    assert_none(&check_routes(&document, &nothing, &Allowlist::embedded()));
+    let allowlist = Allowlist::embedded();
+    let findings = check_routes(&document, &nothing, &allowlist);
+    let ported = document.operations().len() - allowlist.entries().len();
+    assert_eq!(findings.len(), ported, "{findings:#?}");
+    assert!(findings.iter().all(|finding| matches!(finding, Finding::NotServed { .. })), "{findings:#?}");
 }
 
 #[test]

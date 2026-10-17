@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_repository set url = $1, branch = $2, sub_path = $3, name = $4, scan_interval_minutes = $5, scan_cron = $6, scan_manual_only = $7, required_agent_label = $8, last_scheduled_scan_at = $9, ssh_key_id = $10, https_token_id = $11, badge_token = $12, tier = $13, in_certified_scope = $14, url_identity = $15, identity_guard = $16 where id = $17",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Bool",
+        "Varchar",
+        "Timestamptz",
+        "Bpchar",
+        "Bpchar",
+        "Varchar",
+        "Varchar",
+        "Bool",
+        "Varchar",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "54c854e9e7f58163e5958341b687c55ddbfe89c4d7d3f5db575c3e09394cdb4a"
+}

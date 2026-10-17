@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select id from t_repository where project_id in (select j.id from json_table(?, '$[*]' columns (id bigint path '$')) as j) order by id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "collation": 63,
+          "max_size": 20
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "542059ce10e0f3563cd428305e5c83ee4310bee953ea41f2d8147124096631bf"
+}

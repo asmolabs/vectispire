@@ -21,8 +21,15 @@ vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
+vectispire-cp-targets = { path = "../cp-targets" }
 
 [dev-dependencies]
+# The composition test builds the targets module over a pool that never connects: it runs no task.
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-db = { path = "../cp-db" }
+vectispire-domain.workspace = true
+vectispire-tls.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
 vectispire-cp-contract = { path = "../cp-contract" }
 tempfile.workspace = true

@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, registry, image_name, tag, scan_interval_minutes, scan_cron, scan_manual_only, required_agent_label, last_scheduled_scan_at as \"last_scheduled_scan_at: UtcInstant\", tier, in_certified_scope, project_id from t_container where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "registry",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "registry"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "image_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "image_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "tag",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "tag"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "scan_interval_minutes",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "scan_interval_minutes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "scan_cron",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "scan_cron"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "scan_manual_only",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "scan_manual_only"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "required_agent_label",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "required_agent_label"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "last_scheduled_scan_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "last_scheduled_scan_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "tier",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "tier"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "in_certified_scope",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "in_certified_scope"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_container",
+            "name": "project_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "859dc9ea06527ff485756e0015ecdc45e7978f8dc6916cbef053889f0ef5bdcc"
+}

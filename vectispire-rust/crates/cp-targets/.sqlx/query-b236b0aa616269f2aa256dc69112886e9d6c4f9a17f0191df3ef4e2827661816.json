@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ delete from t_git_token where id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b236b0aa616269f2aa256dc69112886e9d6c4f9a17f0191df3ef4e2827661816"
+}

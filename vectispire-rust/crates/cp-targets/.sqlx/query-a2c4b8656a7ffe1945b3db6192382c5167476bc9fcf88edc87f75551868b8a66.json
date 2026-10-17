@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_solution set name = $1, description = $2, created_at = $3 where id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a2c4b8656a7ffe1945b3db6192382c5167476bc9fcf88edc87f75551868b8a66"
+}

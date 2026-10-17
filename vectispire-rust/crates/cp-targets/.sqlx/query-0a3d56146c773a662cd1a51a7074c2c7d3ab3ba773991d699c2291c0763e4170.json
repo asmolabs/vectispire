@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_container set project_id = null where project_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0a3d56146c773a662cd1a51a7074c2c7d3ab3ba773991d699c2291c0763e4170"
+}

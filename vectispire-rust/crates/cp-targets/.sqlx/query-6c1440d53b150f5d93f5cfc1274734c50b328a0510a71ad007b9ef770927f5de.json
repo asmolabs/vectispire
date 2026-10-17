@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_ssh_key (id, name, private_key, public_key, created_at) values (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "6c1440d53b150f5d93f5cfc1274734c50b328a0510a71ad007b9ef770927f5de"
+}

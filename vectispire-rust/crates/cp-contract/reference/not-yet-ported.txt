@@ -8,23 +8,15 @@ DELETE /api/v1/admin/agents/{id}/sealing-key
 DELETE /api/v1/api-keys/{id}
 DELETE /api/v1/attack-surface
 DELETE /api/v1/auth/session
-DELETE /api/v1/containers/{id}
 DELETE /api/v1/forge-connections/{id}
 DELETE /api/v1/gate/policies/{kind}/{id}
-DELETE /api/v1/git-tokens/{id}
 DELETE /api/v1/plugins/{id}/unsigned-waiver
-DELETE /api/v1/projects/{id}
-DELETE /api/v1/projects/{id}/containers/{containerId}
-DELETE /api/v1/projects/{id}/repositories/{repositoryId}
 DELETE /api/v1/projects/{projectId}/checklists/contacts/{profile}
 DELETE /api/v1/projects/{projectId}/plugins/{pluginId}
 DELETE /api/v1/projects/{projectId}/report-plugins/{pluginId}
-DELETE /api/v1/repositories/{id}
 DELETE /api/v1/repositories/{id}/apis
 DELETE /api/v1/sarif-sources/{id}
 DELETE /api/v1/scorecards/repositories/{repoId}/badge
-DELETE /api/v1/solutions/{id}
-DELETE /api/v1/ssh-keys/{id}
 DELETE /api/v1/teams/{id}
 DELETE /api/v1/users/{id}
 DELETE /api/v1/users/{id}/password-change-requirement
@@ -64,7 +56,6 @@ GET /api/v1/compliance/soa
 GET /api/v1/compliance/soa/reviews/overdue
 GET /api/v1/compliance/soa/{framework}
 GET /api/v1/compliance/summary
-GET /api/v1/containers
 GET /api/v1/crypto/cosign-cli-helper
 GET /api/v1/crypto/public-key.pub
 GET /api/v1/csaf/aggregate.json
@@ -86,7 +77,6 @@ GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection
 GET /api/v1/forge-connections/{id}
 GET /api/v1/gate/policies
 GET /api/v1/gate/verdicts
-GET /api/v1/git-tokens
 GET /api/v1/history/repositories
 GET /api/v1/history/repositories/{id}
 GET /api/v1/history/repositories/{id}/export.csv
@@ -107,7 +97,6 @@ GET /api/v1/owasp/coverage/weekly
 GET /api/v1/plugins
 GET /api/v1/plugins/{id}
 GET /api/v1/plugins/{id}/projects
-GET /api/v1/projects/{id}
 GET /api/v1/projects/{id}/compliance
 GET /api/v1/projects/{id}/components
 GET /api/v1/projects/{projectId}/checklists
@@ -134,8 +123,6 @@ GET /api/v1/remediation/high-impact-fixes
 GET /api/v1/report-documents/{sha256}
 GET /api/v1/report-plugins
 GET /api/v1/report-plugins/{id}
-GET /api/v1/repositories
-GET /api/v1/repositories/duplicates
 GET /api/v1/repositories/{id}/apis
 GET /api/v1/repositories/{id}/apis/export/openapi
 GET /api/v1/repositories/{id}/owasp-review
@@ -170,9 +157,7 @@ GET /api/v1/settings/ticket-token
 GET /api/v1/settings/ticket-webhook-secret
 GET /api/v1/settings/webhook-secret
 GET /api/v1/siem/config
-GET /api/v1/solutions
 GET /api/v1/solutions/{id}/compliance
-GET /api/v1/ssh-keys
 GET /api/v1/targets/{kind}/{id}/issues.csaf.json
 GET /api/v1/targets/{kind}/{id}/issues.csv
 GET /api/v1/targets/{kind}/{id}/issues.sarif
@@ -191,11 +176,7 @@ GET /scim/v2/Groups/{id}
 GET /scim/v2/Users
 GET /scim/v2/Users/{id}
 PATCH /api/v1/admin/agents/{id}
-PATCH /api/v1/containers/{id}
 PATCH /api/v1/forge-connections/{id}
-PATCH /api/v1/projects/{id}
-PATCH /api/v1/repositories/{id}
-PATCH /api/v1/solutions/{id}
 PATCH /api/v1/teams/{id}
 PATCH /api/v1/users/{id}
 PATCH /scim/v2/Groups/{id}
@@ -220,8 +201,6 @@ POST /api/v1/checklist-templates/{slug}/versions
 POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/derive
 POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish
 POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/retire
-POST /api/v1/containers
-POST /api/v1/containers/{id}/scan
 POST /api/v1/crypto/verify
 POST /api/v1/epss/sync
 POST /api/v1/exceptions/{issueId}/reviews
@@ -231,7 +210,6 @@ POST /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selectio
 POST /api/v1/forge-connections/{connectionId}/imports
 POST /api/v1/forge-connections/{connectionId}/imports/preview
 POST /api/v1/gate
-POST /api/v1/git-tokens
 POST /api/v1/issues/triage
 POST /api/v1/issues/{id}/triage
 POST /api/v1/issues/{issueId}/tickets
@@ -252,9 +230,7 @@ POST /api/v1/projects/{projectId}/reports
 POST /api/v1/report-plugins
 POST /api/v1/report-plugins/{id}/manifests/{digest}/approval
 POST /api/v1/report-plugins/{id}/manifests/{digest}/withdrawal
-POST /api/v1/repositories
 POST /api/v1/repositories/{id}/owasp-review
-POST /api/v1/repositories/{id}/scan
 POST /api/v1/repositories/{repositoryId}/build-sbom-imports
 POST /api/v1/repositories/{repositoryId}/coverage-imports
 POST /api/v1/repositories/{repositoryId}/sarif-imports
@@ -267,9 +243,6 @@ POST /api/v1/sarif-sources
 POST /api/v1/scorecards/repositories/{repoId}/badge
 POST /api/v1/settings/ollama-test
 POST /api/v1/siem/test
-POST /api/v1/solutions
-POST /api/v1/solutions/{id}/projects
-POST /api/v1/ssh-keys
 POST /api/v1/teams
 POST /api/v1/threat-intel/sync
 POST /api/v1/tickets/webhook/{provider}
@@ -294,8 +267,6 @@ PUT /api/v1/owasp/coverage/{category}/declaration
 PUT /api/v1/plugins/{id}
 PUT /api/v1/plugins/{id}/enabled
 PUT /api/v1/plugins/{id}/unsigned-waiver
-PUT /api/v1/projects/{id}/containers/{containerId}
-PUT /api/v1/projects/{id}/repositories/{repositoryId}
 PUT /api/v1/projects/{projectId}/checklists/contacts/{profile}
 PUT /api/v1/projects/{projectId}/plugins/{pluginId}
 PUT /api/v1/projects/{projectId}/report-plugins/{pluginId}
