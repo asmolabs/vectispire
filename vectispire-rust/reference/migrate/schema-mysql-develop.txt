@@ -124,6 +124,12 @@ column|t_checklist_answer|6|answered_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_
 column|t_checklist_answer|7|answered_by_id|bigint|YES|<null>||-
 column|t_checklist_answer|8|answered_at|datetime(6)|NO|<null>||-
 column|t_checklist_answer|9|measurement_id|bigint|YES|<null>||-
+column|t_checklist_contact|1|id|bigint|NO|<null>|auto_increment|-
+column|t_checklist_contact|2|project_id|bigint|NO|<null>||-
+column|t_checklist_contact|3|profile|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_contact|4|account_id|bigint|NO|<null>||-
+column|t_checklist_contact|5|linked_by|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
+column|t_checklist_contact|6|linked_at|datetime(6)|NO|<null>||-
 column|t_checklist_document|10|statement_signature|varchar(255)|NO|<null>||utf8mb4_0900_ai_ci
 column|t_checklist_document|11|signing_key_id|varchar(128)|NO|<null>||utf8mb4_0900_ai_ci
 column|t_checklist_document|12|product_version|varchar(100)|YES|<null>||utf8mb4_0900_ai_ci
@@ -905,6 +911,8 @@ constraint|t_build_sbom_component|PRIMARY|PRIMARY KEY|YES
 constraint|t_build_sbom|PRIMARY|PRIMARY KEY|YES
 constraint|t_checklist_answer|PRIMARY|PRIMARY KEY|YES
 constraint|t_checklist_answer|ck_checklist_answer_author|CHECK|YES
+constraint|t_checklist_contact|PRIMARY|PRIMARY KEY|YES
+constraint|t_checklist_contact|uq_checklist_contact|UNIQUE|YES
 constraint|t_checklist_document|PRIMARY|PRIMARY KEY|YES
 constraint|t_checklist_document|uq_checklist_document|UNIQUE|YES
 constraint|t_checklist_evidence|PRIMARY|PRIMARY KEY|YES
@@ -1062,6 +1070,9 @@ index|t_build_sbom|idx_build_sbom_repo|1|2|id|-|BTREE
 index|t_checklist_answer|PRIMARY|0|1|id|-|BTREE
 index|t_checklist_answer|idx_checklist_answer_line|1|1|checklist_id|-|BTREE
 index|t_checklist_answer|idx_checklist_answer_line|1|2|item_id|-|BTREE
+index|t_checklist_contact|PRIMARY|0|1|id|-|BTREE
+index|t_checklist_contact|uq_checklist_contact|0|1|project_id|-|BTREE
+index|t_checklist_contact|uq_checklist_contact|0|2|profile|-|BTREE
 index|t_checklist_document|PRIMARY|0|1|id|-|BTREE
 index|t_checklist_document|idx_checklist_document_project|1|1|project_id|-|BTREE
 index|t_checklist_document|uq_checklist_document|0|1|checklist_id|-|BTREE
@@ -1292,6 +1303,9 @@ key|t_audit_log|PRIMARY|id|1|-|-
 key|t_build_sbom_component|PRIMARY|id|1|-|-
 key|t_build_sbom|PRIMARY|id|1|-|-
 key|t_checklist_answer|PRIMARY|id|1|-|-
+key|t_checklist_contact|PRIMARY|id|1|-|-
+key|t_checklist_contact|uq_checklist_contact|profile|2|-|-
+key|t_checklist_contact|uq_checklist_contact|project_id|1|-|-
 key|t_checklist_document|PRIMARY|id|1|-|-
 key|t_checklist_document|uq_checklist_document|checklist_id|1|-|-
 key|t_checklist_evidence|PRIMARY|id|1|-|-
@@ -1481,6 +1495,7 @@ table|t_audit_log|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
 table|t_build_sbom_component|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
 table|t_build_sbom|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
 table|t_checklist_answer|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
+table|t_checklist_contact|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
 table|t_checklist_document|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
 table|t_checklist_evidence|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci
 table|t_checklist_file|BASE TABLE|InnoDB|utf8mb4_0900_ai_ci

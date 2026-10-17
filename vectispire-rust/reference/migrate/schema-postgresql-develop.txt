@@ -123,6 +123,12 @@ column|t_checklist_answer|6|answered_by|character varying|varchar|255|NO|<null>|
 column|t_checklist_answer|7|answered_by_id|bigint|int8|64|YES|<null>|NO
 column|t_checklist_answer|8|answered_at|timestamp with time zone|timestamptz|NO|<null>|NO
 column|t_checklist_answer|9|measurement_id|bigint|int8|64|YES|<null>|NO
+column|t_checklist_contact|1|id|bigint|int8|64|NO|<null>|YES|ALWAYS
+column|t_checklist_contact|2|project_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_contact|3|profile|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_contact|4|account_id|bigint|int8|64|NO|<null>|NO
+column|t_checklist_contact|5|linked_by|character varying|varchar|255|NO|<null>|NO
+column|t_checklist_contact|6|linked_at|timestamp with time zone|timestamptz|NO|<null>|NO
 column|t_checklist_document|10|statement_signature|character varying|varchar|255|NO|<null>|NO
 column|t_checklist_document|11|signing_key_id|character varying|varchar|128|NO|<null>|NO
 column|t_checklist_document|12|product_version|character varying|varchar|100|YES|<null>|NO
@@ -904,6 +910,8 @@ constraint|t_build_sbom_component|t_build_sbom_component_pkey|p|PRIMARY KEY (id)
 constraint|t_build_sbom|t_build_sbom_pkey|p|PRIMARY KEY (id)
 constraint|t_checklist_answer|ck_checklist_answer_author|c|CHECK (((((answered_by_kind)::text = 'person'::text) AND (answered_by_id IS NOT NULL) AND (withdrawn = false)) OR (((answered_by_kind)::text = 'system'::text) AND (answered_by_id IS NULL))))
 constraint|t_checklist_answer|t_checklist_answer_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_contact|t_checklist_contact_pkey|p|PRIMARY KEY (id)
+constraint|t_checklist_contact|uq_checklist_contact|u|UNIQUE (project_id, profile)
 constraint|t_checklist_document|t_checklist_document_pkey|p|PRIMARY KEY (id)
 constraint|t_checklist_document|uq_checklist_document|u|UNIQUE (checklist_id)
 constraint|t_checklist_evidence|t_checklist_evidence_pkey|p|PRIMARY KEY (id)
@@ -1047,6 +1055,8 @@ index|t_build_sbom|idx_build_sbom_repo|CREATE INDEX idx_build_sbom_repo ON publi
 index|t_build_sbom|t_build_sbom_pkey|CREATE UNIQUE INDEX t_build_sbom_pkey ON public.t_build_sbom USING btree (id)
 index|t_checklist_answer|idx_checklist_answer_line|CREATE INDEX idx_checklist_answer_line ON public.t_checklist_answer USING btree (checklist_id, item_id)
 index|t_checklist_answer|t_checklist_answer_pkey|CREATE UNIQUE INDEX t_checklist_answer_pkey ON public.t_checklist_answer USING btree (id)
+index|t_checklist_contact|t_checklist_contact_pkey|CREATE UNIQUE INDEX t_checklist_contact_pkey ON public.t_checklist_contact USING btree (id)
+index|t_checklist_contact|uq_checklist_contact|CREATE UNIQUE INDEX uq_checklist_contact ON public.t_checklist_contact USING btree (project_id, profile)
 index|t_checklist_document|idx_checklist_document_project|CREATE INDEX idx_checklist_document_project ON public.t_checklist_document USING btree (project_id)
 index|t_checklist_document|t_checklist_document_pkey|CREATE UNIQUE INDEX t_checklist_document_pkey ON public.t_checklist_document USING btree (id)
 index|t_checklist_document|uq_checklist_document|CREATE UNIQUE INDEX uq_checklist_document ON public.t_checklist_document USING btree (checklist_id)
@@ -1211,6 +1221,7 @@ table|t_audit_log|BASE TABLE
 table|t_build_sbom_component|BASE TABLE
 table|t_build_sbom|BASE TABLE
 table|t_checklist_answer|BASE TABLE
+table|t_checklist_contact|BASE TABLE
 table|t_checklist_document|BASE TABLE
 table|t_checklist_evidence|BASE TABLE
 table|t_checklist_file|BASE TABLE

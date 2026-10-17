@@ -86,3 +86,4 @@ V87__report_run_export_targets.sql	-866067961
 V88__triage_requested_status.sql	-158548049
 V89__issue_revision.sql	-1266953330
 V90__issue_ticket_and_review_indexes.sql	638279092
+V91__checklist_contacts.sql	966223189
