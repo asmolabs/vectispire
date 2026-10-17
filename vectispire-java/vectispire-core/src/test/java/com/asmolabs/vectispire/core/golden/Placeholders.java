@@ -258,8 +258,17 @@ final class Placeholders {
         }
         Matcher padded = RANDOM_BASE64.matcher(text);
         while (padded.find()) {
-            if (looksRandom(padded.group())) {
-                registerSecret(padded.group());
+            String candidate = padded.group();
+            if (looksLikeAPath(candidate)) {
+                // A path is read by its segments: a route's words are not secret, and a random segment of it
+                // (a badge's token) is. Tokens after a slash are out of RANDOM_TOKEN's reach on the whole string.
+                for (String segment : candidate.split("/")) {
+                    if (!segment.isEmpty()) {
+                        collectPatterns(segment);
+                    }
+                }
+            } else if (looksRandom(candidate)) {
+                registerSecret(candidate);
             }
         }
         Matcher tokens = RANDOM_TOKEN.matcher(text);
@@ -458,6 +467,20 @@ final class Placeholders {
             return false;
         }
         return !date.isBefore(WINDOW_FROM) && !date.isAfter(WINDOW_TO);
+    }
+
+    /**
+     * A request path is made of the characters base64 is made of, so a long one with a digit, a capital (a
+     * profile such as {@code PO}) and a lower-case word passed {@link #looksRandom} and was registered as a
+     * secret: the whole path was replaced by a placeholder, and its recording could no longer be matched to a
+     * route. A path begins with a word between slashes ({@code /api/…}); a random string almost never does.
+     */
+    private static boolean looksLikeAPath(String candidate) {
+        if (!candidate.startsWith("/") || candidate.chars().filter(c -> c == '/').count() < 3) {
+            return false;
+        }
+        String first = candidate.substring(1, candidate.indexOf('/', 1));
+        return !first.isEmpty() && first.chars().allMatch(c -> (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'));
     }
 
     /** Mixed case and a digit: base64url of random bytes nearly always is, a 43-letter word never. */
