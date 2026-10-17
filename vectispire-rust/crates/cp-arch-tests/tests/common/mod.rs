@@ -13,8 +13,8 @@ use tempfile::TempDir;
 use vectispire_cp_arch_tests::graph::Workspace;
 use vectispire_cp_arch_tests::model::Config;
 
-/// A smaller edge list than the real one, with every feature of it: interfaces, an open module, infrastructure
-/// the modules may and may not use, a pure crate, the one `unsafe` exception.
+/// A smaller edge list than the real one, with every feature of it: interfaces, an open module, two shared modules,
+/// infrastructure the modules may and may not use, a pure crate, the one `unsafe` exception.
 pub const CONFIG: &str = r#"
 [settings]
 module_prefix = "vectispire-cp-"
@@ -45,19 +45,35 @@ interfaces = ["security"]
 [module.targets]
 status = "pending"
 allowed = ["access", "access::security"]
+reason = "grants and visibility"
 
 [module.scanning]
 status = "pending"
 allowed = ["access::security", "targets"]
 interfaces = ["queries"]
+reason = "a scan is of a target"
 
 [module.issues]
 status = "pending"
 allowed = ["access::security", "scanning", "scanning::queries", "targets"]
+reason = "an issue is a target's, seen in scans"
 
 [module.inventory]
 status = "pending"
 allowed = ["access::security", "targets"]
+reason = "a component is a target's"
+
+[module.audit]
+status = "pending"
+allowed = []
+shared = true
+reason = "every administration service writes its record"
+
+[module.settings]
+status = "pending"
+allowed = []
+shared = true
+reason = "read by every domain"
 
 [module.platform]
 status = "pending"
@@ -209,9 +225,15 @@ impl Fixture {
         fixture.krate("vectispire-agent", &["vectispire-domain", "vectispire-git"], &[], true);
         fixture.krate("vectispire-cp-db", &["sqlx"], &[], false);
         fixture.krate("vectispire-cp-runtime", &[], &[], false);
+        // The foundation: two shared modules, which the domains below use without listing them.
+        fixture.module("settings", &["vectispire-cp-db"]);
+        fixture.module("audit", &["vectispire-cp-db"]);
         fixture.module("access", &["vectispire-domain"]);
         fixture.interface("access", "security");
-        fixture.module("targets", &["vectispire-cp-access", "vectispire-cp-db", "sqlx", "vectispire-domain"]);
+        fixture.module(
+            "targets",
+            &["vectispire-cp-access", "vectispire-cp-audit", "vectispire-cp-db", "sqlx", "vectispire-domain"],
+        );
         fixture.module("scanning", &["vectispire-cp-access", "vectispire-cp-targets", "vectispire-cp-db"]);
         fixture.interface("scanning", "queries");
         fixture.module("issues", &["vectispire-cp-access", "vectispire-cp-scanning", "vectispire-cp-targets"]);

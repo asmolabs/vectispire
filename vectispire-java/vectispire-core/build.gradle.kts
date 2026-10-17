@@ -528,6 +528,10 @@ tasks.named<Test>("test") {
         "vectispire.rust.reference.write",
         providers.systemProperty("vectispire.rust.reference.write").getOrElse("false"))
     inputs.dir(rootProject.file("../vectispire-rust/reference/access")).withPropertyName("accessReferenceSet")
+    // `cp-arch-tests`' and `cp-maintenance`'s: the module model Modulith reads and the maintenance tick's composition,
+    // written by `ModulesReferenceSetTest` and `MaintenanceReferenceSetTest` through `core.RustReference`.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/modules")).withPropertyName("modulesReferenceSet")
+    inputs.dir(rootProject.file("../vectispire-rust/reference/maintenance")).withPropertyName("maintenanceReferenceSet")
 }
 
 /**

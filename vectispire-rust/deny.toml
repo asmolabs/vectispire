@@ -74,7 +74,7 @@ deny = [
     # use it, and nothing else may
     # — the agent depending on sqlx directly fails here, and `crates/agent/tests/isolation.rs` proves the
     # agent's closure holds none of it. (sea-query-sqlx is the layer's query-builder binding, a dependent of sqlx.)
-    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx", "vectispire-cp-access", "vectispire-cp-audit", "vectispire-cp-settings"], reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx", "vectispire-cp-access", "vectispire-cp-audit", "vectispire-cp-settings", "vectispire-cp-maintenance"], reason = "decision 0003: the agent holds no database connection" },
     { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
     { crate = "postgres", reason = "decision 0003: the agent holds no database connection" },
     { crate = "tokio-postgres", reason = "decision 0003: the agent holds no database connection" },

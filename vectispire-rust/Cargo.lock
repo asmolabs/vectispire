@@ -3457,6 +3457,7 @@ dependencies = [
  "vectispire-cp-audit",
  "vectispire-cp-contract",
  "vectispire-cp-http",
+ "vectispire-cp-maintenance",
  "vectispire-cp-outbound",
  "vectispire-cp-runtime",
 ]
@@ -3551,6 +3552,24 @@ dependencies = [
  "tracing",
  "trybuild",
  "vectispire-domain",
+ "vectispire-testkit",
+]
+
+[[package]]
+name = "vectispire-cp-maintenance"
+version = "0.12.0-dev"
+dependencies = [
+ "futures-util",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "vectispire-cp-db",
+ "vectispire-domain",
+ "vectispire-migrate",
  "vectispire-testkit",
 ]
 

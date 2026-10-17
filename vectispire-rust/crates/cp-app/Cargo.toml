@@ -17,6 +17,7 @@ tokio.workspace = true
 tracing.workspace = true
 vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-http = { path = "../cp-http" }
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
 

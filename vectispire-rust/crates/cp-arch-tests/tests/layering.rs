@@ -278,3 +278,38 @@ fn a_module_using_an_interface_it_does_not_list_fails() {
         outcome.violations
     );
 }
+
+#[test]
+fn a_domain_naming_a_shared_modules_root_passes_and_only_because_it_is_shared() {
+    // targets lists access only; audit is shared, so its root is targets' to use without a line.
+    let fixture = Fixture::clean();
+    fixture.write(
+        "vectispire-cp-targets",
+        "src/internal/mod.rs",
+        "pub(crate) fn list() { let _ = vectispire_cp_audit::View; crate::persistence::rows(); }\n",
+    );
+    let outcome = check(&fixture);
+    assert!(outcome.violations.is_empty(), "{:#?}", outcome.violations);
+
+    // Not shared, the same line is a module targets may not use at all: Cargo's edge rule names it (edges.rs), and the
+    // path rule leaves a module the crate may not depend on to that rule rather than reporting it twice.
+    let text = common::CONFIG.replace(
+        "allowed = []\nshared = true\nreason = \"every administration service writes its record\"",
+        "allowed = []",
+    );
+    let config = vectispire_cp_arch_tests::model::Config::parse(&text).unwrap();
+    assert!(!config.allows_root("targets", "audit"));
+    assert!(!config.allows_module("targets", "audit"));
+    let found = vectispire_cp_arch_tests::edges::check(&config, &fixture.workspace());
+    assert!(found.iter().any(|v| v.contains("targets depends on audit")), "{found:#?}");
+
+    // And a shared module's interface, were it to expose one, is open to a domain the same way, never to another
+    // shared module.
+    let config = common::config();
+    assert!(config.allows_root("targets", "audit"));
+    assert!(config.allows_interface("targets", "audit", "anything"));
+    assert!(!config.allows_root("audit", "settings"));
+    assert!(!config.allows_interface("audit", "settings", "anything"));
+    assert!(!config.allows_module("audit", "settings"));
+    assert!(!config.allows_module("audit", "audit"), "a module does not share with itself");
+}

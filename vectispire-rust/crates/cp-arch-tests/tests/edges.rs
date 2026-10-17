@@ -257,3 +257,139 @@ fn an_inconsistent_edge_list_is_refused() {
     let open = common::CONFIG.replace("open = true\nallowed = []", "open = true\nallowed = [\"access\"]");
     assert!(Config::parse(&open).unwrap_err().contains("an open module lists none"));
 }
+
+// ── the shared modules: Java's foundation, `@Modulithic(sharedModules)` ──────────────────────────────────────
+
+/// The clean config with `module` no longer shared: what the same workspace looks like without the rule.
+fn unshared(module: &str) -> Config {
+    let header = format!("[module.{module}]\nstatus = \"pending\"\nallowed = []\nshared = true\n");
+    assert!(common::CONFIG.contains(&header), "{module} is shared in the fixture's config");
+    Config::parse(&common::CONFIG.replace(&header, &format!("[module.{module}]\nstatus = \"pending\"\nallowed = []\n")))
+        .unwrap()
+}
+
+#[test]
+fn a_domain_uses_a_shared_module_without_listing_it() {
+    // targets uses audit in the clean workspace and does not list it; scanning takes settings too.
+    let mut fixture = Fixture::clean();
+    fixture.depends(
+        "vectispire-cp-scanning",
+        &["vectispire-cp-access", "vectispire-cp-targets", "vectispire-cp-db", "vectispire-cp-settings"],
+    );
+    let found = violations(&fixture);
+    assert!(found.is_empty(), "{found:#?}");
+
+    // The rule, and nothing else, admits them: the same workspace with audit no longer shared fails on targets.
+    let found = check(&unshared("audit"), &fixture.workspace());
+    assert!(
+        mentions(&found, "targets depends on audit, which its allowedDependencies in edges.toml do not list"),
+        "{found:#?}"
+    );
+    let found = check(&unshared("settings"), &fixture.workspace());
+    assert!(
+        mentions(&found, "scanning depends on settings, which its allowedDependencies in edges.toml do not list"),
+        "{found:#?}"
+    );
+}
+
+#[test]
+fn a_shared_module_using_another_unlisted_fails() {
+    // Modulith would allow it — it adds the shared modules to the foundation's own lists — and
+    // `ModularityTest.eachModuleDeclaresExactlyWhatItUses` is what refuses it. So does this.
+    let mut fixture = Fixture::clean();
+    fixture.depends("vectispire-cp-audit", &["vectispire-cp-db", "vectispire-cp-settings"]);
+    let found = violations(&fixture);
+    assert!(
+        mentions(
+            &found,
+            "audit depends on settings, which its allowedDependencies in edges.toml do not list: both are shared"
+        ),
+        "{found:#?}"
+    );
+    // Listed, with its reason, it is a decision taken.
+    let text = common::CONFIG.replace(
+        "[module.audit]\nstatus = \"pending\"\nallowed = []",
+        "[module.audit]\nstatus = \"pending\"\nallowed = [\"settings\"]",
+    );
+    let found = check(&Config::parse(&text).unwrap(), &fixture.workspace());
+    assert!(found.is_empty(), "{found:#?}");
+}
+
+#[test]
+fn a_shared_module_using_a_domain_unlisted_fails() {
+    // Shared is a direction: the foundation may not use a domain it does not list.
+    let mut fixture = Fixture::clean();
+    fixture.depends("vectispire-cp-settings", &["vectispire-cp-db", "vectispire-cp-inventory"]);
+    fixture.module("inventory", &["vectispire-cp-access", "vectispire-cp-targets"]);
+    let found = violations(&fixture);
+    assert!(
+        mentions(&found, "settings depends on inventory, which its allowedDependencies in edges.toml do not list"),
+        "{found:#?}"
+    );
+}
+
+#[test]
+fn a_shared_module_listing_a_domain_closes_a_cycle_and_is_refused() {
+    // Every domain may use audit, so audit listing targets is targets → audit → targets.
+    let text = common::CONFIG.replace(
+        "[module.audit]\nstatus = \"pending\"\nallowed = []",
+        "[module.audit]\nstatus = \"pending\"\nallowed = [\"targets\"]",
+    );
+    let error = Config::parse(&text).unwrap_err();
+    assert!(error.contains("a cycle in edges.toml"), "{error}");
+    // The cycle goes through the unlisted edge: without the sharing, the same list has none.
+    let text = text.replace("allowed = [\"targets\"]\nshared = true\n", "allowed = [\"targets\"]\n");
+    assert!(Config::parse(&text).is_ok());
+}
+
+#[test]
+fn the_shared_modules_come_first_in_the_porting_order() {
+    let config = config();
+    let order = config.porting_order().unwrap();
+    let position = |module: &str| order.iter().position(|m| m == module).unwrap();
+    for domain in ["access", "targets", "scanning", "issues", "inventory"] {
+        assert!(position("audit") < position(domain), "{order:?}");
+        assert!(position("settings") < position(domain), "{order:?}");
+    }
+}
+
+#[test]
+fn a_domain_listing_a_shared_module_is_refused() {
+    let text = common::CONFIG.replace(
+        "allowed = [\"access\", \"access::security\"]",
+        "allowed = [\"access\", \"access::security\", \"audit\"]",
+    );
+    let error = Config::parse(&text).unwrap_err();
+    assert!(error.contains("targets lists audit, a shared module: a domain does not list the foundation"), "{error}");
+}
+
+#[test]
+fn a_shared_module_is_not_open() {
+    let text = common::CONFIG.replace(
+        "[module.audit]\nstatus = \"pending\"\nallowed = []\nshared = true",
+        "[module.audit]\nstatus = \"pending\"\nallowed = []\nopen = true\nshared = true",
+    );
+    let error = Config::parse(&text).unwrap_err();
+    assert!(error.contains("audit is open and shared"), "{error}");
+}
+
+#[test]
+fn a_list_or_a_sharing_without_its_reason_is_refused() {
+    let text = common::CONFIG.replace("reason = \"a scan is of a target\"\n", "");
+    let error = Config::parse(&text).unwrap_err();
+    assert!(
+        error.contains("scanning lists [\"access::security\", \"targets\"] without a reason beside them"),
+        "{error}"
+    );
+
+    let blank = common::CONFIG.replace("reason = \"a scan is of a target\"", "reason = \"  \"");
+    assert!(Config::parse(&blank).unwrap_err().contains("scanning lists"));
+
+    let text = common::CONFIG.replace("reason = \"read by every domain\"\n", "");
+    let error = Config::parse(&text).unwrap_err();
+    assert!(error.contains("settings is shared without a reason beside it"), "{error}");
+
+    // A module that lists nothing and is not shared has nothing to justify.
+    assert!(!common::CONFIG.contains("[module.access]\nstatus = \"pending\"\nallowed = []\nreason"));
+    assert!(Config::parse(common::CONFIG).is_ok());
+}

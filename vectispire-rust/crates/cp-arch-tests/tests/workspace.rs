@@ -149,3 +149,46 @@ fn the_anonymous_routes_are_the_java_seven() {
     let anonymous = routes::parse_anonymous(routes::ANONYMOUS).unwrap();
     assert_eq!(anonymous.len(), 7);
 }
+
+/// `edges.toml` against the module model Spring Modulith reads, as Java writes it (`ModulesReferenceSetTest`,
+/// `reference/modules/modules.json`): the same modules, the same shared foundation, the same lists, the same named
+/// interfaces, the same open shell. The list was written by hand from the `package-info` files, and nothing compared
+/// the two after that; a line added on one side only would leave the Rust rules enforcing a graph Java no longer has.
+#[test]
+fn the_edge_list_is_the_module_model_java_reads() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../reference/modules/modules.json");
+    let text = std::fs::read_to_string(&path).unwrap();
+    let java: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let config = config();
+
+    let shared: Vec<String> =
+        java["shared"].as_array().unwrap().iter().map(|name| name.as_str().unwrap().to_owned()).collect();
+    assert_eq!(shared.len(), 7, "Java's foundation is seven modules");
+    assert_eq!(config.shared_modules().into_iter().collect::<Vec<_>>(), shared, "the shared modules");
+
+    let modules = java["modules"].as_array().unwrap();
+    assert_eq!(modules.len(), 28);
+    let mut problems = Vec::new();
+    for module in modules {
+        let name = module["name"].as_str().unwrap();
+        let Some(entry) = config.module.get(name) else {
+            problems.push(format!("{name}: in Java's model, not in edges.toml"));
+            continue;
+        };
+        let strings = |key: &str| -> std::collections::BTreeSet<String> {
+            module[key].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect()
+        };
+        let allowed: std::collections::BTreeSet<String> = entry.allowed.iter().cloned().collect();
+        if allowed != strings("allowed") {
+            problems.push(format!("{name}: edges.toml allows {allowed:?}, Java {:?}", strings("allowed")));
+        }
+        let interfaces: std::collections::BTreeSet<String> = entry.interfaces.iter().cloned().collect();
+        if interfaces != strings("interfaces") {
+            problems.push(format!("{name}: edges.toml exposes {interfaces:?}, Java {:?}", strings("interfaces")));
+        }
+        if entry.open != module["open"].as_bool().unwrap() {
+            problems.push(format!("{name}: open is {} here and {} in Java", entry.open, module["open"]));
+        }
+    }
+    assert_none("edges.toml against Java's module model", &problems);
+}

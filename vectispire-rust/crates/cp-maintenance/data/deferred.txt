@@ -1,0 +1,34 @@
+# The slots of MaintenanceTask.Sequence that no Rust task fills yet — one line each, `SLOT | who fills it, and when`.
+#
+# **Exactly the slots still missing** (src/composition.rs): a slot neither filled nor listed fails the composition
+# check, as a Java task without its @Component would have run nowhere; a slot filled and still listed fails too. So
+# the list only shrinks, by one line in the commit that registers the task in the binary's composition
+# (crates/cp-app/src/maintenance.rs). Twenty-eight on the day cp-maintenance landed (task 2.1 of Phase 2).
+NOTIFICATION_RELAY | outbox, task 2.2 — and the relay turn is not started until the handler registry equals Java's, or Java's pending messages of unknown types would be abandoned (plan §7, Phase 2)
+SCHEDULING_TICK | scanning, task 2.7 — leader-only inside the service, through t_leader_lease, not here
+CREDENTIALED_BACKLOG | agents, task 2.9
+REPORT_RUN_SWEEP | reportplugins, a later phase
+SCAN_RETENTION | scanning, task 2.7
+SENT_MESSAGES | outbox, task 2.2
+TICKET_SWEEP | tickets, a later phase
+TICKET_TOKEN_CHECK | tickets, a later phase
+FORGE_TOKEN_WATCH | forges, a later phase
+INVENTORY_BACKFILL | inventory, a later phase
+REPOSITORY_IDENTITIES | targets, task 2.6
+TRIAGE_EXPIRY | issues, Phase 3 — the defect this check exists for: IssueTriageService.expireStale called by nothing
+SLA_BREACHES | issues, Phase 3
+WEEKLY_DIGEST | posture, a later phase
+CHECKLIST_REMINDERS | checklists, a later phase
+COMPLIANCE_HISTORY | compliance, a later phase
+OWASP_WEEKLY_COVERAGE | compliance, a later phase
+SESSION_CLEANUP | access, ported in Phase 1 without its task: SessionCleanupService.prune's purges (cp-access holds the sessions' purge_expired) wait for cp-access to register them
+GATE_VERDICTS | gate, a later phase
+COMPLIANCE_SNAPSHOTS | compliance, a later phase
+OWASP_WEEKLY_RETENTION | compliance, a later phase
+REPORT_EVIDENCE_RETENTION | reportplugins, a later phase
+BUILD_SBOM_RETENTION | inventory, a later phase
+ABANDONED_REVIEWS | compliance, a later phase
+KEV_CATALOGUE | threatintel, a later phase
+EPSS_SCORES | threatintel, a later phase
+CHANGE_REVIEWS | forges, a later phase
+ORPHANED_TARGET_ROWS | targets, task 2.6

@@ -59,7 +59,7 @@ What types cannot see — a table named as a string in `Alias::new("t_issue")` o
 
 `sqlx::query!` asks a real database to describe each statement while compiling. The answer is kept in
 `crates/cp-db/.sqlx/` — and in each module crate's own `.sqlx/` for its persistence's statements (`cp-access`,
-`cp-audit`, `cp-settings` today, listed in the script's `crates_with_queries`) — so a build needs no database
+`cp-audit`, `cp-settings`, `cp-maintenance` today, listed in the script's `crates_with_queries`) — so a build needs no database
 (`SQLX_OFFLINE=true`).
 
 - **One directory, both engines.** Offline, the macro reads the cached file's `db_name` and expands for

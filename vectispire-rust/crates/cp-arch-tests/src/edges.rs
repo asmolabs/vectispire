@@ -4,6 +4,11 @@
 //! the module's `package-info` does not list (`ModularityTest`). The reach into internals is Rust's own
 //! privacy; the other two are here, with what `ArchitectureTest` adds around them: `core.config` sits under
 //! every module, `common.domain` is pure, and nothing the agent links may be control-plane code.
+//!
+//! **The shared foundation** (`Config::allows_module`): a module that is not shared may use a shared one unlisted, as
+//! Modulith allows; between two shared modules the edge is listed, as `ModularityTest` requires — which is why such a
+//! violation says both are shared, so that the fix read off the message is a line with its reason and not the
+//! assumption that sharing covers it.
 
 use std::collections::BTreeSet;
 
@@ -56,9 +61,17 @@ pub fn check(config: &Config, workspace: &Workspace) -> Vec<String> {
                                 continue;
                             }
                             if !config.allows_module(module, &other) {
-                                violations.push(format!(
-                                    "{module} depends on {other}, which its allowedDependencies in edges.toml do not list"
-                                ));
+                                violations.push(if config.is_shared(module) && config.is_shared(&other) {
+                                    format!(
+                                        "{module} depends on {other}, which its allowedDependencies in edges.toml do \
+                                         not list: both are shared, and sharing says nothing about the edges between \
+                                         foundation modules"
+                                    )
+                                } else {
+                                    format!(
+                                        "{module} depends on {other}, which its allowedDependencies in edges.toml do not list"
+                                    )
+                                });
                             }
                             used.insert(other);
                         }

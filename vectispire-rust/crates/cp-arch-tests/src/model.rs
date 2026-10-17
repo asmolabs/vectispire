@@ -74,8 +74,17 @@ pub struct Module {
     pub allowed: Vec<String>,
     #[serde(default)]
     pub open: bool,
+    /// One of the foundation `@Modulithic(sharedModules)` declares on `VectispireApplication`: every module that is
+    /// not itself shared may use it without a line in its list.
+    #[serde(default)]
+    pub shared: bool,
     #[serde(default)]
     pub interfaces: Vec<String>,
+    /// Why the module may use what it lists, or why it is shared — the paragraph its `package-info` writes beside
+    /// `allowedDependencies`. Required wherever there is something to justify: a line without its reason is the
+    /// edit that turned the build green, not a decision.
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 /// What a workspace member is, to the rules.
@@ -141,20 +150,43 @@ impl Config {
             .unwrap_or_default()
     }
 
+    /// Is `module` one of the shared foundation modules?
+    pub fn is_shared(&self, module: &str) -> bool {
+        self.module.get(module).is_some_and(|m| m.shared)
+    }
+
+    /// The shared modules, by name.
+    pub fn shared_modules(&self) -> BTreeSet<String> {
+        self.module.iter().filter(|(_, m)| m.shared).map(|(name, _)| name.clone()).collect()
+    }
+
+    /// May `from` use `to` without listing it — Modulith's shared module, as `ModularityTest` narrows it: every
+    /// module may use the foundation unlisted **except the foundation itself**. Modulith adds the shared modules to
+    /// the foundation's own allowed dependencies too, so `verify()` alone would let `settings` use `audit`;
+    /// `eachModuleDeclaresExactlyWhatItUses` holds a foundation module to the foundation modules it lists, and so
+    /// does this.
+    fn shares(&self, from: &str, to: &str) -> bool {
+        // `to` shared and `from` not also means they differ: a module never shares with itself.
+        self.is_shared(to) && !self.is_shared(from)
+    }
+
     /// May `from` use `to`'s root (the crate's own `pub` items)?
     pub fn allows_root(&self, from: &str, to: &str) -> bool {
-        self.module.get(from).is_some_and(|m| m.open || m.allowed.iter().any(|entry| entry == to))
+        self.shares(from, to)
+            || self.module.get(from).is_some_and(|m| m.open || m.allowed.iter().any(|entry| entry == to))
     }
 
     /// May `from` use `to`'s named interface?
     pub fn allows_interface(&self, from: &str, to: &str, interface: &str) -> bool {
         let entry = format!("{to}::{interface}");
-        self.module.get(from).is_some_and(|m| m.open || m.allowed.contains(&entry))
+        self.shares(from, to) || self.module.get(from).is_some_and(|m| m.open || m.allowed.contains(&entry))
     }
 
-    /// May `from` depend on `to` at all, through any of its entries?
+    /// May `from` depend on `to` at all, through any of its entries, or because `to` is shared?
     pub fn allows_module(&self, from: &str, to: &str) -> bool {
-        self.module.get(from).is_some_and(|m| m.open) || self.allowed_modules(from).contains(to)
+        self.shares(from, to)
+            || self.module.get(from).is_some_and(|m| m.open)
+            || self.allowed_modules(from).contains(to)
     }
 
     /// Is `name` one of `module`'s named interfaces?
@@ -162,9 +194,23 @@ impl Config {
         self.module.get(module).is_some_and(|m| m.interfaces.iter().any(|interface| interface == name))
     }
 
-    /// The module edges as a graph, `open` modules aside (they list nothing, and may use anything).
+    /// The module edges as a graph, `open` modules aside (they list nothing, and may use anything) — **the
+    /// shared modules' edges included**: every module that is not shared may use every one that is, so those edges
+    /// are in the graph whether listed or not. A foundation module listing a domain would then close a cycle
+    /// through every other domain, and the list is refused for it, as Modulith refuses a cycle among the modules
+    /// whatever their kind.
     fn declared_edges(&self) -> BTreeMap<&str, BTreeSet<String>> {
-        self.module.keys().map(|module| (module.as_str(), self.allowed_modules(module))).collect()
+        let shared = self.shared_modules();
+        self.module
+            .keys()
+            .map(|module| {
+                let mut edges = self.allowed_modules(module);
+                if !self.is_shared(module) {
+                    edges.extend(shared.iter().cloned());
+                }
+                (module.as_str(), edges)
+            })
+            .collect()
     }
 
     /// The modules in an order where each comes after everything it may use: the order the port goes in.
@@ -205,7 +251,8 @@ impl Config {
     }
 
     /// The list's own consistency: every name is a module, every `x::y` names an interface x exposes, nothing
-    /// lists itself, the list has no cycle, and a ported module has its crate's name free of a clash.
+    /// lists itself, a domain lists no shared module, a shared module is not open, a list or a sharing carries its
+    /// reason, the list has no cycle, and a ported module has its crate's name free of a clash.
     fn validate(&self) -> Result<(), String> {
         let mut problems = Vec::new();
         for (module, entry) in &self.module {
@@ -225,11 +272,32 @@ impl Config {
                         {
                             problems.push(format!("{module} lists {allowed}, which {target} does not expose"));
                         }
+                        // `ModularityTest.eachModuleDeclaresExactlyWhatItUses` leaves the shared targets out of a
+                        // domain's comparison, so a domain listing one fails there as a line it does not use.
+                        if owner.shared && !entry.shared {
+                            problems.push(format!(
+                                "{module} lists {allowed}, a shared module: a domain does not list the foundation, \
+                                 which every module may use"
+                            ));
+                        }
                     }
                 }
             }
             if entry.open && !entry.allowed.is_empty() {
                 problems.push(format!("{module} is open and lists modules: an open module lists none"));
+            }
+            if entry.open && entry.shared {
+                problems.push(format!(
+                    "{module} is open and shared: the foundation stays closed, or every module could reach whatever \
+                     it reaches"
+                ));
+            }
+            let justified = entry.reason.as_deref().is_some_and(|reason| !reason.trim().is_empty());
+            if !justified && !entry.allowed.is_empty() {
+                problems.push(format!("{module} lists {:?} without a reason beside them", entry.allowed));
+            }
+            if !justified && entry.shared {
+                problems.push(format!("{module} is shared without a reason beside it"));
             }
         }
         for (name, infra) in &self.infrastructure {

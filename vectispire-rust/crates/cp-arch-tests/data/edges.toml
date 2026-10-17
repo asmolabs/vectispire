@@ -16,6 +16,18 @@
 #   open       the module may use any module: Modulith's reading of a bare `@ApplicationModule`. Only `platform`,
 #              the shell that composes several domains for one screen (decision 0029, step 5), is declared so;
 #              the port writes its list when the crate lands, and that is a review decision.
+#   shared     one of the seven foundation modules `@Modulithic(sharedModules)` declares on `VectispireApplication`
+#              (decision 0028): settings, outbound, crypto, audit, outbox, reporting, maintenance. Every module that is
+#              not shared may use them **without a line**, as Modulith allows; a domain listing one is refused, as
+#              `ModularityTest.eachModuleDeclaresExactlyWhatItUses` refuses it. Between two shared modules the edge is
+#              listed like any other: Modulith would allow it wholesale, and that test is what holds the foundation's
+#              own lists to the code. A shared module stays closed (not `open`) — its `web`, `internal` and
+#              `persistence` are as private as any module's — and takes part in the cycle check: the unlisted edges
+#              into the foundation are edges of the graph, so a foundation module listing a domain is a cycle.
+#              Without this, every Phase 2 crate would need seven lines that each read as a decision nobody took.
+#   reason     why the module may use what it lists, or why it is shared: the paragraph its `package-info` writes
+#              beside `allowedDependencies`, shortened. Required wherever `allowed` is not empty and on every shared
+#              module. A line without its reason is the edit that turned the build green, not a decision.
 
 [settings]
 module_prefix = "vectispire-cp-"
@@ -76,63 +88,83 @@ interfaces = ["security"]
 [module.agents]
 status = "pending"
 allowed = ["access", "access::security", "rules", "scanning", "targets"]
+reason = "`access`: an agent key is issued and revoked through `AgentKeys`, and the principal holds `AgentView`. `scanning` and `targets`: the protocol claims scans and hands over their targets. `rules`: a remote agent fetches the rule set a task names by its hash. None of them uses `agents`: `access` and `scanning` reach the agent row through the ports `AgentDirectory` and `AgentClaimLock`, implemented here. `access::security` for its routes."
 
 [module.ai]
 status = "pending"
 allowed = ["access", "access::security", "issues", "threatintel"]
+reason = "`access`: an issue is read within the caller's visibility. `issues`: the advisor explains an issue, asked of `IssueCatalog`. `threatintel`: the advice states a vulnerability's KEV listing and EPSS score as the stored feeds hold them. `access::security` for its routes."
 
 [module.audit]
 status = "pending"
 allowed = []
+shared = true
+reason = "The hash-chained audit log: every administration service writes its record, so every domain uses it."
 
 [module.checklists]
 status = "pending"
 allowed = ["access", "access::security", "targets", "scanning", "scanning::queries", "issues", "plugins", "inventory", "notifications"]
+reason = "`access`: the signed-in account four-eyes compares with a draft's authors, and the whole-project guard. `targets`: the project a checklist answers for, its repositories and `ProjectDeleted`. The measurements read their evidence from its owners' APIs: `scanning` and `scanning::queries` (`ScanCatalog`), `issues` (`IssueCatalog`), `plugins`, `inventory`. `notifications`: the weekly reminder leaves through the mail channel. `access::security` for its routes."
 
 [module.compliance]
 status = "pending"
 allowed = ["access", "access::security", "ai", "exports", "gate", "inventory", "issues", "issues::queries", "posture", "rules", "scanning", "scanning::queries", "targets"]
+reason = "The top of the domains: an evidence bundle states what the modules below it recorded — `ai`, `exports`, `gate`, `inventory`, `issues` and `issues::queries`, `posture`, `rules`, `scanning` and `scanning::queries`, `targets`. `access`: every statement is narrowed to what the caller sees. Nothing uses it but `platform`. `access::security` for its routes."
 
 [module.crypto]
 status = "pending"
 allowed = ["outbound", "settings"]
+shared = true
+reason = "Encryption at rest and the signing key: targets store clone credentials encrypted, the dispatcher seals them to agents, the exports are signed. `outbound`: Vault is reached through the guard like any other destination. `settings`: the signing key is kept in a `t_setting` row. Neither uses `crypto`, so no cycle can close."
 
 [module.exports]
 status = "pending"
 allowed = ["access", "access::security", "gate", "inventory", "issues", "issues::queries", "scanning", "targets"]
+reason = "`gate`: the attestation states the last verdict. `issues` and `issues::queries`: the documents state the backlog, and a VEX document is imported. `scanning`: a document is made for a scan the caller may see. `targets`: a document names its target. `inventory`: the SBOM documents. `access` for its routes only. `access::security` for its routes."
 
 [module.forges]
 status = "pending"
 allowed = ["targets", "checklists", "access::security"]
+reason = "`targets` for the import: targets, solutions and projects are created through its own gestures, first scans queued through `TargetScans`. `checklists` for the change-review readings, through the port `ChangeReviews` this module implements: the dependency runs from the module that calls the forge to the one that judges what it said. `access::security` for its routes."
 
 [module.gate]
 status = "pending"
 allowed = ["access", "access::security", "issues", "issues::queries", "rules", "scanning", "scanning::queries", "targets"]
+reason = "`issues` and `issues::queries`, `scanning` and `scanning::queries`, `targets`: a verdict is computed over the open issues and the latest scans of the targets. `rules`: the verdict weighs rule coverage. `access` for its routes only. `access::security` for its routes."
 
 [module.inventory]
 status = "pending"
 allowed = ["access", "access::security", "scanning", "scanning::queries", "targets"]
+reason = "`scanning` and `scanning::queries`: the inventory reads scans and findings through `ScanCatalog` and `PackageImpact`, while a scan's components reach it through `ScanIngestor.InventorySink`, a port `scanning` declares. `targets`: a component is named by its target. `access` for its routes only. `access::security` for its routes."
 
 [module.issues]
 status = "pending"
 allowed = ["access", "access::security", "scanning", "targets"]
+reason = "`access`: the backlog is read within the caller's visibility. `targets`: an issue belongs to a target and answers the listings' counts through `TargetBacklog`, a port `targets` declares. `scanning`: the backlog reads scans and findings through `ScanCatalog`; a scan's findings reach it through `ScanIngestor.Backlog`, a port `scanning` declares. `access::security` for its routes."
 interfaces = ["queries"]
 
 [module.maintenance]
 status = "pending"
 allowed = []
+shared = true
+reason = "The periodic tick's port (`MaintenanceTask`) and the jobs that run once per database: every module with periodic work contributes a task beside the service it calls, and this module names none of them (decision 0029)."
 
 [module.notifications]
 status = "pending"
 allowed = ["access", "access::security", "issues", "targets"]
+reason = "`access`: a scan's delta is routed to the teams granted its target. `issues`: the delta is the backlog's, announced through `ScanDelta.Sink`. `targets`: a message names its target. `access::security` for its routes."
 
 [module.outbound]
 status = "pending"
 allowed = []
+shared = true
+reason = "The one door out (`PinnedHttpSender` and its guard): every module that calls a forge, a tracker, a feed or Vault goes through it, which is the point of it being one."
 
 [module.outbox]
 status = "pending"
 allowed = ["maintenance"]
+shared = true
+reason = "The relay (decision 0033): a domain's reaction leaves through a message enqueued in the caller's transaction. `maintenance`: the relay and the purge of delivered messages are the outbox's contributions to the periodic tick; `maintenance` uses nothing, so no cycle can close."
 
 [module.platform]
 status = "pending"
@@ -145,44 +177,57 @@ allowed = []
 [module.plugins]
 status = "pending"
 allowed = ["access", "access::security", "inventory", "issues", "scanning", "targets"]
+reason = "`scanning`: a scan asks which plugins a repository runs through `ScanPlugins`, a port `scanning` declares and this module implements. `issues`: an import folds its findings into the backlog by the same reconciliation. `targets`: an activation names a project or a repository. `inventory`: build SBOMs. `access`: activations are refused by the whole-project guard. `access::security` for its routes."
 
 [module.posture]
 status = "pending"
 allowed = ["access", "access::security", "gate", "inventory", "issues", "issues::queries", "notifications", "scanning", "targets"]
+reason = "It reads what the modules below it hold — `gate`, `inventory`, `issues` and `issues::queries`, `scanning`, `targets` — and sends the digest through `notifications`. `access`: every figure is narrowed to what the account may see. `access::security` for its routes."
 
 [module.reporting]
 status = "pending"
 allowed = []
+shared = true
+reason = "The report rendering every document export and screen shares."
 
 [module.reportplugins]
 status = "pending"
 allowed = ["access", "access::security", "targets", "scanning", "scanning::queries", "gate", "issues", "issues::queries", "inventory", "compliance", "checklists"]
+reason = "The export a plugin receives reads each part from its owner's API: `targets`, `scanning` and `scanning::queries`, `gate`, `issues` and `issues::queries`, `inventory`, `compliance`, `checklists`. `access`: the export is refused for a caller who does not see the whole project. `access::security` for its routes."
 
 [module.rules]
 status = "pending"
 allowed = ["access::security", "inventory", "issues", "scanning"]
+reason = "`inventory`: rule coverage compares the rule sets with the components' package URLs. `issues`: a rule set's impact on the open SAST issues. `scanning`: a scan fetches the active rule set through `ScanRuleSets`, a port `scanning` declares — the other way round would close `scanning` → `rules` → `inventory` → `scanning`. `access::security` for its routes; not `access`."
 
 [module.scanning]
 status = "pending"
 allowed = ["access", "access::security", "targets"]
+reason = "`access`: a scan is read within the caller's visibility, and the dispatcher hands a task to the agent the principal carries. `targets`: a scan is of a target — the dispatcher reads its row and credentials, the scheduler its schedule. What it needs of higher modules is a port it declares (`ScanIngestor.Backlog`, `InventorySink`, `ScanRuleSets`, `AgentClaimLock`). `access::security` for its routes."
 interfaces = ["queries"]
 
 [module.settings]
 status = "pending"
 allowed = []
+shared = true
+reason = "The deployment's settings (`t_setting`): retention, the scanners' switches, the licence blocklist, the default schedule — read by nearly every domain, so a line in each would be a review nobody takes."
 
 [module.siem]
 status = "pending"
 allowed = ["access::security"]
+reason = "Nothing above the foundation for its services: it hears the audit log through its listener. `access::security` for its routes."
 
 [module.targets]
 status = "pending"
 allowed = ["access", "access::security"]
+reason = "`access` alone: grants are revoked through `TargetGrants` before a purge, and visibility reads the projects through `GrantableTargets`, a port `access` declares and `targets` implements. Not `scanning` nor `issues`: the listings' figures and the scan trigger are ports `targets` declares (`TargetScans`, `TargetBacklog`), so every module that names a target can depend on it. `access::security` for its routes."
 
 [module.threatintel]
 status = "pending"
 allowed = ["access", "access::security", "issues", "issues::queries", "scanning", "targets"]
+reason = "`issues` and `issues::queries`: the feed re-evaluates the backlog's exploitation and the EPSS ranking reads the open issues. `scanning`: enrichment and end of life are `ScanIngestor.Enricher` and `EndOfLifeSource`, ports `scanning` declares. `targets`: the ranking names each issue's target. `access` for its routes only. `access::security` for its routes."
 
 [module.tickets]
 status = "pending"
 allowed = ["access", "access::security", "gate", "issues", "targets"]
+reason = "`access`, `issues`, `targets`: a ticket is attached to a visible issue of a target. `gate`: the sweep opens a ticket only for an issue the policy of its scope would fail on (`ActiveGatePolicies`). `gate` uses nothing that uses `tickets`. `access::security` for its routes."

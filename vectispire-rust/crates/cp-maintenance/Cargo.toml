@@ -1,0 +1,36 @@
+[package]
+name = "vectispire-cp-maintenance"
+description = "The control plane's maintenance module: the periodic jobs' port and their global order, the three turns that run them, the one-shot jobs of t_one_shot_job."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Each engine's checked queries are a feature of their own, as in cp-db: the offline cache of one engine is
+# generated while only that engine's database is up (crates/cp-db/scripts/sqlx-prepare.sh, with this crate's name).
+# Both are on in every other build.
+default = ["mysql-queries", "postgres-queries"]
+mysql-queries = []
+postgres-queries = []
+
+[dependencies]
+futures-util.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tokio = { workspace = true, features = ["time", "macros"] }
+tracing.workspace = true
+vectispire-cp-db = { path = "../cp-db" }
+
+[dev-dependencies]
+serde_json.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
+tracing-subscriber.workspace = true
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+vectispire-domain.workspace = true
+
+[lints]
+workspace = true

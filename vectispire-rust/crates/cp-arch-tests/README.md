@@ -6,7 +6,8 @@ the port's plan (`docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md
 
 | rule | where | Java |
 |---|---|---|
-| A crate depends only on what `data/edges.toml` allows; no cycle; the pure crates stay pure; nothing the agent links is control-plane code | `src/edges.rs`, `src/graph.rs` | `ModularityTest`, `domainIsPure`, `configSitsUnderEveryModule` |
+| A crate depends only on what `data/edges.toml` allows, the shared foundation unlisted; no cycle; the pure crates stay pure; nothing the agent links is control-plane code | `src/edges.rs`, `src/graph.rs` | `ModularityTest`, `domainIsPure`, `configSitsUnderEveryModule` |
+| `data/edges.toml` is the module model Modulith reads: the modules, their lists, the shared ones, the named interfaces | `tests/workspace.rs` against `reference/modules/modules.json` | `ModulesReferenceSetTest` writes it |
 | The layers inside a module crate; the places are closed; `web`, `internal`, `persistence` are not `pub` | `src/layering.rs`, `src/facts.rs` | `ArchitectureTest` |
 | A statement naming another module's table is on a list that only shrinks | `src/sql.rs` | `CrossModuleQueriesTest` |
 | `unsafe` is forbidden, with one named exception | `src/unsafe_code.rs` | — |
@@ -20,6 +21,14 @@ the port's plan (`docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md
   line in it is a decision for the review.** A new module crate is a line here first (`status = "pending"`); when its
   port is finished it becomes `"ported"`, and from then on a listed edge its crate does not use fails (Modulith's "a line
   nothing uses"). `platform` is `open`: the shell composes several domains, and the port writes its list when it lands.
+  **Seven modules are `shared`** — Java's foundation, `@Modulithic(sharedModules)` on `VectispireApplication`: settings,
+  outbound, crypto, audit, outbox, reporting, maintenance. Every module that is not shared uses them without a line, as
+  Modulith allows; a domain listing one is refused (`ModularityTest.eachModuleDeclaresExactlyWhatItUses` leaves them out
+  of a domain's comparison); an edge between two shared modules is listed like any other (`crypto → outbound, settings`,
+  `outbox → maintenance`), because sharing says nothing about the foundation's own edges; and the unlisted edges into
+  the foundation are in the cycle check, so a shared module listing a domain is refused as a cycle. Every list, and
+  every sharing, carries its `reason` — the paragraph of its `package-info`, shortened — or the file does not load.
+  The whole file is held to Java's module model by `tests/workspace.rs` (`reference/modules/modules.json`).
 - **`data/tables.toml`** — which module owns which of the 77 tables, read from the JPA entities. A table is a line in the
   module that owns it.
 - **`data/sql-known.toml`** — the statements that cross, with their reasons. The list only shrinks; a ported module's

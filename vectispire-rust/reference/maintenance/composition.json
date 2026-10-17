@@ -1,0 +1,275 @@
+{
+  "sequence" : [ {
+    "slot" : "NOTIFICATION_RELAY",
+    "order" : 10
+  }, {
+    "slot" : "SCHEDULING_TICK",
+    "order" : 20
+  }, {
+    "slot" : "CREDENTIALED_BACKLOG",
+    "order" : 30
+  }, {
+    "slot" : "REPORT_RUN_SWEEP",
+    "order" : 40
+  }, {
+    "slot" : "SCAN_RETENTION",
+    "order" : 100
+  }, {
+    "slot" : "SENT_MESSAGES",
+    "order" : 200
+  }, {
+    "slot" : "TICKET_SWEEP",
+    "order" : 300
+  }, {
+    "slot" : "TICKET_TOKEN_CHECK",
+    "order" : 310
+  }, {
+    "slot" : "FORGE_TOKEN_WATCH",
+    "order" : 320
+  }, {
+    "slot" : "INVENTORY_BACKFILL",
+    "order" : 400
+  }, {
+    "slot" : "REPOSITORY_IDENTITIES",
+    "order" : 410
+  }, {
+    "slot" : "TRIAGE_EXPIRY",
+    "order" : 500
+  }, {
+    "slot" : "SLA_BREACHES",
+    "order" : 510
+  }, {
+    "slot" : "WEEKLY_DIGEST",
+    "order" : 600
+  }, {
+    "slot" : "CHECKLIST_REMINDERS",
+    "order" : 610
+  }, {
+    "slot" : "COMPLIANCE_HISTORY",
+    "order" : 700
+  }, {
+    "slot" : "OWASP_WEEKLY_COVERAGE",
+    "order" : 710
+  }, {
+    "slot" : "SESSION_CLEANUP",
+    "order" : 800
+  }, {
+    "slot" : "GATE_VERDICTS",
+    "order" : 810
+  }, {
+    "slot" : "COMPLIANCE_SNAPSHOTS",
+    "order" : 820
+  }, {
+    "slot" : "OWASP_WEEKLY_RETENTION",
+    "order" : 825
+  }, {
+    "slot" : "REPORT_EVIDENCE_RETENTION",
+    "order" : 826
+  }, {
+    "slot" : "BUILD_SBOM_RETENTION",
+    "order" : 827
+  }, {
+    "slot" : "ABANDONED_REVIEWS",
+    "order" : 830
+  }, {
+    "slot" : "KEV_CATALOGUE",
+    "order" : 840
+  }, {
+    "slot" : "EPSS_SCORES",
+    "order" : 850
+  }, {
+    "slot" : "CHANGE_REVIEWS",
+    "order" : 860
+  }, {
+    "slot" : "ORPHANED_TARGET_ROWS",
+    "order" : 900
+  } ],
+  "cadences" : [ {
+    "cadence" : "RELAY",
+    "label" : "notification relay",
+    "method" : "relayNotifications",
+    "fixedDelay" : "${vectispire.jobs.relay-interval:60s}",
+    "initialDelay" : "${vectispire.jobs.initial-delay:30s}"
+  }, {
+    "cadence" : "SCHEDULING",
+    "label" : "scheduling tick",
+    "method" : "scheduleDueScans",
+    "fixedDelay" : "${vectispire.jobs.scheduler-interval:60s}",
+    "initialDelay" : "${vectispire.jobs.initial-delay:30s}"
+  }, {
+    "cadence" : "HOURLY",
+    "label" : "maintenance",
+    "method" : "hourlyMaintenance",
+    "fixedDelay" : "${vectispire.jobs.maintenance-interval:1h}",
+    "initialDelay" : "${vectispire.jobs.initial-delay:30s}"
+  } ],
+  "tasks" : [ {
+    "task" : "NotificationRelayTask",
+    "module" : "outbox",
+    "slot" : "NOTIFICATION_RELAY",
+    "order" : 10,
+    "cadence" : "RELAY"
+  }, {
+    "task" : "SchedulingTickTask",
+    "module" : "scanning",
+    "slot" : "SCHEDULING_TICK",
+    "order" : 20,
+    "cadence" : "SCHEDULING"
+  }, {
+    "task" : "CredentialedBacklogTask",
+    "module" : "agents",
+    "slot" : "CREDENTIALED_BACKLOG",
+    "order" : 30,
+    "cadence" : "SCHEDULING"
+  }, {
+    "task" : "ReportRunSweepTask",
+    "module" : "reportplugins",
+    "slot" : "REPORT_RUN_SWEEP",
+    "order" : 40,
+    "cadence" : "SCHEDULING"
+  }, {
+    "task" : "ScanRetentionTask",
+    "module" : "scanning",
+    "slot" : "SCAN_RETENTION",
+    "order" : 100,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "SentMessagesTask",
+    "module" : "outbox",
+    "slot" : "SENT_MESSAGES",
+    "order" : 200,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "TicketSweepTask",
+    "module" : "tickets",
+    "slot" : "TICKET_SWEEP",
+    "order" : 300,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "TicketTokenCheckTask",
+    "module" : "tickets",
+    "slot" : "TICKET_TOKEN_CHECK",
+    "order" : 310,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "ForgeTokenWatchTask",
+    "module" : "forges",
+    "slot" : "FORGE_TOKEN_WATCH",
+    "order" : 320,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "InventoryBackfillTask",
+    "module" : "inventory",
+    "slot" : "INVENTORY_BACKFILL",
+    "order" : 400,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "RepositoryIdentityTask",
+    "module" : "targets",
+    "slot" : "REPOSITORY_IDENTITIES",
+    "order" : 410,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "TriageExpiryTask",
+    "module" : "issues",
+    "slot" : "TRIAGE_EXPIRY",
+    "order" : 500,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "SlaBreachTask",
+    "module" : "issues",
+    "slot" : "SLA_BREACHES",
+    "order" : 510,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "WeeklyDigestTask",
+    "module" : "posture",
+    "slot" : "WEEKLY_DIGEST",
+    "order" : 600,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "ChecklistReminderTask",
+    "module" : "checklists",
+    "slot" : "CHECKLIST_REMINDERS",
+    "order" : 610,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "ComplianceHistoryTask",
+    "module" : "compliance",
+    "slot" : "COMPLIANCE_HISTORY",
+    "order" : 700,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "OwaspWeeklyCoverageTask",
+    "module" : "compliance",
+    "slot" : "OWASP_WEEKLY_COVERAGE",
+    "order" : 710,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "SessionCleanupTask",
+    "module" : "access",
+    "slot" : "SESSION_CLEANUP",
+    "order" : 800,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "VerdictRetentionTask",
+    "module" : "gate",
+    "slot" : "GATE_VERDICTS",
+    "order" : 810,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "SnapshotRetentionTask",
+    "module" : "compliance",
+    "slot" : "COMPLIANCE_SNAPSHOTS",
+    "order" : 820,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "OwaspWeeklyRetentionTask",
+    "module" : "compliance",
+    "slot" : "OWASP_WEEKLY_RETENTION",
+    "order" : 825,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "ReportEvidenceRetentionTask",
+    "module" : "reportplugins",
+    "slot" : "REPORT_EVIDENCE_RETENTION",
+    "order" : 826,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "BuildSbomRetentionTask",
+    "module" : "inventory",
+    "slot" : "BUILD_SBOM_RETENTION",
+    "order" : 827,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "AbandonedReviewsTask",
+    "module" : "compliance",
+    "slot" : "ABANDONED_REVIEWS",
+    "order" : 830,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "KevCatalogueSyncTask",
+    "module" : "threatintel",
+    "slot" : "KEV_CATALOGUE",
+    "order" : 840,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "EpssScoresSyncTask",
+    "module" : "threatintel",
+    "slot" : "EPSS_SCORES",
+    "order" : 850,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "ChangeReviewTask",
+    "module" : "forges",
+    "slot" : "CHANGE_REVIEWS",
+    "order" : 860,
+    "cadence" : "HOURLY"
+  }, {
+    "task" : "OrphanedTargetRowsTask",
+    "module" : "targets",
+    "slot" : "ORPHANED_TARGET_ROWS",
+    "order" : 900,
+    "cadence" : "HOURLY"
+  } ]
+}
