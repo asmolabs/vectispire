@@ -11,6 +11,10 @@
 //!   Ed25519 seed an administrator pinned for this agent (`VECTISPIRE_AGENT_SIGNING_KEY`);
 //! - [`SealingKeyPair`] is the X25519 pair generated per process, whose public half is announced and
 //!   to which the control plane seals deployment keys and HTTPS tokens.
+//!
+//! What the control plane does with it — the other half, added for the Rust control plane (task 2.3) and
+//! used by no agent code: [`seal`] writes the envelope [`SealingKeyPair::open`] reads, byte for byte as
+//! `SealedEnvelope.seal` writes it.
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
@@ -46,6 +50,9 @@ pub enum CryptoError {
     /// The sealing-key announcement cannot be signed for these values.
     #[error("Only a usable X25519 key, a known agent and a positive generation can be signed.")]
     Unsignable,
+    /// An envelope cannot be sealed to this key — `SealedEnvelope.seal`'s sentence.
+    #[error("The recipient's sealing key is not a usable X25519 public key.")]
+    Recipient,
 }
 
 fn decode(value: &str, expected_length: usize) -> Option<Vec<u8>> {
@@ -277,6 +284,65 @@ impl SealingKeyPair {
         let plain = cipher.decrypt(Nonce::from_slice(nonce), Payload { msg: body, aad: &associated }).ok()?;
         String::from_utf8(plain).ok()
     }
+}
+
+/// `java.util.Base64`'s basic decoder for the sealing side, which reads the recipient's key exactly as
+/// `SealedEnvelope.seal` does: padding optional, the two unused bits of a final quantum ignored, and nothing
+/// trimmed — a key with white space around it is refused there, so it is refused here.
+const JAVA_DECODER: GeneralPurpose = GeneralPurpose::new(
+    &base64::alphabet::STANDARD,
+    GeneralPurposeConfig::new()
+        .with_decode_padding_mode(DecodePaddingMode::Indifferent)
+        .with_decode_allow_trailing_bits(true),
+);
+
+/// Seals `plain` to the agent whose announced key is `recipient_public`, for `context` —
+/// `SealedEnvelope.seal`: `sealed:v2:` and the base64 of the ephemeral key's `SubjectPublicKeyInfo`, the
+/// nonce and the AES-256-GCM output, the session key HKDF-SHA256 of the X25519 agreement, salted with the
+/// digest of both keys, the associated data the ephemeral key and the context.
+///
+/// **One ephemeral pair per envelope**, from the operating system's randomness: two envelopes for the same
+/// agent share no key material, so recovering one session key opens one envelope.
+pub fn seal(recipient_public: &str, plain: &str, context: &SealContext) -> Result<String, CryptoError> {
+    seal_with(&mut rand_core::OsRng, recipient_public, plain, context)
+}
+
+/// [`seal`] drawing from `random` exactly as Java draws from its `SecureRandom`: the ephemeral secret's 32
+/// bytes first, then the 12 of the nonce. Given the stream Java was given, the envelope is the same bytes —
+/// which is how the reference set holds the two to one format.
+pub fn seal_with(
+    random: &mut (impl rand_core::RngCore + rand_core::CryptoRng),
+    recipient_public: &str,
+    plain: &str,
+    context: &SealContext,
+) -> Result<String, CryptoError> {
+    let recipient_spki = JAVA_DECODER.decode(recipient_public).map_err(|_| CryptoError::Recipient)?;
+    let recipient = recipient_spki
+        .strip_prefix(X25519_SPKI_PREFIX.as_slice())
+        .and_then(|raw| <[u8; 32]>::try_from(raw).ok())
+        .ok_or(CryptoError::Recipient)?;
+
+    let mut ephemeral_secret = [0u8; 32];
+    random.fill_bytes(&mut ephemeral_secret);
+    // Clamped by the multiplication, as BouncyCastle clamps the bytes it drew: the same scalar either way.
+    let ephemeral = SealingKeyPair::from_secret_bytes(ephemeral_secret);
+    let shared = ephemeral.secret.diffie_hellman(&x25519_dalek::PublicKey::from(recipient));
+    let session_key =
+        session_key(shared.as_bytes(), &ephemeral.public_spki, &recipient_spki).ok_or(CryptoError::Recipient)?;
+
+    let mut nonce = [0u8; NONCE_LENGTH];
+    random.fill_bytes(&mut nonce);
+    let cipher = Aes256Gcm::new_from_slice(&session_key).map_err(|_| CryptoError::Recipient)?;
+    let mut associated = ephemeral.public_spki.clone();
+    associated.extend_from_slice(context.value().as_bytes());
+    let sealed = cipher
+        .encrypt(Nonce::from_slice(&nonce), Payload { msg: plain.as_bytes(), aad: &associated })
+        .map_err(|_| CryptoError::Recipient)?;
+
+    let mut payload = ephemeral.public_spki.clone();
+    payload.extend_from_slice(&nonce);
+    payload.extend_from_slice(&sealed);
+    Ok(format!("{SEALED_PREFIX}{}", BASE64.encode(payload)))
 }
 
 fn session_key(shared: &[u8], ephemeral_spki: &[u8], recipient_spki: &[u8]) -> Option<[u8; 32]> {
