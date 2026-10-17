@@ -24,10 +24,8 @@ These are prerequisites, not tasks. Until they are done, a new person cannot sta
 
 1. **Nothing is pushed.** Every branch below exists only in the original clone. Push `rust/p1-merge`,
    `feat/rust-agent`, `docs/rust-control-plane-plan` and any task branch you hand over.
-2. **The mutation scripts are not in the repository.** Each task's mutation check was run with a
-   throwaway script (`p1acc-mutate.py`, `p1c-mutate.py`, `mutate-authz.py`, `p1aud-mutate.py`,
-   `p1merge-mutate.py`, `p2-1-mutate.py`, `p2-4-mutate.py`, `p2-3-mutate.py`, `p2-5-mutate.py` — the last takes the workspace as its argument) kept in a session scratch directory. Move them under
-   `vectispire-rust/security/mutants/` with a short README, or the next person cannot rerun them.
+2. **The mutation scripts are in the repository** (done 2026-10-17): one script per task under
+   `vectispire-rust/security/mutants/`, the mutants as data on `_runner.py`; `check.sh` runs every list's `--check`.
 3. **The work trees were in a temporary directory.** The branches hold everything; recreate a work tree
    per task with `git worktree add`.
 4. **The Java oracle tests run from a Java tree on the same branch.** Every task branch carries both

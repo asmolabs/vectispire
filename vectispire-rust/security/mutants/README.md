@@ -23,6 +23,7 @@ The mutant lists are data, one script per task; the shared logic is in `_runner.
 | `p2-1-maintenance.py` | 2.1 maintenance, architecture rules | `cp-arch-tests`, `cp-maintenance` |
 | `p2-3-crypto.py` | 2.3 encryption | `cp-crypto`, and `seal` in `crates/crypto` |
 | `p2-4-fingerprint.py` | 2.4 fingerprint, vocabulary, cron | `crates/domain` |
+| `p2-5-protocol.py` | 2.5 the protocol's server half | `crates/protocol`: the Jackson reader, coercions, the result, the server's bodies, the claim's writer |
 
 ## Running
 
