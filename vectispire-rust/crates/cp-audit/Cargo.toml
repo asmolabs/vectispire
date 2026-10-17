@@ -1,0 +1,34 @@
+[package]
+name = "vectispire-cp-audit"
+description = "The control plane's audit module: the hash-chained log, its mirror and listeners, its integrity report."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# The suite against the real Java code (tests/oracle.rs): it needs a JDK 25 and Gradle's cache for
+# vectispire-core besides Docker, so it is a feature of its own, run by oracle/check-oracle.sh.
+oracle = []
+
+[dependencies]
+futures-util.workspace = true
+sha2.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+vectispire-cp-db = { path = "../cp-db" }
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+time = { version = "0.3", features = ["std", "parsing", "formatting"] }
+tokio = { workspace = true, features = ["test-util"] }
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true
