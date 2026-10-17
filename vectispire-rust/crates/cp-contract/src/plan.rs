@@ -54,7 +54,7 @@ pub fn plan(goldens: &[Golden], document: &Document, not_ported: &Allowlist) -> 
                 let route = (method.clone(), operation.path.clone());
                 recorded.insert(route.clone());
                 if not_ported.entries().contains(&route) {
-                    plan.not_ported += 1;
+                    plan.not_ported = plan.not_ported.saturating_add(1);
                 } else {
                     plan.to_replay.push(format!("{} ({method} {})", golden.name, operation.path));
                 }
