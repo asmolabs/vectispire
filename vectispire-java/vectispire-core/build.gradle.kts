@@ -540,6 +540,9 @@ tasks.named<Test>("test") {
     // `protocol`'s server half: what the control plane's two mappers read and write on the agent routes — the result
     // and the failure report through `CoreConfiguration`'s bean, the rest through Spring MVC's — by `AgentWireReferenceSetTest`.
     inputs.dir(rootProject.file("../vectispire-rust/reference/artifacts")).withPropertyName("artifactsReferenceSet")
+    // `cp-outbox`'s: the relay's calls over a mocked repository, the backoff, the stamped rows (`OutboxReferenceSetTest`),
+    // and the types the started application relays (`OutboxRegistryReferenceSetTest`), which hold the Rust relay back.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/outbox")).withPropertyName("outboxReferenceSet")
 }
 
 /**
