@@ -537,6 +537,9 @@ tasks.named<Test>("test") {
     // `cp-crypto`'s: encryption at rest, the Vault exchanges and the signing key, both ways — `EncryptionService`,
     // `VaultKmsProvider` and `SigningKeyService` are this module's, written and read by `EncryptionReferenceSetTest`.
     inputs.dir(rootProject.file("../vectispire-rust/reference/encryption")).withPropertyName("encryptionReferenceSet")
+    // `protocol`'s server half: what the control plane's two mappers read and write on the agent routes — the result
+    // and the failure report through `CoreConfiguration`'s bean, the rest through Spring MVC's — by `AgentWireReferenceSetTest`.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/artifacts")).withPropertyName("artifactsReferenceSet")
 }
 
 /**
