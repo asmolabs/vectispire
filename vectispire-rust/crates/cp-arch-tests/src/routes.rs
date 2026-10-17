@@ -36,10 +36,22 @@ pub enum Requirement {
 
 impl Requirement {
     /// Whether every role this requirement admits sees the whole estate by construction, so that it settles
-    /// scope on its own (`SCOPE_GUARDS`): administrators and the security lead and governance readers — not
-    /// `WriteAccount`, which admits the roles with a restricted scope, and not `Account`.
+    /// scope on its own (`SCOPE_GUARDS`): administrators, the platform governor, the security lead and governance
+    /// readers — not `WriteAccount`, which admits the roles with a restricted scope, and not `Account`.
+    ///
+    /// **Listed here, derived on the Java side**: `AuthorizationMarkers` reads each marker's `hasAnyRole` and keeps
+    /// the markers whose every role has a global scope, and this crate sees no role. `cp-access`'s
+    /// `the_scope_guards_are_the_markers_whose_every_role_is_global` holds this list to that derivation, over the
+    /// Java markers and flags; it is what found `PlatformGovernor` missing (`SUPERUSER` is global, so Java's set
+    /// holds it).
     pub fn settles_scope(&self) -> bool {
-        matches!(self, Requirement::Administrator | Requirement::SecurityLead | Requirement::GovernanceRead)
+        matches!(
+            self,
+            Requirement::Administrator
+                | Requirement::PlatformGovernor
+                | Requirement::SecurityLead
+                | Requirement::GovernanceRead
+        )
     }
 }
 

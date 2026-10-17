@@ -58,7 +58,9 @@ What types cannot see — a table named as a string in `Alias::new("t_issue")` o
 ## The two offline query caches
 
 `sqlx::query!` asks a real database to describe each statement while compiling. The answer is kept in
-`crates/cp-db/.sqlx/`, so a build needs no database (`SQLX_OFFLINE=true`).
+`crates/cp-db/.sqlx/` — and in each module crate's own `.sqlx/` for its persistence's statements (`cp-access`,
+`cp-audit`, `cp-settings` today, listed in the script's `crates_with_queries`) — so a build needs no database
+(`SQLX_OFFLINE=true`).
 
 - **One directory, both engines.** Offline, the macro reads the cached file's `db_name` and expands for
   that driver, so the files of both engines can sit together.
@@ -68,8 +70,9 @@ What types cannot see — a table named as a string in `Alias::new("t_issue")` o
   Pointed at one `DATABASE_URL`, the macro would try to describe the other engine's statements against
   it and fail, so `crates/cp-db/scripts/sqlx-prepare.sh` compiles one engine's at a time against a
   throwaway server of that engine, migrated by the real Flyway.
-- **A module crate's statements use the same script**, named after the crate: `sqlx-prepare.sh check cp-audit`
-  regenerates `crates/cp-audit/.sqlx/`. Its database is named in a `.env` the script writes beside that crate's
+- **A module crate's statements use the same script.** Without an argument it prepares or checks every crate in
+  its list against one server per engine; named, a crate alone: `sqlx-prepare.sh check cp-audit` regenerates
+  `crates/cp-audit/.sqlx/` only. There is no copy of the script in a module crate. A crate's database is named in a `.env` the script writes beside that crate's
   manifest and removes, never as `DATABASE_URL` in the environment — cp-db's own macros would then describe their
   statements against the one engine up, and fail for the other; without a `.env`, a crate compiles from its cache.
 - `sqlx-prepare.sh prepare` rewrites the caches; **`sqlx-prepare.sh check`** regenerates into a scratch

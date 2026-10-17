@@ -3382,6 +3382,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectispire-cp-access"
+version = "0.12.0-dev"
+dependencies = [
+ "axum",
+ "http",
+ "http-body-util",
+ "sea-query",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tower",
+ "tracing",
+ "vectispire-cp-arch-tests",
+ "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-domain",
+ "vectispire-migrate",
+ "vectispire-testkit",
+]
+
+[[package]]
 name = "vectispire-cp-app"
 version = "0.12.0-dev"
 dependencies = [

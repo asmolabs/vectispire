@@ -134,7 +134,7 @@ you when you touch those crates or a Flyway migration:
 ```bash
 cd vectispire-rust
 ./crates/migrate/oracle/check-oracle.sh             # the migration runner against the real Flyway, both engines
-./crates/cp-db/scripts/sqlx-prepare.sh check        # the checked queries' caches are current (both engines)
+./crates/cp-db/scripts/sqlx-prepare.sh check        # every crate's checked-query cache is current (both engines)
 crates/cp-contract/scripts/record-goldens.sh /tmp/vs-recordings    # the Java suite's traffic, recorded
 cargo run -p vectispire-cp-contract -- replay-plan /tmp/vs-recordings
 ```

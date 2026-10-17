@@ -1,0 +1,1949 @@
+{
+  "allowances" : {
+    "everything" : {
+      "visibility" : "everything",
+      "grantedProjects" : [ ],
+      "narrowedByCredential" : false
+    },
+    "two-repositories" : {
+      "visibility" : {
+        "only" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        } ]
+      },
+      "grantedProjects" : [ ],
+      "narrowedByCredential" : false
+    },
+    "narrowed-key" : {
+      "visibility" : {
+        "only" : [ {
+          "repository" : 101
+        } ]
+      },
+      "grantedProjects" : [ ],
+      "narrowedByCredential" : true
+    },
+    "project-granted-empty" : {
+      "visibility" : {
+        "only" : [ ]
+      },
+      "grantedProjects" : [ 10 ],
+      "narrowedByCredential" : false
+    },
+    "repository-image-project" : {
+      "visibility" : {
+        "only" : [ {
+          "repository" : 103
+        }, {
+          "container" : 201
+        } ]
+      },
+      "grantedProjects" : [ 20 ],
+      "narrowedByCredential" : false
+    },
+    "nothing" : {
+      "visibility" : {
+        "only" : [ ]
+      },
+      "grantedProjects" : [ ],
+      "narrowedByCredential" : false
+    },
+    "whole-project-10" : {
+      "visibility" : {
+        "only" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        }, {
+          "container" : 201
+        } ]
+      },
+      "grantedProjects" : [ ],
+      "narrowedByCredential" : false
+    }
+  },
+  "projects" : [ {
+    "id" : 10,
+    "name" : "Payments",
+    "repositories" : [ 101, 102 ],
+    "filed" : [ {
+      "repository" : 101
+    }, {
+      "repository" : 102
+    }, {
+      "container" : 201
+    } ]
+  }, {
+    "id" : 20,
+    "name" : "Ledger",
+    "repositories" : [ 103 ],
+    "filed" : [ {
+      "repository" : 103
+    } ]
+  }, {
+    "id" : 30,
+    "name" : "Empty",
+    "repositories" : [ ],
+    "filed" : [ ]
+  }, {
+    "id" : 40,
+    "name" : null,
+    "repositories" : [ 104 ],
+    "filed" : [ {
+      "repository" : 104
+    }, {
+      "container" : 202
+    } ]
+  }, {
+    "id" : 50,
+    "name" : "Duplicated",
+    "repositories" : [ 101 ],
+    "filed" : [ {
+      "repository" : 101
+    }, {
+      "repository" : 101
+    }, {
+      "container" : 201
+    } ]
+  } ],
+  "solutions" : [ {
+    "id" : 1,
+    "name" : "Retail",
+    "projects" : [ 10, 20 ],
+    "filed" : [ {
+      "repository" : 101
+    }, {
+      "repository" : 102
+    }, {
+      "container" : 201
+    }, {
+      "repository" : 103
+    } ]
+  }, {
+    "id" : 2,
+    "name" : null,
+    "projects" : [ 10 ],
+    "filed" : [ {
+      "repository" : 101
+    } ]
+  }, {
+    "id" : 3,
+    "name" : "Other",
+    "projects" : [ 30 ],
+    "filed" : [ ]
+  } ],
+  "targets" : [ {
+    "repository" : 101
+  }, {
+    "repository" : 102
+  }, {
+    "container" : 201
+  }, {
+    "container" : 202
+  }, {
+    "repository" : 999
+  } ],
+  "cases" : [ {
+    "allowance" : "everything",
+    "project" : 10,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 10,
+        "name" : "Payments"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        }, {
+          "container" : 201
+        } ],
+        "partial" : false
+      }
+    },
+    "everyTargetOfProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        }, {
+          "container" : 201
+        } ],
+        "partial" : false
+      }
+    }
+  }, {
+    "allowance" : "everything",
+    "project" : 20,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 20,
+        "name" : "Ledger"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 20,
+        "name" : "Ledger",
+        "visible" : [ {
+          "repository" : 103
+        } ],
+        "partial" : false
+      }
+    },
+    "everyTargetOfProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 20,
+        "name" : "Ledger",
+        "visible" : [ {
+          "repository" : 103
+        } ],
+        "partial" : false
+      }
+    }
+  }, {
+    "allowance" : "everything",
+    "project" : 30,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 30,
+        "name" : "Empty"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 30,
+        "name" : "Empty",
+        "visible" : [ ],
+        "partial" : false
+      }
+    },
+    "everyTargetOfProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 30,
+        "name" : "Empty",
+        "visible" : [ ],
+        "partial" : false
+      }
+    }
+  }, {
+    "allowance" : "everything",
+    "project" : 40,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "everything",
+    "project" : 50,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 50,
+        "name" : "Duplicated"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 50,
+        "name" : "Duplicated",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "container" : 201
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "everything",
+    "solution" : 1,
+    "visibleSolution" : {
+      "ok" : {
+        "kind" : "SOLUTION",
+        "id" : 1,
+        "name" : "Retail",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        }, {
+          "repository" : 103
+        }, {
+          "container" : 201
+        } ],
+        "partial" : false
+      }
+    }
+  }, {
+    "allowance" : "everything",
+    "solution" : 2,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "everything",
+    "solution" : 3,
+    "visibleSolution" : {
+      "ok" : {
+        "kind" : "SOLUTION",
+        "id" : 3,
+        "name" : "Other",
+        "visible" : [ ],
+        "partial" : false
+      }
+    }
+  }, {
+    "allowance" : "everything",
+    "target" : {
+      "repository" : 101
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 101
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "everything",
+    "target" : {
+      "repository" : 102
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 102
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "everything",
+    "target" : {
+      "container" : 201
+    },
+    "visible" : {
+      "ok" : {
+        "container" : 201
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    }
+  }, {
+    "allowance" : "everything",
+    "target" : {
+      "container" : 202
+    },
+    "visible" : {
+      "ok" : {
+        "container" : 202
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    }
+  }, {
+    "allowance" : "everything",
+    "target" : {
+      "repository" : 999
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 999
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "everything",
+    "target" : null,
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "issueAbsent" : {
+      "notFound" : "Issue not found."
+    },
+    "scanAbsent" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "project" : 10,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 10,
+        "name" : "Payments"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "project" : 20,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "project" : 30,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "project" : 40,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "project" : 50,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 50,
+        "name" : "Duplicated"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 50,
+        "name" : "Duplicated",
+        "visible" : [ {
+          "repository" : 101
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "solution" : 1,
+    "visibleSolution" : {
+      "ok" : {
+        "kind" : "SOLUTION",
+        "id" : 1,
+        "name" : "Retail",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        } ],
+        "partial" : true
+      }
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "solution" : 2,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "solution" : 3,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "target" : {
+      "repository" : 101
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 101
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "target" : {
+      "repository" : 102
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 102
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "target" : {
+      "container" : 201
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "target" : {
+      "container" : 202
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "target" : {
+      "repository" : 999
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "two-repositories",
+    "target" : null,
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "issueAbsent" : {
+      "notFound" : "Issue not found."
+    },
+    "scanAbsent" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "project" : 10,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ {
+          "repository" : 101
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "project" : 20,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "project" : 30,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "project" : 40,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "project" : 50,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 50,
+        "name" : "Duplicated",
+        "visible" : [ {
+          "repository" : 101
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "solution" : 1,
+    "visibleSolution" : {
+      "ok" : {
+        "kind" : "SOLUTION",
+        "id" : 1,
+        "name" : "Retail",
+        "visible" : [ {
+          "repository" : 101
+        } ],
+        "partial" : true
+      }
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "solution" : 2,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "solution" : 3,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "target" : {
+      "repository" : 101
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 101
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "target" : {
+      "repository" : 102
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "target" : {
+      "container" : 201
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "target" : {
+      "container" : 202
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "target" : {
+      "repository" : 999
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "narrowed-key",
+    "target" : null,
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "issueAbsent" : {
+      "notFound" : "Issue not found."
+    },
+    "scanAbsent" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "project" : 10,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 10,
+        "name" : "Payments"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "project" : 20,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "project" : 30,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "project" : 40,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "project" : 50,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "solution" : 1,
+    "visibleSolution" : {
+      "ok" : {
+        "kind" : "SOLUTION",
+        "id" : 1,
+        "name" : "Retail",
+        "visible" : [ ],
+        "partial" : true
+      }
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "solution" : 2,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "solution" : 3,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "target" : {
+      "repository" : 101
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "target" : {
+      "repository" : 102
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "target" : {
+      "container" : 201
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "target" : {
+      "container" : 202
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "target" : {
+      "repository" : 999
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "project-granted-empty",
+    "target" : null,
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "issueAbsent" : {
+      "notFound" : "Issue not found."
+    },
+    "scanAbsent" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "project" : 10,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ {
+          "container" : 201
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "project" : 20,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 20,
+        "name" : "Ledger"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 20,
+        "name" : "Ledger",
+        "visible" : [ {
+          "repository" : 103
+        } ],
+        "partial" : false
+      }
+    },
+    "everyTargetOfProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 20,
+        "name" : "Ledger",
+        "visible" : [ {
+          "repository" : 103
+        } ],
+        "partial" : false
+      }
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "project" : 30,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "project" : 40,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "project" : 50,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 50,
+        "name" : "Duplicated",
+        "visible" : [ {
+          "container" : 201
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "solution" : 1,
+    "visibleSolution" : {
+      "ok" : {
+        "kind" : "SOLUTION",
+        "id" : 1,
+        "name" : "Retail",
+        "visible" : [ {
+          "repository" : 103
+        }, {
+          "container" : 201
+        } ],
+        "partial" : true
+      }
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "solution" : 2,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "solution" : 3,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "target" : {
+      "repository" : 101
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "target" : {
+      "repository" : 102
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "target" : {
+      "container" : 201
+    },
+    "visible" : {
+      "ok" : {
+        "container" : 201
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "target" : {
+      "container" : 202
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "target" : {
+      "repository" : 999
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "repository-image-project",
+    "target" : null,
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "issueAbsent" : {
+      "notFound" : "Issue not found."
+    },
+    "scanAbsent" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "project" : 10,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "project" : 20,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "project" : 30,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "project" : 40,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "project" : 50,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "solution" : 1,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "solution" : 2,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "solution" : 3,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "target" : {
+      "repository" : 101
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "target" : {
+      "repository" : 102
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "target" : {
+      "container" : 201
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "target" : {
+      "container" : 202
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "target" : {
+      "repository" : 999
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "nothing",
+    "target" : null,
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "issueAbsent" : {
+      "notFound" : "Issue not found."
+    },
+    "scanAbsent" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "project" : 10,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 10,
+        "name" : "Payments"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        }, {
+          "container" : 201
+        } ],
+        "partial" : false
+      }
+    },
+    "everyTargetOfProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 10,
+        "name" : "Payments",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        }, {
+          "container" : 201
+        } ],
+        "partial" : false
+      }
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "project" : 20,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "project" : 30,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "project" : 40,
+    "seesWholeProject" : false,
+    "whollyVisibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "visibleProject" : {
+      "notFound" : "Project not found."
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "project" : 50,
+    "seesWholeProject" : true,
+    "whollyVisibleProject" : {
+      "ok" : {
+        "id" : 50,
+        "name" : "Duplicated"
+      }
+    },
+    "visibleProject" : {
+      "ok" : {
+        "kind" : "PROJECT",
+        "id" : 50,
+        "name" : "Duplicated",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "container" : 201
+        } ],
+        "partial" : true
+      }
+    },
+    "everyTargetOfProject" : {
+      "notFound" : "Project not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "solution" : 1,
+    "visibleSolution" : {
+      "ok" : {
+        "kind" : "SOLUTION",
+        "id" : 1,
+        "name" : "Retail",
+        "visible" : [ {
+          "repository" : 101
+        }, {
+          "repository" : 102
+        }, {
+          "container" : 201
+        } ],
+        "partial" : true
+      }
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "solution" : 2,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "solution" : 3,
+    "visibleSolution" : {
+      "notFound" : "Solution not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "target" : {
+      "repository" : 101
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 101
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "target" : {
+      "repository" : 102
+    },
+    "visible" : {
+      "ok" : {
+        "repository" : 102
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    },
+    "repository" : {
+      "ok" : "row"
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "target" : {
+      "container" : 201
+    },
+    "visible" : {
+      "ok" : {
+        "container" : 201
+      }
+    },
+    "rowPresent" : {
+      "ok" : "row"
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "ok" : "row"
+    },
+    "scan" : {
+      "ok" : "row"
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "target" : {
+      "container" : 202
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "target" : {
+      "repository" : 999
+    },
+    "visible" : {
+      "notFound" : "Target not found."
+    },
+    "rowPresent" : {
+      "notFound" : "Target not found."
+    },
+    "rowAbsent" : {
+      "notFound" : "Target not found."
+    },
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "repository" : {
+      "notFound" : "Repository not found."
+    },
+    "repositoryAbsent" : {
+      "notFound" : "Repository not found."
+    }
+  }, {
+    "allowance" : "whole-project-10",
+    "target" : null,
+    "issue" : {
+      "notFound" : "Issue not found."
+    },
+    "scan" : {
+      "notFound" : "Scan not found."
+    },
+    "issueAbsent" : {
+      "notFound" : "Issue not found."
+    },
+    "scanAbsent" : {
+      "notFound" : "Scan not found."
+    }
+  } ]
+}
