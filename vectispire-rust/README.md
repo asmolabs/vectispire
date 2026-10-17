@@ -1,4 +1,4 @@
-# vectispire-rust — the remote agent, in Rust
+# vectispire-rust — the remote agent and the control plane's foundations, in Rust
 
 **Port in progress, not shipped.** Nothing here is built by `release.yml` or published, and no
 deployment runs it. The agent that ships is `vectispire-java/vectispire-agent`. This binary speaks the
@@ -37,10 +37,13 @@ The toolchain is pinned by `rust-toolchain.toml`.
 | `tls` | the one trust every HTTPS connection uses | the JVM truststore |
 | `testkit` | test support only: the reference sets, throwaway containers, the test forge and the stub control plane (`control_plane.rs`, on a loopback port, one thread per connection) | — |
 
-**The agent's isolation is a property of the graph** (decision 0003). The workspace shares no code
-with the control plane. `crates/agent/tests/isolation.rs` reads `cargo metadata` and fails if the agent
-links any database client, server framework or test-support crate. `deny.toml` bans the same crates
-workspace-wide. A second test fails if any source names the control plane's encryption key.
+**The agent's isolation is a property of the graph** (decision 0003). The agent and the control plane's crates
+(`cp-*`, `migrate`, below) share only the pure crates — `domain` (with the Jackson-compatible writer, `wire`),
+`crypto`, `git` and `tls`; no `cp-*` crate is reachable from the agent. `crates/agent/tests/isolation.rs` reads
+`cargo metadata` and fails if the agent links any database client, server framework or test-support crate.
+`deny.toml` bans the same crates outside the control plane's crates (the `wrappers` of its `sqlx` and `axum`
+bans name exactly who may use them), and `cp-arch-tests` asserts the same from the workspace side. A second
+test fails if any source outside `crates/cp-*` names the control plane's encryption key.
 
 ## Conventions
 
@@ -238,6 +241,11 @@ shared crates (`domain`, `crypto`, …) still may not name the key.
 
 | Crate | What it holds | Held to |
 |---|---|---|
+| `migrate` (`vectispire-migrate`) | a Flyway 12.4-compatible runner: the migration files read unchanged, `flyway_schema_history` written and validated as Flyway does (checksums proven against Flyway's own), the per-engine lock, the layout rule | Flyway and `MigrationLayoutTest`; Java migrates → Rust validates and the other way round, on MySQL and PostgreSQL (`crates/migrate/oracle/check-oracle.sh`, needs JDK 25) |
+| `cp-db` | the pools of both engines, transactions, the `Visibility`-gated query builder (a target's rows cannot be selected without it — compile-fail tests), checked queries with offline caches for both engines (`scripts/sqlx-prepare.sh check`), the schema parity check that stands where `ddl-auto: validate` stood | the Java datasource and transaction semantics; a schema built by the real Flyway |
+| `cp-http` | the Spring Security chain as thirteen tower layers in its order, problem documents, the route builder that cannot register a route without its requirement and its answer on visibility | the rc.3 control plane's answers, recorded (`crates/cp-http/tests/golden/`, captured by `capture.sh`); `trybuild` compile-fail cases |
+| `cp-contract` | the contract kept identical: `openapi.json` of the 0.11.1 line embedded, routes against document in both directions with a list of routes not yet ported that only shrinks, schemas, published operation ids, the replay of the Java suite's recorded traffic | `ClientContractSpecTest`, `PublishedOperationIdsTest`; the recorder `vectispire-java/…/core/golden/` |
+| `cp-arch-tests` | the boundaries as tests: the 28 modules' edge list, layering, cross-module SQL, `unsafe`, the agent's isolation, route authorization rules | `ModularityTest`, `ArchitectureTest`, `CrossModuleQueriesTest`, `RouteAuthorizationTest`, `AuthorizationCoverageTest` |
 | `cp-outbound` | `PinnedHttpSender`, `OutboundUrlGuard`, `ReservedEndpoints`, the address classes | the Java classes, by `reference/outbound/` (202 URLs and 30 endpoints × 3 policies × 2 reservation sets, 114 reserved-endpoint readings, 68 addresses); local servers for the pin, the redirect, the ceiling, the deadline, a pinned CA over TLS |
 | `cp-runtime` | the settings (108 properties under their Java names and defaults), `/run/secrets`, the logs, the audit mirror, the meters and the actuator's answers, graceful shutdown | `application.yaml` and the Java sources, read by `tests/java_parity.rs`; the actuator's bytes, recorded from rc.3 (`reference/actuator/`) |
 | `cp-app` | the binary: `--check-config`, serve, stop gracefully — the HTTP stack and the database are not wired yet | the binary, run, by `tests/binary.rs` |
