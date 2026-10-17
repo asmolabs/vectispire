@@ -73,7 +73,8 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 ## 3. How to take a task
 
 - **One task, one branch.** Phase 2's branches are stacked: `rust/p1-merge` → `rust/p2-1-shared` →
-  `rust/p2-4-fingerprint` → `rust/p2-3-crypto` → `rust/p2-5-protocol` → `rust/p2-2-outbox`. Start a new Phase 2 task from the newest finished one.
+  `rust/p2-4-fingerprint` → `rust/p2-3-crypto` → `rust/p2-5-protocol` → `rust/p2-2-outbox` → `rust/p2-6-targets`. Start a new
+  Phase 2 task from the newest finished one.
   Name it `rust/p<phase>-<n>-<short-name>`.
 - **A task owns its files.** The tables below say which. Touching another task's files is a
   conversation, not a commit. Shared agent crates (`protocol`, `crypto`, the runner) change only
@@ -100,6 +101,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.3 Encryption at rest and sealing | done (63/63 mutants, 4 equivalents removed) | `rust/p2-3-crypto`, stacked on 2.4 |
 | 2.5 The protocol's server half | done (119/119 mutants, 5 equivalents removed) | `rust/p2-5-protocol`, stacked on 2.3 |
 | 2.2 Outbox | done (72/72 mutants, 4 equivalents removed) | `rust/p2-2-outbox`, stacked on 2.5 |
+| 2.6 Targets | done but the golden replay (below): 29 routes, deletion and purge registry, identity, credentials (73/73 mutants, 7 equivalents removed) | `rust/p2-6-targets`, stacked on 2.2 |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
@@ -120,11 +122,11 @@ Follow-ups found during Phase 1, small enough to go with 1.7 or before it:
 
 - **`cp-http` reads the session header leniently**: `bearer x` and `Bearer  x` open a session in Rust,
   not in Java. Make it strict, with a reference case.
-- **`cp-http`'s `Principal` lacks** the account id, the session hash and the key's restriction (they are
-  in `cp-access`'s `Resolved`). Without the restriction, visibility cannot intersect the credential's
-  grant — this one is a security property, not a nicety.
-- **The audit actor of an integration key** is the account in `cp-http`, `user (API key name)` in Java;
-  `Resolved::actor` already matches Java.
+- **`cp-http`'s `Principal` lacks the session hash.** The account id, the stored role, the key's restriction and the
+  audit actor travel since 2.6 (`Principal::grounds`, filled by `Resolved::principal`, read by
+  `cp_access::PrincipalGrounds`, which the binary composes as the chain's `PrincipalDirectory`).
+- **The audit actor of an integration key** is `Principal::actor()` since 2.6: `user (API key name)`, as Java writes
+  it; a principal built by a test double without grounds falls back to the account's username.
 - **Two Argon2 PHC readers** in `cp-access` (`passwords` and `credentials::phc`): keep one.
 - **`cp-platform`'s `Approvers`** is a trait the binary does not fill yet; wire it to `cp-access`'s
   `TriageApprovers`.
@@ -151,7 +153,7 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.3 | Encryption at rest (AES-256-GCM, key from variable / file / `/run/secrets` / Vault), signing key, an additive `seal` in `crates/crypto` | **done** |
 | 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | **done** |
 | 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | **done** |
-| 2.6 | Targets: 29 routes, two-phase deletion, purge registry | after 2.3, 2.4 |
+| 2.6 | Targets: 29 routes, deletion and purge registry | **done** (golden replay deferred to 2.11) |
 | 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | after 2.3, 2.4, 2.5 |
 | 2.8 | Ingestion; the **ingestion reference set is written before the code** | after 2.4, 2.5; files declared by 2.7 |
 | 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | after 2.5, 2.7 |
@@ -167,8 +169,6 @@ What the finished tasks leave to the others:
   The binary does not start the turns yet (2.11, with `vectispire.jobs.initial-delay` mapped).
 - **One-shot repairs** (withheld claims in 2.9, resumed deletions in 2.6) claim through
   `OneShotJobs::claim(&mut tx, name)`; on failure, roll back, then `has_run`.
-- **2.6:** `BoundedText`'s refusing variants (`required`, `optional`, `within`) are not ported; only
-  `clip` and `too_long` are.
 - **2.7:** `Schedules` (`isDue`, the SplitMix offset, `runsAtLeastEvery`, `inForce`) is not ported; build
   it on `cron::crontab::parse` and `Stored::next_after`. Retention uses `RetentionPolicy::prunable`, with
   candidates newest first, target by target.
@@ -252,8 +252,6 @@ What the finished tasks leave to the others:
 - **1.3:** TOTP seeds are encrypted with `Encryption` under `TotpService`'s `TOTP_CONTEXT + ":" + user id` —
   the string is **`user:totp_secret:<user id>`**, not the constant's name. The reference set holds a seed under
   `user:totp_secret:5` both ways. Add a `totp_context` beside the others rather than formatting it in `cp-access`.
-- **2.6:** git tokens and SSH keys through `git_token_context` / `private_key_context`, and `read_secret` where Java
-  calls `readSecret`. A target's deletion purges the rows; nothing to undo in `cp-crypto`.
 - **2.7 and 2.9:** `vectispire_crypto::seal(recipient_public, plain, &SealContext)` seals a deployment key or a
   token to an agent's announced key, byte for byte as `SealedEnvelope.seal` (`crates/crypto/tests/seal.rs`
   reproduces Java's envelopes from Java's randomness). It refuses a key that is not an X25519
@@ -269,6 +267,40 @@ What the finished tasks leave to the others:
 - **`platform`'s `CryptoController`** (the public key, signature verification) waits with the other platform
   routes (follow-ups of 1.7); `SigningKeys::{public_key_pem, key_id, verify_with}` is its service. The exports
   (Phase 5) sign through `SigningKeys::{sign, wrap_and_sign_dsse}`.
+
+- **Targets (2.6), for 2.7 to 2.11 and Phases 3 to 5.** `crates/cp-targets/README.md` has the differences and the
+  Java quirks reproduced.
+  - **2.7 implements `cp_targets::TargetScans`** (latest scan per repository and image, the languages of each
+    repository's newest completed scan — a missing key is *unknown*, an empty set *none* — and `queue_repository` /
+    `queue_container`, `AlreadyQueued` being the 409) **and scanning's two purge listeners**, `ScanPurge.purgeFindings`
+    (`Phase::Findings`) and `ScanPurge.purgeScans` (`Phase::Scans`): implement `PurgeListener` (named exactly as in
+    `deletion::JAVA_LISTENERS`, handed the deletion's `&mut Tx`, `TargetPurge::Orphans` included) and compose it with
+    `PurgeRegistry::stand_ins().with(vec![…])`. The scheduler stamps through `Targets::stamp_scheduled(tx, …)` and reads
+    rows through the catalog (`catalog_repositories`, `catalog_containers`, `carrying_credentials`); the dispatcher reads
+    `stored_git_token` / `stored_ssh_key` — **still encrypted**, decrypted only where delivered.
+    `vectispire_domain::schedules` holds `in_force`; `isDue`, the slot offset and `runsAtLeastEvery` go beside it.
+  - **Phase 3 (issues)** implements `TargetBacklog` (stand-in: zero figures) and replaces the stand-ins of
+    `IssuePurge` (three phases) and, with tickets, `TicketLinkPurge`; until then the foreign keys cascade and the orphan
+    sweep finds nothing to sweep.
+  - **2.11** composes `Targets` (`TargetsConfig`: the audit log, `Encryption`, the allow-list from
+    `vectispire.git.allowed-hosts` — `GitHostAllowlist::parse` refuses the start on a malformed entry), adds
+    `cp_targets::routes` to the registry with `CallerVisibility::new(VisibilityService::new(db, settings,
+    TargetsForAccess(db)), PrincipalGrounds)`, **runs `Targets::purge_orphans()` once at every start** (Java's
+    `ApplicationReadyEvent`; not a one-shot job), wires `IssuerSeesTargets` into the API keys' issuance, and replays the
+    29 routes' recorded goldens: `cp-contract`'s replay reads a simpler format than the recorder's (`seed`/`effect`,
+    ranked identities `«t_repository#1»`, minted credentials), and that adapter was not built here. The routes are held
+    meanwhile by `tests/routes.rs` (answers member for member, the coverage below) and `tests/contract.rs` (operation
+    ids, parameters, the router probed); the 29 left `not-yet-ported.txt` (ceiling 282).
+  - **The authorization coverage** is `crates/cp-targets/tests/routes.rs`: it enumerates the module's router and asks
+    every route naming a target, a project or a solution, as an unassigned `USER` and as an administrator's key
+    restricted elsewhere, for a hidden and an absent identifier — same bytes, never a success, 404 where admitted.
+    Copy its shape for 2.7's and 2.9's routes.
+  - **1.7** gets `GrantableTargets::targets_in` only; Java's port also names grants, checks a project or target exists
+    and labels targets — `naming`, `catalog` and `TargetsForAccess` hold those, to be added to the trait with the
+    access routes.
+  - `cp-arch-tests/data/edges.toml` still says `targets` is `pending`: flipping it to `ported` requires every listed
+    edge to be used, and the crate reaches `access::security` only through `cp-access`'s root re-exports — task 2.1's
+    file to decide.
 
 The two things that fail nowhere if they go wrong, and so need the most care:
 
