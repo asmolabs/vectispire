@@ -18,9 +18,11 @@ members = ["."]
 [dependencies]
 libfuzzer-sys = "=0.4.13"
 tempfile = "3"
+vectispire-container = { path = "../crates/container" }
 vectispire-crypto = { path = "../crates/crypto" }
 vectispire-domain = { path = "../crates/domain" }
 vectispire-git = { path = "../crates/git" }
+vectispire-protocol = { path = "../crates/protocol" }
 vectispire-scanners = { path = "../crates/scanners" }
 
 [profile.release]
@@ -59,6 +61,48 @@ bench = false
 [[bin]]
 name = "known_hosts"
 path = "fuzz_targets/known_hosts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sast_report"
+path = "fuzz_targets/sast_report.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "iac_report"
+path = "fuzz_targets/iac_report.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "grype_matches"
+path = "fuzz_targets/grype_matches.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "syft_sbom"
+path = "fuzz_targets/syft_sbom.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "failure_scrub"
+path = "fuzz_targets/failure_scrub.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "https_location"
+path = "fuzz_targets/https_location.rs"
 test = false
 doc = false
 bench = false

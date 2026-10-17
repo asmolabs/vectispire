@@ -31,6 +31,9 @@ for path in sys.argv[2:]:
     for item in items:
         if isinstance(item, str):
             put(item.encode())
+        elif isinstance(item, dict) and isinstance(item.get("raw"), str):  # failure_scrub: raw, NUL, a secret
+            secrets = [s for s in item.get("secrets") or [] if isinstance(s, str)]
+            put((item["raw"] + "\0" + (secrets[0] if secrets else "")).encode())
 PY
 }
 seed repository_url ../reference/repository-url/inputs.json
@@ -38,6 +41,12 @@ seed secrets_report ../reference/secrets/reports/*
 seed sealed_envelope ../reference/crypto/*.json
 seed signatures ../reference/crypto/*.json
 seed known_hosts ../reference/repository-url/inputs.json
+seed sast_report ../reference/sast/runs/*.stdout
+seed iac_report ../reference/iac/runs/*.stdout
+seed grype_matches ../reference/dependencies/matches/*.json
+seed syft_sbom ../reference/dependencies/sboms/*.json
+seed failure_scrub ../reference/failure-reason/inputs.json
+seed https_location ../reference/repository-url/inputs.json
 
 failed=""
 for target in $targets; do
