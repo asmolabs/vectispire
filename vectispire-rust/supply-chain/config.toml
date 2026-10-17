@@ -666,6 +666,11 @@ version = "0.5.0"
 criteria = "safe-to-deploy"
 notes = "RustCrypto's PHC traits, a dependency of argon2; cp-access reads and writes the PHC string itself."
 
+[[exemptions.pbkdf2]]
+version = "0.12.2"
+criteria = "safe-to-deploy"
+notes = "RustCrypto's PBKDF2, scrypt's outer layer; reached only through scrypt (cp-crypto)."
+
 [[exemptions.pin-project-lite]]
 version = "0.2.17"
 criteria = "safe-to-deploy"
@@ -802,6 +807,11 @@ criteria = "safe-to-deploy"
 version = "1.0.23"
 criteria = "safe-to-deploy"
 
+[[exemptions.salsa20]]
+version = "0.10.2"
+criteria = "safe-to-deploy"
+notes = "RustCrypto's Salsa20, whose /8 core is scrypt's mixing function; reached only through scrypt (cp-crypto)."
+
 [[exemptions.schemars]]
 version = "0.9.0"
 criteria = "safe-to-deploy"
@@ -813,6 +823,11 @@ criteria = "safe-to-deploy"
 [[exemptions.scopeguard]]
 version = "1.1.0"
 criteria = "safe-to-deploy"
+
+[[exemptions.scrypt]]
+version = "0.11.0"
+criteria = "safe-to-deploy"
+notes = "RustCrypto's scrypt, for EncryptionKey.derive's passphrase branch (BouncyCastle's SCrypt.generate, N=2^15) — cp-crypto; no imported set audits it yet."
 
 [[exemptions.sea-query]]
 version = "1.0.2"

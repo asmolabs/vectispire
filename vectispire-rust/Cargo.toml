@@ -8,7 +8,7 @@
 resolver = "3"
 # fuzz/ is a workspace of its own, on a nightly compiler: none of it ships (fuzz/Cargo.toml).
 exclude = ["fuzz"]
-members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db", "crates/cp-http", "crates/cp-contract", "crates/cp-outbound", "crates/cp-runtime", "crates/cp-app", "crates/cp-arch-tests", "crates/cp-audit", "crates/cp-settings", "crates/cp-platform", "crates/cp-access", "crates/cp-maintenance"]
+members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db", "crates/cp-http", "crates/cp-contract", "crates/cp-outbound", "crates/cp-runtime", "crates/cp-app", "crates/cp-arch-tests", "crates/cp-audit", "crates/cp-settings", "crates/cp-platform", "crates/cp-access", "crates/cp-maintenance", "crates/cp-crypto"]
 
 [workspace.package]
 version = "0.12.0-dev"
@@ -107,6 +107,13 @@ tower = { version = "0.5", default-features = false, features = ["util"] }
 tower-http = { version = "0.6", default-features = false, features = ["fs"] }
 trybuild = "1"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
+
+# scrypt at N = 2^15 is a hundred milliseconds optimised and seconds without: the tests derive a passphrase
+# key a few dozen times, and only these two crates' loops are worth compiling for speed.
+[profile.dev.package.scrypt]
+opt-level = 3
+[profile.dev.package.salsa20]
+opt-level = 3
 
 [profile.release]
 # Small and reproducible rather than fast to build: the binary is what an agent host pulls. Unwinding

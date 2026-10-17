@@ -596,4 +596,50 @@ class EncryptionReferenceSetTest {
             http.requests.forEach(requests::add);
         }
     }
+
+    // ------------------------------------------------------------------------------------------ rust → java
+
+    /**
+     * What the Rust port wrote reads here: its ciphertexts through {@code EncryptionService}, its sealed envelopes
+     * through {@code SealedEnvelope}, its signing-key row through {@code SigningKeyService}.
+     */
+    @Test
+    void whatTheRustPortWroteReadsHere() throws Exception {
+        JsonNode rust = JSON.readTree(Path.of(System.getProperty("vectispire.rust.reference"), "encryption",
+                "rust-vectors.json").toFile());
+
+        for (JsonNode cipher : rust.path("ciphers")) {
+            EncryptionService service = service(cipher.path("configured").asText(), List.of());
+            Decrypted read = service.inspect(cipher.path("cipher").asText(), cipher.path("context").asText());
+            assertThat(read.plainText()).as(cipher.path("cipher").asText()).isEqualTo(cipher.path("plain").asText());
+            assertThat(read.state()).isEqualTo(SecretCipher.SecretState.CURRENT);
+            assertThat(service.inspect(cipher.path("cipher").asText(), cipher.path("context").asText() + "!").state())
+                    .as("bound to its context").isEqualTo(SecretCipher.SecretState.UNREADABLE);
+        }
+
+        X25519PrivateKeyParameters sealing = new X25519PrivateKeyParameters(labelled(JAVA_SEALING_LABEL), 0);
+        String sealingPublic = base64(SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(sealing.generatePublicKey()).getEncoded());
+        assertThat(rust.path("sealed_to").asText()).isEqualTo(sealingPublic);
+        SealedEnvelope.KeyPair recipient = new SealedEnvelope.KeyPair(sealingPublic, sealing);
+        for (JsonNode envelope : rust.path("envelopes")) {
+            SealedEnvelope.Context context = new SealedEnvelope.Context(envelope.path("context").asText());
+            assertThat(new SealedEnvelope().open(recipient, envelope.path("sealed").asText(), context))
+                    .as(envelope.path("context").asText()).contains(envelope.path("plain").asText());
+            assertThat(new SealedEnvelope().open(recipient, envelope.path("sealed").asText(), new SealedEnvelope.Context("other")))
+                    .isEmpty();
+        }
+
+        JsonNode signing = rust.path("signing");
+        SettingsService settings = mock(SettingsService.class);
+        when(settings.internalValue(SigningKeyService.STORED_KEY)).thenReturn(Optional.of(signing.path("row").asText()));
+        SigningKeyService service = new SigningKeyService("", settings, service(signing.path("configured").asText(), List.of()));
+        assertThat(service.getPublicKeyPem()).isEqualTo(signing.path("public_pem").asText());
+        assertThat(service.getKeyId()).isEqualTo(signing.path("fingerprint").asText());
+        byte[] payload = signing.path("payload").asText().getBytes(StandardCharsets.UTF_8);
+        assertThat(service.verify(payload, signing.path("signature").asText())).isTrue();
+        assertThat(CosignSigner.verifyDsse(new DsseEnvelope(signing.path("dsse_payload_type").asText(),
+                signing.path("dsse_payload").asText(),
+                List.of(new DsseEnvelope.SignatureEntry(signing.path("fingerprint").asText(),
+                        signing.path("dsse_signature").asText()))), service.getPublicKey())).isTrue();
+    }
 }
