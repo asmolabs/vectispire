@@ -1,0 +1,36 @@
+[package]
+name = "vectispire-cp-access"
+description = "The control plane's access module: accounts and their passwords (Phase 1), sessions, keys, roles and visibility to follow."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# RustCrypto's Argon2, used for its raw derivation only: the PHC string is written and read here, the way
+# `PasswordHasher` writes and reads it, so the bytes stored by either side are the same.
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+base64.workspace = true
+rand_core.workspace = true
+# The account rows, through the module's persistence only (deny.toml lists this crate among sqlx's wrappers).
+sqlx = { version = "0.9", default-features = false, features = ["mysql", "postgres", "time"] }
+subtle.workspace = true
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+vectispire-cp-db = { path = "../cp-db" }
+vectispire-domain.workspace = true
+zeroize = "1"
+
+[dev-dependencies]
+reqwest = { workspace = true, features = ["json"] }
+serde_json.workspace = true
+time = { version = "0.3", features = ["macros"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true
