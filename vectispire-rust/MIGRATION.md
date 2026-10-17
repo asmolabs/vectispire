@@ -26,7 +26,7 @@ These are prerequisites, not tasks. Until they are done, a new person cannot sta
    `feat/rust-agent`, `docs/rust-control-plane-plan` and any task branch you hand over.
 2. **The mutation scripts are not in the repository.** Each task's mutation check was run with a
    throwaway script (`p1acc-mutate.py`, `p1c-mutate.py`, `mutate-authz.py`, `p1aud-mutate.py`,
-   `p1merge-mutate.py`, `p2-1-mutate.py`) kept in a session scratch directory. Move them under
+   `p1merge-mutate.py`, `p2-1-mutate.py`, `p2-4-mutate.py`, `p2-3-mutate.py`) kept in a session scratch directory. Move them under
    `vectispire-rust/security/mutants/` with a short README, or the next person cannot rerun them.
 3. **The work trees were in a temporary directory.** The branches hold everything; recreate a work tree
    per task with `git worktree add`.
@@ -99,7 +99,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | Phase 1 merge | done, full gate green (771 tests) | `rust/p1-merge` (7474e7e72) |
 | 2.1 Shared-module rule and maintenance turns | done (48/48 mutants) | `rust/p2-1-shared` (cf1b2aa22) |
 | 2.4 Fingerprint, target vocabulary, Spring cron | done (109/109 mutants) | `rust/p2-4-fingerprint` (2d9ad0768), stacked on 2.1 |
-| 2.3 Encryption at rest and sealing | in progress | `rust/p2-3-crypto`, stacked on 2.4 |
+| 2.3 Encryption at rest and sealing | done (63/63 mutants, 4 equivalents removed) | `rust/p2-3-crypto`, stacked on 2.4 |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
@@ -148,7 +148,7 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 |---|---|---|
 | 2.1 | Shared-module rule, `cp-maintenance` turns and their global order | **done** |
 | 2.2 | Outbox: enqueue in the caller's transaction, claim, backoff, abandonment, pruning | after 2.1 |
-| 2.3 | Encryption at rest (AES-256-GCM, key from variable / file / `/run/secrets` / Vault), signing key, an additive `seal` in `crates/crypto` | after 2.1; publishes `Encryption` early |
+| 2.3 | Encryption at rest (AES-256-GCM, key from variable / file / `/run/secrets` / Vault), signing key, an additive `seal` in `crates/crypto` | **done** |
 | 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | **done** |
 | 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | after 2.1; publishes the bodies early |
 | 2.6 | Targets: 29 routes, two-phase deletion, purge registry | after 2.3, 2.4 |
@@ -176,6 +176,34 @@ What the finished tasks leave to the others:
   (`\uD800`) in a result: Jackson accepts it, `serde_json` refuses the whole body, so a result Java
   ingests today would be refused by Rust. Mapping the escape to `?` before parsing keeps fingerprints
   equal, since Java writes that surrogate as `?` anyway.
+
+- **Encryption (2.3), for everyone storing a secret.** `vectispire_cp_crypto::Encryption` is async:
+  `encrypt(plain, context)` → `Result<String, EncryptionError>` (`MissingKey` is the 412 of
+  `MissingEncryptionKeyException`), `inspect(stored, context)` → `Decrypted` (plain text as a `Secret`, and
+  `SecretState`), `read_secret(stored, context, label)` for credentials that may predate encryption,
+  `Encryption::is_ciphertext`. Build each context with the crate's functions (`private_key_context`,
+  `git_token_context`, `forge_connection_context`), never inline: a context spelled twice is a secret that does not
+  read. `crates/cp-crypto/README.md` has the format, the differences and what the reference set pinned.
+- **1.3:** TOTP seeds are encrypted with `Encryption` under `TotpService`'s `TOTP_CONTEXT + ":" + user id` —
+  the string is **`user:totp_secret:<user id>`**, not the constant's name. The reference set holds a seed under
+  `user:totp_secret:5` both ways. Add a `totp_context` beside the others rather than formatting it in `cp-access`.
+- **2.6:** git tokens and SSH keys through `git_token_context` / `private_key_context`, and `read_secret` where Java
+  calls `readSecret`. A target's deletion purges the rows; nothing to undo in `cp-crypto`.
+- **2.7 and 2.9:** `vectispire_crypto::seal(recipient_public, plain, &SealContext)` seals a deployment key or a
+  token to an agent's announced key, byte for byte as `SealedEnvelope.seal` (`crates/crypto/tests/seal.rs`
+  reproduces Java's envelopes from Java's randomness). It refuses a key that is not an X25519
+  `SubjectPublicKeyInfo` with Java's sentence, and trims nothing — validate the announced key with
+  `is_usable_sealing_key` when it is stored (2.9), seal at claim time (2.7).
+- **2.11:** build `EncryptionConfig` from `cp_runtime::settings::Encryption` (same fields), and a `VaultDoor` from
+  the outbound sender and guard; `Encryption::new` returns `StartupRefusal` for `kms-type=vault` without an
+  endpoint or a token — the binary must refuse to start on it, as Java does. Build `SigningKeys` with
+  `vectispire.signing.key` (cp-runtime's `signing_key`): a malformed or non-P-256 key is an error at start. **Open
+  question for 2.11:** cp-runtime reads a blank `VECTISPIRE_ENCRYPTION_VAULT_TOKEN` as absent (refused at start);
+  check what Spring's binding of an empty variable to `Optional<String>` gives Java before the composition test
+  pins either.
+- **`platform`'s `CryptoController`** (the public key, signature verification) waits with the other platform
+  routes (follow-ups of 1.7); `SigningKeys::{public_key_pem, key_id, verify_with}` is its service. The exports
+  (Phase 5) sign through `SigningKeys::{sign, wrap_and_sign_dsse}`.
 
 The two things that fail nowhere if they go wrong, and so need the most care:
 
