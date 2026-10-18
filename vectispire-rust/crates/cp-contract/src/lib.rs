@@ -9,7 +9,8 @@
 //! | [`check_routes`] | every route, method, parameter and security scheme the router *declares* against the document, both ways, with a ratcheted list of routes not ported yet |
 //! | [`probe`] | the router itself, asked: each documented request is sent, and a route that was declared but not registered answers "no route" |
 //! | [`Schemas`] | a body — a handler type serialized, a recorded answer, a replayed one — against the document's JSON Schema |
-//! | [`replay`] | the recorded Java traffic, replayed against a server, key order and number text compared as Jackson wrote them |
+//! | [`replay`] | recorded traffic in the simple format of the first fixtures, replayed against a server |
+//! | [`recorded`] | **the recorder's goldens** — `seed`, ranked identities, minted credentials — replayed against a router on a migrated database of either engine, answers and rows held to Java's |
 //! | [`check_published`] | no operation id a release published is renamed or removed |
 //!
 //! The document and the published list are **embedded copies** of the Java line's (`reference/`,
@@ -25,6 +26,7 @@ mod golden;
 mod json;
 mod plan;
 mod published;
+pub mod recorded;
 mod routes;
 mod schema;
 

@@ -1383,17 +1383,17 @@ jobs:
         name: containers left by the suites
         run: docker ps -a --filter name=vs-rs- --format '{{.Names}} {{.Status}}' || true
 
-  # **The Java suite's HTTP traffic, recorded at this commit and read by the Rust control plane's replay.** The
+  # **The Java suite's HTTP traffic, recorded at this commit and replayed against the Rust control plane.** The
   # recorder (vectispire-java/…/core/golden/) writes one file per request of every HTTP test; the Rust port
-  # is to answer every one as Java did. Nothing of the control plane is ported yet, so the replay's plan is
-  # what is held today: every recording is read (a format that drifted fails now), each is matched to an
-  # operation of the contract and sorted — not yet ported, owed a replay, outside the contract — and a ported
-  # route whose recordings nothing replays fails the step (`cp-contract replay-plan`, exit 3). The recordings
+  # is to answer every one as Java did. Every recording is read (a format that drifted fails), each of a route
+  # not served yet is covered by a line of vectispire-rust/golden/deferred.txt saying why, and each of a served
+  # route is replayed — seed, request, answer and rows — on both engines (`replay-goldens.sh`). The recordings
   # are generated here, not committed (66 MB, 7,000 files), kept as an artifact for a few days, and scanned: they
   # carry no credential but the one invented value the export test plants, allowed by name.
   rust-replay:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Recording (~10 min), the build, and the replay on two engines (~10 min).
+    timeout-minutes: 90
     needs: [rust-changes]
     if: needs.rust-changes.outputs.touched == 'true'
     steps:
@@ -1429,9 +1429,11 @@ jobs:
           rustup show active-toolchain || rustup toolchain install
           grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
             || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
-      - name: what a replay owes
+      # The plan (every recording of a route not served covered by golden/deferred.txt), then each served module's
+      # replay on MySQL and PostgreSQL: a recording of a served route replays green on both, or is listed with why.
+      - name: the recordings replayed against the served routes
         working-directory: vectispire-rust
-        run: cargo run --locked -q -p vectispire-cp-contract -- replay-plan "$RUNNER_TEMP/goldens"
+        run: crates/cp-contract/scripts/replay-goldens.sh "$RUNNER_TEMP/goldens"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: java-recordings

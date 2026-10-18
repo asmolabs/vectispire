@@ -38,7 +38,62 @@ with test doubles and without an authentication layer.
 `cargo run -p vectispire-cp-contract -- allowlist-write` regenerates the allowlist for a router that serves
 nothing. It is never run to make a check pass.
 
-## The golden file
+## The recorder's goldens (`recorded`, task 2.11)
+
+The Java suite's traffic as `TrafficRecorder` writes it (`vectispire-java/…/core/golden/README.md`): a manifest, one
+file per request with its `seed`, `response` and `effect`, identities as ranks (`«t_repository#1»`), credentials and
+clock values as placeholders. **Generated, not committed**; `scripts/replay-goldens.sh <dir>` records the suite at the
+commit (or takes a recording already there) and runs, in order, `cp-contract replay-plan` (every recording of a route
+not served, or outside the contract, covered by `golden/deferred.txt`) and each served module's `golden` test on MySQL
+9.4 and PostgreSQL 17. That test is `#[ignore]`d by a plain `cargo test`, which reports it as ignored.
+
+How a test is replayed (`recorded::replay`):
+
+1. The tables are emptied and the baseline's (the audit chain's head) put back as the migrations wrote them, then
+   checked against the manifest's `baseline`. Each identity counter is placed in the table's range from the
+   manifest's `idBases`, as the recorder places them; a test's ranks count from the counter it starts at.
+2. File by file: the `seed` is written (one transaction, foreign keys unchecked, PostgreSQL's sequences moved past
+   the ids written). A request to a route the router serves is sent to a router built for this test, the tables
+   read before and after, and the answer and the rows changed held to the recording. A request to a route not served
+   is **played in Java's place**: its recorded `effect` is written as a seed, so the requests after it start from
+   Java's state.
+3. A value the replay cannot choose (a `«sealed»` credential, a blob, a PEM block, a `#prior` id, a binary or
+   `https` request, a `concurrent` or `async` record) stops the test there: every recording after it is reported
+   unreplayable with the reason, never compared against a state that is not Java's.
+
+**The comparison is template matching, not normalisation** (`recorded::placeholders`). Every literal must be in the
+Rust answer as written. A placeholder covers a value only of the shape the recorder's rule replaces, and:
+
+| Placeholder | Holds the Rust value to |
+|---|---|
+| `«t_x#N»` | exactly `start + N - 1` — computed, not bound; as a JSON number or a string (the recorder wrote both alike; the type is the schema's or the column's to hold) |
+| `«uuid:N»`, `«sha256:N»`, `«n:N»`, `«port:N»`, `«pem:…:N»`, `«secret:N»` | one value per ordinal in the test, and never another ordinal's value |
+| `«sha256(secret:N)»`, `«secret:N:prefix»` | the secret's SHA-256 hex, its first twelve characters (checked when the secret is known, however late) |
+| `«password-hash(…)»` | a hash that verifies against the fixture's passphrase or secret `N` (cp-access's own `phc::verify`); `(?)` one that does not hold the fixture |
+| `«date»`, `«datetime»`, `«instant»`, `«http-date»`, `«stamp»` | that format, in the recorder's window (three years back, eleven ahead) |
+| `«sealed»`, `«one-time-code»`, `«window»`, `«clock-step»` | the shape only — what the recorder threw away |
+
+Objects are compared as unordered maps (README § Bodies); arrays in order; an answer's numbers as written, a row's by
+value. Headers: every recorded one, with its value, and none besides but the transport's (`content-length`, `date`,
+`transfer-encoding`, `connection`, `keep-alive`). Rows: every table, a table keyed by its identity in id order, any
+other matched row for row as a set; a column change that renders alike under the recorder's rules that number nothing
+(`dropUnchangedUpdates`) is not a change. The replayed answer is checked against `openapi.json`, and a violation
+Java's recorded answer has too is the document's, not reported.
+
+**Credentials are minted with `cp-access`'s code** (`Minting`, implemented by the caller since this crate uses no
+module): session tokens and their hashes, API keys (when the test ever shows the key's prefix), Argon2id hashes of the
+fixture or a minted secret. Nothing is hard-coded. Two choices of the replay's own, each a reason a difference could be
+missed, so they are narrow:
+
+- **a clock value seeded** is the wall clock, a microsecond after the previous one; a column named for an expiry
+  (`expire`, `until`) a day ahead, since a session seeded as expiring now refuses its own request;
+- **a bearer the recording never tied to its session**: the recorder collects a file's credentials before rendering
+  that file, not the earlier files, so a session seeded in file 3 and presented in file 5 shows as a bare
+  `«sha256:K»` in `t_session.token_hash`. Its token is minted when seeded and handed to the first unbound
+  `«secret:N»` an `Authorization` header presents. A wrong pick is a refusal or another account's answer — a
+  difference, never a green.
+
+## The golden file (the first fixtures' format)
 
 One JSON file per recorded request, written by the traffic recorder on the Java side (task 0.5). **Where the
 recorder's README says otherwise, it wins and `Golden::from_json` is adapted** — the format is read in that one

@@ -19,10 +19,21 @@ regex.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# The replay of the recorder's goldens (`recorded`) seeds and reads every table on both engines: the statements are
+# built at run time from the schema the database reports, so none of them can be a checked `query!`.
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "time"] }
 thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
 tokio.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+# Infrastructure under infrastructure (`edges.toml`: the contract uses no module): the pool and the engine.
+vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-domain.workspace = true
 tower = { version = "0.5", default-features = false, features = ["util"] }
+
+[dev-dependencies]
+# The recorded-format tests mint session hashes as cp-access does: SHA-256 hex.
+sha2.workspace = true
 
 [lints]
 workspace = true
