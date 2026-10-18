@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select holder, expires_at as \"expires_at: UtcInstant\" from t_leader_lease where name = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "holder",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_leader_lease",
+            "name": "holder"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "expires_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_leader_lease",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "3928461699fbfb97662eb9290defc78d5d01794e80614759b5274f6eff377b5b"
+}

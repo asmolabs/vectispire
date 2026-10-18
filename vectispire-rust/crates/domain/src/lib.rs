@@ -25,6 +25,7 @@ pub mod repository_identity;
 pub mod repository_url;
 pub mod retention;
 pub mod sbom;
+pub mod scan_queue;
 pub mod scan_status;
 pub mod scan_target;
 pub mod schedules;

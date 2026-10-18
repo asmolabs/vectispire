@@ -3500,6 +3500,7 @@ dependencies = [
  "vectispire-cp-outbound",
  "vectispire-cp-outbox",
  "vectispire-cp-runtime",
+ "vectispire-cp-scanning",
  "vectispire-cp-targets",
  "vectispire-domain",
  "vectispire-tls",
@@ -3717,6 +3718,43 @@ dependencies = [
  "tracing-subscriber",
  "vectispire-domain",
  "vectispire-testkit",
+]
+
+[[package]]
+name = "vectispire-cp-scanning"
+version = "0.12.0-dev"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "http",
+ "http-body-util",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tower",
+ "tracing",
+ "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-contract",
+ "vectispire-cp-crypto",
+ "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
+ "vectispire-cp-settings",
+ "vectispire-cp-targets",
+ "vectispire-crypto",
+ "vectispire-domain",
+ "vectispire-migrate",
+ "vectispire-protocol",
+ "vectispire-testkit",
+ "vectispire-tls",
+ "x25519-dalek",
 ]
 
 [[package]]

@@ -13,6 +13,11 @@
 //! before V73 or by an instance of the previous version, and the orphan sweep through the purge's listeners — which
 //! the binary also runs once at every start (`Targets::purge_orphans`), as Java does on `ApplicationReadyEvent`.
 //!
+//! **Scanning (task 2.7)** fills `SCHEDULING_TICK` and `SCAN_RETENTION`. The tick runs on every instance's
+//! scheduling turn, and only the holder of `t_leader_lease`'s `scheduler` row schedules — the service takes or renews
+//! the lease at each tick and fails closed when the table does not answer; the retention is idempotent, so safe on
+//! every instance.
+//!
 //! The turns are not started by `main` yet, because nothing composed needs a database the binary does not open;
 //! when one does (2.11), `Turns::run_until` runs beside the server with the shutdown signal as its stop.
 
@@ -20,6 +25,7 @@ use std::sync::Arc;
 
 use vectispire_cp_maintenance::{CompositionError, MaintenanceTask, Turns};
 use vectispire_cp_outbox::{Outbox, Registry, UnreadableRegistry};
+use vectispire_cp_scanning::Scanning;
 use vectispire_cp_targets::Targets;
 
 /// Why the maintenance composition could not be built.
@@ -41,13 +47,18 @@ pub fn outbox_registry() -> Registry {
 }
 
 /// Every module's maintenance task.
-pub fn tasks(outbox: Arc<Outbox>, targets: Arc<Targets>) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
+pub fn tasks(
+    outbox: Arc<Outbox>,
+    targets: Arc<Targets>,
+    scanning: Arc<Scanning>,
+) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
     let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
     tasks.extend(vectispire_cp_targets::tasks(targets));
+    tasks.extend(vectispire_cp_scanning::tasks(scanning));
     Ok(tasks)
 }
 
 /// The turns over [`tasks`].
-pub fn turns(outbox: Arc<Outbox>, targets: Arc<Targets>) -> Result<Turns, MaintenanceError> {
-    Ok(Turns::new(tasks(outbox, targets)?)?)
+pub fn turns(outbox: Arc<Outbox>, targets: Arc<Targets>, scanning: Arc<Scanning>) -> Result<Turns, MaintenanceError> {
+    Ok(Turns::new(tasks(outbox, targets, scanning)?)?)
 }

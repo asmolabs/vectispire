@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_leader_lease set expires_at = $1, updated_at = $2 where name = $3 and holder = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b668499ffd7401dad2296afd4478909bd1efba0a1c88f3315647409a182a63c"
+}

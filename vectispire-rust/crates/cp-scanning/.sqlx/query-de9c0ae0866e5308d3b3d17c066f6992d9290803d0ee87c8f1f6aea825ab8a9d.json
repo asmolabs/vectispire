@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_scan (status, created_at, repo_id, container_id, branch, sub_path, required_agent_label, not_before, findings_count, new_issues_count, resolved_issues_count, attempts) values (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "de9c0ae0866e5308d3b3d17c066f6992d9290803d0ee87c8f1f6aea825ab8a9d"
+}

@@ -29,6 +29,19 @@ impl Instant {
         Some(Instant { epoch_second: self.epoch_second.checked_sub(seconds)?, nano: self.nano })
     }
 
+    /// `plusSeconds(seconds)`, either sign; `None` past the range of an `i64` of seconds, where Java throws.
+    pub fn plus_seconds(self, seconds: i64) -> Option<Instant> {
+        Some(Instant { epoch_second: self.epoch_second.checked_add(seconds)?, nano: self.nano })
+    }
+
+    /// `plus(duration)` for a non-negative duration; `None` past the range of an `i64` of seconds.
+    pub fn plus(self, duration: std::time::Duration) -> Option<Instant> {
+        let total = self.nano.checked_add(duration.subsec_nanos())?;
+        let (carry, nano) = if total >= 1_000_000_000 { (1, total - 1_000_000_000) } else { (0, total) };
+        let seconds = i64::try_from(duration.as_secs()).ok()?;
+        Some(Instant { epoch_second: self.epoch_second.checked_add(seconds)?.checked_add(carry)?, nano })
+    }
+
     /// `minus(duration)` for a non-negative duration; `None` past the range of an `i64` of seconds.
     pub fn minus(self, duration: std::time::Duration) -> Option<Instant> {
         let seconds = i64::try_from(duration.as_secs()).ok()?;
@@ -49,5 +62,14 @@ mod tests {
         let at = Instant { epoch_second: 10, nano: 100 };
         assert_eq!(at.minus(std::time::Duration::new(1, 200)), Some(Instant { epoch_second: 8, nano: 999_999_900 }));
         assert_eq!(at.minus(std::time::Duration::new(1, 100)), Some(Instant { epoch_second: 9, nano: 0 }));
+    }
+
+    #[test]
+    fn a_fraction_past_the_second_carries_one() {
+        let at = Instant { epoch_second: 10, nano: 999_999_900 };
+        assert_eq!(at.plus(std::time::Duration::new(1, 100)), Some(Instant { epoch_second: 12, nano: 0 }));
+        assert_eq!(at.plus(std::time::Duration::new(0, 99)), Some(Instant { epoch_second: 10, nano: 999_999_999 }));
+        assert_eq!(at.plus_seconds(-11), Some(Instant { epoch_second: -1, nano: 999_999_900 }));
+        assert_eq!(Instant::of_epoch_second(i64::MAX).plus_seconds(1), None);
     }
 }

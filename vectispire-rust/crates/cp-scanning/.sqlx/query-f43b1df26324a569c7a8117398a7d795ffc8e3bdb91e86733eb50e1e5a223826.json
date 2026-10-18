@@ -1,0 +1,185 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, type as kind, severity, identifier, package_name, package_version, fix_versions, file_path, line, description, link, tool, tool_name, tool_version from t_finding where scan_id = $1 order by case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 when 'negligible' then 4 else 5 end asc, id asc limit $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "type"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "severity",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "severity"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "identifier",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "identifier"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "package_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "package_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "package_version",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "package_version"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "fix_versions",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "fix_versions"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "file_path",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "file_path"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "line",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "line"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "link",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "link"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "tool",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "tool"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "tool_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "tool_version",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_finding",
+            "name": "tool_version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "f43b1df26324a569c7a8117398a7d795ffc8e3bdb91e86733eb50e1e5a223826"
+}

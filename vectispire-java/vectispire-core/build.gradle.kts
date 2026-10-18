@@ -543,6 +543,9 @@ tasks.named<Test>("test") {
     // `cp-outbox`'s: the relay's calls over a mocked repository, the backoff, the stamped rows (`OutboxReferenceSetTest`),
     // and the types the started application relays (`OutboxRegistryReferenceSetTest`), which hold the Rust relay back.
     inputs.dir(rootProject.file("../vectispire-rust/reference/outbox")).withPropertyName("outboxReferenceSet")
+    // `cp-scanning`'s: the scheduling rule, the queue's rules, the dispatcher's sentences and claims, the columns a scan's
+    // page reads back — `ScanningReferenceSetTest`, written before the Rust port of the module.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/scanning")).withPropertyName("scanningReferenceSet")
 }
 
 /**

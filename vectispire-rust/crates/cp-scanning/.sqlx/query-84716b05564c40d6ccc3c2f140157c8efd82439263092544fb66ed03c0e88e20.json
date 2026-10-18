@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_scan set status = ?, claimed_by = ?, claimed_at = ?, lease_expires_at = ?, attempts = attempts + 1, not_before = null where id = ? and status = ? and (not_before is null or not_before <= ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "84716b05564c40d6ccc3c2f140157c8efd82439263092544fb66ed03c0e88e20"
+}

@@ -21,6 +21,7 @@ vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
+vectispire-cp-scanning = { path = "../cp-scanning" }
 vectispire-cp-targets = { path = "../cp-targets" }
 
 [dev-dependencies]

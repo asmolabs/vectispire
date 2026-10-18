@@ -66,11 +66,11 @@ fn targets() -> Arc<vectispire_cp_targets::Targets> {
         guard: OutboundUrlGuard::new(Vec::new()),
     };
     Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
-        db,
+        db: db.clone(),
         audit: Arc::new(Silent),
-        scans: Arc::new(vectispire_cp_targets::ScanningStandIn),
+        scans: vectispire_cp_scanning::target_scans(db.clone(), Arc::new(vectispire_cp_targets::SystemClock)),
         backlog: Arc::new(vectispire_cp_targets::IssuesStandIn),
-        purge: vectispire_cp_targets::PurgeRegistry::stand_ins(),
+        purge: vectispire_cp_targets::PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners()),
         encryption: Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
         allowed_hosts: vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
         clock: Arc::new(vectispire_cp_targets::SystemClock),
@@ -80,6 +80,41 @@ fn targets() -> Arc<vectispire_cp_targets::Targets> {
 
 struct Silent;
 
+/// The scanning module over the same pool and the stand-ins the binary composes until 2.8, 2.9 and Phases 3 and 4.
+fn scanning(targets: Arc<vectispire_cp_targets::Targets>) -> Arc<vectispire_cp_scanning::Scanning> {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
+    use vectispire_cp_scanning::ports::{AgentsStandIn, BundledRules, IngestionStandIn, NoPlugins};
+    let settings = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let door = VaultDoor {
+        sender: PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    Arc::new(vectispire_cp_scanning::Scanning::new(vectispire_cp_scanning::ScanningConfig {
+        db: vectispire_cp_db::Db::connect_lazy(&settings).unwrap(),
+        clock: Arc::new(vectispire_cp_targets::SystemClock),
+        targets,
+        encryption: Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
+        audit: Arc::new(Silent),
+        claim_lock: Arc::new(AgentsStandIn),
+        rule_sets: Arc::new(BundledRules),
+        plugins: Arc::new(NoPlugins),
+        ingestor: Arc::new(IngestionStandIn::default()),
+        policy: vectispire_domain::scan_queue::Policy::default(),
+        leader_lease: vectispire_cp_scanning::DEFAULT_LEASE,
+        allowed_hosts: vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
+        image_platform: None,
+        runner: None,
+        scanned: Vec::new(),
+    }))
+}
+
 impl vectispire_cp_targets::AuditSink for Silent {
     fn record(&self, _: vectispire_cp_audit::Record) -> vectispire_cp_http::credentials::BoxFuture<'_, ()> {
         Box::pin(async {})
@@ -88,7 +123,8 @@ impl vectispire_cp_targets::AuditSink for Silent {
 
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
-    let turns = vectispire_cp_app::maintenance::turns(outbox(), targets()).unwrap();
+    let targets = targets();
+    let turns = vectispire_cp_app::maintenance::turns(outbox(), targets.clone(), scanning(targets)).unwrap();
     let problems = check(&turns.composition(), DEFERRED);
     assert!(problems.is_empty(), "the maintenance composition:\n  {}", problems.join("\n  "));
 }
