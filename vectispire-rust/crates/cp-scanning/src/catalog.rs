@@ -122,10 +122,10 @@ impl ScanCatalog {
     pub async fn refund_attempts(&self, ids: &[i64]) -> Result<u64, StoreError> {
         let distinct: Vec<i64> = ids.iter().copied().collect::<BTreeSet<i64>>().into_iter().collect();
         let mut tx = persistence::write(&self.db).await?;
-        let mut changed = 0;
+        let mut changed: u64 = 0;
         for batch in distinct.chunks(LOOKUP_BATCH) {
             match persistence::reset_attempts(&mut tx, batch, "pending").await {
-                Ok(rows) => changed += rows,
+                Ok(rows) => changed = changed.saturating_add(rows),
                 Err(failure) => {
                     let _ = tx.rollback().await;
                     return Err(failure);

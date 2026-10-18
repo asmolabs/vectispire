@@ -588,13 +588,13 @@ pub fn truncate_to(reason: &str, length: usize) -> String {
     let mut kept = String::with_capacity(reason.len().min(length.saturating_mul(4)));
     for c in reason.chars() {
         let width = c.len_utf16();
-        if units + width > length {
+        if units.saturating_add(width) > length {
             if units < length {
                 kept.push('?');
             }
             return kept;
         }
-        units += width;
+        units = units.saturating_add(width);
         kept.push(c);
     }
     kept

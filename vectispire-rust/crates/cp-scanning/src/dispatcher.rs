@@ -688,9 +688,9 @@ impl ScanDispatcher {
         let mut dispatched = Dispatched { claimed: claimed.len(), ..Dispatched::default() };
         for scan in &claimed {
             if self.execute(runner.as_ref(), scan, worker).await? {
-                dispatched.completed += 1;
+                dispatched.completed = dispatched.completed.saturating_add(1);
             } else {
-                dispatched.failed += 1;
+                dispatched.failed = dispatched.failed.saturating_add(1);
             }
         }
         Ok(dispatched)
@@ -758,9 +758,10 @@ impl ScanDispatcher {
     fn keep_leased(&self, scan: i64, worker: &str) -> tokio::task::JoinHandle<()> {
         let queue = self.queue.clone();
         let worker = worker.to_owned();
-        let period = (queue.lease() / 3).max(Duration::from_secs(1));
+        let period = queue.lease().checked_div(3).unwrap_or_default().max(Duration::from_secs(1));
         tokio::spawn(async move {
-            let mut ticks = tokio::time::interval_at(tokio::time::Instant::now() + period, period);
+            let start = tokio::time::Instant::now();
+            let mut ticks = tokio::time::interval_at(start.checked_add(period).unwrap_or(start), period);
             loop {
                 ticks.tick().await;
                 match queue.renew_lease(scan, &worker).await {
@@ -825,7 +826,7 @@ impl ScanDispatcher {
                 }
                 Err(WriteError::Changed) if attempt < WRITE_ATTEMPTS => {
                     let _ = tx.rollback().await;
-                    attempt += 1;
+                    attempt = attempt.saturating_add(1);
                     tracing::info!(
                         scan_id,
                         attempt,

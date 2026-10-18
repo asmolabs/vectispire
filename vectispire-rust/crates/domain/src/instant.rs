@@ -37,7 +37,7 @@ impl Instant {
     /// `plus(duration)` for a non-negative duration; `None` past the range of an `i64` of seconds.
     pub fn plus(self, duration: std::time::Duration) -> Option<Instant> {
         let total = self.nano.checked_add(duration.subsec_nanos())?;
-        let (carry, nano) = if total >= 1_000_000_000 { (1, total - 1_000_000_000) } else { (0, total) };
+        let (carry, nano) = if total >= 1_000_000_000 { (1, total.saturating_sub(1_000_000_000)) } else { (0, total) };
         let seconds = i64::try_from(duration.as_secs()).ok()?;
         Some(Instant { epoch_second: self.epoch_second.checked_add(seconds)?.checked_add(carry)?, nano })
     }

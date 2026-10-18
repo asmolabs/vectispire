@@ -80,7 +80,9 @@ impl LeaderElection {
     /// `at` is the instant the caller judges its work by: a lease taken at one instant while targets are judged at
     /// another is two clocks in one tick, one deciding who writes and the other what.
     pub async fn acquire(&self, name: &str, holder: &str, at: OffsetDateTime) -> Result<bool, StoreError> {
-        let expires_at = at + self.lease;
+        // A lease past what an instant holds is a configuration nobody writes; it saturates rather than wraps.
+        let lease = time::Duration::try_from(self.lease).unwrap_or(time::Duration::MAX);
+        let expires_at = at.checked_add(lease).unwrap_or(at);
         let existing = {
             let mut tx = persistence::read(&self.db).await?;
             let found = persistence::lease(&mut tx, name).await;

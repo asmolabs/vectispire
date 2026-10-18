@@ -43,12 +43,12 @@ impl Scanning {
             }
         };
         let now = instant(at);
-        let mut queued = 0;
+        let mut queued: usize = 0;
         match self.targets.catalog_repositories().await {
             Ok(repositories) => {
                 for repository in &repositories {
                     if due_repository(repository, default_minutes, now) {
-                        queued += self.queue_repository(repository, at).await;
+                        queued = queued.saturating_add(self.queue_repository(repository, at).await);
                     }
                 }
             }
@@ -58,7 +58,7 @@ impl Scanning {
             Ok(containers) => {
                 for container in &containers {
                     if due_container(container, default_minutes, now) {
-                        queued += self.queue_container(container, at).await;
+                        queued = queued.saturating_add(self.queue_container(container, at).await);
                     }
                 }
             }

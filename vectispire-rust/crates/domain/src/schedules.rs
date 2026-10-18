@@ -213,7 +213,7 @@ pub fn cron_runs_at_least_every(cron: &Stored, period_seconds: i64, now: Instant
     const SIXTY_TWO_DAYS: i64 = 62 * 86_400;
     let span = period_seconds.saturating_mul(2);
     let Some(horizon) = now.plus_seconds(span.max(SIXTY_TWO_DAYS)) else { return false };
-    let period_nanos = i128::from(period_seconds) * 1_000_000_000;
+    let period_nanos = i128::from(period_seconds).saturating_mul(1_000_000_000);
     let mut from = now;
     for _ in 0..CADENCE_STEPS {
         let Some(next) = cron.next_after(from) else { return false };
@@ -230,8 +230,10 @@ pub fn cron_runs_at_least_every(cron: &Stored, period_seconds: i64, now: Instant
 
 /// `Duration.between(from, to)` in nanoseconds.
 fn nanos_between(from: Instant, to: Instant) -> i128 {
-    (i128::from(to.epoch_second) - i128::from(from.epoch_second)) * 1_000_000_000 + i128::from(to.nano)
-        - i128::from(from.nano)
+    (i128::from(to.epoch_second).saturating_sub(i128::from(from.epoch_second)))
+        .saturating_mul(1_000_000_000)
+        .saturating_add(i128::from(to.nano))
+        .saturating_sub(i128::from(from.nano))
 }
 
 #[cfg(test)]

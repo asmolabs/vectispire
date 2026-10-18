@@ -193,5 +193,7 @@ fn batches(size: usize) -> usize {
 /// that each statement is the same statement.
 fn batch(ids: &[i64], index: usize) -> Vec<i64> {
     let from = index.saturating_mul(LOOKUP_BATCH);
-    if from < ids.len() { ids[from..ids.len().min(from + LOOKUP_BATCH)].to_vec() } else { vec![-1] }
+    ids.get(from..ids.len().min(from.saturating_add(LOOKUP_BATCH)))
+        .filter(|batch| !batch.is_empty())
+        .map_or_else(|| vec![-1], <[i64]>::to_vec)
 }
