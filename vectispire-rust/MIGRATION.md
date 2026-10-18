@@ -62,6 +62,7 @@ which check was not run, if any:
 | Held to Java by a reference set | a Java test (`*ReferenceSetTest`) writes `vectispire-rust/reference/<area>/`, a Rust test reads it. Run the Java test in **check mode** (it fails when Java's answers differ from the committed files); regenerate only on purpose, never to make a test pass. Write the reference **before** the code: one written after tends to agree with the code. |
 | On both engines | an engine test on MySQL 9.4 and PostgreSQL 17, migrated by `vectispire-migrate`. A test against a mocked database does not count for concurrency, dialect or schema behaviour. |
 | Across the switch, where state is shared | a test against the published Java control plane on the same database: what Java writes, Rust reads, and back (see `cp-access/tests/across_the_switch.rs`, `cp-audit/oracle/`). |
+| Replayed against Java's traffic | **any task that serves routes.** `crates/cp-contract/scripts/replay-goldens.sh <dir>` records the Java suite at the commit into `<dir>` (Docker and a JDK 25; about ten minutes), or reuses a recording already there, then runs `cp-contract replay-plan <dir>` and each served module's `tests/golden.rs` (`#[ignore]`d by a plain `cargo test`, which says so) on MySQL 9.4 and PostgreSQL 17. Every recording of a served route replays green on both engines — answer, headers, every row it changed — or `golden/deferred.txt` names it with its reason; a line that has become green fails, so the task removes it and lowers `golden/deferred.ceiling`. A module that ports routes copies `cp-targets/tests/golden.rs` and adds its line to the script. A difference is fixed, or named as a stand-in with the task that ends it — never normalised away (`crates/cp-contract/README.md`, "The recorder's goldens"). |
 | Checked queries | `sqlx::query!` / `query_as!` with offline caches; `crates/cp-db/scripts/sqlx-prepare.sh prepare <crate>` then `check`. Add a new crate to its `crates_with_queries` list. A statement left unchecked says why in a comment. |
 | No secret | gitleaks on a **fresh single-branch clone** of the branch, with CI's pinned image and `.gitleaks.toml`. A test fixture is allowed by `gitleaks:allow` or pinned in `.gitleaksignore`, never by widening the config. |
 | The tests bite | a mutation check of the new logic: each guard broken, the suite goes red, sources restored identical. Every mutant killed; one that cannot be told apart is removed from the list with the reason, not counted as killed. |
@@ -86,7 +87,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 - **Merging** is done by one person per phase, in a dedicated branch, rerunning the whole of §2 on the
   merged result. Expect conflicts in the crate manifests, `lib.rs`, `deny.toml` and `Cargo.lock`.
 
-## 4. Where it stands (2026-10-17)
+## 4. Where it stands (2026-10-18)
 
 | | State | Branch |
 |---|---|---|
@@ -101,7 +102,8 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.3 Encryption at rest and sealing | done (63/63 mutants, 4 equivalents removed) | `rust/p2-3-crypto`, stacked on 2.4 |
 | 2.5 The protocol's server half | done (119/119 mutants, 5 equivalents removed) | `rust/p2-5-protocol`, stacked on 2.3 |
 | 2.2 Outbox | done (72/72 mutants, 4 equivalents removed) | `rust/p2-2-outbox`, stacked on 2.5 |
-| 2.6 Targets | done but the golden replay (below): 29 routes, deletion and purge registry, identity, credentials (73/73 mutants, 7 equivalents removed) | `rust/p2-6-targets`, stacked on 2.2 |
+| 2.6 Targets | done: 29 routes, deletion and purge registry, identity, credentials (73/73 mutants, 7 equivalents removed); replayed by 2.11a | `rust/p2-6-targets`, stacked on 2.2 |
+| 2.11a Golden replay | done: the recorder's format replayed on both engines; 7,148 recordings, 1,402 of the 1,480 of the 29 routes green on both, the other 78 and every route not ported named in `golden/deferred.txt` (369 lines); `AgentWireReferenceSetTest` made deterministic | `rust/p2-11a-golden-replay`, stacked on 2.6 |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
@@ -153,12 +155,12 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.3 | Encryption at rest (AES-256-GCM, key from variable / file / `/run/secrets` / Vault), signing key, an additive `seal` in `crates/crypto` | **done** |
 | 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | **done** |
 | 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | **done** |
-| 2.6 | Targets: 29 routes, deletion and purge registry | **done** (golden replay deferred to 2.11) |
+| 2.6 | Targets: 29 routes, deletion and purge registry | **done**, replayed (2.11a) |
 | 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | after 2.3, 2.4, 2.5 |
 | 2.8 | Ingestion; the **ingestion reference set is written before the code** | after 2.4, 2.5; files declared by 2.7 |
 | 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | after 2.5, 2.7 |
 | 2.10 | Built-in worker over a runner moved out of `agent/src/scan.rs` into `crates/runner` (approved 2026-10-17) | after 2.7; agent stream reviews the move |
-| 2.11 | Composition with named stand-ins, `golden/deferred.txt`, the upgrade drill extended, both agents against the Rust image | from day one; closes the phase |
+| 2.11 | Composition with named stand-ins, the upgrade drill extended, both agents against the Rust image; the golden replay and `golden/deferred.txt` are **done** (2.11a) | from day one; closes the phase |
 | 2.12 | Phase 2 security review | last |
 
 What the finished tasks leave to the others:
@@ -286,11 +288,10 @@ What the finished tasks leave to the others:
     `vectispire.git.allowed-hosts` — `GitHostAllowlist::parse` refuses the start on a malformed entry), adds
     `cp_targets::routes` to the registry with `CallerVisibility::new(VisibilityService::new(db, settings,
     TargetsForAccess(db)), PrincipalGrounds)`, **runs `Targets::purge_orphans()` once at every start** (Java's
-    `ApplicationReadyEvent`; not a one-shot job), wires `IssuerSeesTargets` into the API keys' issuance, and replays the
-    29 routes' recorded goldens: `cp-contract`'s replay reads a simpler format than the recorder's (`seed`/`effect`,
-    ranked identities `«t_repository#1»`, minted credentials), and that adapter was not built here. The routes are held
-    meanwhile by `tests/routes.rs` (answers member for member, the coverage below) and `tests/contract.rs` (operation
-    ids, parameters, the router probed); the 29 left `not-yet-ported.txt` (ceiling 282).
+    `ApplicationReadyEvent`; not a one-shot job), wires `IssuerSeesTargets` into the API keys' issuance. The 29 routes'
+    recordings are replayed by `tests/golden.rs` (2.11a, below); `tests/routes.rs` (answers member for member, the
+    coverage below) and `tests/contract.rs` (operation ids, parameters, the router probed) hold them too; the 29 left
+    `not-yet-ported.txt` (ceiling 282).
   - **The authorization coverage** is `crates/cp-targets/tests/routes.rs`: it enumerates the module's router and asks
     every route naming a target, a project or a solution, as an unassigned `USER` and as an administrator's key
     restricted elsewhere, for a hidden and an absent identifier — same bytes, never a success, 404 where admitted.
@@ -301,6 +302,24 @@ What the finished tasks leave to the others:
   - `cp-arch-tests/data/edges.toml` still says `targets` is `pending`: flipping it to `ported` requires every listed
     edge to be used, and the crate reaches `access::security` only through `cp-access`'s root re-exports — task 2.1's
     file to decide.
+
+- **The golden replay (2.11a), for every task with routes, and for 2.11.** `crates/cp-contract/README.md`, "The
+  recorder's goldens", has the rules; `crates/cp-targets/tests/golden.rs` is the model to copy.
+  - **What it found.** No difference in `cp-targets` itself: the 78 recordings not green are stand-ins and the
+    recording's limits, each named in `golden/deferred.txt` — the backlog's zeros (`IssuesStandIn`, Phase 3, 26),
+    "scan now" and the latest scan (`ScanningStandIn`, 2.7, 9), the `ProjectDeleted` and purge listeners of forges,
+    plugins, checklists and report plugins (Phases 4, 5, 10), the SIEM event enqueued from an audit signal (Phase 4,
+    3), an agent's key and long poll (2.9, 3), SSH keys the tests generate and the recorder hides (20), a test
+    context's `vectispire.git.allowed-hosts` (2), a hidden digest (2) or a hidden secret's length (1), a 64 KiB sidecar
+    body (1), and MockMvc's `Content-Type` sentence without the container's charset (1).
+  - **For 2.11's composition.** The chain's own entries (`ACCESS_DENIED`, `BEARER_TOKEN_THROTTLED`) reach the audit log
+    through nothing yet: the replay composes a `cp_http::credentials::Audit` over `AuditLog` itself (`ChainEntries` in
+    `cp-targets/tests/golden.rs`, writing in the request as Java's filter does). The binary needs one, or every refusal
+    differs by its missing row. The replay composes no `AgentDirectory` (2.9) and the default git-host allow-list.
+  - **Not replayed yet, whatever the route:** a `concurrent` record, a long poll's two `async` halves (2.9 merges
+    them), a binary or sidecar request body, an `https` scheme, a key or certificate the test sends (`«pem:…»`). Each
+    stops its test there and is reported with its reason.
+  - **In CI** (`rust-replay`): the suite recorded, the recording scanned by gitleaks, then `replay-goldens.sh`.
 
 The two things that fail nowhere if they go wrong, and so need the most care:
 
