@@ -137,7 +137,7 @@ class AgentWireReferenceSetTest {
                 .dependencies(List.of()).secrets(List.of()).iac(List.of()).sast(List.of())
                 .apiEndpoints(List.of()).apiContracts(List.of())
                 .build(Duration.ofSeconds(1))));
-        cases.put("agent-wrote-every-type-and-plugin-state", CONTROL_PLANE.writeValueAsBytes(ScanArtifacts.builder()
+        cases.put("agent-wrote-every-type-and-plugin-state", languagesInOrder(CONTROL_PLANE.writeValueAsBytes(ScanArtifacts.builder()
                 .sbom(CONTROL_PLANE.readTree(
                         "{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"components\":[{\"name\":\"jackson\",\"version\":\"2.21.0\"}]}"))
                 .project(new ProjectManifest.Project("npm", "1.4.0"))
@@ -158,8 +158,26 @@ class AgentWireReferenceSetTest {
                 .plugin(new PluginStep.Absent("p4", "d".repeat(64), "pull failed"))
                 .plugin(new PluginStep.Refused("p5", "e".repeat(64), PluginStep.Refusal.SIGNATURE_UNVERIFIED, "no signature"))
                 .failed("sast", "semgrep: timed out after PT10M")
-                .build(Duration.ofMillis(3_723_500))));
+                .build(Duration.ofMillis(3_723_500)))));
         return cases;
+    }
+
+    /**
+     * The agent's {@code languages} sorted by name. {@code ScanArtifacts} holds them in {@code toUnmodifiableSet()},
+     * whose iteration order the JVM draws at start-up ({@code ImmutableCollections.SALT}): written as it is, the body
+     * of a set of two came out in either order, one run in two, and the case failed or passed with it — alone and
+     * among the other reference tests alike. Any order is the same set to the reader; the file pins one.
+     */
+    private static byte[] languagesInOrder(byte[] body) throws Exception {
+        ObjectNode tree = (ObjectNode) CONTROL_PLANE.readTree(body);
+        if (tree.get("languages") instanceof ArrayNode languages) {
+            List<String> names = new ArrayList<>();
+            languages.forEach(name -> names.add(name.asText()));
+            names.sort(null);
+            languages.removeAll();
+            names.forEach(languages::add);
+        }
+        return CONTROL_PLANE.writeValueAsBytes(tree);
     }
 
     private static final String D64 = "d".repeat(64);
