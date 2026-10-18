@@ -5,9 +5,15 @@
 use vectispire_cp_maintenance::Sequence;
 use vectispire_cp_maintenance::composition::{DEFERRED, check, parse_deferred};
 
-/// The slots a Rust task fills today: the outbox's two (task 2.2) and the targets' two (task 2.6).
-const FILLED: [Sequence; 4] =
-    [Sequence::NotificationRelay, Sequence::SentMessages, Sequence::RepositoryIdentities, Sequence::OrphanedTargetRows];
+/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7).
+const FILLED: [Sequence; 6] = [
+    Sequence::NotificationRelay,
+    Sequence::SentMessages,
+    Sequence::RepositoryIdentities,
+    Sequence::OrphanedTargetRows,
+    Sequence::SchedulingTick,
+    Sequence::ScanRetention,
+];
 
 /// The filled slots and one more.
 fn and(extra: Sequence) -> Vec<Sequence> {
@@ -32,7 +38,7 @@ fn without(slot: &str) -> String {
 #[test]
 fn the_list_today_is_every_slot_with_its_reason() {
     let entries = parse_deferred(DEFERRED).unwrap();
-    assert_eq!(entries.len(), 24, "the outbox and the targets fill four of Java's twenty-eight");
+    assert_eq!(entries.len(), 22, "the outbox, the targets and scanning fill six of Java's twenty-eight");
     assert!(entries.iter().all(|entry| !entry.reason.is_empty()));
     assert!(check(&FILLED, DEFERRED).is_empty());
 }
@@ -54,9 +60,12 @@ fn a_slot_neither_filled_nor_deferred_fails() {
 
 #[test]
 fn a_slot_filled_and_still_deferred_fails() {
-    let problems = check(&and(Sequence::SchedulingTick), DEFERRED);
+    let problems = check(&and(Sequence::CredentialedBacklog), DEFERRED);
     assert_eq!(problems.len(), 1, "{problems:#?}");
-    assert!(mentions(&problems, "SCHEDULING_TICK: filled by a Rust task and still in deferred.txt"), "{problems:#?}");
+    assert!(
+        mentions(&problems, "CREDENTIALED_BACKLOG: filled by a Rust task and still in deferred.txt"),
+        "{problems:#?}"
+    );
 }
 
 #[test]
