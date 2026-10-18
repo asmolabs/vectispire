@@ -87,7 +87,8 @@ impl std::fmt::Debug for Targets {
 pub struct TargetsConfig {
     pub db: Db,
     pub audit: Arc<dyn AuditSink>,
-    /// `scanning`'s answer, or [`ScanningStandIn`] until task 2.7.
+    /// `scanning`'s answer — `vectispire_cp_scanning::target_scans` — or [`ScanningStandIn`] where `scanning` is not
+    /// composed (this crate's own suites).
     pub scans: Arc<dyn TargetScans>,
     /// `issues`' answer, or [`IssuesStandIn`] until Phase 3.
     pub backlog: Arc<dyn TargetBacklog>,

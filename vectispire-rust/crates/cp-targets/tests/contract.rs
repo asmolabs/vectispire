@@ -69,7 +69,14 @@ async fn the_routes_are_the_documented_ones() {
         })
         .collect();
     let document = Document::embedded();
-    let allowlist = Allowlist::embedded();
+    // The scan routes are `scanning`'s, which this crate cannot compose (the dependency runs the other way): its own
+    // contract test probes the two modules' routes together; here they are read as not served.
+    let scanning_s = "GET /api/v1/scans\nGET /api/v1/scans/{id}\nGET /api/v1/scans/{id}/sbom\n";
+    let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
+    let allowlist = Allowlist::parse(
+        &format!("{}{scanning_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
+        &(ceiling + 3).to_string(),
+    );
     assert_none(&check_routes(&document, &declared, &allowlist));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
     // The router as built, behind the chain: an unauthenticated probe is answered 401 by a registered route, and by

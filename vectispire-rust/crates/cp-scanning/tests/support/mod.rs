@@ -374,6 +374,17 @@ pub fn compose(db: &Db, clock: Arc<dyn Clock>, policy: Policy) -> Composed {
 }
 
 pub fn compose_with(db: &Db, clock: Arc<dyn Clock>, policy: Policy, hosts: GitHostAllowlist) -> Composed {
+    compose_running(db, clock, policy, hosts, None)
+}
+
+/// The same, with a runner for the built-in worker.
+pub fn compose_running(
+    db: &Db,
+    clock: Arc<dyn Clock>,
+    policy: Policy,
+    hosts: GitHostAllowlist,
+    runner: Option<Arc<dyn vectispire_cp_scanning::ports::ScanRunner>>,
+) -> Composed {
     let entries = Arc::new(Entries::default());
     let targets = Arc::new(Targets::new(TargetsConfig {
         db: db.clone(),
@@ -401,7 +412,7 @@ pub fn compose_with(db: &Db, clock: Arc<dyn Clock>, policy: Policy, hosts: GitHo
         leader_lease: Duration::from_secs(180),
         allowed_hosts: hosts,
         image_platform: None,
-        runner: None,
+        runner,
         scanned: Vec::new(),
     }));
     Composed { targets, scanning, entries, ingestion }
@@ -473,9 +484,37 @@ pub fn principal(username: &str, id: i64, role: Role, restriction: Restriction, 
 
 /// The scan routes behind the real chain, the visibility resolved by `cp-access` from the principal's grounds.
 pub fn router(db: &Db, scanning: Arc<Scanning>, credentials: StaticCredentials, mode: &'static str) -> axum::Router {
-    let visibility = VisibilityService::new(db.clone(), Arc::new(Mode(mode)), Arc::new(TargetsForAccess(db.clone())));
+    router_with(db, scanning, credentials, Arc::new(Mode(mode)))
+}
+
+/// The same over another settings store — one that fails, for the failure that must not read as "everything".
+pub fn router_with(
+    db: &Db,
+    scanning: Arc<Scanning>,
+    credentials: StaticCredentials,
+    settings: Arc<dyn AccessSettings>,
+) -> axum::Router {
+    let visibility = VisibilityService::new(db.clone(), settings, Arc::new(TargetsForAccess(db.clone())));
     let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)));
     for entry in vectispire_cp_scanning::routes(scanning) {
+        routes = routes.route(entry);
+    }
+    let chain =
+        Arc::new(Chain::new(ChainConfig::default(), Arc::new(credentials), Arc::new(RecordingAudit::default())));
+    routes.build(&chain, None).unwrap()
+}
+
+/// `targets`' routes and the scan routes behind one chain — what the binary will serve.
+pub fn router_with_targets(
+    db: &Db,
+    targets: Arc<Targets>,
+    scanning: Arc<Scanning>,
+    credentials: StaticCredentials,
+    mode: &'static str,
+) -> axum::Router {
+    let visibility = VisibilityService::new(db.clone(), Arc::new(Mode(mode)), Arc::new(TargetsForAccess(db.clone())));
+    let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)));
+    for entry in vectispire_cp_targets::routes(targets).into_iter().chain(vectispire_cp_scanning::routes(scanning)) {
         routes = routes.route(entry);
     }
     let chain =

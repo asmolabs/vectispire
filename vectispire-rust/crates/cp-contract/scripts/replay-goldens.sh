@@ -20,4 +20,5 @@ dir="$(cd "$dir" && pwd)"
 cd "$workspace"
 cargo run --locked -q -p vectispire-cp-contract -- replay-plan "$dir"
 # One line per module whose routes are served; a module that ports routes adds its own.
-VECTISPIRE_GOLDEN_DIR="$dir" cargo test --locked -p vectispire-cp-targets --test golden -- --ignored --nocapture
+# `targets` and `scanning` are replayed together: the targets' listings answer with scanning's TargetScans (task 2.7).
+VECTISPIRE_GOLDEN_DIR="$dir" cargo test --locked -p vectispire-cp-scanning --test golden -- --ignored --nocapture

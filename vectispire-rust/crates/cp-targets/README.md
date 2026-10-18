@@ -75,17 +75,18 @@ the same callers: no hidden target in `/repositories`, `/containers` or the solu
 
 ## What waits for other tasks
 
-- **`TargetScans`** (scanning, 2.7) is `ScanningStandIn`: no latest scan, every language unknown, and "scan now"
-  answered as the unexpected failure it is until the queue is composed. **`TargetBacklog`** (issues, Phase 3) is
-  `IssuesStandIn`: zero figures.
+- **`TargetScans`** is scanning's since task 2.7 (`vectispire_cp_scanning::target_scans`, built before `Targets`);
+  `ScanningStandIn` stays for this crate's own suites, which cannot depend on `scanning`. **`TargetBacklog`** (issues,
+  Phase 3) is `IssuesStandIn`: zero figures.
 - **The purge's listeners** are Java's fourteen as named stand-ins (`PurgeRegistry::stand_ins`, held to
-  `JAVA_LISTENERS`): scanning's two (2.7) and issues', tickets', inventory's, compliance's, gate's, plugins' and
+  `JAVA_LISTENERS`), scanning's two replaced by its own since 2.7 (`PurgeRegistry::stand_ins().with(
+  vectispire_cp_scanning::purge::listeners())`); issues', tickets', inventory's, compliance's, gate's, plugins' and
   forges' later. The foreign keys cascade on both engines meanwhile, so a deletion still takes those rows; the orphan
   sweep finds nothing to do until the owners' listeners land. `ProjectDeleted`'s listeners (checklists, plugins,
   report plugins) likewise.
-- **The recorded Java traffic is replayed** by `tests/golden.rs` (task 2.11a, `crates/cp-contract/scripts/replay-goldens.sh`):
-  every recording of the 29 routes, on both engines, through the real chain, credentials and audit log. 1,402 of
-  1,480 replay green; the 78 others are the stand-ins above and the recording's limits, each named in
-  `golden/deferred.txt`. The replay found no difference in this crate.
+- **The recorded Java traffic is replayed** by `cp-scanning/tests/golden.rs` since task 2.7 (it was this crate's,
+  task 2.11a): the 29 routes with scanning's three, composed as the binary composes them, since the listings answer
+  with scanning's `TargetScans`. `crates/cp-contract/scripts/replay-goldens.sh` runs it; what is not green is named
+  in `golden/deferred.txt`. The replay found no difference in this crate.
 - `GrantableTargets` in Rust declares `targets_in` only; Java's port also names grants, checks a project or a target
   exists and labels targets — `naming`, `catalog` and `TargetsForAccess` hold those for 1.7's access routes.

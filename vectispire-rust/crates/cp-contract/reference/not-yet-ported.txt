@@ -139,9 +139,6 @@ GET /api/v1/rule-sets/{id}/impact
 GET /api/v1/sarif-sources
 GET /api/v1/sbom/diff
 GET /api/v1/sbom/diff/latest
-GET /api/v1/scans
-GET /api/v1/scans/{id}
-GET /api/v1/scans/{id}/sbom
 GET /api/v1/schemas/project-export/{major}
 GET /api/v1/scorecards/badges/{token}.svg
 GET /api/v1/scorecards/containers/{containerId}

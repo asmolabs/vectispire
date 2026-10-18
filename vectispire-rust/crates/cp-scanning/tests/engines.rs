@@ -148,6 +148,7 @@ async fn suite(engine: Engine) {
         ("a scan in backoff is skipped by every selection", |db| Box::pin(backoff_skipped(db))),
         ("the next page skips the backoff too", |db| Box::pin(backoff_next_page(db))),
         ("a permanent failure fails at its first attempt", |db| Box::pin(permanent(db))),
+        ("a long reason is kept within its column", |db| Box::pin(a_long_reason(db))),
         ("a transient failure reaches the limit across the delays", |db| Box::pin(across_the_delays(db))),
         ("a lapse waits too", |db| Box::pin(a_lapse_waits(db))),
         ("two executors and one scan in backoff", |db| Box::pin(two_executors_backoff(db))),
@@ -163,6 +164,7 @@ async fn suite(engine: Engine) {
         ("retention on a database", |db| Box::pin(retention(db))),
         ("the trigger, the latest scan, the languages and the purge", |db| Box::pin(targets_side(db))),
         ("a result written, whichever executor", |db| Box::pin(results(db))),
+        ("the built-in worker", |db| Box::pin(built_in_worker(db))),
     ];
     for (name, case) in cases {
         clean(&db).await;
@@ -617,6 +619,23 @@ async fn permanent(db: Db) {
     );
 }
 
+/// A scanner's stack trace runs to tens of kilobytes: the reason is kept within the column.
+async fn a_long_reason(db: Db) {
+    enqueue(&db, 1, None).await;
+    let queue = composed(&db).scanning.queue().clone();
+    let id = queue.claim(1, "worker", &[]).await.unwrap()[0].id;
+    let long = "x".repeat(3_000);
+    queue
+        .abandon(id, "worker", 1, FailureKind::Permanent, &move |_: &vectispire_cp_scanning::Abandoned| long.clone())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        count(&db, &format!("select cast(length(error) as {}) from t_scan where id = {id}", bigint(&db))).await,
+        2_000
+    );
+}
+
 async fn across_the_delays(db: Db) {
     let policy = Policy::default();
     assert_eq!(policy.retry_delays, vec![Duration::from_secs(60), Duration::from_secs(300), Duration::from_secs(900)]);
@@ -1049,6 +1068,11 @@ async fn leader_election(db: Db) {
     );
     assert!(election.is_leader("scheduler", "holder", at + Duration::from_secs(1)).await.unwrap());
     assert!(!election.is_leader("scheduler", "holder", at + Duration::from_secs(181)).await.unwrap(), "past the lease");
+
+    // A lease is expired at its expiry's own instant — `!expiresAt.isAfter(at)`.
+    exec(&db, "delete from t_leader_lease").await;
+    assert!(election.acquire("scheduler", "holder", at).await.unwrap());
+    assert!(election.acquire("scheduler", "successor", at + Duration::from_secs(180)).await.unwrap());
 }
 
 // ── SchedulerDatabaseTest ────────────────────────────────────────────────────────────────────
@@ -1156,6 +1180,50 @@ async fn scheduler(db: Db) {
     due(&db, "d").await;
     assert!(scanning.election().acquire("scheduler", "another-instance", now()).await.unwrap());
     assert_eq!(scanning.schedule_at(now()).await, 0, "leader-only");
+
+    // Under the default interval, a target scanned ten minutes ago is due only if its weekly slot fell in those ten
+    // minutes — the default read in days, not minutes; an image is scheduled as a repository is.
+    clean(&db).await;
+    exec(&db, &format!("insert into t_repository (url, branch, name, last_scheduled_scan_at) values ('https://example.invalid/weekly.git', 'main', 'weekly', {})", literal(now() - Duration::from_secs(600)))).await;
+    let weekly = count(&db, "select id from t_repository where name = 'weekly'").await;
+    let stamped = text(
+        &db,
+        &format!(
+            "select cast(last_scheduled_scan_at as {}) from t_repository where id = {weekly}",
+            if matches!(db, Db::PostgreSql(_)) { "text" } else { "char" }
+        ),
+    )
+    .await;
+    exec(&db, &format!("insert into t_container (image_name, tag, scan_interval_minutes, last_scheduled_scan_at) values ('due-image', '1.0', 60, {})", literal(now() - Duration::from_secs(7_200)))).await;
+    let image = count(&db, "select id from t_container where image_name = 'due-image'").await;
+    let at = now();
+    let expected = vectispire_domain::schedules::default_due(
+        vectispire_domain::ScanTarget::Repository(weekly),
+        7 * 86_400,
+        Some(instant_of(at - Duration::from_secs(600))),
+        instant_of(at),
+    );
+    assert_eq!(scanning.schedule_at(at).await, 1 + usize::from(expected), "{stamped:?}");
+    assert_eq!(pending_for(&db, weekly).await, i64::from(expected));
+    assert_eq!(
+        count(
+            &db,
+            &format!(
+                "select count(*) from t_scan where container_id = {image} and status = 'pending' and branch = 'n/a'"
+            )
+        )
+        .await,
+        1
+    );
+
+    // The lease table unreachable while the rest answers: the tick fails closed.
+    clean(&db).await;
+    let id = due(&db, "e").await;
+    exec(&db, "alter table t_leader_lease rename to t_leader_lease_away").await;
+    let skipped = scanning.schedule_at(now()).await;
+    exec(&db, "alter table t_leader_lease_away rename to t_leader_lease").await;
+    assert_eq!(skipped, 0, "an instance that cannot reach the lease is not entitled to assume it is alone");
+    assert_eq!(pending_for(&db, id).await, 0);
 }
 
 // ── RetentionDatabaseTest ────────────────────────────────────────────────────────────────────
@@ -1215,6 +1283,13 @@ async fn retention(db: Db) {
     with_payload(&db, repo, 500).await;
     assert_eq!(scanning.prune().await.unwrap(), 0);
     let _ = Setting::RetentionKeepPerTarget;
+
+    // The keep window protects what the age would purge: two old scans, both within the last two.
+    exec(&db, "delete from t_scan").await;
+    set(&db, "2", "30").await;
+    with_payload(&db, repo, 200).await;
+    with_payload(&db, repo, 100).await;
+    assert_eq!(scanning.prune().await.unwrap(), 0);
 }
 
 // ── what targets reads of scans, and the purge ───────────────────────────────────────────────
@@ -1256,6 +1331,9 @@ async fn targets_side(db: Db) {
         Some(vec!["java".to_owned(), "python".to_owned()])
     );
     assert!(!languages.contains_key(&other), "no completed scan is unknown, never none");
+    // A newest completed scan that recorded no census is unknown too, never the empty set.
+    exec(&db, &format!("insert into t_scan (repo_id, branch, status, created_at, attempts, findings_count, new_issues_count, resolved_issues_count) values ({other}, 'main', 'completed', {}, 1, 0, 0, 0)", literal(now()))).await;
+    assert!(!figures.detected_languages(&[other]).await.unwrap().contains_key(&other));
 
     // A deletion takes the scans and their findings, through scanning's listeners in its transaction.
     exec(&db, &format!(
@@ -1340,6 +1418,17 @@ async fn results(db: Db) {
         Some("java")
     );
     assert_eq!(text(&db, &format!("select error from t_scan where id = {id}")).await, None);
+    // A result without a project leaves what an earlier one read.
+    exec(&db, "delete from t_scan").await;
+    support::scan(&db, None, Some(image), None, base()).await;
+    let task = scanning.dispatcher().claim_for_agent(&agent).await.unwrap().unwrap();
+    exec(&db, &format!("update t_scan set project_type = 'gradle', version = '9' where id = {}", task.scan_id)).await;
+    let artifacts = ScanArtifacts::read(br#"{"secrets":[]}"#).unwrap();
+    assert!(scanning.dispatcher().accept_agent_result(task.scan_id, &agent, &artifacts, None).await.unwrap());
+    assert_eq!(
+        text(&db, &format!("select project_type from t_scan where id = {}", task.scan_id)).await.as_deref(),
+        Some("gradle")
+    );
     // A result for a scan taken over meanwhile is discarded.
     exec(&db, "delete from t_scan").await;
     support::scan(&db, None, Some(image), None, base()).await;
@@ -1365,4 +1454,172 @@ async fn results(db: Db) {
     assert!(error.ends_with(": clone refused"), "{error}");
 
     let _ = Uuid::nil();
+}
+
+// ── the built-in worker (ScanDispatcherTest's cases with a runner) ────────────────────────────
+
+/// A runner that answers what it is told, and remembers the tasks it ran.
+struct Runner {
+    tasks: Mutex<Vec<vectispire_protocol::ScanTask>>,
+    answer: Box<dyn Fn(usize) -> Result<&'static str, vectispire_cp_scanning::ports::RunFailure> + Send + Sync>,
+    during: Mutex<Option<String>>,
+    db: Db,
+}
+
+impl vectispire_cp_scanning::ports::ScanRunner for Runner {
+    fn run<'a>(
+        &'a self,
+        task: &'a vectispire_protocol::ScanTask,
+    ) -> BoxFuture<'a, Result<vectispire_protocol::Received<'static>, vectispire_cp_scanning::ports::RunFailure>> {
+        Box::pin(async move {
+            let index = {
+                let mut tasks = self.tasks.lock().unwrap();
+                tasks.push(task.clone());
+                tasks.len()
+            };
+            let during = self.during.lock().unwrap().take();
+            if let Some(statement) = during {
+                exec(&self.db, &statement).await;
+            }
+            let body = (self.answer)(index)?;
+            Ok(ScanArtifacts::read(body.as_bytes()).unwrap().into_owned())
+        })
+    }
+}
+
+fn runner(
+    db: &Db,
+    answer: impl Fn(usize) -> Result<&'static str, vectispire_cp_scanning::ports::RunFailure> + Send + Sync + 'static,
+) -> Arc<Runner> {
+    Arc::new(Runner {
+        tasks: Mutex::new(Vec::new()),
+        answer: Box::new(answer),
+        during: Mutex::new(None),
+        db: db.clone(),
+    })
+}
+
+const PRIVATE_KEY: &str = "test-ssh-private-key-material";
+
+async fn built_in_worker(db: Db) {
+    use vectispire_cp_scanning::ports::RunFailure;
+    // Without a runner the round claims nothing: a claim it cannot honour would burn an attempt per round.
+    let idle = composed(&db);
+    let image = support::container(&db, "service").await;
+    let waiting = support::scan(&db, None, Some(image), None, base()).await;
+    assert_eq!(idle.scanning.dispatcher().dispatch("worker-1", 4, &[]).await.unwrap(), Default::default());
+    assert_eq!(status(&db, waiting).await, "pending");
+
+    // A repository with a deployment key: the worker receives the whole task in the clear.
+    let encryption = support::encryption();
+    let key_id = Uuid::new_v4();
+    let ciphertext =
+        encryption.encrypt(PRIVATE_KEY, &vectispire_cp_crypto::private_key_context(&key_id.to_string())).await.unwrap();
+    exec(&db, &format!("insert into t_ssh_key (id, name, private_key, created_at) values ('{key_id}', 'deploy', '{ciphertext}', {})", literal(now()))).await;
+    let repo = support::repository(&db, "keyed").await;
+    exec(&db, &format!("update t_repository set ssh_key_id = '{key_id}', sub_path = 'services/api' where id = {repo}"))
+        .await;
+    exec(&db, "delete from t_scan").await;
+    let clean_scan = support::scan(&db, Some(repo), None, None, base()).await;
+    let running = runner(&db, |_| Ok(r#"{"secrets":[],"duration":1.0}"#));
+    let worker = compose_running(&db, running.clone());
+    let round = worker.scanning.dispatcher().dispatch("worker-1", 2, &[]).await.unwrap();
+    assert_eq!((round.claimed, round.completed, round.failed), (1, 1, 0));
+    assert_eq!(status(&db, clean_scan).await, "completed");
+    let task = running.tasks.lock().unwrap()[0].clone();
+    match &task.target {
+        vectispire_protocol::Target::Repository(repository) => {
+            assert_eq!(
+                repository.private_key.as_ref().map(|key| key.expose().to_owned()).as_deref(),
+                Some(PRIVATE_KEY)
+            );
+            assert_eq!(repository.sub_path.as_deref(), Some("services/api"));
+        }
+        vectispire_protocol::Target::Image(_) => panic!("a repository's task"),
+    }
+
+    // The room is this worker's limit less its own scans, whatever the agents hold.
+    exec(&db, "delete from t_scan").await;
+    for _ in 0..3 {
+        support::scan(&db, Some(repo), None, None, base()).await;
+    }
+    exec(&db, &format!("update t_scan set status = 'scanning', claimed_by = 'some-agent', lease_expires_at = {} where id = (select max(id) from t_scan)", literal(now() + Duration::from_secs(600))).replace("(select max(id) from t_scan)", &count(&db, "select max(id) from t_scan").await.to_string())).await;
+    let round = worker.scanning.dispatcher().dispatch("worker-1", 2, &[]).await.unwrap();
+    assert_eq!(round.claimed, 2, "the agents' scans leave this worker's room alone");
+
+    // A transient failure retries as an agent's would, scrubbed of the task's secrets.
+    exec(&db, "delete from t_scan").await;
+    let failing_scan = support::scan(&db, Some(repo), None, None, base()).await;
+    let failing = runner(&db, |_| {
+        Err(RunFailure {
+            message: format!("Cannot connect to the Docker daemon while cloning with {PRIVATE_KEY} token=abc123def"),
+            kind: FailureKind::Transient,
+        })
+    });
+    let worker = compose_running(&db, failing);
+    let round = worker.scanning.dispatcher().dispatch("worker-1", 2, &[]).await.unwrap();
+    assert_eq!((round.claimed, round.completed, round.failed), (1, 0, 1));
+    let error = text(&db, &format!("select error from t_scan where id = {failing_scan}")).await.unwrap();
+    assert!(error.contains("Attempt 1 of 3 could not run on the built-in worker"), "{error}");
+    assert!(error.contains("back in the queue"), "{error}");
+    assert!(error.contains("Cannot connect to the Docker daemon"), "{error}");
+    assert!(!error.contains(PRIVATE_KEY) && !error.contains("abc123def"), "{error}");
+    assert_eq!(status(&db, failing_scan).await, "pending");
+
+    // A permanent one fails at once.
+    exec(&db, "delete from t_scan").await;
+    let refused_scan = support::scan(&db, Some(repo), None, None, base()).await;
+    let refusing = runner(&db, |_| {
+        Err(RunFailure { message: "The host key has changed.".to_owned(), kind: FailureKind::Permanent })
+    });
+    compose_running(&db, refusing).scanning.dispatcher().dispatch("worker-1", 2, &[]).await.unwrap();
+    assert_eq!(status(&db, refused_scan).await, "failed");
+    let error = text(&db, &format!("select error from t_scan where id = {refused_scan}")).await.unwrap();
+    assert!(
+        error.contains("another attempt would meet the same refusal") && error.contains("The host key has changed."),
+        "{error}"
+    );
+
+    // Results the worker could not write retry, as an undelivered upload would: a null failure is Java's NPE.
+    exec(&db, "delete from t_scan").await;
+    let unwritten = support::scan(&db, Some(repo), None, None, base()).await;
+    let broken = runner(&db, |_| Ok(r#"{"secrets":[],"failures":[null]}"#));
+    let round = compose_running(&db, broken).scanning.dispatcher().dispatch("worker-1", 2, &[]).await.unwrap();
+    assert_eq!(round.failed, 1);
+    assert_eq!(status(&db, unwritten).await, "pending");
+    assert!(
+        text(&db, &format!("select error from t_scan where id = {unwritten}"))
+            .await
+            .unwrap()
+            .contains("Attempt 1 of 3 could not run on the built-in worker")
+    );
+
+    // A scan taken over before its turn in the round is not run.
+    exec(&db, "delete from t_scan").await;
+    let first = support::scan(&db, Some(repo), None, None, base()).await;
+    let second = support::scan(&db, Some(repo), None, None, base() + Duration::from_secs(1)).await;
+    let watching = runner(&db, |_| Ok(r#"{"secrets":[]}"#));
+    *watching.during.lock().unwrap() =
+        Some(format!("update t_scan set claimed_by = 'another-instance' where id = {second}"));
+    let round =
+        compose_running(&db, watching.clone()).scanning.dispatcher().dispatch("worker-1", 2, &[]).await.unwrap();
+    assert_eq!(watching.tasks.lock().unwrap().len(), 1, "the second scan, taken over meanwhile, is not run");
+    assert_eq!((round.claimed, round.completed, round.failed), (2, 1, 1));
+    assert_eq!(status(&db, first).await, "completed");
+    assert_eq!(status(&db, second).await, "scanning");
+}
+
+fn compose_running(db: &Db, runner: Arc<Runner>) -> Composed {
+    support::compose_running(
+        db,
+        system_clock(),
+        Policy::default(),
+        vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
+        Some(runner),
+    )
+}
+
+/// An instant as the module's rules read it.
+fn instant_of(at: OffsetDateTime) -> vectispire_domain::instant::Instant {
+    vectispire_domain::instant::Instant { epoch_second: at.unix_timestamp(), nano: at.nanosecond() }
 }

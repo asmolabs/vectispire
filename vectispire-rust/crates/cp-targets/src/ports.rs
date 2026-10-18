@@ -105,8 +105,10 @@ impl TargetBacklog for IssuesStandIn {
     }
 }
 
-/// `scanning`'s stand-in until task 2.7: no scan yet for any target, every repository's languages unknown, and a
-/// scan request refused as a failure — never queued nowhere and reported as queued.
+/// `scanning`'s stand-in: no scan yet for any target, every repository's languages unknown, and a scan request refused
+/// as a failure — never queued nowhere and reported as queued. **The binary composes scanning's own since task 2.7**
+/// (`vectispire_cp_scanning::target_scans`); this one stays for this crate's suites, which cannot depend on `scanning`
+/// (the dependency runs the other way). The recorded traffic is replayed with the real one, in `cp-scanning`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ScanningStandIn;
 

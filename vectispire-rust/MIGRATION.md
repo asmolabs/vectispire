@@ -62,7 +62,7 @@ which check was not run, if any:
 | Held to Java by a reference set | a Java test (`*ReferenceSetTest`) writes `vectispire-rust/reference/<area>/`, a Rust test reads it. Run the Java test in **check mode** (it fails when Java's answers differ from the committed files); regenerate only on purpose, never to make a test pass. Write the reference **before** the code: one written after tends to agree with the code. |
 | On both engines | an engine test on MySQL 9.4 and PostgreSQL 17, migrated by `vectispire-migrate`. A test against a mocked database does not count for concurrency, dialect or schema behaviour. |
 | Across the switch, where state is shared | a test against the published Java control plane on the same database: what Java writes, Rust reads, and back (see `cp-access/tests/across_the_switch.rs`, `cp-audit/oracle/`). |
-| Replayed against Java's traffic | **any task that serves routes.** `crates/cp-contract/scripts/replay-goldens.sh <dir>` records the Java suite at the commit into `<dir>` (Docker and a JDK 25; about ten minutes), or reuses a recording already there, then runs `cp-contract replay-plan <dir>` and each served module's `tests/golden.rs` (`#[ignore]`d by a plain `cargo test`, which says so) on MySQL 9.4 and PostgreSQL 17. Every recording of a served route replays green on both engines — answer, headers, every row it changed — or `golden/deferred.txt` names it with its reason; a line that has become green fails, so the task removes it and lowers `golden/deferred.ceiling`. A module that ports routes copies `cp-targets/tests/golden.rs` and adds its line to the script. A difference is fixed, or named as a stand-in with the task that ends it — never normalised away (`crates/cp-contract/README.md`, "The recorder's goldens"). |
+| Replayed against Java's traffic | **any task that serves routes.** `crates/cp-contract/scripts/replay-goldens.sh <dir>` records the Java suite at the commit into `<dir>` (Docker and a JDK 25; about ten minutes), or reuses a recording already there, then runs `cp-contract replay-plan <dir>` and each served module's `tests/golden.rs` (`#[ignore]`d by a plain `cargo test`, which says so) on MySQL 9.4 and PostgreSQL 17. Every recording of a served route replays green on both engines — answer, headers, every row it changed — or `golden/deferred.txt` names it with its reason; a line that has become green fails, so the task removes it and lowers `golden/deferred.ceiling`. A module that ports routes copies `cp-scanning/tests/golden.rs` and adds its line to the script — or, when its routes answer through another module's ports, joins that replay, as `targets` and `scanning` are replayed together. A difference is fixed, or named as a stand-in with the task that ends it — never normalised away (`crates/cp-contract/README.md`, "The recorder's goldens"). |
 | Checked queries | `sqlx::query!` / `query_as!` with offline caches; `crates/cp-db/scripts/sqlx-prepare.sh prepare <crate>` then `check`. Add a new crate to its `crates_with_queries` list. A statement left unchecked says why in a comment. |
 | No secret | gitleaks on a **fresh single-branch clone** of the branch, with CI's pinned image and `.gitleaks.toml`. A test fixture is allowed by `gitleaks:allow` or pinned in `.gitleaksignore`, never by widening the config. |
 | The tests bite | a mutation check of the new logic: each guard broken, the suite goes red, sources restored identical. Every mutant killed; one that cannot be told apart is removed from the list with the reason, not counted as killed. |
@@ -74,7 +74,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 ## 3. How to take a task
 
 - **One task, one branch.** Phase 2's branches are stacked: `rust/p1-merge` → `rust/p2-1-shared` →
-  `rust/p2-4-fingerprint` → `rust/p2-3-crypto` → `rust/p2-5-protocol` → `rust/p2-2-outbox` → `rust/p2-6-targets`. Start a new
+  `rust/p2-4-fingerprint` → `rust/p2-3-crypto` → `rust/p2-5-protocol` → `rust/p2-2-outbox` → `rust/p2-6-targets` → `rust/p2-11a-golden-replay` → `rust/p2-7-scanning`. Start a new
   Phase 2 task from the newest finished one.
   Name it `rust/p<phase>-<n>-<short-name>`.
 - **A task owns its files.** The tables below say which. Touching another task's files is a
@@ -104,6 +104,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.2 Outbox | done (72/72 mutants, 4 equivalents removed) | `rust/p2-2-outbox`, stacked on 2.5 |
 | 2.6 Targets | done: 29 routes, deletion and purge registry, identity, credentials (73/73 mutants, 7 equivalents removed); replayed by 2.11a | `rust/p2-6-targets`, stacked on 2.2 |
 | 2.11a Golden replay | done: the recorder's format replayed on both engines; 7,148 recordings, 1,402 of the 1,480 of the 29 routes green on both, the other 78 and every route not ported named in `golden/deferred.txt` (369 lines); `AgentWireReferenceSetTest` made deterministic | `rust/p2-11a-golden-replay`, stacked on 2.6 |
+| 2.7 Queue, dispatch and schedule | done: `cp-scanning` — the claim, the dispatcher over ports, the leader lease, the scheduler, retention, the purge listeners, `TargetScans`, the three scan routes; `ScanningReferenceSetTest` written first (1,800 schedule cases, 21 claims); Java's five suites and sixteen racing claimants on both engines; 1,447 of the 1,520 recordings of the 32 target and scan routes green on both (`golden/deferred.txt` 361 lines); 102/102 mutants killed, 9 equivalents removed | `rust/p2-7-scanning`, stacked on 2.11a |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
 In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
@@ -156,7 +157,7 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.4 | The fingerprint and the target vocabulary, pure, in `crates/domain`, with Java-written reference sets; Spring's cron parser | **done** |
 | 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | **done** |
 | 2.6 | Targets: 29 routes, deletion and purge registry | **done**, replayed (2.11a) |
-| 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | after 2.3, 2.4, 2.5 |
+| 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | **done** |
 | 2.8 | Ingestion; the **ingestion reference set is written before the code** | after 2.4, 2.5; files declared by 2.7 |
 | 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | after 2.5, 2.7 |
 | 2.10 | Built-in worker over a runner moved out of `agent/src/scan.rs` into `crates/runner` (approved 2026-10-17) | after 2.7; agent stream reviews the move |
@@ -171,9 +172,9 @@ What the finished tasks leave to the others:
   The binary does not start the turns yet (2.11, with `vectispire.jobs.initial-delay` mapped).
 - **One-shot repairs** (withheld claims in 2.9, resumed deletions in 2.6) claim through
   `OneShotJobs::claim(&mut tx, name)`; on failure, roll back, then `has_run`.
-- **2.7:** `Schedules` (`isDue`, the SplitMix offset, `runsAtLeastEvery`, `inForce`) is not ported; build
-  it on `cron::crontab::parse` and `Stored::next_after`. Retention uses `RetentionPolicy::prunable`, with
-  candidates newest first, target by target.
+- **2.7 (done):** `vectispire_domain::schedules` holds the whole rule (`is_due`, `offset`, `latest_slot`,
+  `runs_at_least_every`, `in_force`) and `scan_queue` the queue's (`after_failure`, `retry_delay`, `lease_until`),
+  both held to `reference/scanning/java-answers.json`.
 - **2.8:** compute the fingerprint **before** clipping. The lone surrogate is decided (2.5): a result is
   read through `vectispire_protocol::jackson`, which writes an unpaired `\uD800` as `?` before `serde_json`
   sees it — what Java's `getBytes(UTF_8)` makes of it in the fingerprint and the database.
@@ -321,6 +322,37 @@ What the finished tasks leave to the others:
     stops its test there and is reported with its reason.
   - **In CI** (`rust-replay`): the suite recorded, the recording scanned by gitleaks, then `replay-goldens.sh`.
 
+- **Scanning (2.7), for 2.8, 2.9, 2.10, 2.11 and Phases 3 to 5.** `crates/cp-scanning/README.md` has the map from Java,
+  the ports and their stand-ins, the differences and the quirks reproduced.
+  - **Composition order**: `target_scans(db, clock)` and `purge::listeners()` first, into `TargetsConfig`
+    (`scans`, `PurgeRegistry::stand_ins().with(…)`); then `Scanning::new(ScanningConfig { targets, … })`;
+    `vectispire_cp_scanning::tasks(scanning)` and `routes(scanning)` beside `targets`'.
+  - **2.8 (ingestion)** fills `ports::ScanIngestor` (`prepare` outside the transaction, `ingest` in it after the
+    row is held; `IngestError::Changed` is folded again, up to five times) in its declared files: `ingestion.rs`,
+    `internal/ingestion/`, `persistence/findings.rs`. `Reconciliation::examined` is the set the scan keeps
+    (`views::examined_types::write`); `None` leaves the column. The stand-in `IngestionStandIn` records the calls
+    and folds nothing — the composition must not run real scans through it. The dispatcher already writes the status
+    rule, the SBOM (as `JsonNode.toString()`), the project, the failure summary, the plugin outcomes and the
+    languages.
+  - **2.9 (agents)** implements `ports::AgentClaimLock` (`update t_agent set last_seen_at = ? where id = ?` in the
+    caller's `&mut Tx`, as `AgentRepository.lockForClaim`) in place of `AgentsStandIn`, builds a
+    `dispatcher::ClaimingAgent` from its row, and calls `ScanDispatcher::{claim_for_agent, return_undelivered,
+    renew_agent_lease, accept_agent_result (with its outbox message as `Alongside`), report_agent_failure}`;
+    `ClaimError::Withheld` is the 412, `AgentTask::assigned()` the body. `ScanCatalog` has what the credentialed
+    backlog and the withheld-claim repair read (`waiting_repositories`, `waiting_with_attempts`, `refund_attempts`,
+    the counts per claimant and label). The four recordings of `GET /api/v1/scans/{id}` that follow a long poll are
+    deferred to 2.9's merge of the poll's two halves.
+  - **2.10 (built-in worker)** implements `ports::ScanRunner` and passes it as `ScanningConfig::runner`; the worker's
+    loop calls `ScanDispatcher::dispatch(worker, max_concurrent, labels)`, which already reclaims, counts this
+    worker's room, renews before each run, keeps the lease while it runs and ends a failed attempt by the agents'
+    rule (`tests/engines.rs`, "the built-in worker", with a fake runner).
+  - **2.11** composes the above, maps `vectispire.scanning.*` onto `Policy` and `image_platform`,
+    `vectispire.leader.lease` (at least a second) onto `leader_lease`, releases the scheduler's lease at shutdown
+    (`LeaderElection::release_scheduler`), and keeps `ScanningStandIn` out of the binary. **Open:** the golden names
+    of `ReadCostSweepTest` depend on the order the JVM walks the routes in (`--061-` in one recording, `--050-` in
+    another), so `golden/deferred.txt`'s four lines for it match one recording only; the replay of this branch used
+    the recording 2.11a made.
+
 The two things that fail nowhere if they go wrong, and so need the most care:
 
 - **The fingerprint.** Any change resolves every existing issue and recreates it, losing all triage.
@@ -369,3 +401,4 @@ From the workspace [`README.md`](README.md), "Remaining work, as independent str
 | The scan runner moves to a crate shared with the agent (task 2.10) | 2026-10-17 | this file |
 | One MySQL statement per crate may stay unchecked when its `in (…)` list varies in length; the reason is beside it | 2026-10-17 | `cp-access`, `cp-audit` READMEs |
 | Agent-key fall-through is an equivalent mutant, removed from the list | 2026-10-17 | `p1c-mutate.py` |
+

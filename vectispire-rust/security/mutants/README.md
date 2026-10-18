@@ -27,6 +27,7 @@ The mutant lists are data, one script per task; the shared logic is in `_runner.
 | `p2-5-protocol.py` | 2.5 the protocol's server half | `crates/protocol`: the Jackson reader, coercions, the result, the server's bodies, the claim's writer |
 | `p2-11a-replay.py` | 2.11a golden replay | `cp-contract`'s `recorded`: the placeholders' matching, the window, the documents', headers' and rows' comparison, `deferred.txt`'s coverage |
 | `p2-6-targets.py` | 2.6 targets | `cp-targets`: visibility in every service and route, a deletion's order and revocations, the identity guard, the schedule, the credentials, the forms, the readers; the principal's restriction (`cp-http`, `cp-access`), `TargetGrants`; the domain rules it reads |
+| `p2-7-scanning.py` | 2.7 scanning | `cp-scanning`: the claim's conditions, the attempts, the leader lease, the scheduler, retention, the dispatcher's sealing and refusals, the result's write, the routes' visibility; `domain`'s `schedules` and `scan_queue` |
 
 ## Running
 

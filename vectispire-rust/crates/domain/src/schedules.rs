@@ -233,3 +233,34 @@ fn nanos_between(from: Instant, to: Instant) -> i128 {
     (i128::from(to.epoch_second) - i128::from(from.epoch_second)) * 1_000_000_000 + i128::from(to.nano)
         - i128::from(from.nano)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cron::crontab;
+
+    /// `2026-10-18T12:34:56.789Z`, the reference set's instant.
+    const NOW: Instant = Instant { epoch_second: 1_792_326_896, nano: 789_000_000 };
+
+    #[test]
+    fn each_rule_is_due_at_its_instant_not_a_second_later() {
+        // The boundaries the reference set's lasts do not land on: `!now.isBefore(due)`, `isBefore(slot)`, `!isAfter`.
+        assert!(interval_due(3_600, NOW.plus_seconds(-3_600), NOW));
+        assert!(!interval_due(3_600, NOW.plus_seconds(-3_599), NOW));
+        let target = ScanTarget::Repository(42);
+        let slot = latest_slot(target, 604_800, NOW);
+        assert!(!default_due(target, 604_800, Some(slot), NOW), "stamped at the slot itself: done");
+        assert!(default_due(target, 604_800, slot.plus_seconds(-1), NOW));
+        let every_minute = crontab::parse(Some("* * * * *"));
+        let next = every_minute.next_after(NOW).unwrap();
+        assert!(cron_due(&every_minute, Some(NOW), next), "the occurrence's own instant is due");
+    }
+
+    #[test]
+    fn the_cadence_walks_sixty_two_days_whatever_the_period() {
+        // Hourly on the 18th to the 20th of October: daily for two periods from the 18th, then a year's gap — which a
+        // walk of two periods alone would never reach.
+        let three_days = crontab::parse(Some("0 * 18-20 10 *"));
+        assert!(!cron_runs_at_least_every(&three_days, 86_400, NOW));
+    }
+}

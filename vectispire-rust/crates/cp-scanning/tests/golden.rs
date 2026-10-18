@@ -1,5 +1,11 @@
-//! **The Java suite's recorded traffic, replayed against the twenty-nine routes** (task 2.11, plan §4.3) — on MySQL 9.4
-//! and PostgreSQL 17, each migrated by `vectispire-migrate`.
+//! **The Java suite's recorded traffic, replayed against the thirty-two routes of `targets` and `scanning`** (tasks
+//! 2.11 and 2.7, plan §4.3) — on MySQL 9.4 and PostgreSQL 17, each migrated by `vectispire-migrate`.
+//!
+//! **One replay for the two modules, here**, since task 2.7: the targets' listings show each target's latest scan and
+//! a repository's languages, and "scan now" queues a scan — answers of `scanning`'s `TargetScans`, which `cp-targets`
+//! cannot compose (the dependency runs from `scanning` to `targets`). Replayed with `ScanningStandIn` as they were in
+//! `cp-targets/tests/golden.rs`, they could only ever be deferred; composed as the binary will compose them, they are
+//! held to Java's.
 //!
 //! Every test of the recording with at least one request to a route this module serves is replayed through
 //! `cp-contract`'s `recorded` module: its seed rows written, each of its requests to these routes sent through the real
@@ -37,9 +43,11 @@ use vectispire_cp_db::{Db, Engine};
 use vectispire_cp_http::credentials::{AccessDenied, Audit, BoxFuture};
 use vectispire_cp_http::routes::Routes;
 use vectispire_cp_http::{Chain, ChainConfig};
+use vectispire_cp_scanning::ports::{AgentsStandIn, BundledRules, IngestionStandIn, NoPlugins};
+use vectispire_cp_scanning::{Scanning, ScanningConfig};
 use vectispire_cp_settings::{Setting, Settings};
 use vectispire_cp_targets::deletion::PurgeRegistry;
-use vectispire_cp_targets::{IssuesStandIn, ScanningStandIn, SystemClock, Targets, TargetsConfig, TargetsForAccess};
+use vectispire_cp_targets::{IssuesStandIn, SystemClock, Targets, TargetsConfig, TargetsForAccess};
 use vectispire_domain::git_host_allowlist::GitHostAllowlist;
 
 use support::Migrated;
@@ -122,24 +130,42 @@ impl Audit for ChainEntries {
     }
 }
 
-/// The module as the binary composes it until 2.7 and Phase 3, behind the real chain: a fresh one per test.
+/// The two modules as the binary composes them until 2.8, 2.9 and Phases 3 to 5, behind the real chain: a fresh pair
+/// per test.
 fn router(db: &Db) -> axum::Router {
-    let audit = AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new());
+    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
     let targets = Arc::new(Targets::new(TargetsConfig {
         db: db.clone(),
-        audit: Arc::new(audit),
-        scans: Arc::new(ScanningStandIn),
+        audit: audit.clone(),
+        scans: vectispire_cp_scanning::target_scans(db.clone(), Arc::new(SystemClock)),
         backlog: Arc::new(IssuesStandIn),
-        purge: PurgeRegistry::stand_ins(),
+        purge: PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners()),
         encryption: support::encryption(),
         allowed_hosts: GitHostAllowlist::default(),
         clock: Arc::new(SystemClock),
         visibility: None,
     }));
+    let scanning = Arc::new(Scanning::new(ScanningConfig {
+        db: db.clone(),
+        clock: Arc::new(SystemClock),
+        targets: targets.clone(),
+        encryption: support::encryption(),
+        audit,
+        claim_lock: Arc::new(AgentsStandIn),
+        rule_sets: Arc::new(BundledRules),
+        plugins: Arc::new(NoPlugins),
+        ingestor: Arc::new(IngestionStandIn::default()),
+        policy: vectispire_domain::scan_queue::Policy::default(),
+        leader_lease: vectispire_cp_scanning::DEFAULT_LEASE,
+        allowed_hosts: GitHostAllowlist::default(),
+        image_platform: None,
+        runner: None,
+        scanned: Vec::new(),
+    }));
     let settings = Arc::new(StoredSettings(Settings::new(db.clone())));
     let visibility = VisibilityService::new(db.clone(), settings, Arc::new(TargetsForAccess(db.clone())));
     let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)));
-    for entry in vectispire_cp_targets::routes(targets) {
+    for entry in vectispire_cp_targets::routes(targets).into_iter().chain(vectispire_cp_scanning::routes(scanning)) {
         routes = routes.route(entry);
     }
     let credentials = CredentialService::new(
@@ -156,9 +182,10 @@ fn router(db: &Db) -> axum::Router {
 
 fn served() -> BTreeSet<(String, String)> {
     let db = support::unreachable();
-    let (targets, _) = support::targets(&db, PurgeRegistry::stand_ins());
-    vectispire_cp_targets::routes(targets)
-        .iter()
+    let composed = support::compose(&db, support::system_clock(), Default::default());
+    vectispire_cp_targets::routes(composed.targets)
+        .into_iter()
+        .chain(vectispire_cp_scanning::routes(composed.scanning))
         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
         .collect()
 }
@@ -212,7 +239,7 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
     let document = Document::embedded();
     let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
     let served = served();
-    assert_eq!(served.len(), 29, "the module's routes");
+    assert_eq!(served.len(), 32, "the two modules' routes");
     let deferred = Deferred::embedded();
     let all = listed(&recording, &document, &served).unwrap();
     let owing: BTreeSet<&str> =
