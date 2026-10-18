@@ -165,6 +165,7 @@ async fn suite(engine: Engine) {
         ("the trigger, the latest scan, the languages and the purge", |db| Box::pin(targets_side(db))),
         ("a result written, whichever executor", |db| Box::pin(results(db))),
         ("the built-in worker", |db| Box::pin(built_in_worker(db))),
+        ("one long purl, path and link no longer lose the scan", |db| Box::pin(long_findings(db))),
     ];
     for (name, case) in cases {
         clean(&db).await;
@@ -1622,4 +1623,68 @@ fn compose_running(db: &Db, runner: Arc<Runner>) -> Composed {
 /// An instant as the module's rules read it.
 fn instant_of(at: OffsetDateTime) -> vectispire_domain::instant::Instant {
     vectispire_domain::instant::Instant { epoch_second: at.unix_timestamp(), nano: at.nanosecond() }
+}
+
+// ── LongFindingIntegrationTest ───────────────────────────────────────────────────────────────
+
+async fn long_findings(db: Db) {
+    exec(
+        &db,
+        "insert into t_repository (url, branch, name) values ('ssh://git@example.com/team/long.git', 'main', 'long')",
+    )
+    .await;
+    let repo = count(&db, "select id from t_repository where name = 'long'").await;
+    let scan_id = support::scan(&db, Some(repo), None, None, base()).await;
+
+    let path = format!("src/{}index.js", "d/".repeat(400));
+    let dep_id = format!("GHSA-{}", "x".repeat(300));
+    let fix_v = format!("1.{}", "0".repeat(400));
+    let link = format!("https://advisories.example/{}", "l".repeat(600));
+    let purl = format!("pkg:npm/{}", "p".repeat(600));
+    let body = serde_json::json!({
+        "dependencies": [{
+            "identifier": dep_id,
+            "severity": "HIGH",
+            "packageName": "left-pad",
+            "installedVersion": "1.0.0",
+            "fixVersions": fix_v,
+            "referenceUrl": link,
+            "purl": purl
+        }],
+        "secrets": [{
+            "rule": "aws-key",
+            "description": "AWS token",
+            "file": path,
+            "line": 12,
+            "fingerprint": "abc"
+        }]
+    });
+
+    let bytes = serde_json::to_vec(&body).unwrap();
+    let artifacts = ScanArtifacts::read(&bytes).unwrap();
+    let mut tx = db.begin(vectispire_cp_db::Mode::ReadWrite).await.unwrap();
+    let scan_view = composed(&db).scanning.queue().by_id_in(&mut tx, scan_id).await.unwrap().unwrap();
+    let ingestor = vectispire_cp_scanning::ingestion::ScanIngestor::new(
+        Arc::new(vectispire_cp_scanning::ingestion::NoBacklog),
+        Arc::new(vectispire_cp_scanning::ingestion::NoInventory),
+        None,
+        None,
+        None,
+        system_clock(),
+    );
+    let prepared = ingestor.prepare(&scan_view, &artifacts).await;
+    let _result = ingestor.ingest(Some(&mut tx), &scan_view, &artifacts, &prepared).await.unwrap();
+    tx.commit().await.unwrap();
+
+    let findings_count = count(&db, "select count(*) from t_finding").await;
+    assert_eq!(findings_count, 2);
+
+    let b = bigint(&db);
+    let purl_len = count(&db, &format!("select cast(length(purl) as {b}) from t_finding where purl is not null")).await;
+    assert_eq!(purl_len, 255);
+    let link_len = count(&db, &format!("select cast(length(link) as {b}) from t_finding where link is not null")).await;
+    assert_eq!(link_len, 500);
+    let path_len =
+        count(&db, &format!("select cast(length(file_path) as {b}) from t_finding where file_path is not null")).await;
+    assert_eq!(path_len, 500);
 }
