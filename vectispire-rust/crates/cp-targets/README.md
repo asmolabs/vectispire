@@ -83,7 +83,9 @@ the same callers: no hidden target in `/repositories`, `/containers` or the solu
   forges' later. The foreign keys cascade on both engines meanwhile, so a deletion still takes those rows; the orphan
   sweep finds nothing to do until the owners' listeners land. `ProjectDeleted`'s listeners (checklists, plugins,
   report plugins) likewise.
-- **The golden replay of the recorded Java traffic** is not run here: `cp-contract`'s replay reads a simpler format
-  than the recorder's (`seed`/`effect`, ranked identities, minted credentials) and the adapter is task 2.11's oracle.
+- **The recorded Java traffic is replayed** by `tests/golden.rs` (task 2.11a, `crates/cp-contract/scripts/replay-goldens.sh`):
+  every recording of the 29 routes, on both engines, through the real chain, credentials and audit log. 1,402 of
+  1,480 replay green; the 78 others are the stand-ins above and the recording's limits, each named in
+  `golden/deferred.txt`. The replay found no difference in this crate.
 - `GrantableTargets` in Rust declares `targets_in` only; Java's port also names grants, checks a project or a target
   exists and labels targets — `naming`, `catalog` and `TargetsForAccess` hold those for 1.7's access routes.
