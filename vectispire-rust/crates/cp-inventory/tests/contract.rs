@@ -177,12 +177,22 @@ GET /api/v1/rule-sets/coverage\n\
 POST /api/v1/rule-sets/deactivate\n\
 GET /api/v1/rule-sets/deactivate/impact\n\
 POST /api/v1/rule-sets/{id}/activate\n\
-GET /api/v1/rule-sets/{id}/impact\n";
+GET /api/v1/rule-sets/{id}/impact\n\
+GET /api/v1/exceptions\n\
+POST /api/v1/exceptions/{issueId}/reviews\n\
+GET /api/v1/history/repositories\n\
+GET /api/v1/history/repositories/{id}\n\
+GET /api/v1/history/repositories/{id}/export.csv\n\
+GET /api/v1/issues\n\
+POST /api/v1/issues/triage\n\
+GET /api/v1/issues/{id}\n\
+PUT /api/v1/issues/{id}/ticket\n\
+POST /api/v1/issues/{id}/triage\n";
 
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let not_ours = Allowlist::parse(
         &format!("{}{others_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 29 + 3 + 17 + 9).to_string(),
+        &(ceiling + 29 + 3 + 17 + 9 + 10).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &not_ours));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));

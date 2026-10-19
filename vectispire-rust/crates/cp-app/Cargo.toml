@@ -31,6 +31,7 @@ vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
 vectispire-cp-rules = { path = "../cp-rules" }
+vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-scanning = { path = "../cp-scanning" }
 vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-targets = { path = "../cp-targets" }

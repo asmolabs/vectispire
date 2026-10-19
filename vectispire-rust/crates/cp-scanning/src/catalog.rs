@@ -252,4 +252,34 @@ impl ScanCatalog {
     pub async fn ids_with_sbom_before(&self, before: i64, limit: i64) -> Result<Vec<i64>, StoreError> {
         self.read(async |tx| persistence::catalog_queries::ids_with_sbom_before(tx, before, limit).await).await
     }
+
+    /// Each repository's newest scan instant — a repository never scanned is absent.
+    pub async fn last_scan_at_per_repository(&self) -> Result<BTreeMap<i64, OffsetDateTime>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::last_scan_at_per_repository(tx).await).await
+    }
+
+    /// Scans of one repository, newest first.
+    pub async fn history(&self, repo_id: i64, branch: Option<&str>, limit: usize) -> Result<Vec<ScanView>, StoreError> {
+        Ok(self
+            .read(async |tx| persistence::catalog_queries::history_of_repository(tx, repo_id, branch, limit).await)
+            .await?
+            .into_iter()
+            .map(ScanView::from)
+            .collect())
+    }
+
+    /// The findings of several scans at once.
+    pub async fn findings_of_scans(&self, scan_ids: &[i64]) -> Result<Vec<ScanFindingView>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::findings_of_scans(tx, scan_ids).await).await
+    }
+
+    /// Where one issue was observed, newest scan first.
+    pub async fn sightings(&self, issue_id: i64, limit: usize) -> Result<Vec<FindingOnScan>, StoreError> {
+        Ok(self
+            .read(async |tx| persistence::catalog_queries::sightings_of_issue(tx, issue_id, limit).await)
+            .await?
+            .into_iter()
+            .map(FindingOnScan::from)
+            .collect())
+    }
 }

@@ -16,6 +16,7 @@ pub fn entries(
     agents: Arc<Agents>,
     rules: Arc<RulesModule>,
     inventory: Arc<Inventory>,
+    issues: Arc<vectispire_cp_issues::Issues>,
 ) -> Vec<RouteEntry> {
     let mut list = Vec::new();
     list.extend(vectispire_cp_targets::routes(targets.clone()));
@@ -23,6 +24,7 @@ pub fn entries(
     list.extend(vectispire_cp_agents::routes(agents));
     list.extend(rules.routes());
     list.extend(vectispire_cp_inventory::routes(inventory, targets));
+    list.extend(vectispire_cp_issues::routes(issues));
     list
 }
 
@@ -34,9 +36,10 @@ pub fn routes(
     agents: Arc<Agents>,
     rules: Arc<RulesModule>,
     inventory: Arc<Inventory>,
+    issues: Arc<vectispire_cp_issues::Issues>,
 ) -> Routes<()> {
     let mut routes = Routes::new(NoVisibility);
-    for entry in entries(targets, scanning, agents, rules, inventory) {
+    for entry in entries(targets, scanning, agents, rules, inventory, issues) {
         routes = routes.route(entry);
     }
     routes

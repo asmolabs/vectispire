@@ -1038,3 +1038,161 @@ pub async fn ids_with_sbom_before(tx: &mut Tx, before: i64, limit: i64) -> Resul
         }
     }
 }
+
+const SCAN_COLS_CONST: &str = "s.id as s_id, s.branch as s_branch, s.sub_path as s_sub_path, s.status as s_status, \
+                 s.duration_ms as s_duration_ms, s.findings_count as s_findings_count, \
+                 s.new_issues_count as s_new_issues_count, s.resolved_issues_count as s_resolved_issues_count, \
+                 s.error as s_error, s.created_at as s_created_at, s.version as s_version, \
+                 s.project_type as s_project_type, s.repo_id as s_repo_id, s.container_id as s_container_id, \
+                 s.required_agent_label as s_required_agent_label, s.claimed_by as s_claimed_by, \
+                 s.claimed_at as s_claimed_at, s.lease_expires_at as s_lease_expires_at, \
+                 s.attempts as s_attempts, s.not_before as s_not_before, s.plugin_steps as s_plugin_steps, \
+                 s.examined_types as s_examined_types, s.detected_languages as s_detected_languages, \
+                 s.sast_languages as s_sast_languages, (case when s.sbom is null then 0 else 1 end) as s_has_sbom";
+
+const FINDING_COLS_CONST: &str = "f.id, f.scan_id, f.type, f.severity, f.identifier, f.package_name, f.package_version, \
+                    f.purl, f.file_path, f.owasp_category, f.source, f.tool, f.tool_name, f.tool_version, \
+                    f.epss_score, f.is_kev, f.created_at, f.cvss_score, f.cvss_vector, f.fix_state, \
+                    f.fix_versions, f.link, f.issue_id, f.is_direct_dependency, f.line, f.description";
+
+pub async fn last_scan_at_per_repository(tx: &mut Tx) -> Result<BTreeMap<i64, OffsetDateTime>, StoreError> {
+    let sql = "select repository_id, max(created_at) as last_scan from t_scan where repository_id is not null and status = 'completed' group by repository_id";
+    match tx {
+        Tx::MySql(conn) => {
+            let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
+            let mut map = BTreeMap::new();
+            for r in rows {
+                let repo_id: i64 = r.get("repository_id");
+                let last_scan: Option<UtcInstant> = r.try_get("last_scan").ok().flatten();
+                if let Some(instant) = last_scan {
+                    map.insert(repo_id, instant.0);
+                }
+            }
+            Ok(map)
+        }
+        Tx::PostgreSql(conn) => {
+            let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
+            let mut map = BTreeMap::new();
+            for r in rows {
+                let repo_id: i64 = r.get("repository_id");
+                let last_scan: Option<UtcInstant> = r.try_get("last_scan").ok().flatten();
+                if let Some(instant) = last_scan {
+                    map.insert(repo_id, instant.0);
+                }
+            }
+            Ok(map)
+        }
+    }
+}
+
+pub async fn history_of_repository(
+    tx: &mut Tx,
+    repo_id: i64,
+    branch: Option<&str>,
+    limit: usize,
+) -> Result<Vec<ScanRow>, StoreError> {
+    let limit_i64 = i64::try_from(limit).unwrap_or(200);
+    match (tx, branch) {
+        (Tx::MySql(conn), Some(b)) => {
+            let sql = format!(
+                "select {SCAN_COLS_CONST} from t_scan s where s.repo_id = ? and s.branch = ? order by s.created_at desc, s.id desc limit ?"
+            );
+            let rows =
+                sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(b).bind(limit_i64).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_scan_from_prefix!(r)).collect())
+        }
+        (Tx::MySql(conn), None) => {
+            let sql = format!(
+                "select {SCAN_COLS_CONST} from t_scan s where s.repo_id = ? order by s.created_at desc, s.id desc limit ?"
+            );
+            let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(limit_i64).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_scan_from_prefix!(r)).collect())
+        }
+        (Tx::PostgreSql(conn), Some(b)) => {
+            let sql = format!(
+                "select {SCAN_COLS_CONST} from t_scan s where s.repo_id = $1 and s.branch = $2 order by s.created_at desc, s.id desc limit $3"
+            );
+            let rows =
+                sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(b).bind(limit_i64).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_scan_from_prefix!(r)).collect())
+        }
+        (Tx::PostgreSql(conn), None) => {
+            let sql = format!(
+                "select {SCAN_COLS_CONST} from t_scan s where s.repo_id = $1 order by s.created_at desc, s.id desc limit $2"
+            );
+            let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(limit_i64).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_scan_from_prefix!(r)).collect())
+        }
+    }
+}
+
+pub async fn findings_of_scans(tx: &mut Tx, scan_ids: &[i64]) -> Result<Vec<ScanFindingView>, StoreError> {
+    if scan_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut found = Vec::new();
+    const BATCH: usize = 1_000;
+    for chunk in scan_ids.chunks(BATCH) {
+        match tx {
+            Tx::MySql(conn) => {
+                let placeholders = vec!["?"; chunk.len()].join(",");
+                let sql = format!(
+                    "select id, scan_id, type, severity, identifier, package_name, package_version, purl, file_path, owasp_category, source, tool, tool_name, tool_version, epss_score, is_kev, created_at, cvss_score, cvss_vector, fix_state, fix_versions, link, issue_id, is_direct_dependency, line, description from t_finding where scan_id in ({placeholders}) order by id"
+                );
+                let mut q = sqlx::query(AssertSqlSafe(sql));
+                for id in chunk {
+                    q = q.bind(id);
+                }
+                let rows = q.fetch_all(&mut **conn).await?;
+                found.extend(rows.iter().map(|r| parse_finding!(r)));
+            }
+            Tx::PostgreSql(conn) => {
+                let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
+                let sql = format!(
+                    "select id, scan_id, type, severity, identifier, package_name, package_version, purl, file_path, owasp_category, source, tool, tool_name, tool_version, epss_score, is_kev, created_at, cvss_score, cvss_vector, fix_state, fix_versions, link, issue_id, is_direct_dependency, line, description from t_finding where scan_id in ({placeholders}) order by id"
+                );
+                let mut q = sqlx::query(AssertSqlSafe(sql));
+                for id in chunk {
+                    q = q.bind(id);
+                }
+                let rows = q.fetch_all(&mut **conn).await?;
+                found.extend(rows.iter().map(|r| parse_finding!(r)));
+            }
+        }
+    }
+    Ok(found)
+}
+
+pub async fn sightings_of_issue(tx: &mut Tx, issue_id: i64, limit: usize) -> Result<Vec<FindingOnScanRow>, StoreError> {
+    let limit_i64 = i64::try_from(limit).unwrap_or(100);
+    match tx {
+        Tx::MySql(conn) => {
+            let sql = format!(
+                "select {FINDING_COLS_CONST}, {SCAN_COLS_CONST} from t_finding f join t_scan s on f.scan_id = s.id where f.issue_id = ? order by s.created_at desc, s.id desc limit ?"
+            );
+            let rows = sqlx::query(AssertSqlSafe(sql)).bind(issue_id).bind(limit_i64).fetch_all(&mut **conn).await?;
+            Ok(rows
+                .iter()
+                .map(|r| {
+                    let finding = parse_finding!(r);
+                    let scan = parse_scan_from_prefix!(r);
+                    FindingOnScanRow { finding, scan }
+                })
+                .collect())
+        }
+        Tx::PostgreSql(conn) => {
+            let sql = format!(
+                "select {FINDING_COLS_CONST}, {SCAN_COLS_CONST} from t_finding f join t_scan s on f.scan_id = s.id where f.issue_id = $1 order by s.created_at desc, s.id desc limit $2"
+            );
+            let rows = sqlx::query(AssertSqlSafe(sql)).bind(issue_id).bind(limit_i64).fetch_all(&mut **conn).await?;
+            Ok(rows
+                .iter()
+                .map(|r| {
+                    let finding = parse_finding!(r);
+                    let scan = parse_scan_from_prefix!(r);
+                    FindingOnScanRow { finding, scan }
+                })
+                .collect())
+        }
+    }
+}

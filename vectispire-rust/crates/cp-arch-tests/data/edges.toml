@@ -138,7 +138,7 @@ allowed = ["access", "access::security", "scanning", "scanning::queries", "targe
 reason = "`scanning` and `scanning::queries`: the inventory reads scans and findings through `ScanCatalog` and `PackageImpact`, while a scan's components reach it through `ScanIngestor.InventorySink`, a port `scanning` declares. `targets`: a component is named by its target. `access` for its routes only. `access::security` for its routes."
 
 [module.issues]
-status = "pending"
+status = "ported"
 allowed = ["access", "access::security", "scanning", "targets"]
 reason = "`access`: the backlog is read within the caller's visibility. `targets`: an issue belongs to a target and answers the listings' counts through `TargetBacklog`, a port `targets` declares. `scanning`: the backlog reads scans and findings through `ScanCatalog`; a scan's findings reach it through `ScanIngestor.Backlog`, a port `scanning` declares. `access::security` for its routes."
 interfaces = ["queries"]

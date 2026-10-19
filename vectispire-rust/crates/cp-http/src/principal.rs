@@ -68,6 +68,16 @@ impl Role {
     pub fn can_cause_effects(self) -> bool {
         matches!(self, Role::Admin | Role::Ciso | Role::SecurityChampion | Role::User)
     }
+
+    /// `Role.canApproveTriage()`: may approve or review a triage exception.
+    pub fn can_approve_triage(self) -> bool {
+        matches!(self, Role::Admin | Role::Ciso | Role::SecurityChampion)
+    }
+
+    /// `Role.governsPlatform()`: the superuser who governs the rules and takes no operational triage decisions.
+    pub fn governs_platform(self) -> bool {
+        matches!(self, Role::Superuser)
+    }
 }
 
 impl std::fmt::Display for Role {

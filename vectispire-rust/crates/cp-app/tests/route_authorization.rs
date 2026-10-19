@@ -74,6 +74,7 @@ type StandIns = (
     Arc<vectispire_cp_agents::Agents>,
     Arc<vectispire_cp_rules::RulesModule>,
     Arc<vectispire_cp_inventory::Inventory>,
+    Arc<vectispire_cp_issues::Issues>,
 );
 
 fn stand_ins() -> StandIns {
@@ -180,6 +181,14 @@ fn stand_ins() -> StandIns {
         audit: audit.clone(),
     }));
 
+    let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
+        db: db.clone(),
+        targets: targets.clone(),
+        scans: scanning.catalog().clone(),
+        settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
+        audit: audit.clone(),
+    }));
+
     let rules = Arc::new(vectispire_cp_rules::RulesModule::new(
         db,
         Arc::new(vectispire_cp_rules::StandInInventory),
@@ -187,19 +196,19 @@ fn stand_ins() -> StandIns {
         audit,
     ));
 
-    (targets, scanning, agents, rules, inventory)
+    (targets, scanning, agents, rules, inventory, issues)
 }
 
 /// The real registry, against the rules. The anonymous list is exact about what is registered; a path on it
 /// that no route registers yet is excused only while the contract still lists that route as not ported.
 #[tokio::test]
 async fn the_registry_holds_to_the_authorization_rules() {
-    let (targets, scanning, agents, rules, inventory) = stand_ins();
-    let routes = descriptors(&registry::routes(targets, scanning, agents, rules, inventory));
+    let (targets, scanning, agents, rules, inventory, issues) = stand_ins();
+    let routes = descriptors(&registry::routes(targets, scanning, agents, rules, inventory, issues));
     assert_eq!(
         routes.len(),
-        76,
-        "the registry composes targets (29), scanning (3), agents (17), rules (9), and inventory (18)"
+        86,
+        "the registry composes targets (29), scanning (3), agents (17), rules (9), inventory (18), and issues (10)"
     );
     let not_ported: BTreeSet<String> = Allowlist::embedded().entries().iter().map(|(_, path)| path.clone()).collect();
     let registered: BTreeSet<&str> = routes.iter().map(|route| route.path.as_str()).collect();

@@ -86,11 +86,21 @@ DELETE /api/v1/repositories/{id}/apis\n\
 GET /api/v1/repositories/{id}/apis\n\
 GET /api/v1/repositories/{id}/apis/export/openapi\n\
 GET /api/v1/sbom/diff\n\
-GET /api/v1/sbom/diff/latest\n";
+GET /api/v1/sbom/diff/latest\n\
+GET /api/v1/exceptions\n\
+POST /api/v1/exceptions/{issueId}/reviews\n\
+GET /api/v1/history/repositories\n\
+GET /api/v1/history/repositories/{id}\n\
+GET /api/v1/history/repositories/{id}/export.csv\n\
+GET /api/v1/issues\n\
+POST /api/v1/issues/triage\n\
+GET /api/v1/issues/{id}\n\
+PUT /api/v1/issues/{id}/ticket\n\
+POST /api/v1/issues/{id}/triage\n";
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let not_ours = Allowlist::parse(
         &format!("{}{targets_routes}{other_ported_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 29 + 17 + 9 + 18).to_string(),
+        &(ceiling + 29 + 17 + 9 + 18 + 10).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &not_ours));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
@@ -105,7 +115,7 @@ GET /api/v1/sbom/diff/latest\n";
     );
     let not_on_router = Allowlist::parse(
         &format!("{}{other_ported_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 17 + 9 + 18).to_string(),
+        &(ceiling + 17 + 9 + 18 + 10).to_string(),
     );
     assert_none(&probe(&router, &document, &not_on_router).await);
 }

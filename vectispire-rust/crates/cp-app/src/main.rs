@@ -298,12 +298,13 @@ async fn serve() -> ExitCode {
     let target_scans = vectispire_cp_scanning::target_scans(db.clone(), clock.clone());
     let purge = vectispire_cp_targets::PurgeRegistry::stand_ins()
         .with(vectispire_cp_scanning::purge::listeners())
+        .with(vectispire_cp_issues::purge::listeners())
         .with(vectispire_cp_inventory::listeners());
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
         audit: audit.clone(),
         scans: target_scans,
-        backlog: Arc::new(vectispire_cp_targets::IssuesStandIn),
+        backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
         purge,
         encryption: encryption.clone(),
         allowed_hosts: allowed_hosts.clone(),
@@ -314,7 +315,7 @@ async fn serve() -> ExitCode {
     let scan_catalog = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), clock.clone()));
     let inventory = Arc::new(vectispire_cp_inventory::Inventory::new(vectispire_cp_inventory::InventoryConfig {
         db: db.clone(),
-        scans: scan_catalog,
+        scans: scan_catalog.clone(),
         targets: targets.clone(),
         audit: audit.clone(),
     }));
@@ -346,6 +347,14 @@ async fn serve() -> ExitCode {
         None
     };
 
+    let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
+        db: db.clone(),
+        targets: targets.clone(),
+        scans: (*scan_catalog).clone(),
+        settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
+        audit: audit.clone(),
+    }));
+
     let policy = vectispire_domain::scan_queue::Policy {
         lease: settings.queue.lease,
         retry_delays: settings.queue.retry_delays.clone(),
@@ -353,7 +362,7 @@ async fn serve() -> ExitCode {
     };
     let leader_lease = settings.leader_lease.max(Duration::from_secs(1));
     let ingestor = Arc::new(vectispire_cp_scanning::ingestion::ScanIngestor::new(
-        Arc::new(vectispire_cp_scanning::ingestion::NoBacklog),
+        issues.backlog().clone(),
         inventory.sink(),
         None,
         None,
@@ -422,6 +431,7 @@ async fn serve() -> ExitCode {
         scanning.clone(),
         agents.clone(),
         inventory.clone(),
+        issues.clone(),
         vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
     ) {
@@ -455,6 +465,7 @@ async fn serve() -> ExitCode {
         agents.clone(),
         rules_module.clone(),
         inventory.clone(),
+        issues.clone(),
     ) {
         routes = routes.route(entry);
     }

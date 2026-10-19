@@ -8,8 +8,6 @@ REPORT_RUN_SWEEP | reportplugins, a later phase
 TICKET_SWEEP | tickets, a later phase
 TICKET_TOKEN_CHECK | tickets, a later phase
 FORGE_TOKEN_WATCH | forges, a later phase
-TRIAGE_EXPIRY | issues, Phase 3 — the defect this check exists for: IssueTriageService.expireStale called by nothing
-SLA_BREACHES | issues, Phase 3
 WEEKLY_DIGEST | posture, a later phase
 CHECKLIST_REMINDERS | checklists, a later phase
 COMPLIANCE_HISTORY | compliance, a later phase

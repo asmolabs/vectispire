@@ -12,7 +12,7 @@
 //! `tests/reference_set.rs` holds both to the Java methods themselves. An unreadable role passes no marker, so
 //! neither reaches a route today; the difference is recorded in the crate's README rather than resolved here.
 
-use crate::roles::{Role, RoleFlags, role_of};
+use crate::roles::{Role, role_of};
 use crate::visibility::java_trim;
 
 /// The setting's key, `Setting.FOUR_EYES_APPROVAL_REQUIRED`.

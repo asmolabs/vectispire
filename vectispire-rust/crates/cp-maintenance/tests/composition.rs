@@ -5,8 +5,8 @@
 use vectispire_cp_maintenance::Sequence;
 use vectispire_cp_maintenance::composition::{DEFERRED, check, parse_deferred};
 
-/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11).
-const FILLED: [Sequence; 7] = [
+/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3).
+const FILLED: [Sequence; 11] = [
     Sequence::NotificationRelay,
     Sequence::SentMessages,
     Sequence::RepositoryIdentities,
@@ -14,6 +14,10 @@ const FILLED: [Sequence; 7] = [
     Sequence::SchedulingTick,
     Sequence::ScanRetention,
     Sequence::CredentialedBacklog,
+    Sequence::InventoryBackfill,
+    Sequence::BuildSbomRetention,
+    Sequence::TriageExpiry,
+    Sequence::SlaBreaches,
 ];
 
 /// The filled slots and one more.
@@ -39,31 +43,35 @@ fn without(slot: &str) -> String {
 #[test]
 fn the_list_today_is_every_slot_with_its_reason() {
     let entries = parse_deferred(DEFERRED).unwrap();
-    assert_eq!(entries.len(), 21, "the outbox, the targets, scanning and agents fill seven of Java's twenty-eight");
+    assert_eq!(
+        entries.len(),
+        17,
+        "the outbox, the targets, scanning, agents, inventory and issues fill eleven of Java's twenty-eight"
+    );
     assert!(entries.iter().all(|entry| !entry.reason.is_empty()));
     assert!(check(&FILLED, DEFERRED).is_empty());
 }
 
 #[test]
 fn a_slot_neither_filled_nor_deferred_fails() {
-    let problems = check(&FILLED, &without("TRIAGE_EXPIRY"));
+    let problems = check(&FILLED, &without("WEEKLY_DIGEST"));
     assert_eq!(problems.len(), 1, "{problems:#?}");
     assert!(
         mentions(
             &problems,
-            "TRIAGE_EXPIRY: Java runs TriageExpiryTask (issues) on the maintenance turn; no Rust task fills the slot"
+            "WEEKLY_DIGEST: Java runs WeeklyDigestTask (posture) on the maintenance turn; no Rust task fills the slot"
         ),
         "{problems:#?}"
     );
     // Filled, it passes.
-    assert!(check(&and(Sequence::TriageExpiry), &without("TRIAGE_EXPIRY")).is_empty());
+    assert!(check(&and(Sequence::WeeklyDigest), &without("WEEKLY_DIGEST")).is_empty());
 }
 
 #[test]
 fn a_slot_filled_and_still_deferred_fails() {
-    let problems = check(&and(Sequence::TriageExpiry), DEFERRED);
+    let problems = check(&and(Sequence::WeeklyDigest), DEFERRED);
     assert_eq!(problems.len(), 1, "{problems:#?}");
-    assert!(mentions(&problems, "TRIAGE_EXPIRY: filled by a Rust task and still in deferred.txt"), "{problems:#?}");
+    assert!(mentions(&problems, "WEEKLY_DIGEST: filled by a Rust task and still in deferred.txt"), "{problems:#?}");
 }
 
 #[test]

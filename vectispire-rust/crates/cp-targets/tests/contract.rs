@@ -118,11 +118,21 @@ DELETE /api/v1/repositories/{id}/apis\n\
 GET /api/v1/repositories/{id}/apis\n\
 GET /api/v1/repositories/{id}/apis/export/openapi\n\
 GET /api/v1/sbom/diff\n\
-GET /api/v1/sbom/diff/latest\n";
+GET /api/v1/sbom/diff/latest\n\
+GET /api/v1/exceptions\n\
+POST /api/v1/exceptions/{issueId}/reviews\n\
+GET /api/v1/history/repositories\n\
+GET /api/v1/history/repositories/{id}\n\
+GET /api/v1/history/repositories/{id}/export.csv\n\
+GET /api/v1/issues\n\
+POST /api/v1/issues/triage\n\
+GET /api/v1/issues/{id}\n\
+PUT /api/v1/issues/{id}/ticket\n\
+POST /api/v1/issues/{id}/triage\n";
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let allowlist = Allowlist::parse(
         &format!("{}{others_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 3 + 17 + 9 + 18).to_string(),
+        &(ceiling + 3 + 17 + 9 + 18 + 10).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &allowlist));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));

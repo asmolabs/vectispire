@@ -201,6 +201,33 @@ fn inventory(
     }))
 }
 
+fn issues(
+    targets: Arc<vectispire_cp_targets::Targets>,
+    scanning: Arc<vectispire_cp_scanning::Scanning>,
+) -> Arc<vectispire_cp_issues::Issues> {
+    let settings = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&settings).unwrap();
+    let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
+        db.clone(),
+        Arc::new(vectispire_cp_audit::NoMirror),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        Vec::new(),
+    ));
+    Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
+        db: db.clone(),
+        targets,
+        scans: scanning.catalog().clone(),
+        settings: Arc::new(vectispire_cp_settings::Settings::new(db)),
+        audit,
+    }))
+}
+
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let targets = targets();
@@ -208,6 +235,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let outbox = outbox();
     let agents = agents(targets.clone(), scanning.clone(), outbox.clone());
     let inventory = inventory(targets.clone(), scanning.clone());
+    let issues = issues(targets.clone(), scanning.clone());
     let db_settings = vectispire_cp_db::settings::DbSettings {
         url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
         username: "nobody".into(),
@@ -223,6 +251,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         scanning,
         agents,
         inventory,
+        issues,
         settings,
         Arc::new(vectispire_cp_targets::SystemClock),
     )

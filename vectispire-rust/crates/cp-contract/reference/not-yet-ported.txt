@@ -54,7 +54,6 @@ GET /api/v1/dashboard/posture-analytics
 GET /api/v1/dashboard/trends
 GET /api/v1/epss/cve/{cveId}
 GET /api/v1/epss/priorities
-GET /api/v1/exceptions
 GET /api/v1/forge-connections
 GET /api/v1/forge-connections/{connectionId}/discoveries
 GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}
@@ -63,12 +62,7 @@ GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection
 GET /api/v1/forge-connections/{id}
 GET /api/v1/gate/policies
 GET /api/v1/gate/verdicts
-GET /api/v1/history/repositories
-GET /api/v1/history/repositories/{id}
-GET /api/v1/history/repositories/{id}/export.csv
 GET /api/v1/history/repositories/{id}/export.pdf
-GET /api/v1/issues
-GET /api/v1/issues/{id}
 GET /api/v1/issues/{issueId}/tickets
 GET /api/v1/notifications/channels
 GET /api/v1/owasp/coverage
@@ -162,15 +156,12 @@ POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish
 POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/retire
 POST /api/v1/crypto/verify
 POST /api/v1/epss/sync
-POST /api/v1/exceptions/{issueId}/reviews
 POST /api/v1/forge-connections
 POST /api/v1/forge-connections/{connectionId}/discoveries
 POST /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection
 POST /api/v1/forge-connections/{connectionId}/imports
 POST /api/v1/forge-connections/{connectionId}/imports/preview
 POST /api/v1/gate
-POST /api/v1/issues/triage
-POST /api/v1/issues/{id}/triage
 POST /api/v1/issues/{issueId}/tickets
 POST /api/v1/notifications/test/{channelType}
 POST /api/v1/plugins
@@ -215,7 +206,6 @@ PUT /api/v1/compliance/soa/{framework}/{controlId}
 PUT /api/v1/forge-connections/{id}/token
 PUT /api/v1/gate/policies/global
 PUT /api/v1/gate/policies/{kind}/{id}
-PUT /api/v1/issues/{id}/ticket
 PUT /api/v1/owasp/coverage/{category}/declaration
 PUT /api/v1/plugins/{id}
 PUT /api/v1/plugins/{id}/enabled

@@ -55,12 +55,14 @@ pub fn outbox_registry() -> Registry {
 }
 
 /// Every module's maintenance task.
+#[allow(clippy::too_many_arguments)]
 pub fn tasks(
     outbox: Arc<Outbox>,
     targets: Arc<Targets>,
     scanning: Arc<Scanning>,
     agents: Arc<Agents>,
     inventory: Arc<Inventory>,
+    issues: Arc<vectispire_cp_issues::Issues>,
     settings: Settings,
     clock: Arc<dyn Clock>,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
@@ -68,19 +70,22 @@ pub fn tasks(
     tasks.extend(vectispire_cp_targets::tasks(targets));
     tasks.extend(vectispire_cp_scanning::tasks(scanning.clone()));
     tasks.push(Arc::new(CredentialedBacklogTask::new(agents.admin.clone())));
+    tasks.extend(vectispire_cp_issues::tasks(issues));
     tasks.extend(vectispire_cp_inventory::tasks(inventory, scanning.catalog().clone(), settings, clock));
     Ok(tasks)
 }
 
 /// The turns over [`tasks`].
+#[allow(clippy::too_many_arguments)]
 pub fn turns(
     outbox: Arc<Outbox>,
     targets: Arc<Targets>,
     scanning: Arc<Scanning>,
     agents: Arc<Agents>,
     inventory: Arc<Inventory>,
+    issues: Arc<vectispire_cp_issues::Issues>,
     settings: Settings,
     clock: Arc<dyn Clock>,
 ) -> Result<Turns, MaintenanceError> {
-    Ok(Turns::new(tasks(outbox, targets, scanning, agents, inventory, settings, clock)?)?)
+    Ok(Turns::new(tasks(outbox, targets, scanning, agents, inventory, issues, settings, clock)?)?)
 }
