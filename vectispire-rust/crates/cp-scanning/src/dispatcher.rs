@@ -449,6 +449,7 @@ pub struct DispatcherConfig {
 }
 
 /// The dispatcher.
+#[derive(Clone)]
 pub struct ScanDispatcher {
     queue: Arc<dyn DispatchQueue>,
     targets: Arc<dyn TargetRows>,

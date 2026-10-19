@@ -53,6 +53,13 @@ impl CredentialsMode {
         }
     }
 
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Delegated => "delegated",
+        }
+    }
+
     /// Whether a key may be decrypted for this agent at all.
     pub fn delivers_credentials(self) -> bool {
         self == CredentialsMode::Delegated
@@ -200,7 +207,7 @@ pub struct PluginRef {
 }
 
 /// A file of an uploaded Semgrep rule set — `RuleSet.StoredFile`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredFile {
     /// `rule-0001.yaml`: the name Vectispire chose, never the upload's.

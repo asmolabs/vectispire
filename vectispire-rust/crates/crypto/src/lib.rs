@@ -181,6 +181,22 @@ fn verify(public_key: &str, message: &[u8], signature: &str) -> bool {
     key.verify(message, &signature).is_ok()
 }
 
+/// Generates a fresh Ed25519 signing key pair, returning (public_key_base64, private_seed_base64).
+pub fn generate_signing_key_pair() -> (String, String) {
+    let mut seed = [0u8; ed25519_dalek::SECRET_KEY_LENGTH];
+    rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut seed);
+    let signer = ResultSigner { key: ed25519_dalek::SigningKey::from_bytes(&seed) };
+    (signer.public_key(), BASE64.encode(seed))
+}
+
+/// Whether `value` is a valid Ed25519 public key in base64.
+pub fn is_valid_signing_public_key(value: &str) -> bool {
+    let Some(raw) = decode(value, ed25519_dalek::PUBLIC_KEY_LENGTH) else {
+        return false;
+    };
+    ed25519_dalek::VerifyingKey::try_from(raw.as_slice()).is_ok()
+}
+
 // ---------------------------------------------------------------------------------- sealed secrets
 
 /// The prefix of an envelope of the current format.

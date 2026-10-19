@@ -3,8 +3,6 @@
 # This list only shrinks. A route that is served must be deleted from it, a route the document
 # does not list cannot be added, and `not-yet-ported.ceiling` is lowered in the same commit.
 # Never edited to make a check pass.
-DELETE /api/v1/admin/agents/{id}
-DELETE /api/v1/admin/agents/{id}/sealing-key
 DELETE /api/v1/api-keys/{id}
 DELETE /api/v1/attack-surface
 DELETE /api/v1/auth/session
@@ -22,13 +20,6 @@ DELETE /api/v1/users/{id}
 DELETE /api/v1/users/{id}/password-change-requirement
 DELETE /scim/v2/Groups/{id}
 DELETE /scim/v2/Users/{id}
-GET /api/v1/admin/agents
-GET /api/v1/admin/agents/activity
-GET /api/v1/admin/agents/credentialed-backlog
-GET /api/v1/admin/agents/non-routables
-GET /api/v1/agent/jobs
-GET /api/v1/agent/plugins/{id}/{digest}
-GET /api/v1/agent/rules/{hash}
 GET /api/v1/ai-advisor/status
 GET /api/v1/api-keys
 GET /api/v1/api-keys/targets
@@ -172,18 +163,11 @@ GET /scim/v2/Groups
 GET /scim/v2/Groups/{id}
 GET /scim/v2/Users
 GET /scim/v2/Users/{id}
-PATCH /api/v1/admin/agents/{id}
 PATCH /api/v1/forge-connections/{id}
 PATCH /api/v1/teams/{id}
 PATCH /api/v1/users/{id}
 PATCH /scim/v2/Groups/{id}
 PATCH /scim/v2/Users/{id}
-POST /api/v1/admin/agents
-POST /api/v1/agent/hello
-POST /api/v1/agent/jobs/{scanId}/failure
-POST /api/v1/agent/jobs/{scanId}/heartbeat
-POST /api/v1/agent/jobs/{scanId}/result
-POST /api/v1/agent/sealing-key
 POST /api/v1/ai-advisor/explain/cve/{cveId}
 POST /api/v1/ai-advisor/explain/issue/{issueId}
 POST /api/v1/api-keys
@@ -247,7 +231,6 @@ POST /api/v1/users
 POST /api/v1/vex/ingest
 POST /scim/v2/Groups
 POST /scim/v2/Users
-PUT /api/v1/admin/agents/{id}/signing-key
 PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence
 PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/layout
 PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/pairs
