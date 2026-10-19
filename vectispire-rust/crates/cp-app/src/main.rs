@@ -1,12 +1,13 @@
-//! The control plane, as far as the port has got: it reads its configuration under the Java names, refuses
-//! to start on what the Java one refuses to start on, logs as it does, and stops gracefully. **The HTTP
-//! stack and the database are not wired yet** — the service below says so and waits to be stopped.
+//! The control plane binary: configuration parsing, modular composition, HTTP stack, and graceful shutdown.
 
 #![forbid(unsafe_code)]
 
 use std::io::Write;
 use std::process::ExitCode;
+use std::sync::Arc;
+use std::time::Duration;
 
+use vectispire_cp_http::credentials::BoxFuture;
 use vectispire_cp_outbound::guard::OutboundUrlGuard;
 use vectispire_cp_outbound::reserved;
 use vectispire_cp_runtime::actuator::BuildInfo;
@@ -17,7 +18,7 @@ use vectispire_cp_runtime::{App, Service};
 
 const USAGE: &str = "Usage: vectispire-control-plane [--check-config | --version | --help]
 
-  (no argument)   serve — the HTTP stack and the database are not wired yet
+  (no argument)   serve the control plane
   --check-config  read the configuration, refuse what the Java control plane refuses, print every
                   setting and where its value came from (a secret as (set) or (not set)), and exit
   --version       print the version
@@ -42,13 +43,91 @@ fn start_checks() -> Result<(Settings, Vec<ReportLine>, OutboundUrlGuard), Strin
     Ok((settings, report, OutboundUrlGuard::new(reserved_endpoints)))
 }
 
-/// What stands where the HTTP stack will: it serves nothing, and stops when told to.
-struct NotWired;
+/// Connects `cp-settings` to `cp-access`'s `AccessSettings` port for `target_visibility`.
+struct SettingsForAccess(vectispire_cp_settings::Settings);
 
-impl Service for NotWired {
-    async fn serve(self, mut shutdown: ShutdownSignal) -> Result<(), String> {
-        tracing::warn!("The HTTP stack and the database are not wired yet: this process serves nothing");
-        shutdown.triggered().await;
+impl vectispire_cp_access::AccessSettings for SettingsForAccess {
+    fn target_visibility(&self) -> BoxFuture<'_, Result<String, vectispire_cp_access::AccessError>> {
+        Box::pin(async move {
+            self.0
+                .get(vectispire_cp_settings::Setting::TargetVisibility)
+                .await
+                .map_err(|error| vectispire_cp_access::AccessError::Port(error.to_string()))
+        })
+    }
+}
+
+/// The composed control plane service running HTTP routing, background maintenance, and the worker.
+struct ControlPlaneService {
+    router: axum::Router,
+    port: u16,
+    turns: vectispire_cp_maintenance::Turns,
+    intervals: vectispire_cp_maintenance::Intervals,
+    worker: Option<vectispire_cp_scanning::ScanWorker>,
+    worker_interval: Duration,
+    scanning: Arc<vectispire_cp_scanning::Scanning>,
+}
+
+impl Service for ControlPlaneService {
+    async fn serve(self, shutdown: ShutdownSignal) -> Result<(), String> {
+        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], self.port));
+        let listener = match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => listener,
+            Err(error) => {
+                return Err(format!("Could not bind to {addr}: {error}"));
+            }
+        };
+
+        // 1. Periodic maintenance turns in the background
+        let turns_stop = shutdown.clone();
+        let turns_handle = tokio::spawn(async move {
+            self.turns
+                .run_until(self.intervals, async move {
+                    let mut stop = turns_stop;
+                    stop.triggered().await;
+                })
+                .await;
+        });
+
+        // 2. Built-in scan worker loop in the background (if enabled)
+        let worker_stop = shutdown.clone();
+        let worker_handle = self.worker.map(|worker| {
+            tokio::spawn(async move {
+                let mut stop = worker_stop;
+                loop {
+                    tokio::select! {
+                        () = stop.triggered() => break,
+                        () = tokio::time::sleep(self.worker_interval) => {
+                            worker.tick();
+                        }
+                    }
+                }
+            })
+        });
+
+        // 3. Axum HTTP server with graceful shutdown on signal
+        let server_shutdown = shutdown.clone();
+        let server = axum::serve(listener, self.router.into_make_service_with_connect_info::<std::net::SocketAddr>())
+            .with_graceful_shutdown(async move {
+                let mut stop = server_shutdown;
+                stop.triggered().await;
+            });
+
+        if let Err(error) = server.await {
+            tracing::error!("HTTP server ended with error: {error}");
+        }
+
+        // Wait for background loops to stop cleanly
+        let _ = turns_handle.await;
+        if let Some(wh) = worker_handle {
+            let _ = wh.await;
+        }
+
+        // Release scheduler lease on shutdown
+        if let Err(error) = self.scanning.election().release_scheduler().await {
+            tracing::warn!("Could not release scheduler lease on shutdown: {error}");
+        }
+
         Ok(())
     }
 }
@@ -109,13 +188,282 @@ async fn serve() -> ExitCode {
         err(&format!("The logs could not be set up: {problem}\n"));
         return ExitCode::FAILURE;
     }
-    let (settings, _, _guard) = match start_checks() {
+    let (settings, _, guard) = match start_checks() {
         Ok(checked) => checked,
         Err(problem) => {
             tracing::error!("{problem}");
             return ExitCode::FAILURE;
         }
     };
+
+    let allowed_hosts =
+        match vectispire_domain::git_host_allowlist::GitHostAllowlist::parse(Some(&settings.git_allowed_hosts)) {
+            Ok(hosts) => hosts,
+            Err(error) => {
+                tracing::error!("vectispire.git.allowed-hosts is malformed: {error}");
+                return ExitCode::FAILURE;
+            }
+        };
+
+    let door = vectispire_cp_crypto::VaultDoor {
+        sender: vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: guard.clone(),
+    };
+    let enc_config = vectispire_cp_crypto::EncryptionConfig {
+        key: settings.encryption.key.clone(),
+        previous_keys: settings.encryption.previous_keys.clone(),
+        kms_type: settings.encryption.kms_type.clone(),
+        vault_endpoint: settings.encryption.vault_endpoint.clone(),
+        vault_token: settings.encryption.vault_token.clone(),
+        vault_key_name: settings.encryption.vault_key_name.clone(),
+        vault_mount_path: settings.encryption.vault_mount_path.clone(),
+    };
+    let encryption = match vectispire_cp_crypto::Encryption::new(&enc_config, door) {
+        Ok(enc) => Arc::new(enc),
+        Err(refusal) => {
+            tracing::error!("{refusal}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let db_url = match vectispire_cp_db::settings::DatabaseUrl::parse(&settings.datasource.url) {
+        Ok(url) => url,
+        Err(error) => {
+            tracing::error!("The datasource URL cannot be read: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let db_settings = vectispire_cp_db::settings::DbSettings {
+        url: db_url,
+        username: settings.datasource.username.clone(),
+        password: settings.datasource.password.clone(),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = match vectispire_cp_db::Db::connect_lazy(&db_settings) {
+        Ok(db) => db,
+        Err(error) => {
+            tracing::error!("The database pool could not be set up: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let configured_signing_key = settings.signing_key.as_ref().map(|s| s.expose()).unwrap_or("");
+    if let Err(error) = vectispire_cp_crypto::SigningKeys::new(
+        configured_signing_key,
+        vectispire_cp_settings::Settings::new(db.clone()),
+        encryption.clone(),
+    ) {
+        tracing::error!("Invalid signing key: {error}");
+        return ExitCode::FAILURE;
+    }
+
+    let clock: Arc<dyn vectispire_cp_targets::Clock> = Arc::new(vectispire_cp_targets::SystemClock);
+    let mirror = vectispire_cp_app::audit_mirror::FileMirror::configured(settings.audit_mirror_path.as_deref());
+    let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
+        db.clone(),
+        Arc::new(mirror),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        Vec::new(),
+    ));
+
+    let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
+        db.clone(),
+        vectispire_cp_app::maintenance::outbox_registry(),
+        Arc::new(vectispire_cp_maintenance::SystemClock),
+    ));
+
+    let target_scans = vectispire_cp_scanning::target_scans(db.clone(), clock.clone());
+    let purge = vectispire_cp_targets::PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners());
+    let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
+        db: db.clone(),
+        audit: audit.clone(),
+        scans: target_scans,
+        backlog: Arc::new(vectispire_cp_targets::IssuesStandIn),
+        purge,
+        encryption: encryption.clone(),
+        allowed_hosts: allowed_hosts.clone(),
+        clock: clock.clone(),
+        visibility: None,
+    }));
+
+    let rule_sets = Arc::new(vectispire_cp_scanning::ports::BundledRules);
+    let runner: Option<Arc<dyn vectispire_cp_scanning::ports::ScanRunner>> = if settings.worker.enabled {
+        let places = vectispire_runner::Places::from_lookup(|k| std::env::var(k).ok());
+        let images = vectispire_runner::Images::from_lookup(|k| std::env::var(k).ok());
+        match vectispire_cp_scanning::BuiltInScanRunner::new(
+            rule_sets.clone(),
+            images,
+            places,
+            settings.scanning.vulnerability_db_dir.as_ref().map(std::path::PathBuf::from),
+            vectispire_tls::TlsTrust::BuiltIn,
+        ) {
+            Ok(runner) => Some(Arc::new(runner)),
+            Err(error) => {
+                tracing::warn!("Built-in scan runner could not be initialized: {error}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let policy = vectispire_domain::scan_queue::Policy {
+        lease: settings.queue.lease,
+        retry_delays: settings.queue.retry_delays.clone(),
+        ..Default::default()
+    };
+    let leader_lease = settings.leader_lease.max(Duration::from_secs(1));
+    let scanning = Arc::new(vectispire_cp_scanning::Scanning::new(vectispire_cp_scanning::ScanningConfig {
+        db: db.clone(),
+        clock: clock.clone(),
+        targets: targets.clone(),
+        encryption: encryption.clone(),
+        audit: audit.clone(),
+        claim_lock: Arc::new(vectispire_cp_agents::AgentRowLock),
+        rule_sets,
+        plugins: Arc::new(vectispire_cp_scanning::ports::NoPlugins),
+        ingestor: Arc::new(vectispire_cp_scanning::ports::IngestionStandIn::default()),
+        policy,
+        leader_lease,
+        allowed_hosts: allowed_hosts.clone(),
+        image_platform: settings.scanning.image_platform.clone(),
+        runner,
+        scanned: Vec::new(),
+    }));
+
+    let creds = Arc::new(vectispire_cp_access::credentials::CredentialService::new(
+        db.clone(),
+        Arc::new(vectispire_cp_access::credentials::SystemClock),
+        vectispire_cp_access::credentials::SessionPolicy {
+            idle_lifetime: time::Duration::try_from(settings.session.idle_lifetime).unwrap_or(time::Duration::MAX),
+            absolute_lifetime: time::Duration::try_from(settings.session.absolute_lifetime)
+                .unwrap_or(time::Duration::MAX),
+        },
+        Arc::new(vectispire_cp_agents::AgentDirectoryImpl::new(db.clone())),
+        vectispire_cp_access::credentials::ScimToken {
+            enabled: settings.scim.enabled,
+            token: settings.scim.token.clone(),
+        },
+    ));
+
+    let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
+        db.clone(),
+        creds.clone(),
+        Arc::new(scanning.catalog().clone()),
+        targets.clone(),
+        audit.clone(),
+        Vec::new(),
+        false,
+    ));
+
+    let protocol = Arc::new(vectispire_cp_agents::AgentProtocolService::new(
+        db.clone(),
+        scanning.dispatcher_arc(),
+        audit.clone(),
+        outbox.clone(),
+        Arc::new(vectispire_cp_scanning::ports::BundledRules),
+        Arc::new(vectispire_cp_agents::NoAgentPlugins),
+    ));
+
+    let poller = Arc::new(vectispire_cp_agents::AgentJobPoller::new(scanning.dispatcher_arc(), protocol.clone()));
+
+    let agents = Arc::new(vectispire_cp_agents::Agents::new(admin, protocol, poller));
+
+    let turns = match vectispire_cp_app::maintenance::turns(
+        outbox.clone(),
+        targets.clone(),
+        scanning.clone(),
+        agents.clone(),
+    ) {
+        Ok(turns) => turns,
+        Err(error) => {
+            tracing::error!("The maintenance composition could not be built: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let intervals = vectispire_cp_maintenance::Intervals {
+        relay: settings.jobs.relay_interval,
+        scheduler: settings.jobs.scheduler_interval,
+        maintenance: settings.jobs.maintenance_interval,
+        initial_delay: Duration::from_secs(30),
+    };
+
+    let access_settings = Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone())));
+    let visibility = vectispire_cp_access::VisibilityService::new(
+        db.clone(),
+        access_settings,
+        Arc::new(vectispire_cp_targets::TargetsForAccess(db.clone())),
+    );
+    let mut routes = vectispire_cp_http::routes::Routes::new(vectispire_cp_access::CallerVisibility::new(
+        visibility,
+        Arc::new(vectispire_cp_access::PrincipalGrounds),
+    ));
+    for entry in vectispire_cp_app::registry::entries(targets.clone(), scanning.clone(), agents.clone()) {
+        routes = routes.route(entry);
+    }
+
+    let chain_audit = Arc::new(vectispire_cp_app::chain_entries::ChainEntries(audit.clone()));
+    let trusted_proxies = match vectispire_cp_http::address::TrustedProxies::parse(&settings.security.trusted_proxies) {
+        Ok(p) => p,
+        Err(error) => {
+            tracing::error!("vectispire.security.trusted-proxies is malformed: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let chain_config = vectispire_cp_http::ChainConfig {
+        trusted_proxies,
+        login_attempts: u64::from(settings.security.login_attempts_per_window),
+        login_window: settings.security.login_attempt_window,
+        bearer_failures: u64::from(settings.security.bearer_failures_per_window),
+        bearer_window: settings.security.bearer_failure_window,
+        webhook_requests: u64::from(settings.security.webhook_requests_per_window),
+        webhook_window: settings.security.webhook_request_window,
+        api_key_requests_per_minute: u64::from(settings.security.api_key_requests_per_minute),
+        anonymous_api_docs: settings.security.anonymous_api_docs,
+        ..Default::default()
+    };
+    let chain = Arc::new(vectispire_cp_http::Chain::new(chain_config, creds, chain_audit));
+    let router = match routes.build(&chain, None) {
+        Ok(r) => r,
+        Err(error) => {
+            tracing::error!("Duplicate route registered: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let worker = if settings.worker.enabled {
+        let worker_props = vectispire_cp_scanning::WorkerProperties {
+            enabled: settings.worker.enabled,
+            max_concurrent: settings.worker.max_concurrent as i32,
+            labels: settings.worker.labels.clone(),
+        };
+        Some(vectispire_cp_scanning::ScanWorker::new(scanning.dispatcher_arc(), worker_props))
+    } else {
+        None
+    };
+
+    // Sweep orphaned target data on startup, exactly as Java's ApplicationReadyEvent does
+    tokio::spawn({
+        let targets = targets.clone();
+        async move {
+            if let Err(error) = targets.purge_orphans().await {
+                tracing::warn!("Orphan sweep on startup did not complete: {error}");
+            }
+        }
+    });
+
+    let service = ControlPlaneService {
+        router,
+        port: settings.server_port,
+        turns,
+        intervals,
+        worker,
+        worker_interval: settings.worker.interval,
+        scanning: scanning.clone(),
+    };
+
     let build = BuildInfo {
         group: "vectispire".to_owned(),
         artifact: "vectispire-core".to_owned(),
@@ -125,7 +473,7 @@ async fn serve() -> ExitCode {
     };
     let app = App::new(settings, "vectispire", build);
     tracing::info!("Started vectispire {} on port {}", env!("CARGO_PKG_VERSION"), app.settings.server_port);
-    match app.serve(NotWired).await {
+    match app.serve(service).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(problem) => {
             tracing::error!("{problem}");

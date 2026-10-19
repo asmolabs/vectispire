@@ -121,10 +121,67 @@ impl vectispire_cp_targets::AuditSink for Silent {
     }
 }
 
+fn agents(
+    targets: Arc<vectispire_cp_targets::Targets>,
+    scanning: Arc<vectispire_cp_scanning::Scanning>,
+    outbox: Arc<Outbox>,
+) -> Arc<vectispire_cp_agents::Agents> {
+    let settings = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&settings).unwrap();
+    let catalog = Arc::new(scanning.catalog().clone());
+    let dispatcher = scanning.dispatcher_arc();
+
+    let creds = Arc::new(vectispire_cp_access::credentials::CredentialService::new(
+        db.clone(),
+        Arc::new(vectispire_cp_access::credentials::SystemClock),
+        vectispire_cp_access::credentials::SessionPolicy::default(),
+        Arc::new(vectispire_cp_agents::AgentDirectoryImpl::new(db.clone())),
+        vectispire_cp_access::credentials::ScimToken::default(),
+    ));
+
+    let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
+        db.clone(),
+        Arc::new(vectispire_cp_audit::NoMirror),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        Vec::new(),
+    ));
+
+    let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
+        db.clone(),
+        creds,
+        catalog,
+        targets,
+        audit.clone(),
+        Vec::new(),
+        false,
+    ));
+
+    let protocol = Arc::new(vectispire_cp_agents::AgentProtocolService::new(
+        db,
+        dispatcher.clone(),
+        audit,
+        outbox,
+        Arc::new(vectispire_cp_scanning::ports::BundledRules),
+        Arc::new(vectispire_cp_agents::NoAgentPlugins),
+    ));
+
+    let poller = Arc::new(vectispire_cp_agents::AgentJobPoller::new(dispatcher, protocol.clone()));
+    Arc::new(vectispire_cp_agents::Agents::new(admin, protocol, poller))
+}
+
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let targets = targets();
-    let turns = vectispire_cp_app::maintenance::turns(outbox(), targets.clone(), scanning(targets)).unwrap();
+    let scanning = scanning(targets.clone());
+    let outbox = outbox();
+    let agents = agents(targets.clone(), scanning.clone(), outbox.clone());
+    let turns = vectispire_cp_app::maintenance::turns(outbox, targets, scanning, agents).unwrap();
     let problems = check(&turns.composition(), DEFERRED);
     assert!(problems.is_empty(), "the maintenance composition:\n  {}", problems.join("\n  "));
 }

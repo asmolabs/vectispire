@@ -35,19 +35,37 @@ async fn the_routes_are_the_documented_ones() {
             query.iter().fold(RouteDecl::new(&decl.method, &decl.path, id), |route, name| route.query(name, false))
         })
         .collect();
+    // `targets`' (29) and `agents`' (17) routes are held to the document by their own contract tests; here they are
+    // read as not this module's.
     let document = Document::embedded();
-    // `targets`' routes are held to the document by its own contract test; here they are read as not this module's.
     let targets_routes: String = vectispire_cp_targets::routes(composed.targets.clone())
         .iter()
         .map(|entry| format!("{} {}\n", entry.decl().method, entry.decl().path))
         .collect();
+    let agents_s = "\
+GET /api/v1/admin/agents\n\
+POST /api/v1/admin/agents\n\
+GET /api/v1/admin/agents/activity\n\
+GET /api/v1/admin/agents/credentialed-backlog\n\
+GET /api/v1/admin/agents/non-routables\n\
+DELETE /api/v1/admin/agents/{id}\n\
+PATCH /api/v1/admin/agents/{id}\n\
+DELETE /api/v1/admin/agents/{id}/sealing-key\n\
+PUT /api/v1/admin/agents/{id}/signing-key\n\
+POST /api/v1/agent/hello\n\
+GET /api/v1/agent/jobs\n\
+POST /api/v1/agent/jobs/{scanId}/failure\n\
+POST /api/v1/agent/jobs/{scanId}/heartbeat\n\
+POST /api/v1/agent/jobs/{scanId}/result\n\
+GET /api/v1/agent/plugins/{id}/{digest}\n\
+GET /api/v1/agent/rules/{hash}\n\
+POST /api/v1/agent/sealing-key\n";
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let not_ours = Allowlist::parse(
-        &format!("{}{targets_routes}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 29).to_string(),
+        &format!("{}{targets_routes}{agents_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
+        &(ceiling + 29 + 17).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &not_ours));
-    let allowlist = Allowlist::embedded();
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
     // Probed with `targets`' routes beside them, as the binary will serve both: every documented route out of the
     // list is answered by one of the two.
@@ -58,5 +76,9 @@ async fn the_routes_are_the_documented_ones() {
         StaticCredentials::default(),
         "everyone",
     );
-    assert_none(&probe(&router, &document, &allowlist).await);
+    let not_on_router = Allowlist::parse(
+        &format!("{}{agents_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
+        &(ceiling + 17).to_string(),
+    );
+    assert_none(&probe(&router, &document, &not_on_router).await);
 }

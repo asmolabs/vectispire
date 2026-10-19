@@ -3525,12 +3525,16 @@ dependencies = [
 name = "vectispire-cp-app"
 version = "0.12.0-dev"
 dependencies = [
+ "axum",
+ "http",
  "tempfile",
  "thiserror",
  "time",
  "tokio",
  "tracing",
  "uuid",
+ "vectispire-cp-access",
+ "vectispire-cp-agents",
  "vectispire-cp-arch-tests",
  "vectispire-cp-audit",
  "vectispire-cp-contract",
@@ -3542,8 +3546,10 @@ dependencies = [
  "vectispire-cp-outbox",
  "vectispire-cp-runtime",
  "vectispire-cp-scanning",
+ "vectispire-cp-settings",
  "vectispire-cp-targets",
  "vectispire-domain",
+ "vectispire-runner",
  "vectispire-tls",
 ]
 

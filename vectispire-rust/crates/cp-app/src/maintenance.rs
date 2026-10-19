@@ -18,11 +18,14 @@
 //! the lease at each tick and fails closed when the table does not answer; the retention is idempotent, so safe on
 //! every instance.
 //!
-//! The turns are not started by `main` yet, because nothing composed needs a database the binary does not open;
-//! when one does (2.11), `Turns::run_until` runs beside the server with the shutdown signal as its stop.
+//! **Agents (task 2.9)** fills `CREDENTIALED_BACKLOG`: the backlog sweep over waiting repositories whose credentials
+//! are unserved.
+//!
+//! The turns are started by `main` (2.11) beside the server with the shutdown signal as their stop.
 
 use std::sync::Arc;
 
+use vectispire_cp_agents::{Agents, CredentialedBacklogTask};
 use vectispire_cp_maintenance::{CompositionError, MaintenanceTask, Turns};
 use vectispire_cp_outbox::{Outbox, Registry, UnreadableRegistry};
 use vectispire_cp_scanning::Scanning;
@@ -51,14 +54,21 @@ pub fn tasks(
     outbox: Arc<Outbox>,
     targets: Arc<Targets>,
     scanning: Arc<Scanning>,
+    agents: Arc<Agents>,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
     let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
     tasks.extend(vectispire_cp_targets::tasks(targets));
     tasks.extend(vectispire_cp_scanning::tasks(scanning));
+    tasks.push(Arc::new(CredentialedBacklogTask::new(agents.admin.clone())));
     Ok(tasks)
 }
 
 /// The turns over [`tasks`].
-pub fn turns(outbox: Arc<Outbox>, targets: Arc<Targets>, scanning: Arc<Scanning>) -> Result<Turns, MaintenanceError> {
-    Ok(Turns::new(tasks(outbox, targets, scanning)?)?)
+pub fn turns(
+    outbox: Arc<Outbox>,
+    targets: Arc<Targets>,
+    scanning: Arc<Scanning>,
+    agents: Arc<Agents>,
+) -> Result<Turns, MaintenanceError> {
+    Ok(Turns::new(tasks(outbox, targets, scanning, agents)?)?)
 }

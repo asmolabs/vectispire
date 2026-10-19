@@ -69,13 +69,33 @@ async fn the_routes_are_the_documented_ones() {
         })
         .collect();
     let document = Document::embedded();
-    // The scan routes are `scanning`'s, which this crate cannot compose (the dependency runs the other way): its own
-    // contract test probes the two modules' routes together; here they are read as not served.
-    let scanning_s = "GET /api/v1/scans\nGET /api/v1/scans/{id}\nGET /api/v1/scans/{id}/sbom\n";
+    // The scan (3) and agent (17) routes are ported in modules above, which this crate cannot compose (the dependency
+    // runs the other way): here they are read as not served by this module.
+    let others_s = "\
+GET /api/v1/scans\n\
+GET /api/v1/scans/{id}\n\
+GET /api/v1/scans/{id}/sbom\n\
+GET /api/v1/admin/agents\n\
+POST /api/v1/admin/agents\n\
+GET /api/v1/admin/agents/activity\n\
+GET /api/v1/admin/agents/credentialed-backlog\n\
+GET /api/v1/admin/agents/non-routables\n\
+DELETE /api/v1/admin/agents/{id}\n\
+PATCH /api/v1/admin/agents/{id}\n\
+DELETE /api/v1/admin/agents/{id}/sealing-key\n\
+PUT /api/v1/admin/agents/{id}/signing-key\n\
+POST /api/v1/agent/hello\n\
+GET /api/v1/agent/jobs\n\
+POST /api/v1/agent/jobs/{scanId}/failure\n\
+POST /api/v1/agent/jobs/{scanId}/heartbeat\n\
+POST /api/v1/agent/jobs/{scanId}/result\n\
+GET /api/v1/agent/plugins/{id}/{digest}\n\
+GET /api/v1/agent/rules/{hash}\n\
+POST /api/v1/agent/sealing-key\n";
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let allowlist = Allowlist::parse(
-        &format!("{}{scanning_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 3).to_string(),
+        &format!("{}{others_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
+        &(ceiling + 3 + 17).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &allowlist));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));

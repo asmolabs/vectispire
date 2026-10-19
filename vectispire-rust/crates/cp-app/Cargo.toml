@@ -12,30 +12,36 @@ name = "vectispire-control-plane"
 path = "src/main.rs"
 
 [dependencies]
+axum.workspace = true
+http.workspace = true
 thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
 tokio.workspace = true
 tracing.workspace = true
+uuid.workspace = true
+vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-agents = { path = "../cp-agents" }
 vectispire-cp-audit = { path = "../cp-audit" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-db = { path = "../cp-db" }
 vectispire-cp-http = { path = "../cp-http" }
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
 vectispire-cp-scanning = { path = "../cp-scanning" }
+vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-targets = { path = "../cp-targets" }
+vectispire-domain.workspace = true
+vectispire-runner = { path = "../runner" }
+vectispire-tls.workspace = true
 
 [dev-dependencies]
 # The composition test builds the targets module over a pool that never connects: it runs no task.
-vectispire-cp-crypto = { path = "../cp-crypto" }
-vectispire-cp-db = { path = "../cp-db" }
-vectispire-domain.workspace = true
-vectispire-tls.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
 vectispire-cp-contract = { path = "../cp-contract" }
 tempfile.workspace = true
-time = { version = "0.3", features = ["std"] }
-uuid.workspace = true
 
 [lints]
 workspace = true

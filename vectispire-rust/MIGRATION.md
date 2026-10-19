@@ -158,10 +158,10 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.5 | The protocol's server half in `crates/protocol`, additive, `client` feature off for the control plane | **done** |
 | 2.6 | Targets: 29 routes, deletion and purge registry | **done**, replayed (2.11a) |
 | 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | **done** |
-| 2.8 | Ingestion; the **ingestion reference set is written before the code** | after 2.4, 2.5; files declared by 2.7 |
-| 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | after 2.5, 2.7 |
-| 2.10 | Built-in worker over a runner moved out of `agent/src/scan.rs` into `crates/runner` (approved 2026-10-17) | after 2.7; agent stream reviews the move |
-| 2.11 | Composition with named stand-ins, the upgrade drill extended, both agents against the Rust image; the golden replay and `golden/deferred.txt` are **done** (2.11a) | from day one; closes the phase |
+| 2.8 | Ingestion; the **ingestion reference set is written before the code** | **done** (stacked on 2.7) |
+| 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | **done** (stacked on 2.8) |
+| 2.10 | Built-in worker over a runner moved out of `agent/src/scan.rs` into `crates/runner` (approved 2026-10-17) | **done** (stacked on 2.9) |
+| 2.11 | Composition with named stand-ins, the upgrade drill extended, both agents against the Rust image; closes the phase | **done** (`rust/p2-11-composition`) |
 | 2.12 | Phase 2 security review | last |
 
 What the finished tasks leave to the others:

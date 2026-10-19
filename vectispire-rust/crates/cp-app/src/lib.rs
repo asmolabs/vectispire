@@ -6,5 +6,6 @@
 #![forbid(unsafe_code)]
 
 pub mod audit_mirror;
+pub mod chain_entries;
 pub mod maintenance;
 pub mod registry;

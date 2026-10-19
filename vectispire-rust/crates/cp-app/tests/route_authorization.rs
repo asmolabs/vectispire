@@ -10,7 +10,7 @@
 //! anonymous route the review accepted must be either registered or still on the contract's list of routes not
 //! yet ported — an accepted way in cannot go missing quietly while the list is shrinking.
 
-#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -58,11 +58,122 @@ fn anonymous() -> BTreeMap<String, String> {
 
 async fn handler() {}
 
+use std::sync::Arc;
+
+struct Silent;
+
+impl vectispire_cp_targets::AuditSink for Silent {
+    fn record(&self, _: vectispire_cp_audit::Record) -> vectispire_cp_http::credentials::BoxFuture<'_, ()> {
+        Box::pin(async {})
+    }
+}
+
+fn stand_ins()
+-> (Arc<vectispire_cp_targets::Targets>, Arc<vectispire_cp_scanning::Scanning>, Arc<vectispire_cp_agents::Agents>) {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+    use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
+
+    let settings = DbSettings {
+        url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&settings).unwrap();
+    let door = VaultDoor {
+        sender: PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    let encryption = Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap());
+
+    let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
+        db: db.clone(),
+        audit: Arc::new(Silent),
+        scans: vectispire_cp_scanning::target_scans(db.clone(), Arc::new(vectispire_cp_targets::SystemClock)),
+        backlog: Arc::new(vectispire_cp_targets::IssuesStandIn),
+        purge: vectispire_cp_targets::PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners()),
+        encryption: encryption.clone(),
+        allowed_hosts: vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
+        clock: Arc::new(vectispire_cp_targets::SystemClock),
+        visibility: None,
+    }));
+
+    let scanning = Arc::new(vectispire_cp_scanning::Scanning::new(vectispire_cp_scanning::ScanningConfig {
+        db: db.clone(),
+        clock: Arc::new(vectispire_cp_targets::SystemClock),
+        targets: targets.clone(),
+        encryption,
+        audit: Arc::new(Silent),
+        claim_lock: Arc::new(vectispire_cp_agents::AgentRowLock),
+        rule_sets: Arc::new(vectispire_cp_scanning::ports::BundledRules),
+        plugins: Arc::new(vectispire_cp_scanning::ports::NoPlugins),
+        ingestor: Arc::new(vectispire_cp_scanning::ports::IngestionStandIn::default()),
+        policy: vectispire_domain::scan_queue::Policy::default(),
+        leader_lease: vectispire_cp_scanning::DEFAULT_LEASE,
+        allowed_hosts: vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
+        image_platform: None,
+        runner: None,
+        scanned: Vec::new(),
+    }));
+
+    let catalog = Arc::new(scanning.catalog().clone());
+    let dispatcher = scanning.dispatcher_arc();
+
+    let creds = Arc::new(vectispire_cp_access::credentials::CredentialService::new(
+        db.clone(),
+        Arc::new(vectispire_cp_access::credentials::SystemClock),
+        vectispire_cp_access::credentials::SessionPolicy::default(),
+        Arc::new(vectispire_cp_agents::AgentDirectoryImpl::new(db.clone())),
+        vectispire_cp_access::credentials::ScimToken::default(),
+    ));
+
+    let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
+        db.clone(),
+        Arc::new(vectispire_cp_audit::NoMirror),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        Vec::new(),
+    ));
+
+    let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
+        db.clone(),
+        creds,
+        catalog,
+        targets.clone(),
+        audit.clone(),
+        Vec::new(),
+        false,
+    ));
+
+    let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
+        db.clone(),
+        vectispire_cp_app::maintenance::outbox_registry(),
+        Arc::new(vectispire_cp_maintenance::SystemClock),
+    ));
+
+    let protocol = Arc::new(vectispire_cp_agents::AgentProtocolService::new(
+        db,
+        dispatcher.clone(),
+        audit,
+        outbox,
+        Arc::new(vectispire_cp_scanning::ports::BundledRules),
+        Arc::new(vectispire_cp_agents::NoAgentPlugins),
+    ));
+
+    let poller = Arc::new(vectispire_cp_agents::AgentJobPoller::new(dispatcher, protocol.clone()));
+    let agents = Arc::new(vectispire_cp_agents::Agents::new(admin, protocol, poller));
+
+    (targets, scanning, agents)
+}
+
 /// The real registry, against the rules. The anonymous list is exact about what is registered; a path on it
 /// that no route registers yet is excused only while the contract still lists that route as not ported.
-#[test]
-fn the_registry_holds_to_the_authorization_rules() {
-    let routes = descriptors(&registry::routes());
+#[tokio::test]
+async fn the_registry_holds_to_the_authorization_rules() {
+    let (targets, scanning, agents) = stand_ins();
+    let routes = descriptors(&registry::routes(targets, scanning, agents));
+    assert_eq!(routes.len(), 49, "the registry composes targets (29), scanning (3), and agents (17)");
     let not_ported: BTreeSet<String> = Allowlist::embedded().entries().iter().map(|(_, path)| path.clone()).collect();
     let registered: BTreeSet<&str> = routes.iter().map(|route| route.path.as_str()).collect();
 
@@ -78,7 +189,7 @@ fn the_registry_holds_to_the_authorization_rules() {
     );
     owed.retain(|path, _| registered.contains(path.as_str()));
 
-    let violations = check(&routes, &owed, 0);
+    let violations = check(&routes, &owed, 49);
     assert!(violations.is_empty(), "the registry breaks the authorization rules:\n{}", violations.join("\n"));
 }
 
