@@ -31,3 +31,11 @@ pub mod known_hosts;
 pub use clone::{CloneRequest, HostKeyPolicy, WithoutKey, clone};
 pub use error::{CloneError, Kind};
 pub use https::HttpsCredential;
+
+/// Reads the HEAD commit SHA (full 40-character hex) of the git repository at `path`.
+pub fn head_commit(path: &std::path::Path) -> Result<String, git2::Error> {
+    let repo = git2::Repository::open(path)?;
+    let head = repo.head()?;
+    let commit = head.peel_to_commit()?;
+    Ok(commit.id().to_string())
+}

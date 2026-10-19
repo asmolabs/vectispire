@@ -68,8 +68,12 @@ impl vectispire_cp_targets::AuditSink for Silent {
     }
 }
 
-fn stand_ins()
--> (Arc<vectispire_cp_targets::Targets>, Arc<vectispire_cp_scanning::Scanning>, Arc<vectispire_cp_agents::Agents>) {
+fn stand_ins() -> (
+    Arc<vectispire_cp_targets::Targets>,
+    Arc<vectispire_cp_scanning::Scanning>,
+    Arc<vectispire_cp_agents::Agents>,
+    Arc<vectispire_cp_rules::RulesModule>,
+) {
     use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
     use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
     use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
@@ -153,9 +157,9 @@ fn stand_ins()
     ));
 
     let protocol = Arc::new(vectispire_cp_agents::AgentProtocolService::new(
-        db,
+        db.clone(),
         dispatcher.clone(),
-        audit,
+        audit.clone(),
         outbox,
         Arc::new(vectispire_cp_scanning::ports::BundledRules),
         Arc::new(vectispire_cp_agents::NoAgentPlugins),
@@ -164,16 +168,23 @@ fn stand_ins()
     let poller = Arc::new(vectispire_cp_agents::AgentJobPoller::new(dispatcher, protocol.clone()));
     let agents = Arc::new(vectispire_cp_agents::Agents::new(admin, protocol, poller));
 
-    (targets, scanning, agents)
+    let rules = Arc::new(vectispire_cp_rules::RulesModule::new(
+        db,
+        Arc::new(vectispire_cp_rules::StandInInventory),
+        Arc::new(vectispire_cp_rules::StandInIssues),
+        audit,
+    ));
+
+    (targets, scanning, agents, rules)
 }
 
 /// The real registry, against the rules. The anonymous list is exact about what is registered; a path on it
 /// that no route registers yet is excused only while the contract still lists that route as not ported.
 #[tokio::test]
 async fn the_registry_holds_to_the_authorization_rules() {
-    let (targets, scanning, agents) = stand_ins();
-    let routes = descriptors(&registry::routes(targets, scanning, agents));
-    assert_eq!(routes.len(), 49, "the registry composes targets (29), scanning (3), and agents (17)");
+    let (targets, scanning, agents, rules) = stand_ins();
+    let routes = descriptors(&registry::routes(targets, scanning, agents, rules));
+    assert_eq!(routes.len(), 58, "the registry composes targets (29), scanning (3), agents (17), and rules (9)");
     let not_ported: BTreeSet<String> = Allowlist::embedded().entries().iter().map(|(_, path)| path.clone()).collect();
     let registered: BTreeSet<&str> = routes.iter().map(|route| route.path.as_str()).collect();
 
@@ -189,7 +200,7 @@ async fn the_registry_holds_to_the_authorization_rules() {
     );
     owed.retain(|path, _| registered.contains(path.as_str()));
 
-    let violations = check(&routes, &owed, 49);
+    let violations = check(&routes, &owed, 58);
     assert!(violations.is_empty(), "the registry breaks the authorization rules:\n{}", violations.join("\n"));
 }
 

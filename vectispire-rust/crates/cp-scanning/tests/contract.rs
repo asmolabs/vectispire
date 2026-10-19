@@ -42,7 +42,7 @@ async fn the_routes_are_the_documented_ones() {
         .iter()
         .map(|entry| format!("{} {}\n", entry.decl().method, entry.decl().path))
         .collect();
-    let agents_s = "\
+    let other_ported_s = "\
 GET /api/v1/admin/agents\n\
 POST /api/v1/admin/agents\n\
 GET /api/v1/admin/agents/activity\n\
@@ -59,11 +59,20 @@ POST /api/v1/agent/jobs/{scanId}/heartbeat\n\
 POST /api/v1/agent/jobs/{scanId}/result\n\
 GET /api/v1/agent/plugins/{id}/{digest}\n\
 GET /api/v1/agent/rules/{hash}\n\
-POST /api/v1/agent/sealing-key\n";
+POST /api/v1/agent/sealing-key\n\
+GET /api/v1/rule-sets\n\
+POST /api/v1/rule-sets\n\
+GET /api/v1/rule-sets/catalogue\n\
+POST /api/v1/rule-sets/catalogue\n\
+GET /api/v1/rule-sets/coverage\n\
+POST /api/v1/rule-sets/deactivate\n\
+GET /api/v1/rule-sets/deactivate/impact\n\
+POST /api/v1/rule-sets/{id}/activate\n\
+GET /api/v1/rule-sets/{id}/impact\n";
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let not_ours = Allowlist::parse(
-        &format!("{}{targets_routes}{agents_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 29 + 17).to_string(),
+        &format!("{}{targets_routes}{other_ported_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
+        &(ceiling + 29 + 17 + 9).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &not_ours));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
@@ -77,8 +86,8 @@ POST /api/v1/agent/sealing-key\n";
         "everyone",
     );
     let not_on_router = Allowlist::parse(
-        &format!("{}{agents_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 17).to_string(),
+        &format!("{}{other_ported_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
+        &(ceiling + 17 + 9).to_string(),
     );
     assert_none(&probe(&router, &document, &not_on_router).await);
 }

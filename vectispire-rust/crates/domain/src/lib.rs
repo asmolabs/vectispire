@@ -21,6 +21,7 @@ pub mod instant;
 pub mod java;
 pub mod list_window;
 pub mod net;
+pub mod owasp_tag;
 pub mod repository_identity;
 pub mod repository_url;
 pub mod retention;

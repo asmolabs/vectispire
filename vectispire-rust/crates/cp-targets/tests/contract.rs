@@ -91,11 +91,20 @@ POST /api/v1/agent/jobs/{scanId}/heartbeat\n\
 POST /api/v1/agent/jobs/{scanId}/result\n\
 GET /api/v1/agent/plugins/{id}/{digest}\n\
 GET /api/v1/agent/rules/{hash}\n\
-POST /api/v1/agent/sealing-key\n";
+POST /api/v1/agent/sealing-key\n\
+GET /api/v1/rule-sets\n\
+POST /api/v1/rule-sets\n\
+GET /api/v1/rule-sets/catalogue\n\
+POST /api/v1/rule-sets/catalogue\n\
+GET /api/v1/rule-sets/coverage\n\
+POST /api/v1/rule-sets/deactivate\n\
+GET /api/v1/rule-sets/deactivate/impact\n\
+POST /api/v1/rule-sets/{id}/activate\n\
+GET /api/v1/rule-sets/{id}/impact\n";
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let allowlist = Allowlist::parse(
         &format!("{}{others_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 3 + 17).to_string(),
+        &(ceiling + 3 + 17 + 9).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &allowlist));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));

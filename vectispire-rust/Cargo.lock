@@ -3544,6 +3544,7 @@ dependencies = [
  "vectispire-cp-maintenance",
  "vectispire-cp-outbound",
  "vectispire-cp-outbox",
+ "vectispire-cp-rules",
  "vectispire-cp-runtime",
  "vectispire-cp-scanning",
  "vectispire-cp-settings",
@@ -3751,6 +3752,38 @@ dependencies = [
  "vectispire-domain",
  "vectispire-migrate",
  "vectispire-testkit",
+]
+
+[[package]]
+name = "vectispire-cp-rules"
+version = "0.12.0-dev"
+dependencies = [
+ "axum",
+ "http",
+ "http-body-util",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tower",
+ "tracing",
+ "vectispire-cp-access",
+ "vectispire-cp-audit",
+ "vectispire-cp-contract",
+ "vectispire-cp-db",
+ "vectispire-cp-http",
+ "vectispire-cp-scanning",
+ "vectispire-domain",
+ "vectispire-git",
+ "vectispire-migrate",
+ "vectispire-protocol",
+ "vectispire-testkit",
+ "vectispire-tls",
 ]
 
 [[package]]

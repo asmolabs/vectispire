@@ -287,7 +287,13 @@ async fn serve() -> ExitCode {
         visibility: None,
     }));
 
-    let rule_sets = Arc::new(vectispire_cp_scanning::ports::BundledRules);
+    let rules_module = Arc::new(vectispire_cp_rules::RulesModule::new(
+        db.clone(),
+        Arc::new(vectispire_cp_rules::StandInInventory),
+        Arc::new(vectispire_cp_rules::StandInIssues),
+        audit.clone(),
+    ));
+    let rule_sets = rules_module.scan_rule_sets();
     let runner: Option<Arc<dyn vectispire_cp_scanning::ports::ScanRunner>> = if settings.worker.enabled {
         let places = vectispire_runner::Places::from_lookup(|k| std::env::var(k).ok());
         let images = vectispire_runner::Images::from_lookup(|k| std::env::var(k).ok());
@@ -321,7 +327,7 @@ async fn serve() -> ExitCode {
         encryption: encryption.clone(),
         audit: audit.clone(),
         claim_lock: Arc::new(vectispire_cp_agents::AgentRowLock),
-        rule_sets,
+        rule_sets: rule_sets.clone(),
         plugins: Arc::new(vectispire_cp_scanning::ports::NoPlugins),
         ingestor: Arc::new(vectispire_cp_scanning::ports::IngestionStandIn::default()),
         policy,
@@ -362,7 +368,7 @@ async fn serve() -> ExitCode {
         scanning.dispatcher_arc(),
         audit.clone(),
         outbox.clone(),
-        Arc::new(vectispire_cp_scanning::ports::BundledRules),
+        rule_sets.clone(),
         Arc::new(vectispire_cp_agents::NoAgentPlugins),
     ));
 
@@ -400,7 +406,9 @@ async fn serve() -> ExitCode {
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),
     ));
-    for entry in vectispire_cp_app::registry::entries(targets.clone(), scanning.clone(), agents.clone()) {
+    for entry in
+        vectispire_cp_app::registry::entries(targets.clone(), scanning.clone(), agents.clone(), rules_module.clone())
+    {
         routes = routes.route(entry);
     }
 

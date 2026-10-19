@@ -122,11 +122,6 @@ GET /api/v1/repositories/{repositoryId}/build-sbom-imports
 GET /api/v1/repositories/{repositoryId}/coverage-imports
 GET /api/v1/repositories/{repositoryId}/sarif-imports
 GET /api/v1/repositories/{repositoryId}/test-report-imports
-GET /api/v1/rule-sets
-GET /api/v1/rule-sets/catalogue
-GET /api/v1/rule-sets/coverage
-GET /api/v1/rule-sets/deactivate/impact
-GET /api/v1/rule-sets/{id}/impact
 GET /api/v1/sarif-sources
 GET /api/v1/sbom/diff
 GET /api/v1/sbom/diff/latest
@@ -216,10 +211,6 @@ POST /api/v1/repositories/{repositoryId}/build-sbom-imports
 POST /api/v1/repositories/{repositoryId}/coverage-imports
 POST /api/v1/repositories/{repositoryId}/sarif-imports
 POST /api/v1/repositories/{repositoryId}/test-report-imports
-POST /api/v1/rule-sets
-POST /api/v1/rule-sets/catalogue
-POST /api/v1/rule-sets/deactivate
-POST /api/v1/rule-sets/{id}/activate
 POST /api/v1/sarif-sources
 POST /api/v1/scorecards/repositories/{repoId}/badge
 POST /api/v1/settings/ollama-test
