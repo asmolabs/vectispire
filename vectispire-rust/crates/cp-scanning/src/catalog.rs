@@ -12,11 +12,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use time::OffsetDateTime;
-use vectispire_cp_db::Db;
+use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_targets::Clock;
 
 use crate::persistence::{self, LOOKUP_BATCH, LatestRow, StoreError};
-use crate::views::{ScanView, detected_languages};
+use crate::views::{
+    FindingOnScan, NewestCompletedScanRow, PackageImpact, ScanFindingView, ScanSbom, ScanView, detected_languages,
+};
 
 /// The catalogue, over the database and the clock that stamps a queued scan.
 #[derive(Clone)]
@@ -179,5 +181,70 @@ impl ScanCatalog {
     /// `averageDurationMsSince`: `None` when no such scan recorded a duration.
     pub async fn average_duration_since(&self, status: &str, after: OffsetDateTime) -> Result<Option<f64>, StoreError> {
         self.read(async |tx| persistence::average_duration_since(tx, status, after).await).await
+    }
+
+    /// Every scan's `ScanSbom`, in no order.
+    pub async fn sboms(&self) -> Result<Vec<ScanSbom>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::sboms_of_all(tx).await).await
+    }
+
+    /// The `ScanSbom` of every scan attached to no target.
+    pub async fn sboms_of_untargeted(&self) -> Result<Vec<ScanSbom>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::sboms_of_untargeted(tx).await).await
+    }
+
+    /// The `ScanSbom` of every scan naming one of these targets.
+    pub async fn sboms_of_targets(&self, targets: &[ScanTarget]) -> Result<Vec<ScanSbom>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::sboms_of_targets(tx, targets).await).await
+    }
+
+    /// Each of these targets' newest completed scan, and whether it still holds its SBOM.
+    pub async fn newest_completed(
+        &self,
+        targets: &[ScanTarget],
+    ) -> Result<BTreeMap<ScanTarget, NewestCompletedScanRow>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::newest_completed(tx, targets).await).await
+    }
+
+    /// The identifiers of a target's most recent scans, newest first.
+    pub async fn recent_ids(&self, target: ScanTarget, limit: usize) -> Result<Vec<i64>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::recent_ids(tx, target, limit).await).await
+    }
+
+    /// The findings of one scan.
+    pub async fn findings(&self, scan_id: i64) -> Result<Vec<ScanFindingView>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::findings(tx, scan_id).await).await
+    }
+
+    /// The license findings of these scans.
+    pub async fn license_findings(&self, scan_ids: &[i64]) -> Result<Vec<ScanFindingView>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::license_findings(tx, scan_ids).await).await
+    }
+
+    /// Aggregated package impacts across targets the caller may see.
+    pub async fn package_impacts(&self, allowed: &Visibility) -> Result<Vec<PackageImpact>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::package_impacts(tx, allowed).await).await
+    }
+
+    /// Findings that match a query for dependency graph and blast radius.
+    pub async fn findings_for_graph(
+        &self,
+        query: &str,
+        is_cve_query: bool,
+        exclude_secrets: bool,
+        allowed: &Visibility,
+    ) -> Result<Vec<FindingOnScan>, StoreError> {
+        let rows = self
+            .read(async |tx| {
+                persistence::catalog_queries::findings_for_graph(tx, query, is_cve_query, exclude_secrets, allowed)
+                    .await
+            })
+            .await?;
+        Ok(rows.into_iter().map(FindingOnScan::from).collect())
+    }
+
+    /// The SBOM document of one scan by identifier.
+    pub async fn sbom(&self, id: i64) -> Result<Option<String>, StoreError> {
+        Ok(self.read(async |tx| persistence::sbom(tx, id).await).await?.flatten())
     }
 }

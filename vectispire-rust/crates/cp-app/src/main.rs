@@ -57,6 +57,28 @@ impl vectispire_cp_access::AccessSettings for SettingsForAccess {
     }
 }
 
+/// Connects `cp-inventory` to `cp-rules`'s `InventoryEcosystems` port.
+struct InventoryForRules(Arc<vectispire_cp_inventory::Inventory>);
+
+impl vectispire_cp_rules::InventoryEcosystems for InventoryForRules {
+    fn distinct_purls(&self) -> BoxFuture<'_, Result<Vec<String>, vectispire_cp_rules::ports::PortError>> {
+        Box::pin(async move {
+            self.0.distinct_purls().await.map_err(|error| Box::new(error) as vectispire_cp_rules::ports::PortError)
+        })
+    }
+
+    fn distinct_purls_by_target(
+        &self,
+    ) -> BoxFuture<'_, Result<Vec<vectispire_cp_rules::ports::TargetPurl>, vectispire_cp_rules::ports::PortError>> {
+        Box::pin(async move {
+            self.0
+                .distinct_purls_by_target()
+                .await
+                .map_err(|error| Box::new(error) as vectispire_cp_rules::ports::PortError)
+        })
+    }
+}
+
 /// The composed control plane service running HTTP routing, background maintenance, and the worker.
 struct ControlPlaneService {
     router: axum::Router,
@@ -274,7 +296,9 @@ async fn serve() -> ExitCode {
     ));
 
     let target_scans = vectispire_cp_scanning::target_scans(db.clone(), clock.clone());
-    let purge = vectispire_cp_targets::PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners());
+    let purge = vectispire_cp_targets::PurgeRegistry::stand_ins()
+        .with(vectispire_cp_scanning::purge::listeners())
+        .with(vectispire_cp_inventory::listeners());
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
         audit: audit.clone(),
@@ -287,9 +311,17 @@ async fn serve() -> ExitCode {
         visibility: None,
     }));
 
+    let scan_catalog = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), clock.clone()));
+    let inventory = Arc::new(vectispire_cp_inventory::Inventory::new(vectispire_cp_inventory::InventoryConfig {
+        db: db.clone(),
+        scans: scan_catalog,
+        targets: targets.clone(),
+        audit: audit.clone(),
+    }));
+
     let rules_module = Arc::new(vectispire_cp_rules::RulesModule::new(
         db.clone(),
-        Arc::new(vectispire_cp_rules::StandInInventory),
+        Arc::new(InventoryForRules(inventory.clone())),
         Arc::new(vectispire_cp_rules::StandInIssues),
         audit.clone(),
     ));
@@ -320,6 +352,14 @@ async fn serve() -> ExitCode {
         ..Default::default()
     };
     let leader_lease = settings.leader_lease.max(Duration::from_secs(1));
+    let ingestor = Arc::new(vectispire_cp_scanning::ingestion::ScanIngestor::new(
+        Arc::new(vectispire_cp_scanning::ingestion::NoBacklog),
+        inventory.sink(),
+        None,
+        None,
+        None,
+        clock.clone(),
+    ));
     let scanning = Arc::new(vectispire_cp_scanning::Scanning::new(vectispire_cp_scanning::ScanningConfig {
         db: db.clone(),
         clock: clock.clone(),
@@ -329,7 +369,7 @@ async fn serve() -> ExitCode {
         claim_lock: Arc::new(vectispire_cp_agents::AgentRowLock),
         rule_sets: rule_sets.clone(),
         plugins: Arc::new(vectispire_cp_scanning::ports::NoPlugins),
-        ingestor: Arc::new(vectispire_cp_scanning::ports::IngestionStandIn::default()),
+        ingestor,
         policy,
         leader_lease,
         allowed_hosts: allowed_hosts.clone(),
@@ -406,9 +446,13 @@ async fn serve() -> ExitCode {
         visibility,
         Arc::new(vectispire_cp_access::PrincipalGrounds),
     ));
-    for entry in
-        vectispire_cp_app::registry::entries(targets.clone(), scanning.clone(), agents.clone(), rules_module.clone())
-    {
+    for entry in vectispire_cp_app::registry::entries(
+        targets.clone(),
+        scanning.clone(),
+        agents.clone(),
+        rules_module.clone(),
+        inventory.clone(),
+    ) {
         routes = routes.route(entry);
     }
 

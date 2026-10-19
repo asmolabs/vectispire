@@ -260,3 +260,20 @@ pub const BUILT_IN: [FindingType; 7] = [
     FindingType::Eol,
     FindingType::License,
 ];
+
+pub use crate::persistence::catalog_queries::{
+    FindingOnScanRow, NewestCompletedScanRow, PackageImpact, ScanFindingView, ScanSbom,
+};
+
+/// A finding on its scan — what the blast radius walks.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FindingOnScan {
+    pub finding: ScanFindingView,
+    pub scan: ScanView,
+}
+
+impl From<FindingOnScanRow> for FindingOnScan {
+    fn from(row: FindingOnScanRow) -> Self {
+        FindingOnScan { finding: row.finding, scan: ScanView::from(row.scan) }
+    }
+}

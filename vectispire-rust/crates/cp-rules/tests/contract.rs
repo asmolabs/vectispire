@@ -114,12 +114,30 @@ POST /api/v1/agent/jobs/{scanId}/heartbeat\n\
 POST /api/v1/agent/jobs/{scanId}/result\n\
 GET /api/v1/agent/plugins/{id}/{digest}\n\
 GET /api/v1/agent/rules/{hash}\n\
-POST /api/v1/agent/sealing-key\n";
+POST /api/v1/agent/sealing-key\n\
+DELETE /api/v1/attack-surface\n\
+GET /api/v1/attack-surface\n\
+GET /api/v1/blast-radius/explore\n\
+GET /api/v1/blast-radius/top-impact\n\
+GET /api/v1/inventory/search\n\
+GET /api/v1/inventory/versions\n\
+GET /api/v1/licenses/conflicts\n\
+GET /api/v1/licenses/inventory\n\
+GET /api/v1/licenses/matrix\n\
+GET /api/v1/licenses/policy\n\
+PUT /api/v1/licenses/policy\n\
+GET /api/v1/licenses/summary\n\
+GET /api/v1/projects/{id}/components\n\
+DELETE /api/v1/repositories/{id}/apis\n\
+GET /api/v1/repositories/{id}/apis\n\
+GET /api/v1/repositories/{id}/apis/export/openapi\n\
+GET /api/v1/sbom/diff\n\
+GET /api/v1/sbom/diff/latest\n";
 
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let not_ours = Allowlist::parse(
         &format!("{}{others_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 29 + 3 + 17).to_string(),
+        &(ceiling + 29 + 3 + 17 + 18).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &not_ours));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));

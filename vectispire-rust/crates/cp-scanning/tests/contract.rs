@@ -68,11 +68,29 @@ GET /api/v1/rule-sets/coverage\n\
 POST /api/v1/rule-sets/deactivate\n\
 GET /api/v1/rule-sets/deactivate/impact\n\
 POST /api/v1/rule-sets/{id}/activate\n\
-GET /api/v1/rule-sets/{id}/impact\n";
+GET /api/v1/rule-sets/{id}/impact\n\
+DELETE /api/v1/attack-surface\n\
+GET /api/v1/attack-surface\n\
+GET /api/v1/blast-radius/explore\n\
+GET /api/v1/blast-radius/top-impact\n\
+GET /api/v1/inventory/search\n\
+GET /api/v1/inventory/versions\n\
+GET /api/v1/licenses/conflicts\n\
+GET /api/v1/licenses/inventory\n\
+GET /api/v1/licenses/matrix\n\
+GET /api/v1/licenses/policy\n\
+PUT /api/v1/licenses/policy\n\
+GET /api/v1/licenses/summary\n\
+GET /api/v1/projects/{id}/components\n\
+DELETE /api/v1/repositories/{id}/apis\n\
+GET /api/v1/repositories/{id}/apis\n\
+GET /api/v1/repositories/{id}/apis/export/openapi\n\
+GET /api/v1/sbom/diff\n\
+GET /api/v1/sbom/diff/latest\n";
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let not_ours = Allowlist::parse(
         &format!("{}{targets_routes}{other_ported_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 29 + 17 + 9).to_string(),
+        &(ceiling + 29 + 17 + 9 + 18).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &not_ours));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
@@ -87,7 +105,7 @@ GET /api/v1/rule-sets/{id}/impact\n";
     );
     let not_on_router = Allowlist::parse(
         &format!("{}{other_ported_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 17 + 9).to_string(),
+        &(ceiling + 17 + 9 + 18).to_string(),
     );
     assert_none(&probe(&router, &document, &not_on_router).await);
 }

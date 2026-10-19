@@ -25,6 +25,7 @@ vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-db = { path = "../cp-db" }
 vectispire-cp-http = { path = "../cp-http" }
+vectispire-cp-inventory = { path = "../cp-inventory" }
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }

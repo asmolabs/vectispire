@@ -1,9 +1,10 @@
-//! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9).
+//! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18).
 
 use std::sync::Arc;
 
 use vectispire_cp_agents::Agents;
 use vectispire_cp_http::routes::{NoVisibility, RouteEntry, Routes};
+use vectispire_cp_inventory::Inventory;
 use vectispire_cp_rules::RulesModule;
 use vectispire_cp_scanning::Scanning;
 use vectispire_cp_targets::Targets;
@@ -14,12 +15,14 @@ pub fn entries(
     scanning: Arc<Scanning>,
     agents: Arc<Agents>,
     rules: Arc<RulesModule>,
+    inventory: Arc<Inventory>,
 ) -> Vec<RouteEntry> {
     let mut list = Vec::new();
-    list.extend(vectispire_cp_targets::routes(targets));
+    list.extend(vectispire_cp_targets::routes(targets.clone()));
     list.extend(vectispire_cp_scanning::routes(scanning));
     list.extend(vectispire_cp_agents::routes(agents));
     list.extend(rules.routes());
+    list.extend(vectispire_cp_inventory::routes(inventory, targets));
     list
 }
 
@@ -30,9 +33,10 @@ pub fn routes(
     scanning: Arc<Scanning>,
     agents: Arc<Agents>,
     rules: Arc<RulesModule>,
+    inventory: Arc<Inventory>,
 ) -> Routes<()> {
     let mut routes = Routes::new(NoVisibility);
-    for entry in entries(targets, scanning, agents, rules) {
+    for entry in entries(targets, scanning, agents, rules, inventory) {
         routes = routes.route(entry);
     }
     routes

@@ -25,6 +25,7 @@ pub mod ingestion;
 mod instants;
 mod internal;
 mod persistence;
+pub use persistence::StoreError;
 pub mod ports;
 pub mod purge;
 pub mod query;
@@ -53,6 +54,7 @@ pub use internal::queue::{
 };
 pub use internal::worker::{BuiltInScanRunner, ScanWorker, WorkerProperties};
 pub use internal::{ScanRetentionTask, SchedulingTickTask, TargetScanFigures};
+pub use views::{FindingOnScan, NewestCompletedScanRow, PackageImpact, ScanFindingView, ScanSbom, ScanView};
 pub use web::routes;
 
 /// The module's services, composed once.

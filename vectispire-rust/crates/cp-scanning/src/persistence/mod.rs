@@ -18,6 +18,7 @@
 //! a history page of two hundred scans read them all in Java to show none. Whether an SBOM is there is a column of the
 //! row ([`ScanRow::has_sbom`]); the document itself is [`sbom`], read for the one route that serves it.
 
+pub mod catalog_queries;
 pub mod findings;
 #[cfg(feature = "mysql-queries")]
 mod mysql;
