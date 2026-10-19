@@ -33,7 +33,7 @@
 module_prefix = "vectispire-cp-"
 # What a module crate may depend on besides other modules. The agent port's crates: the same domain, crypto,
 # protocol and transport code serves both programs, which is why none of them may depend on a `cp-*` crate.
-shared = ["vectispire-domain", "vectispire-crypto", "vectispire-protocol", "vectispire-tls", "vectispire-container", "vectispire-scanners", "vectispire-git", "vectispire-migrate"]
+shared = ["vectispire-domain", "vectispire-crypto", "vectispire-protocol", "vectispire-tls", "vectispire-container", "vectispire-scanners", "vectispire-git", "vectispire-migrate", "vectispire-runner"]
 # The crates that must stay free of frameworks and drivers: Java's `common.domain` (`domainIsPure`).
 pure = ["vectispire-domain"]
 # The one place `unsafe` may appear outside a control-plane crate, and how many times: libgit2's two process-wide calls.

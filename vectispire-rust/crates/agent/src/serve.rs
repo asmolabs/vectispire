@@ -20,13 +20,7 @@ use vectispire_protocol::{
     failure_reason,
 };
 
-/// Why a claimed scan produced no result — what the runner hands the loop instead of artifacts.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExecutionFailure {
-    pub message: String,
-    /// Whether another attempt could pass: only this side can tell, the reason that leaves is words.
-    pub kind: FailureKind,
-}
+pub use vectispire_runner::ExecutionFailure;
 
 /// What runs a claimed scan — the shared runner on the Java side (`ScanRunner::run`).
 pub trait Execute: Send + Sync + 'static {

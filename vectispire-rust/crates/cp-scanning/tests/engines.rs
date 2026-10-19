@@ -1524,9 +1524,24 @@ async fn built_in_worker(db: Db) {
     let clean_scan = support::scan(&db, Some(repo), None, None, base()).await;
     let running = runner(&db, |_| Ok(r#"{"secrets":[],"duration":1.0}"#));
     let worker = compose_running(&db, running.clone());
-    let round = worker.scanning.dispatcher().dispatch("worker-1", 2, &[]).await.unwrap();
+    let scan_worker = vectispire_cp_scanning::ScanWorker::with_identity(
+        worker.scanning.dispatcher_arc(),
+        vectispire_cp_scanning::WorkerProperties { enabled: true, max_concurrent: 2, labels: String::new() },
+        "worker-1".to_owned(),
+    );
+    let round = scan_worker.round().await.unwrap();
     assert_eq!((round.claimed, round.completed, round.failed), (1, 1, 0));
     assert_eq!(status(&db, clean_scan).await, "completed");
+
+    let tick_scan = support::scan(&db, Some(repo), None, None, base()).await;
+    assert!(scan_worker.tick());
+    for _ in 0..100 {
+        if status(&db, tick_scan).await == "completed" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert_eq!(status(&db, tick_scan).await, "completed");
     let task = running.tasks.lock().unwrap()[0].clone();
     match &task.target {
         vectispire_protocol::Target::Repository(repository) => {

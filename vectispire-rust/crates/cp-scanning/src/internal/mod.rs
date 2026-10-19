@@ -4,6 +4,7 @@
 mod ingestion;
 pub mod leader;
 pub mod queue;
+pub mod worker;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;

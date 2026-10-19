@@ -40,6 +40,8 @@ vectispire-crypto.workspace = true
 vectispire-domain.workspace = true
 # The wire and the server half only: the agent's HTTP client (`client`) stays off in the control plane.
 vectispire-protocol.workspace = true
+vectispire-runner.workspace = true
+vectispire-tls.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true

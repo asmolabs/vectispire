@@ -51,6 +51,7 @@ pub use internal::leader::{DEFAULT_LEASE, JOB_SCHEDULER, LeaderElection};
 pub use internal::queue::{
     Abandoned, AgentClaim, ERROR_MAX_LENGTH, Exclusion, NoExclusion, PAGE, PAGES, Reclaimed, ScanQueue, truncate,
 };
+pub use internal::worker::{BuiltInScanRunner, ScanWorker, WorkerProperties};
 pub use internal::{ScanRetentionTask, SchedulingTickTask, TargetScanFigures};
 pub use web::routes;
 
@@ -63,7 +64,7 @@ pub struct Scanning {
     pub(crate) catalog: ScanCatalog,
     pub(crate) queue: Arc<ScanQueue>,
     pub(crate) election: LeaderElection,
-    pub(crate) dispatcher: ScanDispatcher,
+    pub(crate) dispatcher: Arc<ScanDispatcher>,
 }
 
 impl std::fmt::Debug for Scanning {
@@ -113,7 +114,7 @@ pub struct ScanningConfig {
 impl Scanning {
     pub fn new(config: ScanningConfig) -> Scanning {
         let queue = Arc::new(ScanQueue::new(config.db.clone(), config.claim_lock, config.policy, config.clock.clone()));
-        let dispatcher = ScanDispatcher::new(dispatcher::DispatcherConfig {
+        let dispatcher = Arc::new(ScanDispatcher::new(dispatcher::DispatcherConfig {
             queue: Arc::new(dispatcher::QueueOnDatabase { queue: queue.clone(), db: config.db.clone() }),
             targets: config.targets.clone(),
             encryption: config.encryption,
@@ -126,7 +127,7 @@ impl Scanning {
             image_platform: config.image_platform,
             runner: config.runner,
             scanned: config.scanned,
-        });
+        }));
         Scanning {
             settings: Settings::new(config.db.clone()),
             catalog: ScanCatalog::new(config.db.clone(), config.clock.clone()),
@@ -145,6 +146,10 @@ impl Scanning {
 
     pub fn dispatcher(&self) -> &ScanDispatcher {
         &self.dispatcher
+    }
+
+    pub fn dispatcher_arc(&self) -> Arc<ScanDispatcher> {
+        self.dispatcher.clone()
     }
 
     pub fn election(&self) -> &LeaderElection {
