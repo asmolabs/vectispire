@@ -247,4 +247,9 @@ impl ScanCatalog {
     pub async fn sbom(&self, id: i64) -> Result<Option<String>, StoreError> {
         Ok(self.read(async |tx| persistence::sbom(tx, id).await).await?.flatten())
     }
+
+    /// Up to `limit` scans holding an SBOM strictly older than `before`, newest first.
+    pub async fn ids_with_sbom_before(&self, before: i64, limit: i64) -> Result<Vec<i64>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::ids_with_sbom_before(tx, before, limit).await).await
+    }
 }

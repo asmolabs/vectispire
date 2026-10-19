@@ -5,6 +5,7 @@
 
 pub mod api_inventory;
 pub mod api_surface;
+pub mod backfill;
 pub mod blast_radius;
 pub mod blast_radius_graph;
 pub mod build_sbom;
@@ -37,6 +38,7 @@ use vectispire_cp_targets::Targets;
 
 pub use api_inventory::ApiInventoryService;
 pub use api_surface::*;
+pub use backfill::InventoryBackfill;
 pub use blast_radius::BlastRadiusService;
 pub use blast_radius_graph::*;
 pub use build_sbom::*;
@@ -167,4 +169,18 @@ impl Inventory {
     pub async fn distinct_purls_by_target(&self) -> Result<Vec<(Option<i64>, Option<i64>, String)>, StoreError> {
         self.inventory_query.distinct_purls_by_target().await
     }
+}
+
+/// The maintenance tasks this module contributes: [`InventoryBackfillTask`] and [`BuildSbomRetentionTask`].
+pub fn tasks(
+    inventory: Arc<Inventory>,
+    scans: ScanCatalog,
+    settings: vectispire_cp_settings::Settings,
+    clock: Arc<dyn vectispire_cp_targets::Clock>,
+) -> Vec<Arc<dyn vectispire_cp_maintenance::MaintenanceTask>> {
+    let backfill = Arc::new(InventoryBackfill::new(scans, inventory.components().clone(), inventory.db().clone()));
+    vec![
+        Arc::new(internal::InventoryBackfillTask::new(backfill)),
+        Arc::new(internal::BuildSbomRetentionTask::new(inventory.build_sboms().clone(), settings, clock)),
+    ]
 }

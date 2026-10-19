@@ -605,6 +605,46 @@ impl InventoryRepository {
         Ok(result)
     }
 
+    /// Which of these scans the inventory holds components of — the backfill keeps the others.
+    pub async fn indexed_among(db: &Db, scan_ids: &[i64]) -> Result<Vec<i64>, StoreError> {
+        if scan_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut tx = db.begin(Mode::ReadOnly).await?;
+        let mut result = Vec::new();
+        for chunk in scan_ids.chunks(1000) {
+            match &mut tx {
+                Tx::MySql(conn) => {
+                    let placeholders = vec!["?"; chunk.len()].join(",");
+                    let sql = format!("select distinct scan_id from t_component where scan_id in ({placeholders})");
+                    let mut q = sqlx::query(AssertSqlSafe(sql));
+                    for id in chunk {
+                        q = q.bind(id);
+                    }
+                    let rows = q.fetch_all(&mut **conn).await?;
+                    for r in rows {
+                        let scan_id: i64 = r.get("scan_id");
+                        result.push(scan_id);
+                    }
+                }
+                Tx::PostgreSql(conn) => {
+                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
+                    let sql = format!("select distinct scan_id from t_component where scan_id in ({placeholders})");
+                    let mut q = sqlx::query(AssertSqlSafe(sql));
+                    for id in chunk {
+                        q = q.bind(id);
+                    }
+                    let rows = q.fetch_all(&mut **conn).await?;
+                    for r in rows {
+                        let scan_id: i64 = r.get("scan_id");
+                        result.push(scan_id);
+                    }
+                }
+            }
+        }
+        Ok(result)
+    }
+
     pub async fn count_components_by_scan_ids(db: &Db, scan_ids: &[i64]) -> Result<i64, StoreError> {
         if scan_ids.is_empty() {
             return Ok(0);

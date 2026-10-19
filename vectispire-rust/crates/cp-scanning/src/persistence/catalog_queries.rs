@@ -1012,3 +1012,29 @@ pub async fn findings_for_graph(
         }
     }
 }
+
+/// Identifiers of scans holding an SBOM strictly older than `before`, newest first.
+pub async fn ids_with_sbom_before(tx: &mut Tx, before: i64, limit: i64) -> Result<Vec<i64>, StoreError> {
+    match tx {
+        Tx::MySql(conn) => {
+            let rows: Vec<i64> = sqlx::query_scalar(AssertSqlSafe(
+                "select id from t_scan where sbom is not null and id < ? order by id desc limit ?",
+            ))
+            .bind(before)
+            .bind(limit)
+            .fetch_all(&mut **conn)
+            .await?;
+            Ok(rows)
+        }
+        Tx::PostgreSql(conn) => {
+            let rows: Vec<i64> = sqlx::query_scalar(AssertSqlSafe(
+                "select id from t_scan where sbom is not null and id < $1 order by id desc limit $2",
+            ))
+            .bind(before)
+            .bind(limit)
+            .fetch_all(&mut **conn)
+            .await?;
+            Ok(rows)
+        }
+    }
+}

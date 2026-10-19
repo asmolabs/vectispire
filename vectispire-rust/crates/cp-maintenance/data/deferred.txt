@@ -8,7 +8,6 @@ REPORT_RUN_SWEEP | reportplugins, a later phase
 TICKET_SWEEP | tickets, a later phase
 TICKET_TOKEN_CHECK | tickets, a later phase
 FORGE_TOKEN_WATCH | forges, a later phase
-INVENTORY_BACKFILL | inventory, a later phase
 TRIAGE_EXPIRY | issues, Phase 3 — the defect this check exists for: IssueTriageService.expireStale called by nothing
 SLA_BREACHES | issues, Phase 3
 WEEKLY_DIGEST | posture, a later phase
@@ -20,7 +19,6 @@ GATE_VERDICTS | gate, a later phase
 COMPLIANCE_SNAPSHOTS | compliance, a later phase
 OWASP_WEEKLY_RETENTION | compliance, a later phase
 REPORT_EVIDENCE_RETENTION | reportplugins, a later phase
-BUILD_SBOM_RETENTION | inventory, a later phase
 ABANDONED_REVIEWS | compliance, a later phase
 KEV_CATALOGUE | threatintel, a later phase
 EPSS_SCORES | threatintel, a later phase

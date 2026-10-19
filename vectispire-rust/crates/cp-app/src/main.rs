@@ -421,6 +421,9 @@ async fn serve() -> ExitCode {
         targets.clone(),
         scanning.clone(),
         agents.clone(),
+        inventory.clone(),
+        vectispire_cp_settings::Settings::new(db.clone()),
+        clock.clone(),
     ) {
         Ok(turns) => turns,
         Err(error) => {

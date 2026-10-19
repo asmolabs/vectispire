@@ -21,15 +21,20 @@
 //! **Agents (task 2.9)** fills `CREDENTIALED_BACKLOG`: the backlog sweep over waiting repositories whose credentials
 //! are unserved.
 //!
+//! **Inventory (Phase 3)** fills `INVENTORY_BACKFILL` and `BUILD_SBOM_RETENTION`: the backfill of past scans' components
+//! from raw SBOMs, and build SBOM retention past the evidence window.
+//!
 //! The turns are started by `main` (2.11) beside the server with the shutdown signal as their stop.
 
 use std::sync::Arc;
 
 use vectispire_cp_agents::{Agents, CredentialedBacklogTask};
+use vectispire_cp_inventory::Inventory;
 use vectispire_cp_maintenance::{CompositionError, MaintenanceTask, Turns};
 use vectispire_cp_outbox::{Outbox, Registry, UnreadableRegistry};
 use vectispire_cp_scanning::Scanning;
-use vectispire_cp_targets::Targets;
+use vectispire_cp_settings::Settings;
+use vectispire_cp_targets::{Clock, Targets};
 
 /// Why the maintenance composition could not be built.
 #[derive(Debug, thiserror::Error)]
@@ -55,11 +60,15 @@ pub fn tasks(
     targets: Arc<Targets>,
     scanning: Arc<Scanning>,
     agents: Arc<Agents>,
+    inventory: Arc<Inventory>,
+    settings: Settings,
+    clock: Arc<dyn Clock>,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
     let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
     tasks.extend(vectispire_cp_targets::tasks(targets));
-    tasks.extend(vectispire_cp_scanning::tasks(scanning));
+    tasks.extend(vectispire_cp_scanning::tasks(scanning.clone()));
     tasks.push(Arc::new(CredentialedBacklogTask::new(agents.admin.clone())));
+    tasks.extend(vectispire_cp_inventory::tasks(inventory, scanning.catalog().clone(), settings, clock));
     Ok(tasks)
 }
 
@@ -69,6 +78,9 @@ pub fn turns(
     targets: Arc<Targets>,
     scanning: Arc<Scanning>,
     agents: Arc<Agents>,
+    inventory: Arc<Inventory>,
+    settings: Settings,
+    clock: Arc<dyn Clock>,
 ) -> Result<Turns, MaintenanceError> {
-    Ok(Turns::new(tasks(outbox, targets, scanning, agents)?)?)
+    Ok(Turns::new(tasks(outbox, targets, scanning, agents, inventory, settings, clock)?)?)
 }
