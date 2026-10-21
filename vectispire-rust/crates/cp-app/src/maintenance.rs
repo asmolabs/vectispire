@@ -48,13 +48,14 @@ pub enum MaintenanceError {
     Registry(#[from] UnreadableRegistry),
 }
 
-/// The outbox's handlers and channels this binary has: none yet. Java relays eleven types
-/// (`reference/outbox/registry.json`); the agents' audit delivery (`agent_result_audit`) comes with task 2.9, the
-/// notifications' channels and token alerts, the SIEM export, the checklists' and compliance's deliveries with
-/// Phases 4 and 5. Until all eleven are here the relay task is held.
+/// The outbox's handlers and channels this binary has: the agents' audit delivery (`agent_result_audit`, task 2.9).
+/// Java relays eleven types (`reference/outbox/registry.json`); the notifications' channels and token alerts, the
+/// SIEM export, the checklists' and compliance's deliveries come with Phases 4 and 5. Until all eleven are here the
+/// relay task is held — and each one that is here is registered, or the relay would open without it the day the
+/// others land: the agents' entries were enqueued by every accepted result and had no handler.
 #[must_use]
-pub fn outbox_registry() -> Registry {
-    Registry::new(Vec::new(), Vec::new())
+pub fn outbox_registry(audit: Arc<vectispire_cp_audit::AuditLog>) -> Registry {
+    Registry::new(vec![Arc::new(vectispire_cp_agents::AgentResultAuditDelivery::new(audit))], Vec::new())
 }
 
 /// Every module's maintenance task.

@@ -158,7 +158,7 @@ fn stand_ins() -> StandIns {
 
     let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
         db.clone(),
-        vectispire_cp_app::maintenance::outbox_registry(),
+        vectispire_cp_app::maintenance::outbox_registry(audit.clone()),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
 

@@ -291,7 +291,7 @@ async fn serve() -> ExitCode {
 
     let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
         db.clone(),
-        vectispire_cp_app::maintenance::outbox_registry(),
+        vectispire_cp_app::maintenance::outbox_registry(audit.clone()),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
 
@@ -521,15 +521,25 @@ async fn serve() -> ExitCode {
         None
     };
 
-    // Sweep orphaned target data on startup, exactly as Java's ApplicationReadyEvent does
-    tokio::spawn({
-        let targets = targets.clone();
-        async move {
-            if let Err(error) = targets.purge_orphans().await {
-                tracing::warn!("Orphan sweep on startup did not complete: {error}");
-            }
-        }
-    });
+    // Java's `ApplicationReadyEvent` listeners, each once, on their own: the server does not wait for them.
+    let repair = Arc::new(vectispire_cp_agents::WithheldClaimRepair::new(
+        db.clone(),
+        scanning.catalog().clone(),
+        targets.clone(),
+        Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+            (*audit).clone(),
+            Arc::new(vectispire_cp_audit::SystemClock),
+            Vec::new(),
+        )),
+        audit.clone(),
+        Arc::new(vectispire_cp_maintenance::OneShotJobs::new(
+            db.clone(),
+            Arc::new(vectispire_cp_maintenance::SystemClock),
+        )),
+    ));
+    for job in vectispire_cp_app::startup::ready_jobs(targets.clone(), repair) {
+        tokio::spawn(job.run());
+    }
 
     let service = ControlPlaneService {
         router,

@@ -10,3 +10,4 @@ pub mod chain_entries;
 pub mod ingestion;
 pub mod maintenance;
 pub mod registry;
+pub mod startup;

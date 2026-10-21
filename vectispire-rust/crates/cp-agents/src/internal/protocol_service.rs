@@ -24,6 +24,24 @@ use crate::persistence::agents::{self, AgentRow, HeartbeatData};
 
 const SEEN_GRANULARITY: Duration = Duration::seconds(15);
 
+/// Why a result or a failure report was not applied: a refusal the agent can act on, or a failure of this side.
+///
+/// **They are not the same answer.** Every dispatcher error used to become the 409 "this scan is no longer yours",
+/// which tells the agent to drop its result: a database outage, or an ingestion that refused the result, cost the scan
+/// where Java's exception answers a 500 and the agent sends it again. A failure now leaves as `AgentError::Unexpected`
+/// — the 500 quoting a reference, logged under it.
+#[derive(Debug)]
+pub enum NotApplied {
+    Refused(RouteRefusal),
+    Failed(PortError),
+}
+
+impl From<RouteRefusal> for NotApplied {
+    fn from(refusal: RouteRefusal) -> Self {
+        NotApplied::Refused(refusal)
+    }
+}
+
 pub trait AgentPluginProvider: Send + Sync {
     fn manifest<'a>(
         &'a self,
@@ -243,7 +261,7 @@ impl AgentProtocolService {
         body: &[u8],
         signature: Option<&str>,
         origin: &RequestActor,
-    ) -> Result<(), RouteRefusal> {
+    ) -> Result<(), NotApplied> {
         let pinned = agent.signing_public_key.as_deref().map(str::trim).filter(|p| !p.is_empty());
         if let Some(pinned) = pinned {
             let sig = signature.unwrap_or("").trim();
@@ -260,13 +278,13 @@ impl AgentProtocolService {
                     )
                 };
                 self.record_audit(origin, AuditOperation::AgentResultRefused, &scan_id.to_string(), &desc).await;
-                return Err(refusals::result_not_attested(&agent.name));
+                return Err(refusals::result_not_attested(&agent.name).into());
             }
         }
 
         let artifacts = match ScanArtifacts::read(body) {
             Ok(artifacts) => artifacts,
-            _ => return Err(refusals::result_unreadable()),
+            _ => return Err(refusals::result_unreadable().into()),
         };
 
         let now = OffsetDateTime::now_utc();
@@ -295,10 +313,10 @@ impl AgentProtocolService {
             .dispatcher
             .accept_agent_result(scan_id, &claiming, &artifacts, Some(&alongside))
             .await
-            .map_err(|_| refusals::result_no_longer_yours())?;
+            .map_err(NotApplied::Failed)?;
 
         if !accepted {
-            return Err(refusals::result_no_longer_yours());
+            return Err(refusals::result_no_longer_yours().into());
         }
 
         Ok(())
@@ -311,7 +329,7 @@ impl AgentProtocolService {
         body: &[u8],
         signature: Option<&str>,
         origin: &RequestActor,
-    ) -> Result<FailureAnswer, RouteRefusal> {
+    ) -> Result<FailureAnswer, NotApplied> {
         let pinned = agent.signing_public_key.as_deref().map(str::trim).filter(|p| !p.is_empty());
         if let Some(pinned) = pinned {
             let sig = signature.unwrap_or("").trim();
@@ -328,11 +346,11 @@ impl AgentProtocolService {
                     )
                 };
                 self.record_audit(origin, AuditOperation::AgentResultRefused, &scan_id.to_string(), &desc).await;
-                return Err(refusals::failure_not_attested(&agent.name));
+                return Err(refusals::failure_not_attested(&agent.name).into());
             }
         }
 
-        let report = FailureReport::read(body).map_err(|_| refusals::failure_unreadable())?;
+        let report = FailureReport::read(body).map_err(|_| NotApplied::from(refusals::failure_unreadable()))?;
 
         self.heard_from(agent).await;
 
@@ -344,10 +362,10 @@ impl AgentProtocolService {
             .dispatcher
             .report_agent_failure(scan_id, &claiming, report.attempt, report.kind, reason_clean)
             .await
-            .map_err(|_| refusals::failure_no_longer_yours())?;
+            .map_err(NotApplied::Failed)?;
 
         let Some(failure) = failure else {
-            return Err(refusals::failure_no_longer_yours());
+            return Err(refusals::failure_no_longer_yours().into());
         };
 
         let attestation_note = if pinned.is_none() { " (not attested)" } else { ", attestation verified" };

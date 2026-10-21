@@ -45,7 +45,29 @@ impl OutboxStore for Unused {
 }
 
 fn outbox() -> Arc<Outbox> {
-    Arc::new(Outbox::new(Arc::new(Unused), vectispire_cp_app::maintenance::outbox_registry(), Arc::new(SystemClock)))
+    Arc::new(Outbox::new(
+        Arc::new(Unused),
+        vectispire_cp_app::maintenance::outbox_registry(audit()),
+        Arc::new(SystemClock),
+    ))
+}
+
+/// An audit log over a pool that never connects: the composition delivers nothing.
+fn audit() -> Arc<vectispire_cp_audit::AuditLog> {
+    use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+    let settings = DbSettings {
+        url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: PoolSettings::default(),
+        ca_pem: None,
+    };
+    Arc::new(vectispire_cp_audit::AuditLog::new(
+        vectispire_cp_db::Db::connect_lazy(&settings).unwrap(),
+        Arc::new(vectispire_cp_audit::NoMirror),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        Vec::new(),
+    ))
 }
 
 /// The targets module over a pool that never connects: the composition runs no task.
@@ -298,9 +320,18 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     assert!(problems.is_empty(), "the maintenance composition:\n  {}", problems.join("\n  "));
 }
 
-#[test]
-fn the_binary_s_relay_is_held_until_its_registry_is_java_s() {
+#[tokio::test]
+async fn the_binary_s_relay_is_held_until_its_registry_is_java_s() {
     let relay = NotificationRelayTask::new(outbox(), &JavaRegistry::compiled_in().unwrap());
     assert!(relay.is_held(), "the relay would abandon Java's messages of the types this binary lacks");
-    assert!(relay.coverage().missing_handlers.contains(&"agent_result_audit".to_owned()), "{}", relay.coverage());
+    assert!(!relay.coverage().missing_handlers.contains(&"agent_result_audit".to_owned()), "{}", relay.coverage());
+}
+
+/// Every handler a module has is registered, held relay or not: the agents' audit delivery was written, enqueued by
+/// every accepted result, and missing from the registry — the relay would have opened without it.
+#[tokio::test]
+async fn the_binary_registers_every_handler_it_has() {
+    let registry = vectispire_cp_app::maintenance::outbox_registry(audit());
+    assert_eq!(registry.handler_types().into_iter().collect::<Vec<_>>(), vec!["agent_result_audit".to_owned()]);
+    assert!(registry.channel_types().is_empty());
 }

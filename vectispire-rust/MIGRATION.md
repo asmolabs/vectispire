@@ -106,7 +106,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.11a Golden replay | done: the recorder's format replayed on both engines; 7,148 recordings, 1,402 of the 1,480 of the 29 routes green on both | `rust/p2-11a-golden-replay`, stacked on 2.6 |
 | 2.7 Queue, dispatch and schedule | done: `cp-scanning` — claim, dispatcher, leader lease, scheduler, retention, purge listeners; 102/102 mutants killed | `rust/p2-7-scanning`, stacked on 2.11a |
 | 2.8 Ingestion | **not done**: oracle of 145 cases green; audited 2026-10-21 — licences wired and read per scan, enrichment and end of life named stand-ins, a `null` list element refused as Java does, the transaction mandatory (`rust/p2-8-ingestion-fixes`); 51/51 mutants killed (`p2-8-ingestion.py`). Open: an engine test over the real backlog and inventory, a check across the switch, the result route's golden replay (2.9) | `rust/p2-8-ingestion` |
-| 2.9 Agents module | done: protocol, administration, and sealing key (17 routes, `7291f5e37`) | `rust/p2-9-agents` |
+| 2.9 Agents module | **not done**: 17 routes; audited 2026-10-21 — a failure answers 500 not 409, an undelivered claim goes back to the queue, the withheld-claim repair runs at start, the audit delivery is registered (`rust/p2-8-ingestion-fixes`). Open: route authorization coverage and golden replay, engine tests of the remaining routes, a reference set, the mutation list, checked queries (`crates/cp-agents/README.md`) | `rust/p2-9-agents` |
 | 2.10 Built-in worker | done: shared runner library and worker loop (`804e8cbd4`) | `rust/p2-10-worker` |
 | 2.11 Composition | done: control plane composition with named stand-ins (`35fe13f28`) | `rust/p2-11-composition` |
 | 3.1 Rules | done: Semgrep rule sets, catalogue fetcher, rule coverage (`96154e9f9`) | `rust/p3-1-rules` |
@@ -167,7 +167,7 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.6 | Targets: 29 routes, deletion and purge registry | **done**, replayed (2.11a) |
 | 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | **done** |
 | 2.8 | Ingestion; the **ingestion reference set is written before the code** | **not done**: see §4 for what the audit left open |
-| 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | **done** (stacked on 2.8) |
+| 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | **not done**: see §4 |
 | 2.10 | Built-in worker over a runner moved out of `agent/src/scan.rs` into `crates/runner` (approved 2026-10-17) | **done** (stacked on 2.9) |
 | 2.11 | Composition with named stand-ins, the upgrade drill extended, both agents against the Rust image; closes the phase | **done** (`rust/p2-11-composition`) |
 | 2.12 | Phase 2 security review | last |

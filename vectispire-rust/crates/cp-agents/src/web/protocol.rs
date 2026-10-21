@@ -18,8 +18,9 @@ use vectispire_protocol::concurrency;
 use vectispire_protocol::server::refusals;
 use vectispire_protocol::server::{HelloRequest, RouteRefusal, SealingKeyRequest};
 
-use crate::internal::poller::AgentJobPoller;
-use crate::internal::protocol_service::{AgentProtocolService, AuthenticatedAgent};
+use crate::error::AgentError;
+use crate::internal::poller::{AgentJobPoller, Receipt};
+use crate::internal::protocol_service::{AgentProtocolService, AuthenticatedAgent, NotApplied};
 
 const AGENT_SIGNATURE_HEADER: &str = "X-Vectispire-Agent-Signature";
 
@@ -107,8 +108,8 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
                 let limit = concurrency::effective(agent.max_concurrent.map(i64::from)).to_string();
 
                 match poll.claim(&agent, wait).await {
-                    Ok(Some(task)) => {
-                        let mut resp = ok(&task.assigned());
+                    Ok(Some((task, receipt))) => {
+                        let mut resp = receipted(&task.assigned(), receipt);
                         if let Ok(val) = HeaderValue::from_str(&limit) {
                             resp.headers_mut().insert(concurrency::HEADER, val);
                         }
@@ -152,9 +153,7 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
                             "This scan is no longer yours: its lease was taken over.",
                         )
                         .into_response(),
-                        Err(err) => {
-                            Problem::handler(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response()
-                        }
+                        Err(err) => unexpected(err),
                     }
                 }
             },
@@ -188,7 +187,7 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
                             map.insert("accepted", true);
                             ok(&map)
                         }
-                        Err(refusal) => refusal_response(refusal),
+                        Err(not_applied) => not_applied_response(not_applied),
                     }
                 }
             },
@@ -227,7 +226,7 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
                                 retry_at: retry_at_str,
                             })
                         }
-                        Err(refusal) => refusal_response(refusal),
+                        Err(not_applied) => not_applied_response(not_applied),
                     }
                 }
             },
@@ -247,7 +246,7 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
                     Ok(Some(files)) => ok(&RuleSetResponse { content_hash: hash, files }),
                     Ok(None) => Problem::handler(StatusCode::NOT_FOUND, format!("No rule set with hash {hash}."))
                         .into_response(),
-                    Err(err) => Problem::handler(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+                    Err(err) => unexpected(err),
                 }
             }
         },
@@ -269,9 +268,7 @@ pub fn routes(protocol: Arc<AgentProtocolService>, poller: Arc<AgentJobPoller>) 
                             Problem::handler(StatusCode::NOT_FOUND, format!("No plugin {id} with manifest {digest}."))
                                 .into_response()
                         }
-                        Err(err) => {
-                            Problem::handler(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response()
-                        }
+                        Err(err) => unexpected(err),
                     }
                 }
             },
@@ -311,8 +308,65 @@ fn ok<T: Serialize + ?Sized>(value: &T) -> Response {
     response
 }
 
+/// The claim's answer, carrying its delivery receipt: handed over when the server takes the bytes to write them,
+/// given back to the queue if the answer is dropped before — the agent hung up first.
+fn receipted<T: Serialize + ?Sized>(value: &T, receipt: Receipt) -> Response {
+    let body = ReceiptedBody {
+        bytes: Some(bytes::Bytes::from(vectispire_domain::wire::to_wire_string(value))),
+        receipt: Some(receipt),
+    };
+    let mut response = Response::new(Body::new(body));
+    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    response
+}
+
+struct ReceiptedBody {
+    bytes: Option<bytes::Bytes>,
+    receipt: Option<Receipt>,
+}
+
+impl http_body::Body for ReceiptedBody {
+    type Data = bytes::Bytes;
+    type Error = std::convert::Infallible;
+
+    fn poll_frame(
+        mut self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<bytes::Bytes>, Self::Error>>> {
+        let frame = self.bytes.take().map(|bytes| Ok(http_body::Frame::data(bytes)));
+        if let Some(receipt) = self.receipt.take() {
+            receipt.handed_over();
+        }
+        std::task::Poll::Ready(frame)
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.bytes.is_none()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        // Exact, so the answer keeps its `Content-Length` as Java's has one.
+        self.bytes
+            .as_ref()
+            .map_or_else(|| http_body::SizeHint::with_exact(0), |b| http_body::SizeHint::with_exact(b.len() as u64))
+    }
+}
+
 fn no_content() -> Response {
     Response::builder().status(StatusCode::NO_CONTENT).body(Body::empty()).unwrap_or_default()
+}
+
+/// A failure of this side, as the module answers one: a 500 quoting a reference, the error logged under it and never
+/// written into the answer — it was, as the error's own text, to whoever held an agent key.
+fn unexpected(failure: Box<dyn std::error::Error + Send + Sync>) -> Response {
+    Problem::from(AgentError::Unexpected(failure)).into_response()
+}
+
+fn not_applied_response(not_applied: NotApplied) -> Response {
+    match not_applied {
+        NotApplied::Refused(refusal) => refusal_response(refusal),
+        NotApplied::Failed(failure) => unexpected(failure),
+    }
 }
 
 fn refusal_response(refusal: RouteRefusal) -> Response {

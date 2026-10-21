@@ -229,6 +229,15 @@ pub struct Composed {
 }
 
 pub fn compose(db: &Db, clock: Arc<dyn Clock>) -> Composed {
+    compose_with_ingestor(db, clock, Arc::new(IngestionStandIn::default()))
+}
+
+/// The module over a database, with the ingestor a case needs — one that fails, to see what the agent is answered.
+pub fn compose_with_ingestor(
+    db: &Db,
+    clock: Arc<dyn Clock>,
+    ingestor: Arc<dyn vectispire_cp_scanning::ports::ScanIngestor>,
+) -> Composed {
     let enc = encryption();
     let entries = Arc::new(Entries::default());
 
@@ -263,7 +272,7 @@ pub fn compose(db: &Db, clock: Arc<dyn Clock>) -> Composed {
         claim_lock,
         rule_sets: Arc::new(BundledRules),
         plugins: Arc::new(NoPlugins),
-        ingestor: Arc::new(IngestionStandIn::default()),
+        ingestor,
         policy: Policy::default(),
         leader_lease: Duration::from_secs(10),
         allowed_hosts: GitHostAllowlist::default(),
