@@ -102,7 +102,14 @@ GET /api/v1/issues\n\
 POST /api/v1/issues/triage\n\
 GET /api/v1/issues/{id}\n\
 PUT /api/v1/issues/{id}/ticket\n\
-POST /api/v1/issues/{id}/triage\n";
+POST /api/v1/issues/{id}/triage\n\
+POST /api/v1/gate\n\
+GET /api/v1/gate/verdicts\n\
+GET /api/v1/security/overview\n\
+GET /api/v1/gate/policies\n\
+PUT /api/v1/gate/policies/global\n\
+PUT /api/v1/gate/policies/{kind}/{id}\n\
+DELETE /api/v1/gate/policies/{kind}/{id}\n";
 
     let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
     let not_ours = Allowlist::parse(
@@ -110,7 +117,7 @@ POST /api/v1/issues/{id}/triage\n";
             "{}{targets_routes}{scanning_routes}{rules_s}",
             include_str!("../../cp-contract/reference/not-yet-ported.txt")
         ),
-        &(ceiling + 29 + 3 + 9 + 18 + 10).to_string(),
+        &(ceiling + 29 + 3 + 9 + 18 + 10 + 7).to_string(),
     );
     assert_none(&check_routes(&document, &declared, &not_ours));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
@@ -125,7 +132,7 @@ POST /api/v1/issues/{id}/triage\n";
     );
     let not_on_router = Allowlist::parse(
         &format!("{}{rules_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 9 + 18).to_string(),
+        &(ceiling + 9 + 18 + 7).to_string(),
     );
     assert_none(&probe(&router, &document, &not_on_router).await);
 }

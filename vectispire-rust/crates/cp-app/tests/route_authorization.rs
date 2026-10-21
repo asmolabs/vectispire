@@ -5,10 +5,11 @@
 //! rules `cp-arch-tests` carries over from Java. The adapter below is the one place the two meet: `cp-arch-tests`
 //! depends on neither the HTTP stack nor the application, so the boundary tests could be built before them.
 //!
-//! **The registry is empty today**, so reading it proves nothing yet about any route: what proves the wiring is
-//! the registries built here, with a route of each kind, and what keeps the real one honest is that every
-//! anonymous route the review accepted must be either registered or still on the contract's list of routes not
-//! yet ported — an accepted way in cannot go missing quietly while the list is shrinking.
+//! **This registry is the composed control plane.** `stand-ins()` reassembles every module in production order,
+//! and `registry::routes` over them is the same surface the binary serves (`cp-app/src/main.rs` reads `registry::routes`).
+//! The route-count assertion pins each module's contribution, so a route disappearing from one module surfaces on
+//! the total rather than unnoticed; the two `cp-http`-agnostic checks read that registry against what the rules and
+//! the contract's own authorization list require.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

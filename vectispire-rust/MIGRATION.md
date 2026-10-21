@@ -87,7 +87,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 - **Merging** is done by one person per phase, in a dedicated branch, rerunning the whole of §2 on the
   merged result. Expect conflicts in the crate manifests, `lib.rs`, `deny.toml` and `Cargo.lock`.
 
-## 4. Where it stands (2026-10-18)
+## 4. Where it stands (2026-10-21)
 
 | | State | Branch |
 |---|---|---|
@@ -103,12 +103,20 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.5 The protocol's server half | done (119/119 mutants, 5 equivalents removed) | `rust/p2-5-protocol`, stacked on 2.3 |
 | 2.2 Outbox | done (72/72 mutants, 4 equivalents removed) | `rust/p2-2-outbox`, stacked on 2.5 |
 | 2.6 Targets | done: 29 routes, deletion and purge registry, identity, credentials (73/73 mutants, 7 equivalents removed); replayed by 2.11a | `rust/p2-6-targets`, stacked on 2.2 |
-| 2.11a Golden replay | done: the recorder's format replayed on both engines; 7,148 recordings, 1,402 of the 1,480 of the 29 routes green on both, the other 78 and every route not ported named in `golden/deferred.txt` (369 lines); `AgentWireReferenceSetTest` made deterministic | `rust/p2-11a-golden-replay`, stacked on 2.6 |
-| 2.7 Queue, dispatch and schedule | done: `cp-scanning` — the claim, the dispatcher over ports, the leader lease, the scheduler, retention, the purge listeners, `TargetScans`, the three scan routes; `ScanningReferenceSetTest` written first (1,800 schedule cases, 21 claims); Java's five suites and sixteen racing claimants on both engines; 1,447 of the 1,520 recordings of the 32 target and scan routes green on both (`golden/deferred.txt` 361 lines); 102/102 mutants killed, 9 equivalents removed | `rust/p2-7-scanning`, stacked on 2.11a |
+| 2.11a Golden replay | done: the recorder's format replayed on both engines; 7,148 recordings, 1,402 of the 1,480 of the 29 routes green on both | `rust/p2-11a-golden-replay`, stacked on 2.6 |
+| 2.7 Queue, dispatch and schedule | done: `cp-scanning` — claim, dispatcher, leader lease, scheduler, retention, purge listeners; 102/102 mutants killed | `rust/p2-7-scanning`, stacked on 2.11a |
+| 2.8 Ingestion | done: findings ingestion and conformance oracle test (`ac54253e1`) | `rust/p2-8-ingestion` |
+| 2.9 Agents module | done: protocol, administration, and sealing key (17 routes, `7291f5e37`) | `rust/p2-9-agents` |
+| 2.10 Built-in worker | done: shared runner library and worker loop (`804e8cbd4`) | `rust/p2-10-worker` |
+| 2.11 Composition | done: control plane composition with named stand-ins (`35fe13f28`) | `rust/p2-11-composition` |
+| 3.1 Rules | done: Semgrep rule sets, catalogue fetcher, rule coverage (`96154e9f9`) | `rust/p3-1-rules` |
+| 3.2 Inventory | done: components, build SBOM imports, license governance (`f1833c188` / `33b675466`) | `rust/p3-2-inventory` |
+| 3.3 Issues | done: triage, SLA, lifecycle, 10 OpenAPI endpoints, 86 routes composed (`de674ddee`) | `rust/p3-3-issues` |
+| 3.4 Gate | **in progress**: quality gates, policies, evaluations, verdicts, exemptions (`fe0860336`) | `rust/p3-4-gate` |
 | The agent (`vectispire-agent`) | foundations and three scanners done | `feat/rust-agent` |
 
-In Java lines of `vectispire-core`: about 10,000 of 66,000 are ported or partly ported. Most of
-`vectispire-common` (about 20,000 lines) is still ahead, spread over the phases.
+In Java lines of `vectispire-core`: about 35,000 of 66,000 are ported or in progress. Most of
+`vectispire-common` is handled by shared crates (`domain`, `protocol`, `crypto`, `runner`).
 
 ## 5. What is left
 
@@ -364,23 +372,55 @@ The two things that fail nowhere if they go wrong, and so need the most care:
 - **Absent is never empty.** An analyzer's `Option<Vec<_>>` is never `unwrap_or_default`-ed; an empty
   list resolves the backlog of that type.
 
-### 5.3 Phases 3 to 6 — not broken down yet
+### 5.3 Phase 3 — Issues, Rules, Inventory and Quality Gate (Detailed Breakdown)
 
-Each needs a task breakdown like Phase 2's (inventory measured on the Java line, dependencies cut into
-ports with named stand-ins, a task table with owned files and an oracle per task, the risks) **before**
-anyone writes code. Writing that breakdown is itself a task to delegate, one per phase.
+Phase 3 ports the core decision and governance plane:
+- **3.1 Rules (`crates/cp-rules`)** — **done** (`96154e9f9`): Semgrep rule sets, catalogue fetcher, rule coverage.
+- **3.2 Inventory (`crates/cp-inventory`)** — **done** (`f1833c188`, `33b675466`): components, build SBOM imports, license governance.
+- **3.3 Issues (`crates/cp-issues`)** — **done** (`de674ddee`): triage, SLA, lifecycle, 10 OpenAPI endpoints, 86 total routes composed.
+- **3.4 Gate (`crates/cp-gate`)** — **in progress** (`fe0860336`): 1,612 Java lines, project gate policies, evaluations, verdicts and waivers.
 
-| Phase | Modules (Java lines of `core`) | Exit | Plan estimate, dev-weeks (fluent / learning) |
+#### Task 3.4 — Micro-tasks for `cp-gate` (Local / LLM-ready)
+
+Each micro-task is atomic, touches 1 to 3 files, and is verified immediately:
+
+| Subtask | Scope & Files | Action & Invariants | Verification command |
 |---|---|---|---|
-| 3. Issues and decisions | issues 5,191 · inventory 3,557 · gate 1,612 · rules 992 — triage, four-eyes, exceptions, VEX/CSAF | goldens; fingerprint and triage-history drills | 14–19 / 20–27 |
-| 4. Integrations | forges 5,306 · plugins 3,039 · threatintel 1,852 · tickets 1,589 · siem 936 · notifications 824 · ai 375 | goldens with outbound stubs; SIEM wire format byte-identical | 12–17 / 17–24 |
-| 5. Documents | checklists 6,882 · compliance 4,615 · reportplugins 3,593 · posture 2,454 · exports 1,400 · reporting 284 | the xlsx byte for byte; every PDF text-equal and structurally equal to Java's. **Starts with a two-week spike on the five PDF reports** | 13–19 / 19–27 |
-| 6. Cut-over | — | every oracle item green on both engines; two weeks side by side on a staging copy; nightly green 14 days; release pipeline (image, SBOM, signature identity unchanged) | 6–9 / 8–12 |
+| **3.4.1 Domain & Types** | `cp-gate/src/policy.rs`, `verdict.rs`, `observation.rs`, `resolution.rs`, `cursor.rs`, `fields.rs`, `flag.rs` | Pure data models, Enums (`Verdict`, `SeverityThreshold`, `GateStatus`), Jackson wire serialization. `#![forbid(unsafe_code)]`, zero `unwrap()`. | `cargo check -p vectispire-cp-gate` |
+| **3.4.2 Persistence** | `cp-gate/src/persistence/repository.rs`, `persistence/mod.rs` | Tables `t_gate_policy`, `t_gate_override`, `t_gate_evaluation`. Every SQL query tagged `/* mysql */` or `/* postgres */`. Implement `VisibleSelect` with `Visibility`. | `cargo test -p vectispire-cp-gate --test repository` (or `cargo check`) |
+| **3.4.3 Evaluation Engine** | `cp-gate/src/gate.rs`, `service.rs`, `overview.rs` | Evaluate target issues against policy thresholds. Unwaived high/critical block the gate. Absent findings never evaluate as clean (`0007`). | `cargo test -p vectispire-cp-gate --lib` |
+| **3.4.4 Purge & Maintenance** | `cp-gate/src/purge.rs`, `internal/tasks.rs` | Implement `PurgeListener` for project / target deletion. Register `GateEvaluationCleanupTask` in `maintenance.rs` and retire slot in `deferred.txt`. | `cargo test -p cp-app --test maintenance_composition` |
+| **3.4.5 HTTP Routes & Views** | `cp-gate/src/web/routes.rs`, `web/read.rs`, `web/views.rs` | Axum routes (`GET /api/v1/projects/{id}/gate`, `POST .../overrides`). Require visibility (404 never 403 on missing or inaccessible project). | `cargo check -p vectispire-cp-gate` |
+| **3.4.6 Composition & Contract** | `cp-app/src/main.rs`, `registry.rs`, `cp-contract/reference/not-yet-ported.txt` | Wire into router, lower `not-yet-ported.ceiling` by 7 routes. Run route authorization coverage and architectural boundary checks. | `cargo test -p cp-app --test route_authorization` & `cargo test -p cp-arch-tests` |
 
-**Go / no-go 1** sits between Phase 1 and the rest in the plan: measured throughput, review of the two
-hardest parts, re-estimate. Phase 2 was started before it, on 2026-10-17; the decision is still owed.
+---
 
-### 5.4 The agent — finishing `feat/rust-agent`
+### 5.4 Phase 4 — Integrations (Micro-tasks Breakdown)
+
+Java lines: ~18,000 lines across 7 vertical domains. Broken down into isolated crates:
+
+| # | Task | Java lines | Owned files / crates | Key Invariants & Micro-steps |
+|---|---|---|---|---|
+| **4.1** | **Notifications (`cp-notifications`)** | 824 | `crates/cp-notifications` | **4.1.1** Channel types & settings (Slack, Teams, Discord, Mail).<br>**4.1.2** Outbox message handlers (`scan_delta_*`).<br>**4.1.3** Rate limiting & templating. |
+| **4.2** | **SIEM Streaming (`cp-siem`)** | 936 | `crates/cp-siem` | **4.2.1** CEF / Syslog / JSON wire formatters (byte-identical to Java).<br>**4.2.2** TLS client via `cp-outbound`.<br>**4.2.3** Outbox consumer (`siem_event`). |
+| **4.3** | **Tickets Sync (`cp-tickets`)** | 1,589 | `crates/cp-tickets` | **4.3.1** Issue link model & persistence (`t_ticket_link`).<br>**4.3.2** Jira & GitLab REST clients via `cp-outbound`.<br>**4.3.3** Purge listener for deleted targets. |
+| **4.4** | **Threat Intelligence (`cp-threatintel`)** | 1,852 | `crates/cp-threatintel` | **4.4.1** EPSS & CISA KEV schema & SQLite/in-memory cache.<br>**4.4.2** Background refresh task.<br>**4.4.3** API routes (`/api/v1/threat-intel/...`). |
+| **4.5** | **Forges Discovery (`cp-forges`)** | 5,306 | `crates/cp-forges` | **4.5.1** Connection credentials encryption context (`forge_connection_context`).<br>**4.5.2** GitHub / GitLab / Harbor repository discovery.<br>**4.5.3** Webhook HMAC verification and dispatch. |
+| **4.6** | **Plugins Runtime (`cp-plugins`)** | 3,039 | `crates/cp-plugins` | **4.6.1** Manifest parser & Cosign image signature verification.<br>**4.6.2** Container / process runner protocol.<br>**4.6.3** Output bounds enforcement (10 MB ceiling). |
+| **4.7** | **AI Assisted Triage (`cp-ai`)** | 375 | `crates/cp-ai` | **4.7.1** AI review consent & credentials guard.<br>**4.7.2** Prompt formatting & sanitized outbound calls. |
+
+---
+
+### 5.5 Phases 5 and 6 — Overview
+
+| Phase | Modules (Java lines of `core`) | Exit | Key challenges |
+|---|---|---|---|
+| **5. Documents & Compliance** | checklists 6,882 · compliance 4,615 · reportplugins 3,593 · posture 2,454 · exports 1,400 · reporting 284 | xlsx byte for byte; PDF text-equal & structure-equal to Java | Starts with a 2-week spike on headless PDF generation (typst / printpdf / krilla) |
+| **6. Cut-over & Hardening** | — | Every oracle green on both engines; 14-day nightly parity | Staging run side-by-side with production DB snapshot |
+
+---
+
+### 5.6 The agent — finishing `feat/rust-agent`
 
 From the workspace [`README.md`](README.md), "Remaining work, as independent streams":
 
@@ -390,6 +430,8 @@ From the workspace [`README.md`](README.md), "Remaining work, as independent str
 | Plugins and bundled rules | plugin steps, bounded outputs, registry login, `ImageSignatureVerifier` through the pinned cosign image |
 | Image export | `ExportImages` in the container crate (dependencies stream left it out) |
 | Image and side-by-side conformance | reproducible image on both architectures; `scripts/composition-scan-check.sh MODE=agent` identical to the Java agent for two weeks in the nightly; only then does `release.yml` sign it |
+
+---
 
 ## 6. Decided, and recorded where
 
@@ -401,4 +443,61 @@ From the workspace [`README.md`](README.md), "Remaining work, as independent str
 | The scan runner moves to a crate shared with the agent (task 2.10) | 2026-10-17 | this file |
 | One MySQL statement per crate may stay unchecked when its `in (…)` list varies in length; the reason is beside it | 2026-10-17 | `cp-access`, `cp-audit` READMEs |
 | Agent-key fall-through is an equivalent mutant, removed from the list | 2026-10-17 | `p1c-mutate.py` |
+
+---
+
+## 7. Playbook for Local LLM Development (OpenCode, Gemma, Qwen, Ollama)
+
+When working locally with OpenCode and open-weight models (e.g. Qwen 2.5 Coder 14B/32B or Gemma 2 9B/27B on Apple Silicon 32 GB), follow this structured feedback loop to ensure compliance with Vectispire's strict safety and architectural rules.
+
+### 7.1 The 5-Step Micro-Task Loop
+
+Never prompt the model to "port the entire module". Execute one micro-task at a time:
+
+```text
+[1. Domain Types]   --> cargo check -p <crate>
+        │
+[2. Persistence]    --> cargo check -p <crate>
+        │
+[3. Business Logic] --> cargo test -p <crate> --lib
+        │
+[4. HTTP Routes]    --> cargo check -p <crate>
+        │
+[5. App Composition]--> cargo test -p cp-app && cargo test -p cp-arch-tests
+```
+
+### 7.2 Strict Rules to Provide in Local Prompts (System Prompt Additions)
+
+Always enforce these 5 negative constraints in your OpenCode prompt context:
+1. **Never use `.unwrap()` or `.expect()`**: Always bubble up errors with `?` or map them into the crate's `Error` enum.
+2. **Never leave an `Option` unresolved as empty**: `None` means absent, `Some(vec![])` means ran and clean. Never `unwrap_or_default()`.
+3. **Never bypass layers**: Web routes call services, services call repositories. Web routes never import persistence repositories directly.
+4. **Tag every SQL statement**: Add `/* mysql */` or `/* postgres */` to query strings so offline query caching works.
+5. **Always deny unsafe**: Ensure `#![forbid(unsafe_code)]` remains at the crate root.
+
+### 7.3 Reference Files to Provide as Few-Shot Context
+
+When porting a new submodule, feed OpenCode with the corresponding file from an already-completed crate:
+* For **domain types & enums**: point to `crates/cp-issues/src/decision.rs` or `crates/cp-rules/src/rule.rs`.
+* For **SQLx repositories**: point to `crates/cp-issues/src/persistence/repository.rs`.
+* For **maintenance jobs**: point to `crates/cp-issues/src/internal/tasks.rs`.
+* For **Axum HTTP handlers**: point to `crates/cp-issues/src/web/routes.rs`.
+
+### 7.4 Verification Checklist before Committing
+
+Run from the root of `vectispire-rust`:
+```bash
+# 1. Fast compile & type check
+cargo check -p <crate_name>
+
+# 2. Crate unit tests
+cargo test -p <crate_name>
+
+# 3. Layering & architecture test
+cargo test -p cp-arch-tests
+
+# 4. Route authorization & maintenance composition
+cargo test -p cp-app --test route_authorization
+cargo test -p cp-app --test maintenance_composition
+```
 
