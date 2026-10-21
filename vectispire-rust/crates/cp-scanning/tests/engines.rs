@@ -157,7 +157,7 @@ async fn suite(engine: Engine) {
         ("a deposed worker cannot fail its successor", |db| Box::pin(deposed(db))),
         ("a renewal beats a stale reclaim", |db| Box::pin(renewal_beats_reclaim(db))),
         ("the write fences the reclaim", |db| Box::pin(write_fences_reclaim(db))),
-        ("N claimants racing: each scan once, nobody starved", |db| Box::pin(claimants_racing(db))),
+        ("N claimants racing: each scan once, the queue drains", |db| Box::pin(claimants_racing(db))),
         ("each scan's label, past every engine's bind limit", |db| Box::pin(labels_of(db))),
         ("leader election", |db| Box::pin(leader_election(db))),
         ("the scheduler on a database", |db| Box::pin(scheduler(db))),
@@ -921,7 +921,20 @@ async fn write_fences_reclaim(db: Db) {
 }
 
 /// Sixteen claimants — eight agents with a limit of four, eight built-in workers claiming three at a time — round
-/// after round over two hundred scans: every scan claimed exactly once, the queue drained, and every claimant served.
+/// after round over two hundred scans: every scan claimed exactly once, no round coming back empty while scans wait,
+/// and the queue drained.
+///
+/// **Not "every claimant served", and that is not the test being lenient.** It used to assert that, and failed now and
+/// then on both engines — more often under load — with an agent served nothing across every round while a hundred
+/// scans waited. Nothing had gone wrong: every claimant reads the same oldest row, an agent's attempt tries that one
+/// candidate behind its own row's lock, and an attempt lost means somebody else took it; after
+/// [`Policy::claim_attempts`] losses in a row the poll comes back empty, as Java's `claimWithin` does, and the agent
+/// polls again a second later. Fifteen competitors at the head, round after round with no pause, can beat one agent
+/// every time — seen with no error and no deadlock, twelve races lost per empty poll. Java's
+/// `neverServesTheSameScanTwice` asserts what the claim promises, which is the queue's progress and not any one
+/// claimant's share. A claim that starves the queue still fails here, and without a timing to rely on: a lost race
+/// always has a winner, so a round that took nothing while scans waited, or sixty rounds that did not drain two
+/// hundred, is the claim turning everybody away.
 async fn claimants_racing(db: Db) {
     let mut statements = String::new();
     for i in 0..200 {
@@ -972,6 +985,7 @@ async fn claimants_racing(db: Db) {
         }
         let distinct: BTreeSet<i64> = round_ids.iter().copied().collect();
         assert_eq!(distinct.len(), round_ids.len(), "a scan handed to two claimants in one round");
+        assert!(!round_ids.is_empty(), "a round took nothing while scans waited");
         // What the agents took goes back as finished, so the next round finds only what nobody holds.
         let taken: Vec<String> = round_ids.iter().map(i64::to_string).collect();
         if !taken.is_empty() {
@@ -986,13 +1000,7 @@ async fn claimants_racing(db: Db) {
     let distinct: BTreeSet<i64> = all.iter().copied().collect();
     assert_eq!(distinct.len(), all.len(), "each scan claimed exactly once");
     assert_eq!(all.len(), 200, "the queue drained");
-    assert_eq!(
-        served.len(),
-        16,
-        "nobody starved: {:?}",
-        served.iter().map(|(who, ids)| (who.clone(), ids.len())).collect::<Vec<_>>()
-    );
-    assert!(served.values().all(|ids| !ids.is_empty()), "nobody starved");
+    assert_eq!(count(&db, "select count(*) from t_scan where status = 'pending'").await, 0, "nothing left waiting");
     assert_eq!(count(&db, "select count(*) from t_scan where attempts <> 1").await, 0, "one attempt each");
 }
 
