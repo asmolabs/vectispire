@@ -120,3 +120,6 @@ deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-java/vectispire-core/src/tes
 deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/targets/TargetRulesReferenceSetTest.java:private-key:420
 deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules.json:private-key:3574
 deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules.json:private-key:3580
+# A throwaway encryption key in the built-in worker test: the base64 of "reference-scanning-key-32-bytes!".
+# Read and judged not a secret.
+804e8cbd44540da590805d4dcde7603588abdb13:vectispire-rust/crates/cp-scanning/tests/worker_offload.rs:generic-api-key:233
