@@ -41,4 +41,16 @@ impl Severity {
             .find(|severity| severity.wire_name() == normalized)
             .unwrap_or(Severity::Unknown)
     }
+
+    /// Whether this severity is at least as severe as `threshold`.
+    pub fn is_at_least(self, threshold: Severity) -> bool {
+        self <= threshold
+    }
+
+    /// Whether this severity is strictly stricter as a *threshold* than `other`.
+    ///
+    /// A lower threshold fails on more issues, so it is the stricter one.
+    pub fn is_stricter_threshold_than(self, other: Severity) -> bool {
+        self > other
+    }
 }

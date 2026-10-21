@@ -299,7 +299,8 @@ async fn serve() -> ExitCode {
     let purge = vectispire_cp_targets::PurgeRegistry::stand_ins()
         .with(vectispire_cp_scanning::purge::listeners())
         .with(vectispire_cp_issues::purge::listeners())
-        .with(vectispire_cp_inventory::listeners());
+        .with(vectispire_cp_inventory::listeners())
+        .with(vectispire_cp_gate::purge::listeners());
     let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
         db: db.clone(),
         audit: audit.clone(),
@@ -425,6 +426,16 @@ async fn serve() -> ExitCode {
 
     let agents = Arc::new(vectispire_cp_agents::Agents::new(admin, protocol, poller));
 
+    let gate = Arc::new(vectispire_cp_gate::GateModule::new(
+        db.clone(),
+        issues.catalog().clone(),
+        scan_catalog.clone(),
+        targets.clone(),
+        rules_module.coverage.clone(),
+        audit.clone(),
+        clock.clone(),
+    ));
+
     let turns = match vectispire_cp_app::maintenance::turns(
         outbox.clone(),
         targets.clone(),
@@ -432,6 +443,7 @@ async fn serve() -> ExitCode {
         agents.clone(),
         inventory.clone(),
         issues.clone(),
+        gate.clone(),
         vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
     ) {
@@ -466,6 +478,7 @@ async fn serve() -> ExitCode {
         rules_module.clone(),
         inventory.clone(),
         issues.clone(),
+        gate.clone(),
     ) {
         routes = routes.route(entry);
     }

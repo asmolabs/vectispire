@@ -24,11 +24,14 @@
 //! **Inventory (Phase 3)** fills `INVENTORY_BACKFILL` and `BUILD_SBOM_RETENTION`: the backfill of past scans' components
 //! from raw SBOMs, and build SBOM retention past the evidence window.
 //!
+//! **Gate (Phase 3)** fills `GATE_VERDICTS`: the gate's verdict register, purged past the evidence window.
+//!
 //! The turns are started by `main` (2.11) beside the server with the shutdown signal as their stop.
 
 use std::sync::Arc;
 
 use vectispire_cp_agents::{Agents, CredentialedBacklogTask};
+use vectispire_cp_gate::GateModule;
 use vectispire_cp_inventory::Inventory;
 use vectispire_cp_maintenance::{CompositionError, MaintenanceTask, Turns};
 use vectispire_cp_outbox::{Outbox, Registry, UnreadableRegistry};
@@ -63,6 +66,7 @@ pub fn tasks(
     agents: Arc<Agents>,
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
+    gate: Arc<GateModule>,
     settings: Settings,
     clock: Arc<dyn Clock>,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
@@ -71,7 +75,13 @@ pub fn tasks(
     tasks.extend(vectispire_cp_scanning::tasks(scanning.clone()));
     tasks.push(Arc::new(CredentialedBacklogTask::new(agents.admin.clone())));
     tasks.extend(vectispire_cp_issues::tasks(issues));
-    tasks.extend(vectispire_cp_inventory::tasks(inventory, scanning.catalog().clone(), settings, clock));
+    tasks.extend(vectispire_cp_inventory::tasks(
+        inventory,
+        scanning.catalog().clone(),
+        settings.clone(),
+        clock.clone(),
+    ));
+    tasks.extend(gate.tasks(settings, clock));
     Ok(tasks)
 }
 
@@ -84,8 +94,9 @@ pub fn turns(
     agents: Arc<Agents>,
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
+    gate: Arc<GateModule>,
     settings: Settings,
     clock: Arc<dyn Clock>,
 ) -> Result<Turns, MaintenanceError> {
-    Ok(Turns::new(tasks(outbox, targets, scanning, agents, inventory, issues, settings, clock)?)?)
+    Ok(Turns::new(tasks(outbox, targets, scanning, agents, inventory, issues, gate, settings, clock)?)?)
 }

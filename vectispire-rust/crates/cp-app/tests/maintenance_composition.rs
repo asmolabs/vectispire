@@ -228,6 +228,42 @@ fn issues(
     }))
 }
 
+fn gate(
+    targets: Arc<vectispire_cp_targets::Targets>,
+    scanning: Arc<vectispire_cp_scanning::Scanning>,
+    issues: Arc<vectispire_cp_issues::Issues>,
+) -> Arc<vectispire_cp_gate::GateModule> {
+    let db_settings = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&db_settings).unwrap();
+    let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
+        db.clone(),
+        Arc::new(vectispire_cp_audit::NoMirror),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        Vec::new(),
+    ));
+    let rules = vectispire_cp_rules::RulesModule::new(
+        db.clone(),
+        Arc::new(vectispire_cp_rules::StandInInventory),
+        Arc::new(vectispire_cp_rules::StandInIssues),
+        audit.clone(),
+    );
+    Arc::new(vectispire_cp_gate::GateModule::new(
+        db,
+        issues.catalog().clone(),
+        Arc::new(scanning.catalog().clone()),
+        targets,
+        rules.coverage.clone(),
+        audit,
+        Arc::new(vectispire_cp_targets::SystemClock),
+    ))
+}
+
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let targets = targets();
@@ -236,6 +272,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let agents = agents(targets.clone(), scanning.clone(), outbox.clone());
     let inventory = inventory(targets.clone(), scanning.clone());
     let issues = issues(targets.clone(), scanning.clone());
+    let gate = gate(targets.clone(), scanning.clone(), issues.clone());
     let db_settings = vectispire_cp_db::settings::DbSettings {
         url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
         username: "nobody".into(),
@@ -252,6 +289,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         agents,
         inventory,
         issues,
+        gate,
         settings,
         Arc::new(vectispire_cp_targets::SystemClock),
     )

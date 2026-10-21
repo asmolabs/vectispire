@@ -83,6 +83,22 @@ impl ScanCatalog {
         self.read(async |tx| persistence::latest_per_container(tx).await).await
     }
 
+    /// Each repository's newest scan that is no longer in flight; a repository with none is absent.
+    pub async fn latest_finished_per_repository(&self) -> Result<Vec<LatestRow>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::latest_finished_per_repository(tx).await).await
+    }
+
+    /// The container half of `latest_finished_per_repository`.
+    pub async fn latest_finished_per_container(&self) -> Result<Vec<LatestRow>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::latest_finished_per_container(tx).await).await
+    }
+
+    /// One target's newest scan that is no longer in flight — completed or failed — or None when none
+    /// has finished: never scanned, or every scan still pending or running.
+    pub async fn latest_finished(&self, target: ScanTarget) -> Result<Option<LatestRow>, StoreError> {
+        self.read(async |tx| persistence::catalog_queries::latest_finished_of_target(tx, target).await).await
+    }
+
     /// `newestDetectedLanguages`: the languages each of these repositories' newest **completed** scan found. **A
     /// repository missing from the answer is unknown** — no completed scan, or one that recorded no whole census —
     /// never an older scan's languages in its place: the newest completed scan is what the repository is now.

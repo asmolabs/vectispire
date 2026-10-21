@@ -5,8 +5,8 @@
 use vectispire_cp_maintenance::Sequence;
 use vectispire_cp_maintenance::composition::{DEFERRED, check, parse_deferred};
 
-/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3).
-const FILLED: [Sequence; 11] = [
+/// The slots a Rust task fills today: the outbox's two (task 2.2), the targets' two (task 2.6), scanning's two (2.7), agents' one (2.9/2.11), inventory's two (Phase 3.2), issues' two (Phase 3.3), gate's one (Phase 3.4).
+const FILLED: [Sequence; 12] = [
     Sequence::NotificationRelay,
     Sequence::SentMessages,
     Sequence::RepositoryIdentities,
@@ -18,6 +18,7 @@ const FILLED: [Sequence; 11] = [
     Sequence::BuildSbomRetention,
     Sequence::TriageExpiry,
     Sequence::SlaBreaches,
+    Sequence::GateVerdicts,
 ];
 
 /// The filled slots and one more.
@@ -45,8 +46,8 @@ fn the_list_today_is_every_slot_with_its_reason() {
     let entries = parse_deferred(DEFERRED).unwrap();
     assert_eq!(
         entries.len(),
-        17,
-        "the outbox, the targets, scanning, agents, inventory and issues fill eleven of Java's twenty-eight"
+        16,
+        "the outbox, the targets, scanning, agents, inventory, issues and gate fill twelve of Java's twenty-eight"
     );
     assert!(entries.iter().all(|entry| !entry.reason.is_empty()));
     assert!(check(&FILLED, DEFERRED).is_empty());

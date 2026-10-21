@@ -7,7 +7,7 @@ use time::OffsetDateTime;
 use vectispire_cp_db::types::UtcInstant;
 use vectispire_cp_db::{ScanTarget, Tx, Visibility};
 
-use super::{ScanRow, StoreError};
+use super::{LatestRow, ScanRow, StoreError};
 
 /// A finding of one scan, as persistence records it.
 #[derive(Debug, Clone, PartialEq)]
@@ -1194,5 +1194,75 @@ pub async fn sightings_of_issue(tx: &mut Tx, issue_id: i64, limit: usize) -> Res
                 })
                 .collect())
         }
+    }
+}
+
+macro_rules! parse_latest_row {
+    ($r:ident) => {{
+        let created_at: UtcInstant = $r.get("created_at");
+        LatestRow {
+            target_id: $r.get("target_id"),
+            scan_id: $r.get("id"),
+            status: $r.get("status"),
+            created_at: created_at.0,
+            error: $r.get("error"),
+        }
+    }};
+}
+
+pub async fn latest_finished_per_repository(tx: &mut Tx) -> Result<Vec<LatestRow>, StoreError> {
+    let sql = "select s.repo_id as target_id, s.id as id, s.status as status, s.created_at as created_at, s.error as error from t_scan s where s.repo_id is not null and s.id = (select max(l.id) from t_scan l where l.repo_id = s.repo_id and l.status in ('completed', 'failed'))";
+    match tx {
+        Tx::MySql(conn) => {
+            let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_latest_row!(r)).collect())
+        }
+        Tx::PostgreSql(conn) => {
+            let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_latest_row!(r)).collect())
+        }
+    }
+}
+
+pub async fn latest_finished_per_container(tx: &mut Tx) -> Result<Vec<LatestRow>, StoreError> {
+    let sql = "select s.container_id as target_id, s.id as id, s.status as status, s.created_at as created_at, s.error as error from t_scan s where s.container_id is not null and s.id = (select max(l.id) from t_scan l where l.container_id = s.container_id and l.status in ('completed', 'failed'))";
+    match tx {
+        Tx::MySql(conn) => {
+            let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_latest_row!(r)).collect())
+        }
+        Tx::PostgreSql(conn) => {
+            let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
+            Ok(rows.iter().map(|r| parse_latest_row!(r)).collect())
+        }
+    }
+}
+
+pub async fn latest_finished_of_target(tx: &mut Tx, target: ScanTarget) -> Result<Option<LatestRow>, StoreError> {
+    match target {
+        ScanTarget::Repository(repo_id) => match tx {
+            Tx::MySql(conn) => {
+                let sql = "select repo_id as target_id, id, status, created_at, error from t_scan where repo_id = ? and status in ('completed', 'failed') order by id desc limit 1";
+                let row = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_optional(&mut **conn).await?;
+                Ok(row.as_ref().map(|r| parse_latest_row!(r)))
+            }
+            Tx::PostgreSql(conn) => {
+                let sql = "select repo_id as target_id, id, status, created_at, error from t_scan where repo_id = $1 and status in ('completed', 'failed') order by id desc limit 1";
+                let row = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_optional(&mut **conn).await?;
+                Ok(row.as_ref().map(|r| parse_latest_row!(r)))
+            }
+        },
+        ScanTarget::Container(container_id) => match tx {
+            Tx::MySql(conn) => {
+                let sql = "select container_id as target_id, id, status, created_at, error from t_scan where container_id = ? and status in ('completed', 'failed') order by id desc limit 1";
+                let row = sqlx::query(AssertSqlSafe(sql)).bind(container_id).fetch_optional(&mut **conn).await?;
+                Ok(row.as_ref().map(|r| parse_latest_row!(r)))
+            }
+            Tx::PostgreSql(conn) => {
+                let sql = "select container_id as target_id, id, status, created_at, error from t_scan where container_id = $1 and status in ('completed', 'failed') order by id desc limit 1";
+                let row = sqlx::query(AssertSqlSafe(sql)).bind(container_id).fetch_optional(&mut **conn).await?;
+                Ok(row.as_ref().map(|r| parse_latest_row!(r)))
+            }
+        },
     }
 }
