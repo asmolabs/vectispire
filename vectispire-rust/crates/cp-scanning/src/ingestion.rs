@@ -19,11 +19,16 @@ use crate::ports::{IngestError, PortError, Prepared, Reconciliation, ScanIngesto
 use crate::views::ScanView;
 
 /// Where what a scan says the target is made of goes: its components, read from the SBOM, and its API endpoints and contracts.
+///
+/// **In the scan's transaction, which is not optional.** Java's ingestion is `Propagation.MANDATORY`: the inventory,
+/// the findings and the backlog commit with the scan or not at all. When the transaction was an `Option` here, the
+/// real implementations answered `None` by opening their own and committing it — the API inventory always did — so a
+/// write the dispatcher rolled back (a failure, or a fold repeated after a triage) left its inventory committed.
 pub trait InventorySink: Send + Sync {
     /// The SBOM's components for this scan, with their directness from the same document.
     fn components<'a>(
         &'a self,
-        tx: Option<&'a mut Tx>,
+        tx: &'a mut Tx,
         origin: ScanOrigin,
         sbom: &'a serde_json::Value,
         raw_sbom: &'a str,
@@ -33,7 +38,7 @@ pub trait InventorySink: Send + Sync {
     /// The API surface, each half only if its analyzer ran. Never called with both absent.
     fn apis<'a>(
         &'a self,
-        tx: Option<&'a mut Tx>,
+        tx: &'a mut Tx,
         scan_id: i64,
         repo_id: Option<i64>,
         endpoints: Option<&'a [ApiEndpoint]>,
@@ -48,7 +53,7 @@ pub struct NoInventory;
 impl InventorySink for NoInventory {
     fn components<'a>(
         &'a self,
-        _tx: Option<&'a mut Tx>,
+        _tx: &'a mut Tx,
         _origin: ScanOrigin,
         _sbom: &'a serde_json::Value,
         _raw_sbom: &'a str,
@@ -59,7 +64,7 @@ impl InventorySink for NoInventory {
 
     fn apis<'a>(
         &'a self,
-        _tx: Option<&'a mut Tx>,
+        _tx: &'a mut Tx,
         _scan_id: i64,
         _repo_id: Option<i64>,
         _endpoints: Option<&'a [ApiEndpoint]>,
@@ -71,11 +76,7 @@ impl InventorySink for NoInventory {
 
 /// Where findings rows are saved in the scan's transaction.
 pub trait FindingSink: Send + Sync {
-    fn save_all<'a>(
-        &'a self,
-        tx: Option<&'a mut Tx>,
-        findings: &'a [NewFinding],
-    ) -> BoxFuture<'a, Result<(), PortError>>;
+    fn save_all<'a>(&'a self, tx: &'a mut Tx, findings: &'a [NewFinding]) -> BoxFuture<'a, Result<(), PortError>>;
 }
 
 /// Real database persistence calling `persistence::findings::save_all`.
@@ -83,18 +84,11 @@ pub trait FindingSink: Send + Sync {
 pub struct DbFindingSink;
 
 impl FindingSink for DbFindingSink {
-    fn save_all<'a>(
-        &'a self,
-        tx: Option<&'a mut Tx>,
-        findings: &'a [NewFinding],
-    ) -> BoxFuture<'a, Result<(), PortError>> {
+    fn save_all<'a>(&'a self, tx: &'a mut Tx, findings: &'a [NewFinding]) -> BoxFuture<'a, Result<(), PortError>> {
         Box::pin(async move {
-            match tx {
-                Some(tx) => save_all(tx, findings)
-                    .await
-                    .map_err(|e| PortError::from(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)),
-                None => Ok(()),
-            }
+            save_all(tx, findings)
+                .await
+                .map_err(|e| PortError::from(Box::new(e) as Box<dyn std::error::Error + Send + Sync>))
         })
     }
 }
@@ -113,7 +107,7 @@ pub struct BacklogDelta {
 pub trait Backlog: Send + Sync {
     fn reconcile<'a>(
         &'a self,
-        tx: Option<&'a mut Tx>,
+        tx: &'a mut Tx,
         observation: &'a Observation,
     ) -> BoxFuture<'a, Result<BacklogDelta, PortError>>;
 }
@@ -125,7 +119,7 @@ pub struct NoBacklog;
 impl Backlog for NoBacklog {
     fn reconcile<'a>(
         &'a self,
-        _tx: Option<&'a mut Tx>,
+        _tx: &'a mut Tx,
         observation: &'a Observation,
     ) -> BoxFuture<'a, Result<BacklogDelta, PortError>> {
         Box::pin(async move {
@@ -150,6 +144,11 @@ pub struct Enrichment {
 /// Remote/stored exploitation metrics lookups.
 pub trait Enricher: Send + Sync {
     fn enrich<'a>(&'a self, identifiers: &'a [String]) -> BoxFuture<'a, Option<Enrichment>>;
+
+    /// The task that replaces this source, when it is a stand-in — see [`ScanIngestor::stand_ins`].
+    fn stand_in(&self) -> Option<&'static str> {
+        None
+    }
 }
 
 /// Remote end-of-life catalog lookups.
@@ -157,30 +156,106 @@ pub trait EndOfLifeSource: Send + Sync {
     fn is_enabled(&self) -> bool;
     fn findings<'a>(&'a self, sbom: &'a serde_json::Value) -> BoxFuture<'a, Option<Vec<ObservedFinding>>>;
     fn describe(&self, finding: &ObservedFinding) -> String;
+
+    /// The task that replaces this source, when it is a stand-in — see [`ScanIngestor::stand_ins`].
+    fn stand_in(&self) -> Option<&'static str> {
+        None
+    }
+}
+
+/// Java's `EnrichmentService` until `threatintel` is ported: it answers nothing, so every vulnerability keeps its
+/// built defaults — no EPSS score and **not exploited**. That is the one stand-in here that changes a verdict: a gate
+/// asking for exploited vulnerabilities passes a scan Java would fail. Named so that the composition cannot keep it
+/// quietly (`cp-app`'s `ingestion_composition` test lists it).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EnrichmentStandIn;
+
+impl Enricher for EnrichmentStandIn {
+    fn enrich<'a>(&'a self, _identifiers: &'a [String]) -> BoxFuture<'a, Option<Enrichment>> {
+        Box::pin(async { None })
+    }
+
+    fn stand_in(&self) -> Option<&'static str> {
+        Some("enrichment: threatintel's EnrichmentService, Phase 4 task 4.4")
+    }
+}
+
+/// Java's `EndOfLifeService` until `threatintel` is ported. Answering "switched off" keeps the type out of the
+/// examined set, so end-of-life issues already open stay open rather than resolve: "we stopped looking" is not "it is
+/// fixed".
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EndOfLifeStandIn;
+
+impl EndOfLifeSource for EndOfLifeStandIn {
+    fn is_enabled(&self) -> bool {
+        false
+    }
+
+    fn findings<'a>(&'a self, _sbom: &'a serde_json::Value) -> BoxFuture<'a, Option<Vec<ObservedFinding>>> {
+        Box::pin(async { None })
+    }
+
+    fn describe(&self, _finding: &ObservedFinding) -> String {
+        String::new()
+    }
+
+    fn stand_in(&self) -> Option<&'static str> {
+        Some("end of life: threatintel's EndOfLifeService, Phase 4 task 4.4")
+    }
 }
 
 /// License analysis from SBOM.
 pub trait LicenseSource: Send + Sync {
-    fn findings<'a>(&'a self, sbom: &'a serde_json::Value) -> BoxFuture<'a, Vec<ObservedFinding>>;
+    fn findings<'a>(&'a self, sbom: &'a serde_json::Value) -> BoxFuture<'a, Result<Vec<ObservedFinding>, PortError>>;
 }
 
-/// A standard license evaluator implementation backed by `LicenseBlocklist`.
-#[derive(Debug, Clone, Default)]
+/// Where the forbidden licences come from.
+#[derive(Debug, Clone)]
+enum Blocklist {
+    /// Fixed at construction — the reference set's cases, which state the setting they were run with.
+    Fixed(vectispire_domain::sbom::LicenseBlocklist),
+    /// `LICENSE_BLOCKLIST`, read again on every scan as Java's `LicenseService.blocklist()` reads it: an
+    /// administrator's change applies to the next scan, not the next start.
+    Settings(vectispire_cp_settings::Settings),
+}
+
+/// Java's `LicenseService`: the components whose licence is on the forbidden list.
+#[derive(Debug, Clone)]
 pub struct LicenseService {
-    pub blocklist: vectispire_domain::sbom::LicenseBlocklist,
+    blocklist: Blocklist,
 }
 
 impl LicenseService {
+    /// A fixed list, for a case that states it.
     pub fn new(blocklist: vectispire_domain::sbom::LicenseBlocklist) -> Self {
-        Self { blocklist }
+        Self { blocklist: Blocklist::Fixed(blocklist) }
+    }
+
+    /// The list the settings hold at each scan — the control plane's.
+    pub fn from_settings(settings: vectispire_cp_settings::Settings) -> Self {
+        Self { blocklist: Blocklist::Settings(settings) }
+    }
+
+    async fn blocklist(&self) -> Result<vectispire_domain::sbom::LicenseBlocklist, PortError> {
+        match &self.blocklist {
+            Blocklist::Fixed(list) => Ok(list.clone()),
+            Blocklist::Settings(settings) => {
+                let raw = settings
+                    .get(vectispire_cp_settings::Setting::LicenseBlocklist)
+                    .await
+                    .map_err(|e| Box::new(e) as PortError)?;
+                Ok(vectispire_domain::sbom::LicenseBlocklist::parse(Some(&raw)))
+            }
+        }
     }
 }
 
 impl LicenseSource for LicenseService {
-    fn findings<'a>(&'a self, sbom: &'a serde_json::Value) -> BoxFuture<'a, Vec<ObservedFinding>> {
+    fn findings<'a>(&'a self, sbom: &'a serde_json::Value) -> BoxFuture<'a, Result<Vec<ObservedFinding>, PortError>> {
         Box::pin(async move {
+            let blocklist = self.blocklist().await?;
             let artifacts = vectispire_domain::sbom::artifacts(Some(sbom));
-            self.blocklist
+            Ok(blocklist
                 .violations(&artifacts)
                 .into_iter()
                 .map(|violation| ObservedFinding {
@@ -207,7 +282,7 @@ impl LicenseSource for LicenseService {
                     tool_name: None,
                     tool_version: None,
                 })
-                .collect()
+                .collect())
         })
     }
 }
@@ -341,8 +416,22 @@ impl ScanIngestor {
         self
     }
 
+    /// The sources composed as stand-ins, each with the task that replaces it. A licence source is never one: Java's
+    /// `LicenseService` belongs to scanning itself.
+    pub fn stand_ins(&self) -> Vec<&'static str> {
+        let mut names = Vec::new();
+        names.extend(self.enricher.as_ref().and_then(|source| source.stand_in()));
+        names.extend(self.end_of_life.as_ref().and_then(|source| source.stand_in()));
+        names
+    }
+
     /// Performs remote lookups before any database transaction opens.
     pub async fn prepare(&self, _scan: &ScanView, artifacts: &Received<'_>) -> PreparedIngestion {
+        // Java's `prepare` dereferences every dependency for its identifier and throws on a `null` one, before it
+        // asks either catalogue. Nothing is asked here either: `ingest` refuses the same result.
+        if artifacts.dependencies.as_ref().is_some_and(|list| list.iter().any(Option::is_none)) {
+            return PreparedIngestion { end_of_life: None, enrichment: None, at: self.clock.now() };
+        }
         let identifiers = vulnerability_identifiers(artifacts);
         let sbom_val =
             artifacts.sbom.as_ref().and_then(|raw| serde_json::from_str::<serde_json::Value>(raw.get()).ok());
@@ -372,7 +461,7 @@ impl ScanIngestor {
     /// The result folded into the scan's findings and the target's backlog, in `tx`.
     pub async fn ingest(
         &self,
-        mut tx: Option<&mut Tx>,
+        tx: &mut Tx,
         scan: &ScanView,
         artifacts: &Received<'_>,
         prepared: &PreparedIngestion,
@@ -383,18 +472,18 @@ impl ScanIngestor {
 
         if let (Some(sbom), Some(raw_sbom)) = (&sbom_val, artifacts.sbom.as_ref()) {
             self.inventory
-                .components(tx.as_deref_mut(), ScanOrigin::of(scan), sbom, raw_sbom.get(), &graph)
+                .components(&mut *tx, ScanOrigin::of(scan), sbom, raw_sbom.get(), &graph)
                 .await
                 .map_err(IngestError::Failed)?;
         }
 
         if artifacts.api_endpoints.is_some() || artifacts.api_contracts.is_some() {
             let endpoints =
-                artifacts.api_endpoints.as_ref().map(|list| list.iter().flatten().cloned().collect::<Vec<_>>());
+                artifacts.api_endpoints.as_ref().map(|list| every(list, "apiEndpoints")).transpose()?.map(cloned);
             let contracts =
-                artifacts.api_contracts.as_ref().map(|list| list.iter().flatten().cloned().collect::<Vec<_>>());
+                artifacts.api_contracts.as_ref().map(|list| every(list, "apiContracts")).transpose()?.map(cloned);
             self.inventory
-                .apis(tx.as_deref_mut(), scan.id, scan.repo_id, endpoints.as_deref(), contracts.as_deref())
+                .apis(&mut *tx, scan.id, scan.repo_id, endpoints.as_deref(), contracts.as_deref())
                 .await
                 .map_err(IngestError::Failed)?;
         }
@@ -407,7 +496,7 @@ impl ScanIngestor {
 
         if let Some(dependencies) = &artifacts.dependencies {
             scanned_types.insert(FindingType::Vulnerability);
-            for dep in dependencies.iter().flatten() {
+            for dep in every(dependencies, "dependencies")? {
                 if let Some(desc) = &dep.description {
                     descriptions.insert(dep.identifier.clone(), desc.clone());
                 }
@@ -447,7 +536,7 @@ impl ScanIngestor {
         if let Some(secrets) = &artifacts.secrets {
             scanned_types.insert(FindingType::Secret);
             let mut seen_secrets = BTreeSet::new();
-            for secret in secrets.iter().flatten() {
+            for secret in every(secrets, "secrets")? {
                 let location_key = format!("{}:{}", secret.file.as_deref().unwrap_or(""), secret.line);
                 if seen_secrets.insert(location_key) {
                     let finding = NewFinding {
@@ -484,7 +573,7 @@ impl ScanIngestor {
 
         if let Some(iac) = &artifacts.iac {
             scanned_types.insert(FindingType::Iac);
-            for check in iac.iter().flatten() {
+            for check in every(iac, "iac")? {
                 let finding = NewFinding {
                     scan_id: scan.id,
                     issue_id: None,
@@ -519,7 +608,7 @@ impl ScanIngestor {
         if let Some(sast) = &artifacts.sast {
             scanned_types.insert(FindingType::Sast);
             scanned_types.insert(FindingType::Quality);
-            for result in sast.iter().flatten() {
+            for result in every(sast, "sast")? {
                 let kind = if result.category.as_deref() == Some("security") {
                     FindingType::Sast
                 } else {
@@ -565,7 +654,7 @@ impl ScanIngestor {
             let plugin_key =
                 tool_keys::plugin(plugin_id.as_deref()).map_err(|err| IngestError::Failed(Box::new(err)))?;
             scanned_tools.insert(plugin_key.clone());
-            for result in step_findings.iter().flatten() {
+            for result in every(step_findings, "a plugin's findings")? {
                 let severity = result.severity.unwrap_or(Severity::Medium);
                 let finding = NewFinding {
                     scan_id: scan.id,
@@ -615,7 +704,7 @@ impl ScanIngestor {
         let is_catalogue = vectispire_domain::sbom::is_catalogue(sbom_val.as_ref());
         if is_catalogue && let (Some(sbom), Some(license_source)) = (&sbom_val, &self.licenses) {
             scanned_types.insert(FindingType::License);
-            let found = license_source.findings(sbom).await;
+            let found = license_source.findings(sbom).await.map_err(IngestError::Failed)?;
             for finding in &found {
                 let mut f = finding_from_observed(scan.id, finding, now);
                 let directness = graph.of(f.purl.as_deref(), f.package_name.as_deref(), f.package_version.as_deref());
@@ -648,7 +737,7 @@ impl ScanIngestor {
             descriptions,
         };
 
-        let delta = self.backlog.reconcile(tx.as_deref_mut(), &observation).await.map_err(IngestError::Failed)?;
+        let delta = self.backlog.reconcile(&mut *tx, &observation).await.map_err(IngestError::Failed)?;
 
         for (index, finding) in findings.iter_mut().enumerate() {
             finding.issue_id = delta.issue_ids.get(index).copied().flatten();
@@ -689,10 +778,31 @@ impl ScanIngestorPort for ScanIngestor {
                 Some(prep) => prep.clone(),
                 None => self.prepare(scan, artifacts).await,
             };
-            self.ingest(Some(tx), scan, artifacts, &prep).await
+            self.ingest(tx, scan, artifacts, &prep).await
         })
     }
 }
+
+/// A list of a result held as Java's ingestion reads it: every element, and a `null` one refused.
+///
+/// Java's record keeps a `null` element (`Listed`), and `ScanIngestor` — or, for the API lists, the inventory it hands
+/// them to — dereferences each one: the `NullPointerException` leaves `record`, the scan's write rolls back and the
+/// result is not taken. Skipping it instead, as this did, wrote a scan Java would have refused, and whatever the
+/// element stood for was neither recorded nor reported (`reference/scanning/ingestion.json`, the `null-element:` cases).
+fn every<'l, T>(list: &'l [Option<T>], what: &'static str) -> Result<Vec<&'l T>, IngestError> {
+    list.iter()
+        .map(|element| element.as_ref().ok_or_else(|| IngestError::Failed(Box::new(NullElement(what)))))
+        .collect()
+}
+
+fn cloned<T: Clone>(list: Vec<&T>) -> Vec<T> {
+    list.into_iter().cloned().collect()
+}
+
+/// A result list carried a `null` element — Java's `NullPointerException`.
+#[derive(Debug, thiserror::Error)]
+#[error("the result's {0} list carries a null element")]
+pub struct NullElement(pub &'static str);
 
 pub fn vulnerability_identifiers(artifacts: &Received<'_>) -> Vec<String> {
     let Some(dependencies) = &artifacts.dependencies else {

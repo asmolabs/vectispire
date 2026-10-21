@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use time::OffsetDateTime;
-use vectispire_cp_db::{Db, ScanTarget, Tx};
+use vectispire_cp_db::{ScanTarget, Tx};
 use vectispire_cp_http::credentials::BoxFuture;
 use vectispire_cp_scanning::ingestion::{Backlog, BacklogDelta, Observation, ObservedFinding};
 use vectispire_cp_scanning::ports::PortError;
@@ -377,21 +377,20 @@ impl IssueSyncService {
     }
 }
 
-/// Backlog port implementation for `ScanIngestor`.
-pub struct IssueBacklog {
-    db: Db,
-}
+/// Backlog port implementation for `ScanIngestor`. It holds no database: it folds in the transaction it is handed.
+#[derive(Default)]
+pub struct IssueBacklog;
 
 impl IssueBacklog {
-    pub fn new(db: Db) -> Self {
-        Self { db }
+    pub fn new() -> Self {
+        Self
     }
 }
 
 impl Backlog for IssueBacklog {
     fn reconcile<'a>(
         &'a self,
-        tx: Option<&'a mut Tx>,
+        tx: &'a mut Tx,
         observation: &'a Observation,
     ) -> BoxFuture<'a, Result<BacklogDelta, PortError>> {
         Box::pin(async move {
@@ -402,37 +401,20 @@ impl Backlog for IssueBacklog {
                 ))) as Box<dyn std::error::Error + Send + Sync>));
             };
 
-            match tx {
-                Some(existing_tx) => IssueSyncService::fold(
-                    existing_tx,
-                    Some(observation.scan_id),
-                    target,
-                    &observation.findings,
-                    &observation.scanned_types,
-                    &observation.scanned_tools,
-                    None,
-                    &observation.descriptions,
-                )
-                .await
-                .map_err(|e| PortError::from(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)),
-                None => {
-                    let mut new_tx = crate::persistence::write(&self.db).await?;
-                    let delta = IssueSyncService::fold(
-                        &mut new_tx,
-                        Some(observation.scan_id),
-                        target,
-                        &observation.findings,
-                        &observation.scanned_types,
-                        &observation.scanned_tools,
-                        None,
-                        &observation.descriptions,
-                    )
-                    .await
-                    .map_err(|e| PortError::from(Box::new(e) as Box<dyn std::error::Error + Send + Sync>))?;
-                    crate::persistence::commit(new_tx).await?;
-                    Ok(delta)
-                }
-            }
+            // Only in the scan's transaction: the fold and the delta it queues commit with the scan's findings, or
+            // roll back with them — never in a transaction of its own, which kept a refused result's issues.
+            IssueSyncService::fold(
+                tx,
+                Some(observation.scan_id),
+                target,
+                &observation.findings,
+                &observation.scanned_types,
+                &observation.scanned_tools,
+                None,
+                &observation.descriptions,
+            )
+            .await
+            .map_err(|e| PortError::from(Box::new(e) as Box<dyn std::error::Error + Send + Sync>))
         })
     }
 }

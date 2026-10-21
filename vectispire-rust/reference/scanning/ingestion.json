@@ -7642,6 +7642,310 @@
       "resolvedIssuesCount" : 1
     }
   }, {
+    "name" : "null-element:dependencies",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"dependencies\":[{\"identifier\":\"CVE-2026-1\",\"severity\":\"HIGH\",\"packageName\":\"a\",\"installedVersion\":\"1\"},null]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "prepare",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
+    "name" : "null-element:secrets",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"secrets\":[{\"rule\":\"aws-key\",\"file\":\"a.env\",\"line\":1},null]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "ingest",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
+    "name" : "null-element:iac",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"iac\":[{\"checkId\":\"CKV_1\",\"checkName\":\"c\",\"file\":\"main.tf\",\"line\":1},null]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "ingest",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
+    "name" : "null-element:sast",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"sast\":[{\"ruleId\":\"r\",\"category\":\"security\",\"severity\":\"HIGH\",\"confidence\":\"HIGH\",\"file\":\"A.java\",\"line\":1},null]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "ingest",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
+    "name" : "null-element:api-endpoints",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"apiEndpoints\":[{\"method\":\"GET\",\"path\":\"/a\"},null]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "ingest",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
+    "name" : "null-element:api-contracts",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"apiContracts\":[{\"contractPath\":\"openapi.yaml\",\"format\":\"openapi\"},null]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "ingest",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
+    "name" : "null-element:plugin-findings",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"plugins\":[{\"state\":\"produced\",\"pluginId\":\"plug\",\"manifestDigest\":\"8888888888888888888888888888888888888888888888888888888888888888\",\"toolName\":\"T\",\"toolVersion\":\"1\",\"signature\":\"verified\",\"findings\":[{\"ruleId\":\"P1\",\"severity\":\"HIGH\",\"file\":\"a.c\",\"line\":1},null]}]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "ingest",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
+    "name" : "null-element:plugin-step-is-passed-over",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"plugins\":[null,{\"state\":\"produced\",\"pluginId\":\"plug\",\"manifestDigest\":\"8888888888888888888888888888888888888888888888888888888888888888\",\"toolName\":\"T\",\"toolVersion\":\"1\",\"signature\":\"verified\",\"findings\":[]}]}"
+      },
+      "endOfLife" : null,
+      "enricher" : null,
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null,
+      "preparedAt" : "2026-10-18T12:34:50.123456Z"
+    },
+    "inventory" : {
+      "components" : null,
+      "apis" : null
+    },
+    "observation" : {
+      "scanId" : 7,
+      "target" : "repo:1",
+      "scannedTypes" : [ ],
+      "scannedTools" : [ "plugin:plug" ],
+      "descriptions" : { },
+      "findings" : [ ]
+    },
+    "rows" : {
+      "saveAllCalled" : false,
+      "items" : [ ]
+    },
+    "scanAfter" : {
+      "status" : "completed",
+      "examinedTypes" : "",
+      "findingsCount" : 3,
+      "newIssuesCount" : 2,
+      "resolvedIssuesCount" : 1
+    }
+  }, {
+    "name" : "null-element:dependencies-before-any-lookup",
+    "input" : {
+      "scanId" : 7,
+      "repoId" : 1,
+      "containerId" : null,
+      "source" : {
+        "kind" : "body",
+        "body" : "{\"dependencies\":[{\"identifier\":\"CVE-2026-1\",\"severity\":\"HIGH\"},null],\"sbom\":{\"artifacts\":[]}}"
+      },
+      "endOfLife" : {
+        "enabled" : true
+      },
+      "enricher" : {
+        "epss" : {
+          "CVE-2026-1" : 0.5
+        },
+        "kev" : [ ]
+      },
+      "licenseBlocklist" : null,
+      "reconciliation" : {
+        "created" : 2,
+        "resolved" : 1,
+        "reopened" : 0,
+        "stillOpen" : 1,
+        "issueIdBase" : 100
+      }
+    },
+    "throws" : {
+      "phase" : "prepare",
+      "exception" : "NullPointerException"
+    },
+    "prepareAsked" : {
+      "eolCalled" : false,
+      "enricherIdentifiers" : null
+    },
+    "reconciled" : false,
+    "saveAllCalled" : false
+  }, {
     "name" : "generated:sbom-near-body-limit",
     "input" : {
       "scanId" : 7,

@@ -166,6 +166,7 @@ async fn suite(engine: Engine) {
         ("a result written, whichever executor", |db| Box::pin(results(db))),
         ("the built-in worker", |db| Box::pin(built_in_worker(db))),
         ("one long purl, path and link no longer lose the scan", |db| Box::pin(long_findings(db))),
+        ("the licence blocklist is read at each scan", |db| Box::pin(license_blocklist_per_scan(db))),
     ];
     for (name, case) in cases {
         clean(&db).await;
@@ -1688,7 +1689,7 @@ async fn long_findings(db: Db) {
         system_clock(),
     );
     let prepared = ingestor.prepare(&scan_view, &artifacts).await;
-    let _result = ingestor.ingest(Some(&mut tx), &scan_view, &artifacts, &prepared).await.unwrap();
+    let _result = ingestor.ingest(&mut tx, &scan_view, &artifacts, &prepared).await.unwrap();
     tx.commit().await.unwrap();
 
     let findings_count = count(&db, "select count(*) from t_finding").await;
@@ -1702,4 +1703,36 @@ async fn long_findings(db: Db) {
     let path_len =
         count(&db, &format!("select cast(length(file_path) as {b}) from t_finding where file_path is not null")).await;
     assert_eq!(path_len, 500);
+}
+
+// ── LicenseService reads LICENSE_BLOCKLIST per scan ─────────────────────────────────────────────
+
+/// Java's `LicenseService.blocklist()` reads the setting on every call, so an administrator's change applies to the
+/// next scan. The Rust service was built with a list fixed at start — and the binary composed none at all, so no
+/// licence was ever checked. Held here on a database, through the settings store the binary hands it.
+async fn license_blocklist_per_scan(db: Db) {
+    use vectispire_cp_scanning::ingestion::{LicenseService, LicenseSource};
+
+    let sbom = serde_json::json!({
+        "artifacts": [{
+            "name": "copyleft-lib",
+            "version": "1.0.0",
+            "purl": "pkg:npm/copyleft-lib@1.0.0",
+            "licenses": [{"value": "GPL-3.0-only"}]
+        }]
+    });
+    let service = LicenseService::from_settings(vectispire_cp_settings::Settings::new(db.clone()));
+    let k = key(&db);
+
+    assert!(service.findings(&sbom).await.unwrap().is_empty(), "no list configured, nothing is forbidden");
+
+    exec(&db, &format!("insert into t_setting ({k}, value) values ('license_blocklist', 'GPL-3.0-only')")).await;
+    let found = service.findings(&sbom).await.unwrap();
+    assert_eq!(found.len(), 1, "the list stored after the service was built applies");
+    assert_eq!(found[0].identifier.as_deref(), Some("GPL-3.0-only"));
+
+    exec(&db, &format!("update t_setting set value = 'AGPL-3.0-only' where {k} = 'license_blocklist'")).await;
+    assert!(service.findings(&sbom).await.unwrap().is_empty(), "a change applies to the next scan");
+
+    exec(&db, &format!("delete from t_setting where {k} = 'license_blocklist'")).await;
 }

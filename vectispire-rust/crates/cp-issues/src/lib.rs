@@ -106,7 +106,7 @@ impl Issues {
         let reviews =
             Arc::new(ExceptionReviewService::new(config.db.clone(), (*triage).clone(), (*exceptions).clone()));
         let catalog = Arc::new(IssueCatalog::new(config.db.clone()));
-        let backlog = Arc::new(IssueBacklog::new(config.db.clone()));
+        let backlog = Arc::new(IssueBacklog::new());
         let target_backlog = Arc::new(TargetBacklogFigures::new(config.db.clone()));
 
         Self {

@@ -1,6 +1,11 @@
-//! Conformance test of `ScanIngestor` against the 136 oracle cases in `reference/scanning/ingestion.json`.
+//! Conformance test of `ScanIngestor` against the 145 oracle cases in `reference/scanning/ingestion.json`.
 //!
-//! Asserts byte-identical agreement with Java for:
+//! **In a transaction on a real server.** Ingestion writes only in the scan's transaction — the port takes it, never
+//! an `Option` — so each case runs in one, on MySQL, rolled back; the sinks here record and write nothing.
+//!
+//! A case Java refuses (`throws`: a `null` element of a list) must be refused here too, at the same point — before any
+//! lookup when Java's `prepare` threw — with neither the backlog nor the rows reached. Otherwise, asserts
+//! byte-identical agreement with Java for:
 //! 1. `prepareAsked`: `eolCalled`, `enricherIdentifiers`, `preparedAt`
 //! 2. `inventory`: `components` (including directness probes and sha256) and `apis`
 //! 3. `observation`: `scanId`, `target`, `scannedTypes`, `scannedTools`, `descriptions`, `findings` (with fingerprints)
@@ -36,6 +41,8 @@ use vectispire_domain::dependency_graph::DependencyGraph;
 use vectispire_domain::fingerprint;
 use vectispire_domain::sbom::LicenseBlocklist;
 use vectispire_protocol::{ApiContract, ApiEndpoint, ApiVisibility, ScanArtifacts};
+
+mod support;
 
 #[derive(Debug)]
 struct TestClock(Mutex<OffsetDateTime>);
@@ -121,7 +128,7 @@ struct TestInventorySink {
 impl InventorySink for TestInventorySink {
     fn components<'a>(
         &'a self,
-        _tx: Option<&'a mut Tx>,
+        _tx: &'a mut Tx,
         origin: ScanOrigin,
         _sbom: &'a serde_json::Value,
         raw_sbom: &'a str,
@@ -160,7 +167,7 @@ impl InventorySink for TestInventorySink {
 
     fn apis<'a>(
         &'a self,
-        _tx: Option<&'a mut Tx>,
+        _tx: &'a mut Tx,
         scan_id: i64,
         repo_id: Option<i64>,
         endpoints: Option<&'a [ApiEndpoint]>,
@@ -242,7 +249,7 @@ struct TestBacklog {
 impl Backlog for TestBacklog {
     fn reconcile<'a>(
         &'a self,
-        _tx: Option<&'a mut Tx>,
+        _tx: &'a mut Tx,
         observation: &'a Observation,
     ) -> BoxFuture<'a, Result<BacklogDelta, PortError>> {
         *self.observed_ref.lock().unwrap() = Some(observation.clone());
@@ -265,11 +272,7 @@ struct TestFindingSink {
 }
 
 impl FindingSink for TestFindingSink {
-    fn save_all<'a>(
-        &'a self,
-        _tx: Option<&'a mut Tx>,
-        findings: &'a [NewFinding],
-    ) -> BoxFuture<'a, Result<(), PortError>> {
+    fn save_all<'a>(&'a self, _tx: &'a mut Tx, findings: &'a [NewFinding]) -> BoxFuture<'a, Result<(), PortError>> {
         self.save_all_called.store(true, Ordering::SeqCst);
         self.saved_rows.lock().unwrap().extend_from_slice(findings);
         Box::pin(async { Ok(()) })
@@ -587,7 +590,9 @@ fn serialize_finding_entity(f: &NewFinding) -> serde_json::Value {
 async fn ingestion_oracle_conformance() {
     let doc = vectispire_testkit::read_json("scanning/ingestion.json");
     let cases = doc["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 136, "all 136 reference cases must be verified");
+    assert_eq!(cases.len(), 145, "all 145 reference cases must be verified");
+    let migrated = support::Migrated::start(vectispire_cp_db::Engine::MySql).await;
+    let db = migrated.connect().await;
 
     let scan_created_at = OffsetDateTime::parse(doc["scanCreatedAt"].as_str().unwrap(), &Rfc3339).unwrap();
     let prepare_at = OffsetDateTime::parse(doc["prepareAt"].as_str().unwrap(), &Rfc3339).unwrap();
@@ -699,11 +704,38 @@ async fn ingestion_oracle_conformance() {
                 .collect();
             assert_eq!(actual_enricher_ids.unwrap(), exp_ids, "{name}: enricherIdentifiers");
         }
-        assert_eq!(format_instant(prepared.at), exp_prepare["preparedAt"].as_str().unwrap(), "{name}: preparedAt");
+        // A case Java refused in `prepare` has no instant: nothing was prepared.
+        if let Some(at) = exp_prepare["preparedAt"].as_str() {
+            assert_eq!(format_instant(prepared.at), at, "{name}: preparedAt");
+        }
 
         // 2. Ingest
         clock.set(ingest_at);
-        let reconciliation = ingestor.ingest(None, &scan, &artifacts, &prepared).await.unwrap();
+        let mut tx = db.begin(vectispire_cp_db::Mode::ReadWrite).await.unwrap();
+        let ingested = ingestor.ingest(&mut tx, &scan, &artifacts, &prepared).await;
+        drop(tx);
+
+        if let Some(thrown) = case.get("throws") {
+            assert!(ingested.is_err(), "{name}: Java refuses this result ({thrown}), and it was taken");
+            let asked = &case["prepareAsked"];
+            if thrown["phase"] == "prepare" {
+                assert!(!eol_called.load(Ordering::SeqCst), "{name}: Java threw before asking end of life");
+                assert!(enricher_asked.lock().unwrap().is_none(), "{name}: Java threw before asking enrichment");
+            }
+            assert_eq!(eol_called.load(Ordering::SeqCst), asked["eolCalled"].as_bool().unwrap(), "{name}: eolCalled");
+            assert_eq!(
+                observed_ref.lock().unwrap().is_some(),
+                case["reconciled"].as_bool().unwrap(),
+                "{name}: the backlog reached"
+            );
+            assert_eq!(
+                save_all_called.load(Ordering::SeqCst),
+                case["saveAllCalled"].as_bool().unwrap(),
+                "{name}: the rows reached"
+            );
+            continue;
+        }
+        let reconciliation = ingested.unwrap();
 
         // 3. Inventory
         let exp_inv = &case["inventory"];

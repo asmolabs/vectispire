@@ -362,12 +362,10 @@ async fn serve() -> ExitCode {
         ..Default::default()
     };
     let leader_lease = settings.leader_lease.max(Duration::from_secs(1));
-    let ingestor = Arc::new(vectispire_cp_scanning::ingestion::ScanIngestor::new(
+    let ingestor = Arc::new(vectispire_cp_app::ingestion::ingestor(
         issues.backlog().clone(),
         inventory.sink(),
-        None,
-        None,
-        None,
+        vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
     ));
     let scanning = Arc::new(vectispire_cp_scanning::Scanning::new(vectispire_cp_scanning::ScanningConfig {

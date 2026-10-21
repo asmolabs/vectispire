@@ -52,6 +52,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -680,6 +681,47 @@ class IngestionReferenceSetTest {
                 + "}";
         cases.add(bodyCase("surrogates:unpaired-in-all-fingerprint-and-row-fields", unpairedBody));
 
+        // **A `null` element in a list.** The record keeps it (`ScanArtifacts` reads `[x, null]` as two elements), and
+        // whoever reads the element dereferences it: `ScanIngestor` for the finding lists, the inventory for the API
+        // lists. The NullPointerException leaves `record`, the scan's write rolls back and the result is not taken —
+        // what the Rust port reproduces rather than skipping the element. A `null` plugin step is the exception: it is
+        // not a `Produced`, so it is passed over.
+        String digest = "8".repeat(64);
+        cases.add(bodyCase("null-element:dependencies",
+                "{\"dependencies\":[{\"identifier\":\"CVE-2026-1\",\"severity\":\"HIGH\",\"packageName\":\"a\","
+                        + "\"installedVersion\":\"1\"},null]}"));
+        cases.add(bodyCase("null-element:secrets",
+                "{\"secrets\":[{\"rule\":\"aws-key\",\"file\":\"a.env\",\"line\":1},null]}"));
+        cases.add(bodyCase("null-element:iac",
+                "{\"iac\":[{\"checkId\":\"CKV_1\",\"checkName\":\"c\",\"file\":\"main.tf\",\"line\":1},null]}"));
+        cases.add(bodyCase("null-element:sast",
+                "{\"sast\":[{\"ruleId\":\"r\",\"category\":\"security\",\"severity\":\"HIGH\","
+                        + "\"confidence\":\"HIGH\",\"file\":\"A.java\",\"line\":1},null]}"));
+        cases.add(bodyCase("null-element:api-endpoints",
+                "{\"apiEndpoints\":[{\"method\":\"GET\",\"path\":\"/a\"},null]}"));
+        cases.add(bodyCase("null-element:api-contracts",
+                "{\"apiContracts\":[{\"contractPath\":\"openapi.yaml\",\"format\":\"openapi\"},null]}"));
+        cases.add(bodyCase("null-element:plugin-findings",
+                "{\"plugins\":[{\"state\":\"produced\",\"pluginId\":\"plug\",\"manifestDigest\":\"" + digest
+                        + "\",\"toolName\":\"T\",\"toolVersion\":\"1\",\"signature\":\"verified\","
+                        + "\"findings\":[{\"ruleId\":\"P1\",\"severity\":\"HIGH\",\"file\":\"a.c\",\"line\":1},null]}]}"));
+        cases.add(bodyCase("null-element:plugin-step-is-passed-over",
+                "{\"plugins\":[null,{\"state\":\"produced\",\"pluginId\":\"plug\",\"manifestDigest\":\"" + digest
+                        + "\",\"toolName\":\"T\",\"toolVersion\":\"1\",\"signature\":\"verified\","
+                        + "\"findings\":[]}]}"));
+        // Enrichment configured: a `null` dependency throws in `prepare`, before either catalogue is asked.
+        cases.add(new Case("null-element:dependencies-before-any-lookup", c -> {
+            withBody(c, "{\"dependencies\":[{\"identifier\":\"CVE-2026-1\",\"severity\":\"HIGH\"},null],"
+                    + "\"sbom\":{\"artifacts\":[]}}");
+            ObjectNode enricher = NODES.objectNode();
+            enricher.putObject("epss").put("CVE-2026-1", 0.5);
+            enricher.putArray("kev");
+            c.enricher = enricher;
+            ObjectNode eol = NODES.objectNode();
+            eol.put("enabled", true);
+            c.endOfLife = eol;
+        }));
+
         // An SBOM near the body limit (generated deterministically by both Java and Rust so the multi-megabyte JSON is
         // not committed verbatim).
         cases.add(new Case("generated:sbom-near-body-limit", c -> {
@@ -780,6 +822,8 @@ class IngestionReferenceSetTest {
                 } else {
                     ArrayNode arr = recorded.putArray("endpoints");
                     for (ApiEndpoint ep : endpoints.get()) {
+                        // As `ApiInventoryService.record` does: it reads every endpoint's method.
+                        Objects.requireNonNull(ep, "ApiInventoryService.record dereferences every endpoint");
                         arr.add(NODES.objectNode()
                                 .put("method", utf8(ep.method()))
                                 .put("path", utf8(ep.path()))
@@ -800,6 +844,8 @@ class IngestionReferenceSetTest {
                 } else {
                     ArrayNode arr = recorded.putArray("contracts");
                     for (ApiContract contract : contracts.get()) {
+                        // As `ApiInventoryService.record` does: it reads every contract's path.
+                        Objects.requireNonNull(contract, "ApiInventoryService.record dereferences every contract");
                         ObjectNode node = NODES.objectNode()
                                 .put("contractPath", utf8(contract.contractPath()))
                                 .put("format", utf8(contract.format()))
@@ -840,9 +886,35 @@ class IngestionReferenceSetTest {
         ScanIngestor ingestor =
                 new ScanIngestor(backlog, findingRows, enricher, endOfLife, licenses, inventory, clock);
 
-        ScanIngestor.Prepared prepared = ingestor.prepare(scan, artifacts);
-        clock.setInstant(INGEST_AT);
-        ScanIngestor.Reconciliation result = ingestor.ingest(scan, artifacts, prepared);
+        String phase = "prepare";
+        ScanIngestor.Prepared prepared;
+        ScanIngestor.Reconciliation result;
+        try {
+            prepared = ingestor.prepare(scan, artifacts);
+            phase = "ingest";
+            clock.setInstant(INGEST_AT);
+            result = ingestor.ingest(scan, artifacts, prepared);
+        } catch (RuntimeException refused) {
+            // What leaves `record`: the scan's write rolls back, so nothing below it is recorded but what was asked
+            // before and whether the backlog or the rows were reached.
+            ObjectNode entry = NODES.objectNode();
+            entry.put("name", c.name);
+            entry.set("input", serializeInput(c));
+            ObjectNode thrown = entry.putObject("throws");
+            thrown.put("phase", phase);
+            thrown.put("exception", refused.getClass().getSimpleName());
+            ObjectNode prepareAsked = entry.putObject("prepareAsked");
+            prepareAsked.put("eolCalled", eolCalled.get());
+            if (enricherAsked.get() == null) {
+                prepareAsked.putNull("enricherIdentifiers");
+            } else {
+                ArrayNode ids = prepareAsked.putArray("enricherIdentifiers");
+                enricherAsked.get().forEach(id -> ids.add(utf8(id)));
+            }
+            entry.put("reconciled", observedRef.get() != null);
+            entry.put("saveAllCalled", saveAllCalled.get());
+            return entry;
+        }
 
         boolean nothingExamined = artifacts.observedNothing() && !artifacts.failures().isEmpty();
         String status = (nothingExamined ? ScanStatus.FAILED : ScanStatus.COMPLETED).wireName();

@@ -38,7 +38,9 @@ The control plane's `scanning` module — `core.scanning` of the Java control pl
 | `AgentClaimLock` | agents (2.9) | `AgentsStandIn`: no agent exists, nothing is claimed for one |
 | `ScanRuleSets` | rules (Phase 3) | `BundledRules`: no active set, the bundled rules' languages (`python`) |
 | `ScanPlugins` | plugins (Phase 4) | `NoPlugins` |
-| `ScanIngestor` | ingestion (2.8) | `IngestionStandIn`: records the calls, folds nothing, leaves `examined_types` alone |
+| `ScanIngestor` | ingestion (2.8), composed by `cp-app::ingestion` | `IngestionStandIn` in this crate's own tests only |
+| `ingestion::Enricher` | threatintel (Phase 4, task 4.4) | `EnrichmentStandIn`: answers nothing, so no vulnerability is exploited — **the one stand-in that changes a gate verdict** |
+| `ingestion::EndOfLifeSource` | threatintel (Phase 4, task 4.4) | `EndOfLifeStandIn`: switched off, so the type is never examined and end-of-life issues stay as they are |
 | `RepositoryScanned` | checklists, compliance (Phase 5) | none composed |
 | `ScanRunner` | the built-in worker (2.10) | none: `dispatch` claims nothing, as Java's does without a runner |
 
@@ -57,6 +59,16 @@ The control plane's `scanning` module — `core.scanning` of the Java control pl
   (Jackson's escapes, Java's doubles, a duplicate member keeping its first place and its last value). An integer past
   64 bits becomes a double here where Jackson keeps a `BigIntegerNode` — no cataloguer writes one. The tree costs
   memory a 256 MB SBOM makes noticeable; 2.8 or 2.12 may stream it.
+- **Ingestion takes the scan's transaction, never an `Option` of one** (2026-10-21, 2.8 audit). Java's is
+  `Propagation.MANDATORY`. The port took `Option<&mut Tx>`, and its real implementations answered `None` by committing a
+  transaction of their own — the API inventory did so every time — so a write rolled back (a failure, a fold repeated after
+  a triage) kept its inventory. The behaviour is now Java's; the guarantee is the type.
+- **A `null` element of a result list refuses the result**, as Java's `NullPointerException` does (2026-10-21, 2.8
+  audit): the finding lists, the API lists (dereferenced by the inventory in Java), a plugin's findings. The element was
+  skipped, and the scan written as Java would not have. A `null` plugin step is passed over in both. The reference set's
+  `null-element:` cases hold it. Not reproduced: Java counts a `null` endpoint towards the inventory's ceiling of
+  1,000 before it dereferences one, so a list past the ceiling that carries a `null` is read as absent there and
+  refused here.
 - **Not ported: `PlatformMetrics`** (the scan duration timers), which belong to the runtime's metrics (2.11).
 - **Not ported yet: `ScanCatalog`'s readings of later phases** (inventory's SBOMs, compliance's examinations, the
   checklists' plugin runs, exports' outlines and languages, the graph queries). Each comes with its phase.

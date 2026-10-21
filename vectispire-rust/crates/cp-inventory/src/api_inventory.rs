@@ -5,8 +5,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde_json::json;
 use time::OffsetDateTime;
-use vectispire_cp_db::Db;
 use vectispire_cp_db::Visibility;
+use vectispire_cp_db::{Db, Tx};
 use vectispire_protocol::{ApiContract, ApiEndpoint, ApiVisibility};
 
 use crate::api_surface::{
@@ -33,8 +33,12 @@ impl ApiInventoryService {
         Self { db }
     }
 
+    /// A scan's API surface, **in the scan's transaction**: written with the findings and the backlog, or rolled back
+    /// with them. It opened a transaction of its own and committed it, so a scan whose write failed — or was folded
+    /// again after a triage — kept the inventory of a result that was never taken.
     pub async fn record(
         &self,
+        tx: &mut Tx,
         scan_id: i64,
         repo_id: Option<i64>,
         mut endpoints_found: Option<Vec<ApiEndpoint>>,
@@ -53,20 +57,18 @@ impl ApiInventoryService {
             endpoints_found = None;
         }
 
-        let mut tx = self.db.begin(vectispire_cp_db::Mode::ReadWrite).await.map_err(StoreError::from)?;
-
         if endpoints_found.is_some() {
             if let Some(rid) = repo_id {
-                let _ = InventoryRepository::delete_api_endpoints_by_repo_tx(&mut tx, rid).await?;
+                let _ = InventoryRepository::delete_api_endpoints_by_repo_tx(tx, rid).await?;
             }
-            let _ = InventoryRepository::delete_api_endpoints_by_scan_id(&mut tx, scan_id).await?;
+            let _ = InventoryRepository::delete_api_endpoints_by_scan_id(tx, scan_id).await?;
         }
 
         if contracts_found.is_some() {
             if let Some(rid) = repo_id {
-                let _ = InventoryRepository::delete_api_contracts_by_repo_tx(&mut tx, rid).await?;
+                let _ = InventoryRepository::delete_api_contracts_by_repo_tx(tx, rid).await?;
             }
-            let _ = InventoryRepository::delete_api_contracts_by_scan_id(&mut tx, scan_id).await?;
+            let _ = InventoryRepository::delete_api_contracts_by_scan_id(tx, scan_id).await?;
         }
 
         let now = OffsetDateTime::now_utc();
@@ -104,7 +106,7 @@ impl ApiInventoryService {
                 })
                 .collect();
 
-            InventoryRepository::insert_api_endpoints(&mut tx, &new_endpoints).await?;
+            InventoryRepository::insert_api_endpoints(tx, &new_endpoints).await?;
         }
 
         if let Some(contracts) = contracts_found
@@ -124,10 +126,9 @@ impl ApiInventoryService {
                 })
                 .collect();
 
-            InventoryRepository::insert_api_contracts(&mut tx, &new_contracts).await?;
+            InventoryRepository::insert_api_contracts(tx, &new_contracts).await?;
         }
 
-        tx.commit().await.map_err(StoreError::from)?;
         Ok(())
     }
 
