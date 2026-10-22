@@ -58,7 +58,7 @@ How a test is replayed (`recorded::replay`):
    is **played in Java's place**: its recorded `effect` is written as a seed, so the requests after it start from
    Java's state.
 3. A value the replay cannot choose (a `«sealed»` credential, a blob, a PEM block, a `#prior` id, a binary or
-   `https` request, a `concurrent` or `async` record) stops the test there: every recording after it is reported
+   `https` request, a `concurrent` record, an `async` half that is not one of a clean pair) stops the test there: every recording after it is reported
    unreplayable with the reason, never compared against a state that is not Java's.
 
 **The comparison is template matching, not normalisation** (`recorded::placeholders`). Every literal must be in the

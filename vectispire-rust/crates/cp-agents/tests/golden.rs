@@ -1,11 +1,12 @@
-//! **The Java suite's recorded traffic, replayed against the thirty-two routes of `targets` and `scanning`** (tasks
-//! 2.11 and 2.7, plan §4.3) — on MySQL 9.4 and PostgreSQL 17, each migrated by `vectispire-migrate`.
+//! **The Java suite's recorded traffic, replayed against the forty-nine routes of `targets`, `scanning` and `agents`**
+//! (tasks 2.11, 2.7 and 2.9, plan §4.3) — on MySQL 9.4 and PostgreSQL 17, each migrated by `vectispire-migrate`.
 //!
-//! **One replay for the two modules, here**, since task 2.7: the targets' listings show each target's latest scan and
-//! a repository's languages, and "scan now" queues a scan — answers of `scanning`'s `TargetScans`, which `cp-targets`
-//! cannot compose (the dependency runs from `scanning` to `targets`). Replayed with `ScanningStandIn` as they were in
-//! `cp-targets/tests/golden.rs`, they could only ever be deferred; composed as the binary will compose them, they are
-//! held to Java's.
+//! **One replay for the three modules, here.** The targets' listings show each target's latest scan and "scan now"
+//! queues one — answers of `scanning`'s `TargetScans`, which `cp-targets` cannot compose; an agent's claim, result and
+//! failure answer through `scanning`'s dispatcher, and an agent's key resolves only once `agents` is composed, which
+//! `cp-scanning` cannot do (the dependencies run from `agents` to `scanning` to `targets`). The deferred list is checked
+//! against one set of served routes, so the replay that serves the agents' routes has to serve the others too: it moved
+//! here from `cp-scanning` with task 2.9's audit (2026-10-22).
 //!
 //! Every test of the recording with at least one request to a route this module serves is replayed through
 //! `cp-contract`'s `recorded` module: its seed rows written, each of its requests to these routes sent through the real
@@ -28,10 +29,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use vectispire_cp_access::credentials::{
-    AgentDirectory, AgentRef, CredentialService, ScimToken, SessionPolicy, StoreError, SystemClock as AccessClock,
-    hash_of, keys, phc,
+    CredentialService, ScimToken, SessionPolicy, SystemClock as AccessClock, hash_of, keys, phc,
 };
 use vectispire_cp_access::{AccessError, AccessSettings, CallerVisibility, PrincipalGrounds, VisibilityService};
+use vectispire_cp_agents::{
+    AgentAdministrationService, AgentDirectoryImpl, AgentJobPoller, AgentProtocolService, AgentResultAuditDelivery,
+    AgentRowLock, Agents, NoAgentPlugins,
+};
 use vectispire_cp_audit::{AuditLog, AuditOperation, NoMirror, Record, Signal, SystemClock as AuditClock};
 use vectispire_cp_contract::recorded::deferred::{Deferred, coverage, describe, listed};
 use vectispire_cp_contract::recorded::format::Recording;
@@ -43,7 +47,8 @@ use vectispire_cp_db::{Db, Engine};
 use vectispire_cp_http::credentials::{AccessDenied, Audit, BoxFuture};
 use vectispire_cp_http::routes::Routes;
 use vectispire_cp_http::{Chain, ChainConfig};
-use vectispire_cp_scanning::ports::{AgentsStandIn, BundledRules, IngestionStandIn, NoPlugins};
+use vectispire_cp_outbox::{Outbox, Registry};
+use vectispire_cp_scanning::ports::{BundledRules, IngestionStandIn, NoPlugins};
 use vectispire_cp_scanning::{Scanning, ScanningConfig};
 use vectispire_cp_settings::{Setting, Settings};
 use vectispire_cp_targets::deletion::PurgeRegistry;
@@ -74,16 +79,6 @@ impl Minting for AccessMinting {
 
     fn password_verifies(&self, plain: &str, hash: &str) -> bool {
         phc::verify(plain, hash)
-    }
-}
-
-/// The agents module is not ported (2.9): no key is an agent's yet.
-#[derive(Debug)]
-struct NoAgents;
-
-impl AgentDirectory for NoAgents {
-    fn by_api_key<'a>(&'a self, _key_id: uuid::Uuid) -> BoxFuture<'a, Result<Option<AgentRef>, StoreError>> {
-        Box::pin(async { Ok(None) })
     }
 }
 
@@ -130,8 +125,8 @@ impl Audit for ChainEntries {
     }
 }
 
-/// The two modules as the binary composes them until 2.8, 2.9 and Phases 3 to 5, behind the real chain: a fresh pair
-/// per test.
+/// The three modules as the binary composes them, behind the real chain: a fresh set per test. Ingestion is the
+/// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
 fn router(db: &Db) -> axum::Router {
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
     let targets = Arc::new(Targets::new(TargetsConfig {
@@ -150,8 +145,8 @@ fn router(db: &Db) -> axum::Router {
         clock: Arc::new(SystemClock),
         targets: targets.clone(),
         encryption: support::encryption(),
-        audit,
-        claim_lock: Arc::new(AgentsStandIn),
+        audit: audit.clone(),
+        claim_lock: Arc::new(AgentRowLock),
         rule_sets: Arc::new(BundledRules),
         plugins: Arc::new(NoPlugins),
         ingestor: Arc::new(IngestionStandIn::default()),
@@ -162,30 +157,61 @@ fn router(db: &Db) -> axum::Router {
         runner: None,
         scanned: Vec::new(),
     }));
-    let settings = Arc::new(StoredSettings(Settings::new(db.clone())));
-    let visibility = VisibilityService::new(db.clone(), settings, Arc::new(TargetsForAccess(db.clone())));
-    let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)));
-    for entry in vectispire_cp_targets::routes(targets).into_iter().chain(vectispire_cp_scanning::routes(scanning)) {
-        routes = routes.route(entry);
-    }
-    let credentials = CredentialService::new(
+    let credentials = Arc::new(CredentialService::new(
         db.clone(),
         Arc::new(AccessClock),
         SessionPolicy::default(),
-        Arc::new(NoAgents),
+        Arc::new(AgentDirectoryImpl::new(db.clone())),
         ScimToken::default(),
-    );
+    ));
+    let outbox = Arc::new(Outbox::on_database(
+        db.clone(),
+        Registry::new(vec![Arc::new(AgentResultAuditDelivery::new(audit.clone()))], Vec::new()),
+        Arc::new(vectispire_cp_maintenance::SystemClock),
+    ));
+    let dispatcher = scanning.dispatcher_arc();
+    let admin = Arc::new(AgentAdministrationService::new(
+        db.clone(),
+        credentials.clone(),
+        Arc::new(scanning.catalog().clone()),
+        targets.clone(),
+        audit.clone(),
+        Vec::new(),
+        false,
+    ));
+    let protocol = Arc::new(AgentProtocolService::new(
+        db.clone(),
+        dispatcher.clone(),
+        audit,
+        outbox,
+        Arc::new(BundledRules),
+        Arc::new(NoAgentPlugins),
+    ));
+    let poller = Arc::new(AgentJobPoller::new(dispatcher, protocol.clone()));
+    let agents = Arc::new(Agents::new(admin, protocol, poller));
+
+    let settings = Arc::new(StoredSettings(Settings::new(db.clone())));
+    let visibility = VisibilityService::new(db.clone(), settings, Arc::new(TargetsForAccess(db.clone())));
+    let mut routes = Routes::new(CallerVisibility::new(visibility, Arc::new(PrincipalGrounds)));
+    for entry in vectispire_cp_targets::routes(targets)
+        .into_iter()
+        .chain(vectispire_cp_scanning::routes(scanning))
+        .chain(vectispire_cp_agents::routes(agents))
+    {
+        routes = routes.route(entry);
+    }
     let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
-    let chain = Arc::new(Chain::new(ChainConfig::default(), Arc::new(credentials), Arc::new(entries)));
+    let chain = Arc::new(Chain::new(ChainConfig::default(), credentials, Arc::new(entries)));
     routes.build(&chain, None).unwrap()
 }
 
 fn served() -> BTreeSet<(String, String)> {
     let db = support::unreachable();
-    let composed = support::compose(&db, support::system_clock(), Default::default());
+    let composed = support::compose(&db, support::system_clock());
     vectispire_cp_targets::routes(composed.targets)
         .into_iter()
         .chain(vectispire_cp_scanning::routes(composed.scanning))
+        .chain(vectispire_cp_agents::routes(composed.agents))
         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
         .collect()
 }
@@ -239,7 +265,7 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
     let document = Document::embedded();
     let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
     let served = served();
-    assert_eq!(served.len(), 32, "the two modules' routes");
+    assert_eq!(served.len(), 49, "the three modules' routes");
     let deferred = Deferred::embedded();
     let all = listed(&recording, &document, &served).unwrap();
     let owing: BTreeSet<&str> =

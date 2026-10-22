@@ -145,12 +145,14 @@ impl AgentProtocolService {
         }
 
         let now = OffsetDateTime::now_utc();
-        let hostname = bounded_text::clip(req.hostname.as_deref(), 255);
-        let platform = bounded_text::clip(req.platform.as_deref(), 255);
-        let version = bounded_text::clip(req.version.as_deref(), 50);
-        let scanner_engine = bounded_text::clip(req.scanner_engine.as_deref(), 50);
-        let capabilities = bounded_text::clip(req.capabilities.as_deref(), bounded_text::TEXT_MAX);
-        let trimmed_contract = announced.map(str::trim);
+        // Java's `text()`: trimmed, and blank read as absent — what the agent describes itself as, shown on the
+        // administration screen. The contract version is stored trimmed as Java stores it, empty when not announced.
+        let hostname = bounded_text::clip(text(req.hostname.as_deref()), 255);
+        let platform = bounded_text::clip(text(req.platform.as_deref()), 255);
+        let version = bounded_text::clip(text(req.version.as_deref()), 50);
+        let scanner_engine = bounded_text::clip(text(req.scanner_engine.as_deref()), 50);
+        let capabilities = bounded_text::clip(text(req.capabilities.as_deref()), bounded_text::TEXT_MAX);
+        let trimmed_contract = Some(announced.map_or("", str::trim));
 
         let data = HeartbeatData {
             hostname,
@@ -207,6 +209,7 @@ impl AgentProtocolService {
 
         if !verify_sealing_key(pinned, agent.id, gen_num, key, signature) {
             self.record_audit(
+                agent,
                 origin,
                 AuditOperation::AgentSealingKeyRefused,
                 &agent.id.to_string(),
@@ -225,6 +228,7 @@ impl AgentProtocolService {
 
         if !accepted {
             self.record_audit(
+                agent,
                 origin,
                 AuditOperation::AgentSealingKeyRefused,
                 &agent.id.to_string(),
@@ -240,6 +244,7 @@ impl AgentProtocolService {
         let rotated = agent.sealing_public_key.as_deref() != Some(key);
         if rotated {
             self.record_audit(
+                agent,
                 origin,
                 AuditOperation::AgentSealingKeyAccepted,
                 &agent.id.to_string(),
@@ -277,7 +282,7 @@ impl AgentProtocolService {
                         agent.name
                     )
                 };
-                self.record_audit(origin, AuditOperation::AgentResultRefused, &scan_id.to_string(), &desc).await;
+                self.record_audit(agent, origin, AuditOperation::AgentResultRefused, &scan_id.to_string(), &desc).await;
                 return Err(refusals::result_not_attested(&agent.name).into());
             }
         }
@@ -345,7 +350,7 @@ impl AgentProtocolService {
                         agent.name
                     )
                 };
-                self.record_audit(origin, AuditOperation::AgentResultRefused, &scan_id.to_string(), &desc).await;
+                self.record_audit(agent, origin, AuditOperation::AgentResultRefused, &scan_id.to_string(), &desc).await;
                 return Err(refusals::failure_not_attested(&agent.name).into());
             }
         }
@@ -382,6 +387,7 @@ impl AgentProtocolService {
         };
 
         self.record_audit(
+            agent,
             origin,
             AuditOperation::AgentScanFailed,
             &scan_id.to_string(),
@@ -390,7 +396,8 @@ impl AgentProtocolService {
                 agent.name,
                 failure.attempt,
                 failure.max_attempts,
-                report.kind.wire_name(),
+                // Java's `FailureKind.wireName()`, "permanent" — not the enum's name the agent's body carries.
+                report.kind.wire_name().to_ascii_lowercase(),
                 attestation_note,
                 outcome_note
             ),
@@ -421,13 +428,22 @@ impl AgentProtocolService {
         self.plugins.manifest(id, digest).await
     }
 
-    async fn record_audit(&self, actor: &RequestActor, op: AuditOperation, resource_id: &str, description: &str) {
+    /// An entry of the agent protocol, **attributed to the agent**, as each of Java's five is (`agent.name()`): the
+    /// request carries no account, and an entry with no actor could not say which agent was refused or failed.
+    async fn record_audit(
+        &self,
+        agent: &AuthenticatedAgent,
+        actor: &RequestActor,
+        op: AuditOperation,
+        resource_id: &str,
+        description: &str,
+    ) {
         self.audit
             .record(Record {
                 operation: op,
                 resource_id: Some(resource_id.to_owned()),
                 description: Some(description.to_owned()),
-                user_id: actor.username.clone(),
+                user_id: Some(agent.name.clone()),
                 ip_address: actor.ip_address.clone(),
                 user_agent: actor.user_agent.clone(),
                 signal: None,
@@ -462,6 +478,11 @@ impl Alongside for AuditAlongside<'_> {
             Ok(())
         })
     }
+}
+
+/// `AgentProtocolService.text`: Java's `String.trim()`, and an empty result read as absent.
+fn text(value: Option<&str>) -> Option<&str> {
+    value.map(vectispire_domain::java::trim).filter(|trimmed| !trimmed.is_empty())
 }
 
 fn to_claiming_agent(agent: &AuthenticatedAgent) -> ClaimingAgent {

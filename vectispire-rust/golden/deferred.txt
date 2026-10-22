@@ -9,8 +9,6 @@
 # pass: a recording that differs from Java is a defect to fix, or a stand-in named here with the task that ends it.
 
 # ── Routes not ported: the module, and the phase and task that ports it ──
-route DELETE /api/v1/admin/agents/{id} | agents — Phase 2, task 2.9
-route DELETE /api/v1/admin/agents/{id}/sealing-key | agents — Phase 2, task 2.9
 route DELETE /api/v1/api-keys/{id} | access — Phase 1, task 1.7
 route DELETE /api/v1/attack-surface | inventory — Phase 3
 route DELETE /api/v1/auth/session | access — Phase 1, task 1.7
@@ -27,12 +25,6 @@ route DELETE /api/v1/teams/{id} | access — Phase 1, task 1.7
 route DELETE /api/v1/users/{id}/password-change-requirement | access — Phase 1, task 1.7
 route DELETE /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route DELETE /scim/v2/Users/{id} | access — Phase 1, task 1.7
-route GET /api/v1/admin/agents | agents — Phase 2, task 2.9
-route GET /api/v1/admin/agents/activity | agents — Phase 2, task 2.9
-route GET /api/v1/admin/agents/credentialed-backlog | agents — Phase 2, task 2.9
-route GET /api/v1/admin/agents/non-routables | agents — Phase 2, task 2.9
-route GET /api/v1/agent/jobs | agents — Phase 2, task 2.9
-route GET /api/v1/agent/plugins/{id}/{digest} | agents — Phase 2, task 2.9
 route GET /api/v1/ai-advisor/status | ai — Phase 4
 route GET /api/v1/api-keys | access — Phase 1, task 1.7
 route GET /api/v1/api-keys/targets | access — Phase 1, task 1.7
@@ -175,17 +167,10 @@ route GET /scim/v2/Groups | access — Phase 1, task 1.7
 route GET /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route GET /scim/v2/Users | access — Phase 1, task 1.7
 route GET /scim/v2/Users/{id} | access — Phase 1, task 1.7
-route PATCH /api/v1/admin/agents/{id} | agents — Phase 2, task 2.9
 route PATCH /api/v1/forge-connections/{id} | forges — Phase 4
 route PATCH /api/v1/users/{id} | access — Phase 1, task 1.7
 route PATCH /scim/v2/Groups/{id} | access — Phase 1, task 1.7
 route PATCH /scim/v2/Users/{id} | access — Phase 1, task 1.7
-route POST /api/v1/admin/agents | agents — Phase 2, task 2.9
-route POST /api/v1/agent/hello | agents — Phase 2, task 2.9
-route POST /api/v1/agent/jobs/{scanId}/failure | agents — Phase 2, task 2.9
-route POST /api/v1/agent/jobs/{scanId}/heartbeat | agents — Phase 2, task 2.9
-route POST /api/v1/agent/jobs/{scanId}/result | agents — Phase 2, task 2.9
-route POST /api/v1/agent/sealing-key | agents — Phase 2, task 2.9
 route POST /api/v1/ai-advisor/explain/cve/{cveId} | ai — Phase 4
 route POST /api/v1/ai-advisor/explain/issue/{issueId} | ai — Phase 4
 route POST /api/v1/api-keys | access — Phase 1, task 1.7
@@ -249,7 +234,6 @@ route POST /api/v1/users | access — Phase 1, task 1.7
 route POST /api/v1/vex/ingest | exports — Phase 5
 route POST /scim/v2/Groups | access — Phase 1, task 1.7
 route POST /scim/v2/Users | access — Phase 1, task 1.7
-route PUT /api/v1/admin/agents/{id}/signing-key | agents — Phase 2, task 2.9
 route PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence | checklists — Phase 5
 route PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/layout | checklists — Phase 5
 route PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/pairs | checklists — Phase 5
@@ -301,7 +285,6 @@ outside GET /v3/api-docs | the embedded contract and its viewer: replayed with t
 outside GET /v3/api-docs/swagger-config | the embedded contract and its viewer: replayed with the composition (2.11)
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
-golden api.AgentFailureReportRoutesTest/theLapsesRuleAtOnce--007-GET-api_v1_scans_t_scan_1_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
 golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--007-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--008-POST-api_v1_repositories | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.AgentSealingKeyRoutesTest/strippedAnnouncementDeliversNothing--004-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
@@ -312,7 +295,6 @@ golden api.AgentSealingKeyRoutesTest/unpinnedDeliversNothing--003-POST-api_v1_ss
 golden api.AgentSealingKeyRoutesTest/unpinnedDeliversNothing--004-POST-api_v1_repositories | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--004-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--005-POST-api_v1_repositories | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
-golden api.ApiKeyIntegrationRoutesTest/anAgentKeyIsConfined--002-GET-api_v1_repositories | an agent’s key: no AgentDirectory until the agents module (2.9)
 golden api.ChangeReviewRoutesTest/readingsFollowTheirTargets--012-DELETE-api_v1_repositories_t_repository_1_ | forges’ purge listener is a named stand-in until Phase 4: the links it deletes stay
 golden api.ChecklistContactsRoutesTest/aDeletedProjectTakesItsLinks--013-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s checklists listener is a stand-in until Phase 5: the checklists it deletes stay
 golden api.ClientRequestContractTest/theKeyMaterialBinds--001-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
@@ -328,10 +310,8 @@ golden api.IntegrationInputBoundsTest/sshKeyFieldsAreBounded--001-POST-api_v1_ss
 golden api.IntegrationInputBoundsTest/sshKeyFieldsAreBounded--002-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.IntegrationInputBoundsTest/sshKeyFieldsAreBounded--003-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.PluginsRoutesTest.Activating/projectDeletion--003-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s plugins listener is a stand-in until Phase 4: the activations it deletes stay
-golden api.PluginsRoutesTest.Scans/nothingGlobal--007-PUT-api_v1_projects_t_project_1_repositories_t_repository_2_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
 golden api.PluginsRoutesTest.Scans/theScanKeepsARefusalAndAWaiver--008-GET-api_v1_scans_t_scan_1_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
 golden api.PluginsRoutesTest.Scans/theScanKeepsEachPluginsOutcome--008-GET-api_v1_scans_t_scan_1_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
-golden api.PluginsRoutesTest.Scans/theTaskCarriesTheWaiver--011-PUT-api_v1_projects_t_project_1_repositories_t_repository_2_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
 golden api.ProblemDetailsRoutesTest/theBodyLimit--001-POST-api_v1_repositories | a request body past 64 KiB, in a gzip sidecar this replay does not send yet
 golden api.ProjectAggregatesRoutesTest.Read/partialAndNone--007-GET-api_v1_projects_t_project_1_ | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
@@ -348,10 +328,10 @@ golden api.ProjectContainersRoutesTest/fileListAndRemove--005-GET-api_v1_solutio
 golden api.ProjectContainersRoutesTest/fileListAndRemove--006-GET-api_v1_containers | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 golden api.ProjectContainersRoutesTest/fileListAndRemove--009-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 golden api.ProjectContainersRoutesTest/fileListAndRemove--010-GET-api_v1_containers | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--061-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--062-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--140-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--141-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--056-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--074-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--135-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
+golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--153-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 golden api.RemainingContractTest/theEncryptionState--001-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.RemainingContractTest/theEncryptionState--002-GET-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.ReportPluginsRoutesTest.Activating/projectDeleted--005-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s report plugins listener is a stand-in until Phase 5: the rows it deletes stay
@@ -374,3 +354,150 @@ golden api.SolutionsRoutesTest/anAdministratorSeesTheWholeTree--005-GET-api_v1_s
 golden api.SolutionsRoutesTest/deletingAProjectDetaches--007-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 golden api.TeamVisibilityTest/membershipGrantsTheTeamsTargets--006-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 golden api.VisibilityRoutesTest/anAssignedReaderSeesOnlyItsOwn--004-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
+
+# ── The agents' routes (task 2.9, replayed with targets and scanning since 2026-10-22): stand-ins and recording limits ──
+golden api.AgentConcurrencyRoutesTest/theClaimHonoursTheLimit--011-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentConcurrencyRoutesTest/theClaimHonoursTheLimit--012-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentFailureReportRoutesTest/signedLikeAResult--008-POST-api_v1_agent_jobs_t_scan_1_failure | the recorder hides the result's attestation (a secret placeholder): no signature the pinned key verifies can be rebuilt — recording limit
+golden api.AgentFailureReportRoutesTest/theLapsesRuleAtOnce--009-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentFailureReportRoutesTest/theLapsesRuleAtOnce--010-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentFailureReportRoutesTest/theLapsesRuleAtOnce--012-POST-api_v1_agent_jobs_t_scan_1_failure | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentFailureReportRoutesTest/theLapsesRuleAtOnce--013-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentFailureReportRoutesTest/theLapsesRuleAtOnce--014-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentFailureReportRoutesTest/theLapsesRuleAtOnce--015-POST-api_v1_agent_jobs_t_scan_1_failure | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
+golden api.AgentResultAttestationTest/pinnedKeyAcceptsItsOwnSignature--003-POST-api_v1_agent_jobs_1_result | the recorder hides the result's attestation (a secret placeholder): no signature the pinned key verifies can be rebuilt — recording limit
+golden api.AgentResultAuditRoutesTest/aFailedWriteIsRetried--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.AgentResultAuditRoutesTest/queuedThenWritten--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.AgentSealingKeyRoutesTest/aNewSigningKeyForgetsTheSealingKey--003-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aNewSigningKeyForgetsTheSealingKey--004-PUT-api_v1_admin_agents_uuid_1_signing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aNewSigningKeyForgetsTheSealingKey--005-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aNewSigningKeyForgetsTheSealingKey--006-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aSignedKeyIsAccepted--003-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aSignedKeyIsAccepted--004-GET-api_v1_admin_agents | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aSignedKeyIsAccepted--005-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--002-POST-api_v1_admin_agents | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--003-PUT-api_v1_admin_agents_uuid_3_signing-key | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--004-POST-api_v1_agent_sealing-key | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--005-POST-api_v1_agent_sealing-key | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--006-POST-api_v1_agent_sealing-key | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--002-POST-api_v1_admin_agents | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--003-PUT-api_v1_admin_agents_uuid_3_signing-key | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--004-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--005-POST-api_v1_agent_sealing-key | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--006-DELETE-api_v1_admin_agents_uuid_3_sealing-key | the SIEM event an audit signal enqueues: siem — Phase 4, task 4.2
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--009-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--010-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/anOlderAgentsAnnouncementIsRefusedByName--003-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/anotherAgentsAnnouncementIsRefused--005-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/helloNeverTouchesTheKey--003-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/onlyAnAdministratorResets--003-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/onlyAnAdministratorResets--004-DELETE-api_v1_admin_agents_uuid_1_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/rotationOnlyForwards--003-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/rotationOnlyForwards--004-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/rotationOnlyForwards--005-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/rotationOnlyForwards--006-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/savingTheRowCannotRollTheKeyBack--003-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/savingTheRowCannotRollTheKeyBack--004-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/strippedAnnouncementDeliversNothing--006-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/theCredentialIsSealedForTheVerifiedKeyOnly--004-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/theCredentialIsSealedForTheVerifiedKeyOnly--008-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/theCredentialIsSealedForTheVerifiedKeyOnly--009-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/unpinnedDeliversNothing--005-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/unpinnedIsRefused--002-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--006-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--007-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--008-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--009-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--010-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--011-POST-api_v1_admin_agents | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--012-PUT-api_v1_admin_agents_uuid_8_signing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--013-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--014-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--015-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.ChecklistAutomaticAnswersFailureRoutesTest/theScanCompletes--007-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--017-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--017-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--016-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--019-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--020-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--021-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aUserNamedVectispire--013-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aUserNamedVectispire--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aUserNamedVectispire--015-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anAutomaticYesStillNeedsItsProof--013-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--017-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--017-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--018-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/idempotent--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/idempotent--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/idempotent--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/passFailAndNoData--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/passFailAndNoData--012-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/passFailAndNoData--013-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--013-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--015-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--019-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--020-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--021-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/theSettingOff--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/theSettingOff--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/theSettingOff--012-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--017-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--018-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/theDocumentMarksThem--013-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/theDocumentMarksThem--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/theDocumentMarksThem--015-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.OwaspReportAfterScanRoutesTest/aCompletedScanLeavesAReport--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.OwaspReportAfterScanRoutesTest/aFailedScanAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.OwaspReportAfterScanRoutesTest/anImageScanAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.OwaspReportAfterScanRoutesTest/modelReviewOffAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.OwaspReportAfterScanRoutesTest/offAsksForNothing--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)
+golden api.PluginsRoutesTest.Scans/aTamperedManifestIsNotServed--003-GET-api_v1_agent_plugins_acme-lint_sha256_2_ | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theScanKeepsARefusalAndAWaiver--005-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theScanKeepsARefusalAndAWaiver--006-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theScanKeepsARefusalAndAWaiver--007-POST-api_v1_agent_jobs_t_scan_1_result | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theScanKeepsEachPluginsOutcome--005-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theScanKeepsEachPluginsOutcome--006-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theScanKeepsEachPluginsOutcome--007-POST-api_v1_agent_jobs_t_scan_1_result | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theSignerReachesTheAgent--004-GET-api_v1_agent_plugins_acme-lint_sha256_2_ | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theTaskCarriesTheProjectsPlugins--006-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theTaskCarriesTheProjectsPlugins--007-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theTaskCarriesTheProjectsPlugins--008-GET-api_v1_agent_plugins_acme-lint_sha256_2_ | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theTaskCarriesTheWaiver--008-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theTaskCarriesTheWaiver--009-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theTaskCarriesTheWaiver--012-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.PluginsRoutesTest.Scans/theTaskCarriesTheWaiver--013-GET-api_v1_agent_jobs | the plugins a scan carries and their manifests: NoPlugins and NoAgentPlugins until plugins — Phase 4, task 4.6
+golden api.RequestBodyLimitRoutesTest/largerCeilingsAreNotClamped--003-POST-api_v1_agent_jobs_1_result | a binary request body, which this replay does not send yet — recording limit
+golden api.ScanExaminationRoutesTest/theAgentsResultIsRecorded--004-POST-api_v1_agent_jobs_t_scan_1_result | ingestion is IngestionStandIn in this replay: the findings, the examined types and the reactions a completed scan queues are composed by cp-app only (issues, inventory — Phase 3; checklists, compliance — Phase 5)

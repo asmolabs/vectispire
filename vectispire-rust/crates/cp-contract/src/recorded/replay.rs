@@ -125,7 +125,8 @@ impl Replayer<'_> {
         };
         let now = OffsetDateTime::now_utc();
         let mut bindings = Bindings::new(starts, secret_kinds(texts.iter().map(String::as_str)), self.minting, now);
-        for (name, exchange) in exchanges {
+        for (names, exchange) in long_polls_merged(exchanges) {
+            let name = names.first().cloned().unwrap_or_default();
             let exchange = match exchange {
                 Ok(exchange) => exchange,
                 Err(error) => {
@@ -146,7 +147,10 @@ impl Replayer<'_> {
                     }
                 },
             };
-            out.push(Replayed { name, route, served, outcome });
+            // A merged long poll answers for both its records: each was one half of the same request.
+            for name in names {
+                out.push(Replayed { name, route: route.clone(), served, outcome: outcome.clone() });
+            }
         }
         out
     }
@@ -463,6 +467,51 @@ fn build(request: &RecordedRequest, bindings: &mut Bindings<'_>) -> Result<Outgo
         target = format!("{target}?{}", query_parts.join("&"));
     }
     Ok(Outgoing { method: request.method.clone(), target, headers, peer, body })
+}
+
+/// **A long poll's two records, played as the one request they are** (task 2.9).
+///
+/// MockMvc records an asynchronous request twice: `started`, when the handler returned its deferred answer — with the
+/// test's seed and every row the claim changed — and `dispatch`, when the answer was written — with the answer and
+/// nothing else. The Rust handler is one future: it claims and answers in one request. So the pair is sent once, its rows
+/// held to the first half and its answer to the second, and its outcome reported for both names. A pair the recorder did
+/// not write that way — a `dispatch` with a seed or an effect of its own, or not the same request — is left as two
+/// records, which the replay refuses with its reason rather than guess at.
+fn long_polls_merged(
+    exchanges: Vec<(String, Result<Exchange, String>)>,
+) -> Vec<(Vec<String>, Result<Exchange, String>)> {
+    let mut out = Vec::new();
+    let mut rest = exchanges.into_iter().peekable();
+    while let Some((name, exchange)) = rest.next() {
+        let pairs = match (&exchange, rest.peek()) {
+            (Ok(started), Some((_, Ok(dispatch)))) => {
+                started.asynchronous.as_deref() == Some("started")
+                    && dispatch.asynchronous.as_deref() == Some("dispatch")
+                    && format!("{:?}", started.request) == format!("{:?}", dispatch.request)
+                    && dispatch.seed.as_ref().is_none_or(is_empty_object)
+                    && dispatch.effect.as_ref().is_none_or(is_empty_object)
+            }
+            _ => false,
+        };
+        if !pairs {
+            out.push((vec![name], exchange));
+            continue;
+        }
+        let Some((second, Ok(dispatch))) = rest.next() else {
+            continue;
+        };
+        let Ok(mut merged) = exchange else {
+            continue;
+        };
+        merged.asynchronous = None;
+        merged.response = dispatch.response;
+        out.push((vec![name, second], Ok(merged)));
+    }
+    out
+}
+
+fn is_empty_object(json: &Json) -> bool {
+    json.as_object().is_some_and(|members| members.is_empty())
 }
 
 async fn send(router: &Router, request: Outgoing) -> Result<Answer, String> {

@@ -34,7 +34,18 @@ the Rust port (plan, §7).
   `tests/startup_composition.rs`.
 - `AgentResultAuditDelivery` was not registered in the outbox; `cp-app`'s `maintenance::outbox_registry` holds it.
 
-Still open, from the audit: authorization coverage and the golden replay of the 17 routes, engine tests of hello,
-the long poll's wait, heartbeat and failure, a reference set for the refusals and audit descriptions, the mutation
-list, checked queries, and the smaller differences it lists (hello's descriptors untrimmed, `?wait=` unparsable read
-as 0, a database error at authentication answered 401).
+## Held to Java's traffic (2026-10-22)
+
+- `tests/routes.rs`: the authorization coverage, enumerated from the router — every protocol route an agent's key's
+  alone, every administration route an administrator's, and one agent's scan refused to another.
+- `tests/golden.rs`: the Java suite's recorded traffic, replayed for the agents' seventeen routes together with
+  `targets`' and `scanning`'s (it moved here from `cp-scanning`). It found three differences, fixed: hello's descriptors
+  were stored untrimmed, the protocol's audit entries named no actor where Java names the agent, and a failure
+  report's entry spelt its kind `PERMANENT` where Java writes `permanent`. What does not replay is named in
+  `golden/deferred.txt`, one recording a line: the secrets the recorder hides (sealing keys, attestations), timestamps a
+  test rewinds behind the recorder's back, and the stand-ins of later phases (plugins, SIEM, ingestion's backlog,
+  checklists).
+
+Still open, from the audit: engine tests of hello, the long poll's wait, heartbeat and failure beyond the replay, a
+reference set for the refusals and audit descriptions, the mutation list, checked queries, and two smaller
+differences (`?wait=` unparsable read as 0 where Java answers 400, a database error at authentication answered 401).

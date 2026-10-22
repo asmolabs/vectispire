@@ -15,7 +15,6 @@ import jakarta.persistence.EntityManagerFactory;
 import java.lang.reflect.Parameter;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -247,7 +246,11 @@ class ReadCostSweepTest extends ApiTestBase {
      * above forever. Both are excluded here rather than tolerated there.
      */
     private List<String> callableGetRoutes() {
-        Set<String> routes = new LinkedHashSet<>();
+        // **Sorted, not in the mapping's order.** The handler map's order is the order the JVM registered the
+        // controllers in, which changes from one run to the next; the sweep's requests are numbered in the order they
+        // are sent, and the Rust port's golden replay names its deferred recordings by that number. Walked in
+        // registration order, the same request was `--061-` in one recording and `--020-` in the next.
+        Set<String> routes = new TreeSet<>();
 
         for (Map.Entry<RequestMappingInfo, HandlerMethod> entry : handlerMapping.getHandlerMethods().entrySet()) {
             RequestMappingInfo info = entry.getKey();

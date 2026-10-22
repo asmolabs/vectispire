@@ -29,7 +29,8 @@ The control plane's `scanning` module — `core.scanning` of the Java control pl
 - `tests/engines.rs` on MySQL 9.4 and PostgreSQL 17: `ScanQueueIntegrationTest`, `ScanLabelsIntegrationTest`,
   `LeaderElectionIntegrationTest`, `SchedulerDatabaseTest` and `RetentionDatabaseTest` case for case, the forced
   interleavings included, and sixteen claimants racing over two hundred scans (each claimed once, every round serving, the queue drained).
-- `tests/routes.rs`: the authorization coverage of the three routes; `tests/golden.rs`: the recorded traffic.
+- `tests/routes.rs`: the authorization coverage of the three routes; the recorded traffic is replayed with the agents'
+  routes, by `cp-agents/tests/golden.rs`.
 
 ## Ports and their stand-ins
 
