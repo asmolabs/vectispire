@@ -11,3 +11,4 @@ pub mod ingestion;
 pub mod maintenance;
 pub mod registry;
 pub mod startup;
+pub mod worker;

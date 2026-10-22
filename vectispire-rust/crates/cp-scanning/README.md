@@ -43,7 +43,7 @@ The control plane's `scanning` module — `core.scanning` of the Java control pl
 | `ingestion::Enricher` | threatintel (Phase 4, task 4.4) | `EnrichmentStandIn`: answers nothing, so no vulnerability is exploited — **the one stand-in that changes a gate verdict** |
 | `ingestion::EndOfLifeSource` | threatintel (Phase 4, task 4.4) | `EndOfLifeStandIn`: switched off, so the type is never examined and end-of-life issues stay as they are |
 | `RepositoryScanned` | checklists, compliance (Phase 5) | none composed |
-| `ScanRunner` | the built-in worker (2.10) | none: `dispatch` claims nothing, as Java's does without a runner |
+| `ScanRunner` | the built-in worker (2.10), composed by `cp-app` (`BuiltInScanRunner` over `vectispire-runner`) | none in this crate's tests: `dispatch` claims nothing, as Java's does without a runner; the binary refuses to start with the worker on and no runner |
 
 `ClaimingAgent` is what the dispatcher reads of an agent's row (`AgentView`); 2.9 builds it.
 
@@ -70,6 +70,16 @@ The control plane's `scanning` module — `core.scanning` of the Java control pl
   `null-element:` cases hold it. Not reproduced: Java counts a `null` endpoint towards the inventory's ceiling of
   1,000 before it dereferences one, so a list past the ceiling that carries a `null` is read as absent there and
   refused here.
+- **What the built-in worker's runner does not do yet** (2.10 audit, 2026-10-22), each a gap of the shared runner
+  (`crates/runner`, the agent stream) and not of the worker: an **image target** is handed back as a transient
+  failure (`IMAGE_NOT_PORTED`) — with the built-in worker as the only executor, an image scan comes back to it and
+  fails when its attempts run out, where Java's built-in worker scans images; **plugins** are recorded absent
+  (`PLUGIN_NOT_PORTED`); **TLS** trusts the compiled-in authorities only, where Java's trusts the JVM's store, so a git
+  host behind a private authority cannot be cloned over HTTPS. `host-ssh: false` and a `bundled-rules` override are
+  refused at start rather than ignored (`cp-app::worker::images`).
+- **The worker's identity** is `$HOSTNAME` (else `$HOST`, else `unknown-host`) and a random suffix; Java asks the
+  system for its host name. **No `vectispire.worker.initial-delay`**: the first round runs one interval after start.
+  **A round in progress is not interrupted at shutdown**, where Java's `shutdownNow` interrupts it; its lease lapses.
 - **Not ported: `PlatformMetrics`** (the scan duration timers), which belong to the runtime's metrics (2.11).
 - **Not ported yet: `ScanCatalog`'s readings of later phases** (inventory's SBOMs, compliance's examinations, the
   checklists' plugin runs, exports' outlines and languages, the graph queries). Each comes with its phase.

@@ -3555,7 +3555,9 @@ dependencies = [
  "vectispire-cp-settings",
  "vectispire-cp-targets",
  "vectispire-domain",
+ "vectispire-migrate",
  "vectispire-runner",
+ "vectispire-testkit",
  "vectispire-tls",
 ]
 

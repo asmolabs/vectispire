@@ -107,7 +107,7 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 | 2.7 Queue, dispatch and schedule | done: `cp-scanning` — claim, dispatcher, leader lease, scheduler, retention, purge listeners; 102/102 mutants killed | `rust/p2-7-scanning`, stacked on 2.11a |
 | 2.8 Ingestion | **not done**: oracle of 145 cases green; audited 2026-10-21 — licences wired and read per scan, enrichment and end of life named stand-ins, a `null` list element refused as Java does, the transaction mandatory (`rust/p2-8-ingestion-fixes`); 51/51 mutants killed (`p2-8-ingestion.py`). Open: an engine test over the real backlog and inventory, a check across the switch, the result route's golden replay (2.9) | `rust/p2-8-ingestion` |
 | 2.9 Agents module | **not done**: 17 routes; audited 2026-10-21 — a failure answers 500 not 409, an undelivered claim goes back to the queue, the withheld-claim repair runs at start, the audit delivery is registered (`rust/p2-8-ingestion-fixes`). Authorization coverage and golden replay since 2026-10-22 (three differences fixed; 145 recordings named in `golden/deferred.txt`). Open: engine tests of the remaining routes, a reference set, the mutation list, checked queries (`crates/cp-agents/README.md`) | `rust/p2-9-agents` |
-| 2.10 Built-in worker | done: shared runner library and worker loop (`804e8cbd4`) | `rust/p2-10-worker` |
+| 2.10 Built-in worker | **not done**: worker loop and shared runner; audited 2026-10-22 — the agents screen told whether the worker runs, the runner's images read from the settings, a runner that cannot be built refuses the start, and a **started binary runs a real repository scan** (`cp-app/tests/worker_runs_a_scan.rs`). Open: the runner scans no image and runs no plugin, trusts the compiled-in authorities only (`crates/cp-scanning/README.md`); a mutation list | `rust/p2-10-worker` |
 | 2.11 Composition | done: control plane composition with named stand-ins (`35fe13f28`) | `rust/p2-11-composition` |
 | 3.1 Rules | done: Semgrep rule sets, catalogue fetcher, rule coverage (`96154e9f9`) | `rust/p3-1-rules` |
 | 3.2 Inventory | done: components, build SBOM imports, license governance (`f1833c188` / `33b675466`) | `rust/p3-2-inventory` |
@@ -168,7 +168,7 @@ oracle per task), the data contracts and the risks. Read it before taking a task
 | 2.7 | Queue claim, dispatcher, leader lease, scheduler, retention, scans routes; owns `cp-scanning`'s `lib.rs` | **done** |
 | 2.8 | Ingestion; the **ingestion reference set is written before the code** | **not done**: see §4 for what the audit left open |
 | 2.9 | Agents, server side: 17 routes, long poll, signatures on the raw body, sealing-key pinning | **not done**: see §4 |
-| 2.10 | Built-in worker over a runner moved out of `agent/src/scan.rs` into `crates/runner` (approved 2026-10-17) | **done** (stacked on 2.9) |
+| 2.10 | Built-in worker over a runner moved out of `agent/src/scan.rs` into `crates/runner` (approved 2026-10-17) | **not done**: see §4 |
 | 2.11 | Composition with named stand-ins, the upgrade drill extended, both agents against the Rust image; closes the phase | **done** (`rust/p2-11-composition`) |
 | 2.12 | Phase 2 security review | last |
 

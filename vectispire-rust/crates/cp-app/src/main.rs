@@ -330,7 +330,13 @@ async fn serve() -> ExitCode {
     let rule_sets = rules_module.scan_rule_sets();
     let runner: Option<Arc<dyn vectispire_cp_scanning::ports::ScanRunner>> = if settings.worker.enabled {
         let places = vectispire_runner::Places::from_lookup(|k| std::env::var(k).ok());
-        let images = vectispire_runner::Images::from_lookup(|k| std::env::var(k).ok());
+        let images = match vectispire_cp_app::worker::images(&settings.scanning) {
+            Ok(images) => images,
+            Err(refusal) => {
+                tracing::error!("{refusal}");
+                return ExitCode::FAILURE;
+            }
+        };
         match vectispire_cp_scanning::BuiltInScanRunner::new(
             rule_sets.clone(),
             images,
@@ -339,9 +345,11 @@ async fn serve() -> ExitCode {
             vectispire_tls::TlsTrust::BuiltIn,
         ) {
             Ok(runner) => Some(Arc::new(runner)),
+            // Refused, as a bean that fails is in Java: a worker switched on with no runner claims nothing, and every
+            // scan it was meant to take would wait without a word.
             Err(error) => {
-                tracing::warn!("Built-in scan runner could not be initialized: {error}");
-                None
+                tracing::error!("The built-in worker is switched on and its scan runner could not be built: {error}");
+                return ExitCode::FAILURE;
             }
         }
     } else {
@@ -401,14 +409,16 @@ async fn serve() -> ExitCode {
         },
     ));
 
+    let built_in =
+        vectispire_cp_app::worker::BuiltInWorker::of(&settings.worker, scanning.dispatcher().runs_scans_here());
     let admin = Arc::new(vectispire_cp_agents::AgentAdministrationService::new(
         db.clone(),
         creds.clone(),
         Arc::new(scanning.catalog().clone()),
         targets.clone(),
         audit.clone(),
-        Vec::new(),
-        false,
+        built_in.labels,
+        built_in.runs,
     ));
 
     let protocol = Arc::new(vectispire_cp_agents::AgentProtocolService::new(

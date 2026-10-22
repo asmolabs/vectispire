@@ -46,6 +46,8 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
 vectispire-cp-contract = { path = "../cp-contract" }
 tempfile.workspace = true
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
 
 [lints]
 workspace = true
