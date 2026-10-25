@@ -27,6 +27,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
+    // The Kubernetes executor's tests run a real cluster, k3s, in a container (`kubernetesTest`).
+    testImplementation("org.testcontainers:testcontainers")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -83,6 +85,27 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
 // preference, not a gate.
 tasks.named("check") {
     dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}
+
+/**
+ * The Kubernetes executor against a real cluster (decision 0045): k3s in a privileged container, the
+ * scan namespace under Pod Security `restricted`, the agent's service account holding the chart's Role.
+ *
+ * **Its own task, not a skip.** `test` excludes the tag because k3s needs a privileged container and a
+ * minute to start; this task runs them, needs Docker, and fails without it. CI's `jvm` job runs it
+ * beside `build`, on every push.
+ */
+tasks.named<Test>("test") {
+    useJUnitPlatform { excludeTags("kubernetes") }
+}
+
+val kubernetesTest = tasks.register<Test>("kubernetesTest") {
+    description = "Runs the Kubernetes executor's tests against k3s in a container."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("kubernetes") }
+    shouldRunAfter(tasks.named("test"))
 }
 
 tasks.named<Jar>("bootJar") {

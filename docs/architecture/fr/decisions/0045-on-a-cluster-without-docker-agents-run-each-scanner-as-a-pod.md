@@ -62,8 +62,10 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    espace de noms dédié étiqueté `pod-security.kubernetes.io/enforce: restricted` : le serveur d'API refuse
    lui-même un pod privilégié, un `hostPath`, le réseau de l'hôte ou un utilisateur root, quoi que l'agent
    demande. Le compte de service de l'agent détient, dans cet espace de noms seulement : `pods` `create`,
-   `get`, `list`, `watch`, `delete` ; `pods/exec` `create` ; `pods/log` `get`. Rien à l'échelle du cluster,
-   aucun secret. Le chart rend le Role, et un test fige ses règles : `pods/exec` écrit plus large par un
+   `get`, `list`, `watch`, `delete`, `deletecollection` (le balayage par étiquette) ; `pods/exec` `create`
+   et `get` ; `pods/log` `get`. Rien à l'échelle du cluster, aucun secret. **Les deux verbes sur
+   `pods/exec`** : un `exec` par WebSocket s'ouvre par un `GET`, autorisé comme `get` — refusé avec `create`
+   seul sur Kubernetes 1.34, mesuré — et à partir de 1.35 le serveur d'API vérifie aussi `create`. Le chart rend le Role, et un test fige ses règles : `pods/exec` écrit plus large par un
    opérateur atteindrait d'autres charges.
 4. **L'espace de travail entre, et le rapport sort, par `exec`.** L'agent clone comme aujourd'hui, puis
    envoie l'espace de travail dans l'`emptyDir` du pod par `tar` sur `exec`, dans un conteneur d'init qui

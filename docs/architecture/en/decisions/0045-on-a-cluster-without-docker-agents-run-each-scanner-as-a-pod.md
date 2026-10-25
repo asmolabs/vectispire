@@ -56,8 +56,11 @@ Three cheaper shapes were weighed on 2026-10-25 and rejected:
 3. **In a namespace of its own, under a Role that reaches nothing else.** The pods run in a dedicated
    namespace labelled `pod-security.kubernetes.io/enforce: restricted`, so the API server itself refuses a
    privileged pod, a `hostPath`, host networking or a root user, whatever the agent asks. The agent's
-   service account holds, in that namespace only: `pods` `create`, `get`, `list`, `watch`, `delete`;
-   `pods/exec` `create`; `pods/log` `get`. Nothing cluster-wide, no secrets. The chart renders the Role,
+   service account holds, in that namespace only: `pods` `create`, `get`, `list`, `watch`, `delete`,
+   `deletecollection` (the sweep by label); `pods/exec` `create` and `get`; `pods/log` `get`. Nothing
+   cluster-wide, no secrets. **Both verbs on `pods/exec`**: an `exec` over WebSocket opens with a `GET`,
+   authorized as `get` — refused with `create` alone on Kubernetes 1.34, measured — and from 1.35 the API
+   server checks `create` as well. The chart renders the Role,
    and a test pins its rules: `pods/exec` written wider by an operator would reach other workloads.
 4. **The workspace goes in, and the report comes out, over `exec`.** The agent clones as today, then
    streams the workspace into the pod's `emptyDir` with `tar` over `exec`, into an init container waiting

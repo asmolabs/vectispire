@@ -645,7 +645,10 @@ jobs:
       - run: |
           cd vectispire-java
           test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
-          ./gradlew build --dependency-verification=strict
+          # `kubernetesTest`: the agent's Kubernetes executor against k3s in a privileged container
+          # (decision 0045), its own task because `test` must not need one — and run here, on every
+          # push, because a client tested by nothing is the wiring nobody exercised.
+          ./gradlew build :vectispire-agent:kubernetesTest --dependency-verification=strict
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
