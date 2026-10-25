@@ -179,5 +179,11 @@ le Role ci-dessus (`kubernetesTest`, dans le job `jvm` de la CI). Ce que la cons
   opérateur.
 - **Pas encore construit** : les cibles image (§8 — `exportImage` fait échouer l'étape, l'inventaire est
   donc absent), le volume de la base du matcher (§7 — la base, quelque 3 Go, est recopiée comme tout
-  montage), les identifiants de registre pour un outil (aucun détenu), et la sonde qui vérifie que le CNI
-  applique les politiques (§5).
+  montage), et les identifiants de registre pour un outil (aucun détenu).
+- **La sonde (§5) tourne à chaque démarrage** : un pod hors ligne et un en ligne tentent l'adresse du
+  serveur d'API avec `nc` ; que l'un l'atteigne, ou qu'une sonde ne puisse pas tourner, arrête l'agent. Sur
+  k3s, elle refuse l'espace de noms sans politique et la politique en ligne dont les exclusions manquent le
+  serveur d'API, et démarre sous celles de la chart.
+- **Les ressources des pods de scan sont fixées, pas déduites** (`cpu-millis`, `memory-mib`) : le quota de
+  CPU par défaut est le nombre de cœurs de cette JVM moins un, la vue qu'a le pod de l'agent de son nœud, et
+  des pods de scan demandant neuf CPU sur la machine d'un développeur n'étaient jamais planifiés — mesuré.

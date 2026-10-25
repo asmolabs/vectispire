@@ -97,6 +97,14 @@ spec:
               value: {{ printf "%s-agent" $fullname | quote }}
             - name: VECTISPIRE_KUBERNETES_START_TIMEOUT
               value: {{ .Values.agents.kubernetes.startTimeout | quote }}
+            - name: VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS
+              value: {{ .Values.agents.kubernetes.scanCpuMillis | quote }}
+            - name: VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB
+              value: {{ .Values.agents.kubernetes.scanMemoryMiB | quote }}
+            # The agent refuses to start unless a probe pod proves scan pods are cut off (decision 0045 §5) —
+            # except where the operator turned the policy off and acknowledged it: there is nothing to prove.
+            - name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION
+              value: {{ .Values.agents.networkPolicy.enabled | quote }}
             # The scan pods go where the agents go: the pool of their own the chart requires.
             - name: VECTISPIRE_KUBERNETES_PLACEMENT
               value: {{ include "vectispire.scanPlacement" . | quote }}

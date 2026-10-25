@@ -68,3 +68,10 @@ vectispire:
         start-timeout: ${VECTISPIRE_KUBERNETES_START_TIMEOUT:5m}
         # nodeSelector, tolerations and affinity as JSON: the agents' own pool.
         placement: ${VECTISPIRE_KUBERNETES_PLACEMENT:}
+        # Refuse to start unless a probe pod, offline and online, cannot reach the API server: a CNI that
+        # ignores NetworkPolicy is otherwise invisible. False only where no policy is rendered on purpose.
+        require-isolation: ${VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION:true}
+        # Each scan pod's scanner, request and limit alike. Set rather than derived from this JVM's cores,
+        # which are the agent pod's view of its node.
+        cpu-millis: ${VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS:2000}
+        memory-mib: ${VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB:2048}

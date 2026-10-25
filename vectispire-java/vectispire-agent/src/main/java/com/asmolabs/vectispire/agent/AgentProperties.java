@@ -90,6 +90,14 @@ public record AgentProperties(
      * @param startTimeout how long a pod may take to be scheduled, pull and receive its workspace
      * @param placement the scan pods' {@code nodeSelector}, {@code tolerations} and {@code affinity}, as
      *     JSON — the agents' own pool, which the chart passes through
+     * @param requireIsolation refuse the start unless scan pods are proved cut off from the API server — on,
+     *     except where the chart renders no policy at the operator's explicit acknowledgement
+     * @param probeTarget the {@code address:port} the probe tries; blank is the API server as this pod sees
+     *     it ({@code KUBERNETES_SERVICE_HOST} and {@code KUBERNETES_SERVICE_PORT})
+     * @param cpuMillis what each scan pod's scanner is given and limited to, in thousandths of a CPU. <b>Set,
+     *     never derived from this JVM's cores</b>: those are the agent pod's view of its node, and scan pods
+     *     asking for all but one of them could not be scheduled beside anything — measured, on k3s
+     * @param memoryMiB the scanner's memory, request and limit alike
      */
     public record Kubernetes(
             @DefaultValue("") String namespace,
@@ -97,8 +105,14 @@ public record AgentProperties(
             @DefaultValue("") String helperImage,
             @DefaultValue("") String user,
             @DefaultValue("5m") Duration startTimeout,
-            @DefaultValue("") String placement) {
+            @DefaultValue("") String placement,
+            @DefaultValue("true") boolean requireIsolation,
+            @DefaultValue("") String probeTarget,
+            @DefaultValue("2000") int cpuMillis,
+            @DefaultValue("2048") int memoryMiB) {
 
+        /** The one the binder uses — marked, because the convenience constructor below makes two (see the outer record's). */
+        @ConstructorBinding
         public Kubernetes {
             namespace = namespace == null ? "" : namespace.trim();
             name = name == null || name.isBlank() ? "vectispire-agent" : name.trim();
@@ -106,6 +120,17 @@ public record AgentProperties(
             user = user == null ? "" : user.trim();
             startTimeout = startTimeout == null ? Duration.ofMinutes(5) : startTimeout;
             placement = placement == null ? "" : placement.trim();
+            probeTarget = probeTarget == null ? "" : probeTarget.trim();
+            if (cpuMillis <= 0 || memoryMiB <= 0) {
+                throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are "
+                        + "positive: a scan pod with no limit is not in the closed shape. The agent does not start.");
+            }
+        }
+
+        /** Without the two probe settings: isolation required, against the API server. */
+        public Kubernetes(String namespace, String name, String helperImage, String user, Duration startTimeout,
+                String placement) {
+            this(namespace, name, helperImage, user, startTimeout, placement, true, "", 2000, 2048);
         }
     }
 

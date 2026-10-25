@@ -25,6 +25,8 @@ import java.util.function.Supplier;
  */
 final class ExecutorChoice {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ExecutorChoice.class);
+
     private ExecutorChoice() {}
 
     /**
@@ -52,12 +54,61 @@ final class ExecutorChoice {
                 settings.helperImage().isEmpty() ? KubernetesExecutor.HELPER_IMAGE : settings.helperImage(),
                 settings.user().isEmpty() ? ownUser() : settings.user(),
                 settings.startTimeout(),
-                ScannerLimits.DEFAULT,
+                // The pod's own resources, never the default's CPU count: see AgentProperties.Kubernetes#cpuMillis.
+                new ScannerLimits(settings.memoryMiB() * 1024L * 1024, ScannerLimits.DEFAULT.pids(),
+                        ScannerLimits.DEFAULT.timeout(), settings.cpuMillis() * 1_000_000L, ScannerLimits.DEFAULT.outputBytes()),
                 placement(settings.placement(), json));
         KubernetesExecutor executor = new KubernetesExecutor(cluster.get(), checked);
         // What a crash of this agent left: its pods carry its name, and nobody else removes them.
         executor.sweep();
+        if (settings.requireIsolation()) {
+            requireIsolation(executor, probeTarget(settings));
+        } else {
+            log.warn("vectispire.agent.executor.kubernetes.require-isolation is false: whether scan pods are cut off "
+                    + "from the network is not checked. Scanners read hostile trees.");
+        }
         return executor;
+    }
+
+    /**
+     * **Refuses the start unless scan pods are cut off**, offline and online alike, from the API server
+     * (decision 0045 §5). A CNI that does not enforce NetworkPolicy accepts the chart's policies and ignores
+     * them; an agent that scanned there would run every scanner with the cluster in reach. A probe that could
+     * not run is a refusal too: an unknown is not a proof.
+     */
+    static void requireIsolation(KubernetesExecutor executor, String target) {
+        int colon = target.lastIndexOf(':');
+        String host = target.substring(0, colon).replaceAll("^\\[|]$", "");
+        int port = Integer.parseInt(target.substring(colon + 1));
+        for (boolean online : new boolean[] {false, true}) {
+            KubernetesExecutor.Isolation found;
+            try {
+                found = executor.probe(host, port, online);
+            } catch (RuntimeException unknown) {
+                throw new IllegalStateException("Whether scan pods are cut off from the network could not be checked: "
+                        + unknown.getMessage() + " The agent does not start.", unknown);
+            }
+            if (found != KubernetesExecutor.Isolation.ENFORCED) {
+                throw new IllegalStateException("An " + (online ? "online" : "offline") + " scan pod reached the API "
+                        + "server at " + target + ": scan pods are not cut off. This cluster's CNI does not enforce "
+                        + "NetworkPolicy, or the chart's policies for the scans' namespace are missing. The agent does "
+                        + "not start; scanners read hostile trees.");
+            }
+        }
+        log.info("Scan pods are cut off from the API server at {}, offline and online: the policies are enforced.", target);
+    }
+
+    private static String probeTarget(AgentProperties.Kubernetes settings) {
+        if (!settings.probeTarget().isEmpty()) {
+            return settings.probeTarget();
+        }
+        String host = System.getenv("KUBERNETES_SERVICE_HOST");
+        String port = System.getenv("KUBERNETES_SERVICE_PORT");
+        if (host == null || port == null) {
+            throw new IllegalStateException("The isolation probe has no target: KUBERNETES_SERVICE_HOST is not set and "
+                    + "vectispire.agent.executor.kubernetes.probe-target is blank.");
+        }
+        return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
     }
 
     private static ObjectNode placement(String text, ObjectMapper json) {

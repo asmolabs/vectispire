@@ -140,7 +140,9 @@ val kubernetesCoverageVerification = tasks.register<JacocoCoverageVerification>(
     }
 }
 
-kubernetesTest.configure { finalizedBy(kubernetesCoverageVerification) }
+// Depends on the suite rather than following it: a run filtered to one class would otherwise be held to the
+// whole suite's floor. CI's `jvm` job calls this task, which runs the suite first.
+kubernetesCoverageVerification.configure { dependsOn(kubernetesTest) }
 
 tasks.named<Jar>("bootJar") {
     archiveFileName = "vectispire-agent.jar"

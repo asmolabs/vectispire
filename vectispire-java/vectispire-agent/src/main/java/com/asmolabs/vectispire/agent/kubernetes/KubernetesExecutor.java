@@ -118,6 +118,38 @@ public final class KubernetesExecutor implements ContainerExecutor {
         api.deletePods(settings.namespace(), ScanPods.LABEL_AGENT + "=" + settings.agent());
     }
 
+    /** What a probe found: whether a scan pod is cut off from the address it tried. */
+    public enum Isolation { ENFORCED, NOT_ENFORCED }
+
+    /**
+     * Runs a scan pod — offline, or {@code online} as the steps that need the network are — that tries to
+     * open a TCP connection to {@code host:port}, and says whether it could (decision 0045 §5).
+     *
+     * <p><b>A NetworkPolicy the CNI does not enforce is accepted and ignored</b>, and nothing on the API
+     * says so: the only proof that a scan pod is cut off is a scan pod that tried and failed. The target is
+     * the API server's own address, which every pod of a cluster reaches unless a policy stops it, and an
+     * address rather than a name, so a failure is a refusal and not a lookup that did not resolve. The pod
+     * goes through {@link #run} like any scanner: its labels, its placement, its namespace's policies.
+     *
+     * @throws com.asmolabs.vectispire.common.scanning.ScannerFailureException when the probe itself did not
+     *     run, or said something else — an unknown, which proves nothing either way
+     */
+    public Isolation probe(String host, int port, boolean online) {
+        if (!host.matches("[0-9A-Fa-f.:]+") || port <= 0 || port > 65535) {
+            throw new IllegalArgumentException("The probe's target is an address and a port, not \"" + host + ":" + port + "\".");
+        }
+        ContainerRun probe = ContainerRun.of(settings.helperImage(), List.of("sh", "-c",
+                "if nc -w 5 " + host + " " + port + " </dev/null >/dev/null 2>&1; then echo REACHED; else echo BLOCKED; fi"),
+                List.of(), "network probe").withEntrypoint(List.of()).withTimeout(Duration.ofMinutes(1));
+        String said = run(online ? probe.withNetwork() : probe).stdout().strip();
+        return switch (said) {
+            case "BLOCKED" -> Isolation.ENFORCED;
+            case "REACHED" -> Isolation.NOT_ENFORCED;
+            default -> throw ScannerFailureException.of("network probe", "The probe said \"" + said
+                    + "\", which is neither: whether scan pods are cut off is unknown.");
+        };
+    }
+
     /**
      * Not yet: an image target is copied into the workspace by a pinned copy step (0045 §8), which is not
      * built. A failure, so the image's inventory is absent — never an empty one.

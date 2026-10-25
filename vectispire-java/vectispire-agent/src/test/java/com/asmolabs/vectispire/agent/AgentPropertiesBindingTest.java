@@ -177,12 +177,19 @@ class AgentPropertiesBindingTest {
                 "VECTISPIRE_SCANS_NAMESPACE", "vectispire-scans",
                 "VECTISPIRE_AGENT_NAME", "vs-vectispire",
                 "VECTISPIRE_KUBERNETES_START_TIMEOUT", "7m",
-                "VECTISPIRE_KUBERNETES_PLACEMENT", "{\"nodeSelector\":{\"pool\":\"scans\"}}")));
+                "VECTISPIRE_KUBERNETES_PLACEMENT", "{\"nodeSelector\":{\"pool\":\"scans\"}}",
+                "VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION", "false",
+                "VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS", "500",
+                "VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB", "1024")));
         AgentProperties.Executor executor = Binder.get(environment).bind("vectispire.agent", AgentProperties.class).get().executor();
         assertThat(executor.kind()).isEqualTo("kubernetes");
         assertThat(executor.kubernetes().namespace()).isEqualTo("vectispire-scans");
         assertThat(executor.kubernetes().name()).isEqualTo("vs-vectispire");
         assertThat(executor.kubernetes().startTimeout()).isEqualTo(Duration.ofMinutes(7));
         assertThat(executor.kubernetes().placement()).isEqualTo("{\"nodeSelector\":{\"pool\":\"scans\"}}");
+        assertThat(executor.kubernetes().requireIsolation()).isFalse();
+        assertThat(executor.kubernetes().cpuMillis()).isEqualTo(500);
+        assertThat(executor.kubernetes().memoryMiB()).isEqualTo(1024);
+        assertThat(plain.executor().kubernetes().requireIsolation()).as("required unless said otherwise").isTrue();
     }
 }

@@ -521,13 +521,20 @@ DinD), et le plan de contrôle est tenu à l'écart de ces nœuds.
 endpoints kubernetes -n default`). Elles tombent d'ordinaire dans une plage que couvre `excludeCidrs` ;
 listées, l'agent les atteint et chaque pod de scan en est exclu.
 
+**L'agent prouve l'isolation avant de scanner.** Au démarrage, il lance deux pods de sonde, hors ligne et
+en ligne, qui tentent de joindre le serveur d'API ; si l'un y parvient — un CNI qui ignore les
+NetworkPolicies, ou des politiques absentes —, l'agent ne démarre pas et dit pourquoi dans son journal.
+Une sonde qui ne peut pas tourner arrête aussi le démarrage. Seulement là où `agents.networkPolicy.enabled`
+vaut false, avec son acquittement, la chart dit à l'agent de ne pas vérifier.
+
+Le scanner de chaque pod de scan reçoit `agents.kubernetes.scanCpuMillis` (2000) et `scanMemoryMiB` (2048),
+en demande comme en limite : dimensionnez le pool de nœuds des agents pour la concurrence de l'agent fois ces
+valeurs.
+
 !!! warning "Un aperçu : tous les scans ne tournent pas encore"
     - **Les cibles image** voient leur étape image échouer : l'étape de copie n'est pas construite.
     - **La base de vulnérabilités** (environ 3 Go) est recopiée dans chaque pod de rapprochement au lieu
       d'être montée depuis un volume.
-    - **L'agent ne vérifie pas encore** que le CNI du cluster applique les NetworkPolicies. Sur un CNI qui
-      les ignore, un pod de scan n'est pas isolé. `scripts/k8s-executor-spike.sh` le mesure sur votre
-      cluster.
 
 ## Exécuter depuis les sources
 

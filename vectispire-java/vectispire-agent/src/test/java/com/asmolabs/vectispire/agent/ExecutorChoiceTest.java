@@ -44,6 +44,12 @@ class ExecutorChoiceTest {
     }
 
     @Test
+    void aScanPodWithoutLimitsStopsTheStart() {
+        assertThatThrownBy(() -> new AgentProperties.Kubernetes("scans", "agent", "", "1000:1000", Duration.ofMinutes(5), "",
+                true, "", 0, 2048)).hasMessageContaining("cpu-millis");
+    }
+
+    @Test
     void anUnreadablePlacementStopsTheStart_beforeAskingForTheCluster() {
         assertThatThrownBy(() -> ExecutorChoice.choose(kubernetes("scans", "[1]"), json, NO_CLUSTER))
                 .hasMessageContaining("VECTISPIRE_KUBERNETES_PLACEMENT");

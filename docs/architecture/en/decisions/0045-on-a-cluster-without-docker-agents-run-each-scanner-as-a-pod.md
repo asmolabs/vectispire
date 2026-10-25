@@ -165,4 +165,10 @@ above (`kubernetesTest`, in CI's `jvm` job). What building it settled:
   online scan pod that could reach it through a gap in an operator's list.
 - **Not built yet**: image targets (§8 — `exportImage` fails the step, so the inventory is absent), the
   matcher's database volume (§7 — the database, some 3 GB, is copied in like any mount), registry
-  credentials for a tool (none held), and the probe that the CNI enforces the policies (§5).
+  credentials for a tool (none held).
+- **The probe (§5) runs at every start**: a pod offline and one online try the API server's address with
+  `nc`; either reaching it, or a probe that cannot run, stops the agent. On k3s it refuses the namespace
+  with no policy and the online policy whose exclusions miss the API server, and starts under the chart's.
+- **Scan pods' resources are set, not derived** (`cpu-millis`, `memory-mib`): the default's CPU quota is
+  this JVM's cores minus one, the agent pod's view of its node, and scan pods asking for nine CPUs on a
+  developer's machine were never scheduled — measured.

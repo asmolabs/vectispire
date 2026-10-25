@@ -529,7 +529,8 @@ jobs:
           refused -f ci/kubernetes-executor-values.yaml --set agents.executor=podman
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire-agents
-          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire
+          # `-n`: this helper renders in `default` otherwise, and the release's namespace would not be the one named.
+          refused -n vectispire -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.apiServer.cidrs=null
           refused -f ci/kubernetes-executor-values.yaml --set agents.tolerations=null
       - name: the chart renders the isolation it does not leave to the operator
@@ -595,6 +596,9 @@ jobs:
             grep -A3 'cidr: 10.0.0.10/32' | grep -q 'port: 443' || fail "the agent cannot reach the API server"
           grep -A12 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/agent$' ||
             fail "the control plane may share a node with a scan pod"
+          # The agent proves the policies are enforced before it scans, unless the operator turned them off.
+          grep -A1 'name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION' rendered.yaml | grep -q 'value: "true"' ||
+            fail "the agent is not asked to prove its scan pods are cut off"
       # **The relay and the public address reach the pod, and nothing does without them.** The chart passed
       # neither before 0.11.1, so no alert, digest or checklist reminder could leave a Kubernetes install.
       # No host must render no mail variable: the application builds a sender as soon as the host exists.
@@ -686,10 +690,11 @@ jobs:
       - run: |
           cd vectispire-java
           test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
-          # `kubernetesTest`: the agent's Kubernetes executor against k3s in a privileged container
+          # `kubernetesCoverageVerification`, which runs `kubernetesTest` — the agent's Kubernetes executor
+          # against k3s in a privileged container — and holds it to its own floor
           # (decision 0045), its own task because `test` must not need one — and run here, on every
           # push, because a client tested by nothing is the wiring nobody exercised.
-          ./gradlew build :vectispire-agent:kubernetesTest --dependency-verification=strict
+          ./gradlew build :vectispire-agent:kubernetesCoverageVerification --dependency-verification=strict
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

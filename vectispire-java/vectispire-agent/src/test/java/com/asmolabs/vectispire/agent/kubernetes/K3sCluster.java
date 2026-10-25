@@ -117,7 +117,7 @@ public final class K3sCluster implements AutoCloseable {
         }
     }
 
-    void apply(String manifest) {
+    public void apply(String manifest) {
         try {
             Container.ExecResult result = k3s.execInContainer("sh", "-c", "cat <<'EOF' | kubectl apply -f -\n" + manifest + "\nEOF");
             if (result.getExitCode() != 0) {

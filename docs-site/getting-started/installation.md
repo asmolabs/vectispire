@@ -499,12 +499,19 @@ them.
 kubernetes -n default`). They usually lie in a range `excludeCidrs` covers; listed, they are reachable by
 the agent and excluded for every scan pod.
 
+**The agent proves the isolation before it scans.** At start it runs two probe pods, offline and online,
+that try to reach the API server; if either can — a CNI that ignores NetworkPolicy, or the policies
+missing — the agent does not start, and says why in its log. A probe that cannot run stops the start
+too. Only where `agents.networkPolicy.enabled` is false, with its acknowledgement, does the chart tell the
+agent not to check.
+
+Each scan pod's scanner gets `agents.kubernetes.scanCpuMillis` (2000) and `scanMemoryMiB` (2048), as request
+and limit: size the agents' node pool for the agent's concurrency times these.
+
 !!! warning "A preview: not every scan runs yet"
     - **Image targets** fail their image step: the copy step is not built.
     - **The vulnerability database** (about 3 GB) is copied into each matching pod rather than mounted from
       a volume.
-    - **The agent does not yet probe** that the cluster's CNI enforces NetworkPolicy. On a CNI that ignores
-      them, a scan pod is not cut off. `scripts/k8s-executor-spike.sh` measures it on your cluster.
 
 ## Running from source
 
