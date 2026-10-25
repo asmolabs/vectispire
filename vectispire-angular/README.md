@@ -26,6 +26,11 @@ is `~6.0.x` and a TypeScript minor is as much a framework decision as a major. T
 `package.json` carries an `overrides` entry for `openapi-typescript`, whose peer still says
 `^5.x`: without it npm hoists a TypeScript 5 to the root, and ESLint type-checks with a
 different compiler than the build.
+It also carries `zod: ^4.6.6` (2026-10-25): `@angular/forms` reads Zod at run time, and
+GHSA-mrhx-c7xc-m3w5 (memory exhausted by oversized constrained collections) is fixed in 4.6.6,
+while `@angular/cli` pins exactly 4.6.5 — which kept the one shared copy on the vulnerable
+version and made `npm audit --omit=dev` refuse the release. Remove the entry once
+`@angular/cli` itself asks for 4.6.6 or later.
 
 **Every component declares `ChangeDetectionStrategy.Eager`.** Angular 22 made OnPush the
 default; `ng update` pinned the existing components to the old behaviour rather than change
