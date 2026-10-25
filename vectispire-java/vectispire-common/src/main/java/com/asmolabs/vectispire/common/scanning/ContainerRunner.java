@@ -51,7 +51,7 @@ import javax.net.ssl.SSLContext;
  * the error an operator reads. So each is collected separately: stdout stays parseable
  * <em>and</em> the reason for the failure survives.
  */
-public final class ContainerRunner {
+public final class ContainerRunner implements ContainerExecutor {
 
     /** The mark placed on every container Vectispire launches. */
     public static final String SCANNER_LABEL = "dev.vectispire.scanner";
@@ -234,16 +234,19 @@ public final class ContainerRunner {
      * The ceiling on what a scanner may hand back, in bytes — its standard output here, and the
      * report file a plugin writes, which is the same output by another route and gets the same bound.
      */
+    @Override
     public long outputBytes() {
         return limits.outputBytes();
     }
 
     /** How long a scanner may run before it is stopped — what a scan that started can still take. */
+    @Override
     public Duration scannerTimeout() {
         return limits.timeout();
     }
 
     /** Is the daemon reachable? Checked before claiming a scan rather than in the middle of one. */
+    @Override
     public boolean isAvailable() {
         try {
             docker.pingCmd().exec();
@@ -267,6 +270,7 @@ public final class ContainerRunner {
      * to audit. The resulting archive already carries the right one, so nothing downstream has
      * to specify it again.
      */
+    @Override
     public void exportImage(String reference, String platform, Path destination) {
         try {
             docker.pullImageCmd(reference)
@@ -410,6 +414,7 @@ public final class ContainerRunner {
         return created.getId();
     }
 
+    @Override
     public ContainerResult run(ContainerRun request) {
         Duration timeout = request.timeout() == null ? limits.timeout() : request.timeout();
         ContainerRun.BoundedOutput bounded = request.output();
@@ -508,6 +513,7 @@ public final class ContainerRunner {
      * and whether its Docker configuration carries credentials for it — never the credentials. For a
      * tool's refusal to say which of "none held" and "the ones held were refused" it was.
      */
+    @Override
     public RegistryAccess registryAccessFor(String reference) {
         return new RegistryAccess(PullCredentials.registryOf(reference), PullCredentials.of(docker, reference).isPresent());
     }

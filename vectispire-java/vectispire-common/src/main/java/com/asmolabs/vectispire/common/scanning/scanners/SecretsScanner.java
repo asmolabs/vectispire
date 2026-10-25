@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
@@ -35,10 +36,10 @@ public final class SecretsScanner {
     private static final ObjectReader READER =
             new ObjectMapper().reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final String image;
 
-    public SecretsScanner(ContainerRunner runner, String image) {
+    public SecretsScanner(ContainerExecutor runner, String image) {
         this.runner = runner;
         this.image = image;
     }

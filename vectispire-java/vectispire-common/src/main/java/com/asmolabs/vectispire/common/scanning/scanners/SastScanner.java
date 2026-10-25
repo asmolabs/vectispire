@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
@@ -48,10 +49,10 @@ public final class SastScanner {
 
     private static final String LABEL = "semgrep (source code analysis)";
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final String image;
 
-    public SastScanner(ContainerRunner runner, String image) {
+    public SastScanner(ContainerExecutor runner, String image) {
         this.runner = runner;
         this.image = image;
     }

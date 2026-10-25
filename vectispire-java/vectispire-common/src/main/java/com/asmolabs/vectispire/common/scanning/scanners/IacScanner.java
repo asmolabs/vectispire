@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.Workspace;
@@ -24,10 +25,10 @@ public final class IacScanner {
 
     private static final String LABEL = "checkov (IaC analysis)";
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final String image;
 
-    public IacScanner(ContainerRunner runner, String image) {
+    public IacScanner(ContainerExecutor runner, String image) {
         this.runner = runner;
         this.image = image;
     }

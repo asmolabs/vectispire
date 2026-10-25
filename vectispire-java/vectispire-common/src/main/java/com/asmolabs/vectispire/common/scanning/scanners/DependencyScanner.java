@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.sbom.Sbom;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
@@ -53,11 +54,11 @@ public final class DependencyScanner {
      */
     public static final String DEFAULT_PLATFORM = "linux/amd64";
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final ScannerImages images;
     private final VulnerabilityDatabase database;
 
-    public DependencyScanner(ContainerRunner runner, ScannerImages images, VulnerabilityDatabase database) {
+    public DependencyScanner(ContainerExecutor runner, ScannerImages images, VulnerabilityDatabase database) {
         this.runner = runner;
         this.images = images;
         this.database = database;
