@@ -40,6 +40,12 @@ Three cheaper shapes were weighed on 2026-10-25 and rejected:
    never gets the Kubernetes one**: it holds `ENCRYPTION_KEY`, and a credential that starts pods beside it
    would let a control-plane compromise run arbitrary images in the cluster with the key in hand (0003,
    0038). On Kubernetes the built-in worker stays off (`VECTISPIRE_EMBEDDED_WORKER=false`), as 0038 says.
+   **The Kubernetes backend lives in `vectispire-agent`, not in `vectispire-common`**, which the control
+   plane shares: the control plane cannot compile against it, as the agent cannot compile against a
+   database driver (0003). **And it speaks to the API server over the JDK's own `HttpClient` and
+   `WebSocket`**, as the agent already speaks to the control plane, with no client library: what it needs
+   is five calls — create, read, list and delete a pod, and `exec` over the `v5.channel.k8s.io` WebSocket
+   protocol — and a client such as fabric8 would add dozens of artifacts to review and pin for them.
 2. **One pod per run, as today one container per run.** The pod carries every property of the closed
    shape that Kubernetes expresses per pod, exactly: `capabilities.drop: [ALL]`,
    `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `runAsNonRoot` with the workspace
@@ -109,8 +115,8 @@ unchanged; and a security review of the Role, the namespace and the policies fin
   this backend.
 - **Until it ships, the installation has no built-in scans.** It goes live on 0.11.1 without an agent;
   report plugins answer 409 as 0038 decided, and stay a separate decision.
-- A Kubernetes client becomes a dependency of the agent, reviewed through
-  `gradle/verification-metadata.xml` like any other.
+- **No new dependency**: the API server is reached with the JDK. The cost is ours — the `exec` WebSocket
+  protocol written and tested here rather than taken from a library.
 
 ## Spike, 2026-10-25
 

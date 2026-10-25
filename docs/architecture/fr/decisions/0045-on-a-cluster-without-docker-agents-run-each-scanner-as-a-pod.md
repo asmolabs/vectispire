@@ -44,6 +44,13 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    qui compromet le plan de contrôle de lancer des images arbitraires dans le cluster, la clé en main
    (0003, 0038). Sur Kubernetes, le worker intégré reste éteint (`VECTISPIRE_EMBEDDED_WORKER=false`), comme
    le dit 0038.
+   **L'exécuteur Kubernetes vit dans `vectispire-agent`, pas dans `vectispire-common`**, que le plan de
+   contrôle partage : le plan de contrôle ne peut pas compiler contre lui, comme l'agent ne peut pas
+   compiler contre un pilote de base de données (0003). **Et il parle au serveur d'API avec le `HttpClient`
+   et le `WebSocket` du JDK**, comme l'agent parle déjà au plan de contrôle, sans bibliothèque cliente : il
+   lui faut cinq appels — créer, lire, lister et supprimer un pod, et `exec` par le protocole WebSocket
+   `v5.channel.k8s.io` — et un client comme fabric8 ajouterait des dizaines d'artefacts à relire et
+   épingler pour eux.
 2. **Un pod par exécution, comme aujourd'hui un conteneur par exécution.** Le pod porte exactement chaque
    propriété de la forme fermée que Kubernetes sait exprimer par pod : `capabilities.drop: [ALL]`,
    `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `runAsNonRoot` avec l'uid et le gid du
@@ -118,8 +125,8 @@ du Role, de l'espace de noms et des politiques ne trouve rien au-dessus de faibl
   qui lance la vérification de composition contre cet exécuteur.
 - **Tant qu'il n'est pas livré, l'installation n'a pas d'analyses intégrées.** Elle démarre en 0.11.1
   sans agent ; les plugins de rapport répondent 409 comme 0038 l'a décidé, et restent une décision à part.
-- Un client Kubernetes devient une dépendance de l'agent, relue par `gradle/verification-metadata.xml`
-  comme toute autre.
+- **Aucune nouvelle dépendance** : le serveur d'API est joint avec le JDK. Le coût est pour nous — le
+  protocole WebSocket d'`exec` écrit et testé ici plutôt que pris dans une bibliothèque.
 
 ## Maquette, 2026-10-25
 
