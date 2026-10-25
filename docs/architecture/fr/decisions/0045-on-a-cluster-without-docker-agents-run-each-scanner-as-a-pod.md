@@ -150,3 +150,25 @@ Elle a corrigé l'étude sur un point, repris au point 4 de la décision : le ho
 ordinaire, puisqu'un sidecar natif est arrêté avec le pod, et le rapport avec lui — ce qui retire aussi le
 plancher de version des sidecars natifs. Pas encore mesuré : le cluster cible lui-même, et la parité des
 constats entre les deux exécuteurs, qui demande l'exécuteur Java.
+
+## Construit à ce jour, 2026-10-25
+
+`KubernetesExecutor` dans `vectispire-agent`, testé sur k3s 1.34 avec le compte de service de l'agent sous
+le Role ci-dessus (`kubernetesTest`, dans le job `jvm` de la CI). Ce que la construction a tranché :
+
+- **La sortie standard va dans un fichier par un enveloppeur**, jamais par le journal : le scanner tourne en
+  `busybox sh -c 'exec "$@" >stdout 2>stderr'`, avec un busybox **statique** (l'image musl, épinglée) que
+  le conteneur d'initialisation recopie, puisque les images de syft et de grype n'ont ni shell ni libc.
+  L'enveloppeur doit nommer le programme que Docker aurait préfixé, donc **le point d'entrée de chaque outil
+  est déclaré** à côté de son image (`ScannerImages.*_ENTRYPOINT`, porté par `ContainerRun.entrypoint`), et
+  `ScannerEntrypointsTest` confronte chaque déclaration à la configuration de l'image épinglée. Docker ignore
+  les déclarations. Une exécution qui n'en déclare aucune — un plugin — garde le point d'entrée de son
+  image ; son journal est lu comme un diagnostic, et sa sortie standard n'est pas capturée, ce qu'un
+  analyseur lit comme absent.
+- **Un montage inscriptible rapporte les fichiers ordinaires que le scanner a écrits, et rien d'autre** :
+  les entrées entrent datées de 1970, si bien que `find -type f -mtime -1` désigne ce qui est nouveau ; un
+  lien, un nom hors du montage ou un chemin traversant un lien déjà présent est refusé, et l'étape échoue.
+- **Pas encore construit** : les cibles image (§8 — `exportImage` fait échouer l'étape, l'inventaire est
+  donc absent), le volume de la base du matcher (§7 — la base est recopiée comme tout montage), les
+  identifiants de registre pour un outil (aucun détenu), les NetworkPolicies et leur sonde (§5 — les pods
+  portent les étiquettes), la sélection par configuration, et le chart.

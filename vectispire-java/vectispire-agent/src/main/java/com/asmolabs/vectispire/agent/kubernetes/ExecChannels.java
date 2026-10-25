@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -37,17 +39,28 @@ final class ExecChannels {
     private static final int STATUS_BYTES = 64 * 1024;
 
     private final long stdoutCeiling;
-    private final ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    private final OutputStream stdout;
+    private long stdoutBytes;
     private final ByteArrayOutputStream stderr = new ByteArrayOutputStream();
     private final ByteArrayOutputStream status = new ByteArrayOutputStream();
     private boolean atMessageStart = true;
     private int channel = -1;
     private boolean overCeiling;
 
+    /** Standard output kept in memory, for {@link #stdout()}. */
     ExecChannels(long stdoutCeiling) {
+        this(new ByteArrayOutputStream(), stdoutCeiling);
+    }
+
+    /**
+     * Standard output written to {@code sink} as it comes — a tree copied back is too large to hold — and
+     * never more than the ceiling and the one byte that proves it was passed.
+     */
+    ExecChannels(OutputStream sink, long stdoutCeiling) {
         if (stdoutCeiling < 0) {
             throw new IllegalArgumentException("A ceiling is not negative.");
         }
+        this.stdout = sink;
         this.stdoutCeiling = stdoutCeiling;
     }
 
@@ -62,7 +75,7 @@ final class ExecChannels {
             atMessageStart = false;
         }
         switch (channel) {
-            case STDOUT -> append(stdout, fragment, stdoutCeiling + 1);
+            case STDOUT -> stdoutBytes += write(stdout, fragment, stdoutCeiling + 1 - stdoutBytes);
             case STDERR -> append(stderr, fragment, STDERR_BYTES);
             case STATUS -> append(status, fragment, STATUS_BYTES);
             default -> fragment.position(fragment.limit()); // a channel this client never asked for
@@ -71,10 +84,23 @@ final class ExecChannels {
             atMessageStart = true;
             channel = -1;
         }
-        if (stdout.size() > stdoutCeiling) {
+        if (stdoutBytes > stdoutCeiling) {
             overCeiling = true;
         }
         return !overCeiling;
+    }
+
+    private static int write(OutputStream to, ByteBuffer fragment, long room) {
+        int count = (int) Math.max(0, Math.min(fragment.remaining(), room));
+        byte[] bytes = new byte[count];
+        fragment.get(bytes);
+        try {
+            to.write(bytes);
+        } catch (IOException unwritable) {
+            throw new UncheckedIOException(unwritable);
+        }
+        fragment.position(fragment.limit());
+        return count;
     }
 
     private static void append(ByteArrayOutputStream to, ByteBuffer fragment, long limit) {
@@ -89,8 +115,9 @@ final class ExecChannels {
         return overCeiling;
     }
 
+    /** What standard output held, when it was kept in memory; empty when it went to a sink. */
     byte[] stdout() {
-        return stdout.toByteArray();
+        return stdout instanceof ByteArrayOutputStream memory ? memory.toByteArray() : new byte[0];
     }
 
     String stderr() {

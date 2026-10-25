@@ -22,6 +22,8 @@ dependencies {
     implementation(platform(libs.spring.boot.bom))
     testImplementation(platform(libs.spring.boot.bom))
     implementation("org.springframework.boot:spring-boot-starter")
+    // The Kubernetes executor's mounts cross into a scan pod as tar archives (decision 0045 §4).
+    implementation(libs.commons.compress)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -63,7 +65,19 @@ dependencies {
  * them while the total holds, and naming them here is more useful than an exclusion that would
  * make the figure flatter than the module is.
  */
+/**
+ * **The Kubernetes client and executor are measured by the suite that runs them.** They need a cluster,
+ * which `test` never starts, so this floor leaves them out by name and `kubernetesCoverageVerification`
+ * below holds them to one of their own, on `kubernetesTest`. Counting them here would lower this figure
+ * with code no test of this suite could reach; counting them nowhere would leave them with no floor.
+ */
+val clusterBound = listOf(
+    "com/asmolabs/vectispire/agent/kubernetes/KubernetesApi*",
+    "com/asmolabs/vectispire/agent/kubernetes/KubernetesExecutor*",
+)
+
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    classDirectories.setFrom(sourceSets["main"].output.classesDirs.asFileTree.matching { exclude(clusterBound) })
     violationRules {
         rule {
             element = "BUNDLE"
@@ -107,6 +121,26 @@ val kubernetesTest = tasks.register<Test>("kubernetesTest") {
     useJUnitPlatform { includeTags("kubernetes") }
     shouldRunAfter(tasks.named("test"))
 }
+
+val kubernetesCoverageVerification = tasks.register<JacocoCoverageVerification>("kubernetesCoverageVerification") {
+    description = "Holds the Kubernetes client and executor to a floor measured by kubernetesTest."
+    group = "verification"
+    executionData(kubernetesTest.map { it.extensions.getByType<JacocoTaskExtension>().destinationFile!! })
+    sourceDirectories.setFrom(sourceSets["main"].allSource.srcDirs)
+    classDirectories.setFrom(sourceSets["main"].output.classesDirs.asFileTree.matching { include(clusterBound) })
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                // Just under the 0.74 measured on 2026-10-25, as the other floors: it stops the figure going down.
+                minimum = "0.70".toBigDecimal()
+            }
+        }
+    }
+}
+
+kubernetesTest.configure { finalizedBy(kubernetesCoverageVerification) }
 
 tasks.named<Jar>("bootJar") {
     archiveFileName = "vectispire-agent.jar"

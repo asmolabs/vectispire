@@ -49,7 +49,8 @@ public final class IacScanner {
                             List.of("-d", ContainerPaths.source(subPath), "-o", "json", "--soft-fail", "--compact"),
                             List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
                             LABEL)
-                    .runningAsOwnerOf(workspace.root()));
+                    .runningAsOwnerOf(workspace.root())
+                    .withEntrypoint(ScannerImages.CHECKOV_ENTRYPOINT));
 
             Optional<JsonNode> payload = ContainerRunner.parseJson(result, LABEL, List.of(0));
             return payload.flatMap(node -> findings(node, subPath));

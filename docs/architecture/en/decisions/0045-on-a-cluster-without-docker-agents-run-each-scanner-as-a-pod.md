@@ -139,3 +139,24 @@ It corrected the study on one point, now in decision 4: the holder is an ordinar
 native sidecar is stopped with the pod and the report with it — which also removes the native sidecars'
 version floor. Not yet measured: the target cluster itself, and the parity of findings across the two
 backends, which needs the Java backend.
+
+## Built so far, 2026-10-25
+
+`KubernetesExecutor` in `vectispire-agent`, tested on k3s 1.34 as the agent's service account under the Role
+above (`kubernetesTest`, in CI's `jvm` job). What building it settled:
+
+- **Standard output goes to a file through a wrapper**, never through the log: the scanner runs as
+  `busybox sh -c 'exec "$@" >stdout 2>stderr'`, with a **static** busybox (the musl image, pinned) that the
+  receiving init container copies in, since syft's and grype's images have no shell and no libc. The
+  wrapper has to name the program Docker would have prepended, so **each tool's entrypoint is declared**
+  beside its image (`ScannerImages.*_ENTRYPOINT`, carried by `ContainerRun.entrypoint`), and
+  `ScannerEntrypointsTest` holds every declaration to the pinned image's configuration. Docker ignores the
+  declarations. A run that declares none — a plugin — keeps its image's entrypoint; its log is read as a
+  diagnostic, and its standard output is not captured, which a parser reads as absent.
+- **A writable mount brings back the regular files the scanner wrote, and nothing else**: entries go in
+  dated 1970, so `find -type f -mtime -1` names what is new; a link, a name outside the mount, or a path
+  through a link already in the workspace is refused and the step fails.
+- **Not built yet**: image targets (§8 — `exportImage` fails the step, so the inventory is absent), the
+  matcher's database volume (§7 — the database is copied in like any mount), registry credentials for a tool
+  (none held), the NetworkPolicies and their probe (§5 — pods carry the labels), the selection by
+  configuration, and the chart.

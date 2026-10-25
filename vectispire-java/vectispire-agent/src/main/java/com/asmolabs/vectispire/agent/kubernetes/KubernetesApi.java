@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -156,6 +157,15 @@ public class KubernetesApi {
     }
 
     /**
+     * The first {@code limitBytes} of a container's log — a diagnostic, never a report: the kubelet rotates
+     * logs, so what is read here may be cut, and nothing parses it (decision 0045 §4).
+     */
+    public String log(String namespace, String pod, String container, long limitBytes) {
+        return callText(podsPath(namespace) + "/" + segment(pod) + "/log?container=" + query(container)
+                + "&limitBytes=" + limitBytes);
+    }
+
+    /**
      * Runs {@code command} in {@code container} of a running pod, with {@code stdin} as its standard
      * input when given, and returns what it wrote.
      *
@@ -168,6 +178,20 @@ public class KubernetesApi {
      */
     public ExecResult exec(String namespace, String pod, String container, List<String> command,
             InputStream stdin, long stdoutCeiling, Duration timeout) {
+        return exec(namespace, pod, container, command, stdin, new ExecChannels(stdoutCeiling), timeout);
+    }
+
+    /**
+     * As {@link #exec(String, String, String, List, InputStream, long, Duration)}, with standard output
+     * written to {@code stdout} as it arrives rather than held: the result's {@code stdout} is then empty.
+     */
+    public ExecResult exec(String namespace, String pod, String container, List<String> command,
+            InputStream stdin, OutputStream stdout, long stdoutCeiling, Duration timeout) {
+        return exec(namespace, pod, container, command, stdin, new ExecChannels(stdout, stdoutCeiling), timeout);
+    }
+
+    private ExecResult exec(String namespace, String pod, String container, List<String> command,
+            InputStream stdin, ExecChannels channels, Duration timeout) {
 
         long deadline = System.nanoTime() + timeout.toNanos();
         StringBuilder path = new StringBuilder(podsPath(namespace)).append('/').append(segment(pod)).append("/exec?container=")
@@ -180,7 +204,7 @@ public class KubernetesApi {
         }
         URI uri = URI.create(server.toString().replaceFirst("^https", "wss") + path);
 
-        ExecListener listener = new ExecListener(new ExecChannels(stdoutCeiling));
+        ExecListener listener = new ExecListener(channels);
         WebSocket socket;
         try {
             socket = client.newWebSocketBuilder()
@@ -224,7 +248,6 @@ public class KubernetesApi {
             socket.abort();
         }
 
-        ExecChannels channels = listener.channels;
         synchronized (channels) {
             if (channels.overCeiling()) {
                 return new ExecResult(channels.stdout(), channels.stderr(), -1, true);
@@ -280,8 +303,14 @@ public class KubernetesApi {
         @Override
         public CompletionStage<?> onBinary(WebSocket socket, ByteBuffer data, boolean last) {
             boolean more;
-            synchronized (channels) {
-                more = channels.accept(data, last);
+            try {
+                synchronized (channels) {
+                    more = channels.accept(data, last);
+                }
+            } catch (RuntimeException unwritable) {
+                // A sink that refused a write: the copy is broken, and said so rather than left half-made.
+                done.completeExceptionally(unwritable);
+                return null;
             }
             if (more) {
                 socket.request(1);
@@ -340,6 +369,27 @@ public class KubernetesApi {
         }
         throw new KubernetesException(method + " " + path.replaceFirst("\\?.*", "") + " answered HTTP " + status + ": "
                 + excerpt(response.body()), status);
+    }
+
+    private String callText(String path) {
+        HttpRequest request = HttpRequest.newBuilder(server.resolve(path))
+                .timeout(CALL_TIMEOUT)
+                .header("Authorization", "Bearer " + token.get())
+                .GET()
+                .build();
+        try {
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new KubernetesException("GET " + path.replaceFirst("\\?.*", "") + " answered HTTP "
+                        + response.statusCode() + ": " + excerpt(response.body()), response.statusCode());
+            }
+            return response.body();
+        } catch (IOException unreachable) {
+            throw new KubernetesException("The API server is unreachable: " + unreachable.getMessage(), unreachable);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new KubernetesException("Interrupted while calling the API server.", interrupted);
+        }
     }
 
     private JsonNode parse(String text) {

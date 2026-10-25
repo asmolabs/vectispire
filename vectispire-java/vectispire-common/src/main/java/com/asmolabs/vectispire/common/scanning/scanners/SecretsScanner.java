@@ -105,7 +105,8 @@ public final class SecretsScanner {
                         LABEL)
                 // The workspace is a 0700 directory owned by Vectispire's user: its owner reads it
                 // and writes the report, a capability-less root does neither — see ContainerRun.
-                .runningAsOwnerOf(workspace.root());
+                .runningAsOwnerOf(workspace.root())
+                .withEntrypoint(ScannerImages.GITLEAKS_ENTRYPOINT);
 
         ContainerRunner.ContainerResult result = runner.run(request);
         if (result.exitCode() != 0) {
