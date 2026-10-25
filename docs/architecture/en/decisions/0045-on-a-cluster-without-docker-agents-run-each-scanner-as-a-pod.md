@@ -172,3 +172,10 @@ above (`kubernetesTest`, in CI's `jvm` job). What building it settled:
 - **Scan pods' resources are set, not derived** (`cpu-millis`, `memory-mib`): the default's CPU quota is
   this JVM's cores minus one, the agent pod's view of its node, and scan pods asking for nine CPUs on a
   developer's machine were never scheduled — measured.
+- **Run end to end** by `scripts/kubernetes-scan-check.sh`, nightly: a k3s server and an agents' node, the
+  chart installed with this executor, the agent's own image declared and keyed through the API, and the
+  composition check's fixture scanned — every scanner a pod on the agents' node, each finding its plant. Its
+  first runs found what no test of a piece could: the agent's secrets mounted read-only at `/run/secrets`,
+  where the kubelet then had no place for the service account's token (the agent never started; they are at
+  `/etc/vectispire/secrets` now); and that one node is not enough, since the control plane's anti-affinity
+  keeps scan pods off its node — as it should.

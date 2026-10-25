@@ -531,6 +531,9 @@ Le scanner de chaque pod de scan reçoit `agents.kubernetes.scanCpuMillis` (2000
 en demande comme en limite : dimensionnez le pool de nœuds des agents pour la concurrence de l'agent fois ces
 valeurs.
 
+`scripts/kubernetes-scan-check.sh` installe cette forme dans k3s — un serveur et un nœud d'agents — et y
+fait passer un scan de bout en bout ; la CI de nuit l'exécute sur les images de chaque nuit.
+
 !!! warning "Un aperçu : tous les scans ne tournent pas encore"
     - **Les cibles image** voient leur étape image échouer : l'étape de copie n'est pas construite.
     - **La base de vulnérabilités** (environ 3 Go) est recopiée dans chaque pod de rapprochement au lieu

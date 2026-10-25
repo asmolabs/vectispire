@@ -508,6 +508,9 @@ agent not to check.
 Each scan pod's scanner gets `agents.kubernetes.scanCpuMillis` (2000) and `scanMemoryMiB` (2048), as request
 and limit: size the agents' node pool for the agent's concurrency times these.
 
+`scripts/kubernetes-scan-check.sh` installs this shape in k3s — a server and an agents' node — and runs a
+scan through it end to end; the nightly runs it on every night's images.
+
 !!! warning "A preview: not every scan runs yet"
     - **Image targets** fail their image step: the copy step is not built.
     - **The vulnerability database** (about 3 GB) is copied into each matching pod rather than mounted from

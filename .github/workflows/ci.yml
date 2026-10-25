@@ -596,6 +596,10 @@ jobs:
             grep -A3 'cidr: 10.0.0.10/32' | grep -q 'port: 443' || fail "the agent cannot reach the API server"
           grep -A12 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/agent$' ||
             fail "the control plane may share a node with a scan pod"
+          # The agent's own secrets are not mounted at /run/secrets: /var/run is /run in its image, and the
+          # service account's token could not be mounted beside them — the agent never started (measured).
+          ! helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/deployment.yaml |
+            grep -q 'mountPath: /run/secrets' || fail "the agent's secrets hide the service account token's mountpoint"
           # The agent proves the policies are enforced before it scans, unless the operator turned them off.
           grep -A1 'name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION' rendered.yaml | grep -q 'value: "true"' ||
             fail "the agent is not asked to prove its scan pods are cut off"

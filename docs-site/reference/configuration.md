@@ -239,8 +239,11 @@ Then `http://localhost:3180/swagger-ui.html`.
 
 `VECTISPIRE_AGENT_TOKEN` and `VECTISPIRE_AGENT_SIGNING_KEY` are credentials: hand them to the agent as
 files named after them under `/run/secrets/`, read with `SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/`
-— as the composition's `with-agent` profile and the Helm chart do — rather than as variables, which every
-client of the daemon reads back with `docker inspect`.
+— as the composition's `with-agent` profile does — rather than as variables, which every client of the
+daemon reads back with `docker inspect`. The Helm chart mounts them under `/etc/vectispire/secrets/` and
+imports that directory instead: in a pod whose service account token the agent needs (the Kubernetes
+executor), a read-only volume at `/run/secrets` leaves the kubelet nowhere to mount the token, and the agent
+never starts.
 
 | Variable | Notes |
 |---|---|

@@ -244,9 +244,11 @@ Puis `http://localhost:3180/swagger-ui.html`.
 
 `VECTISPIRE_AGENT_TOKEN` et `VECTISPIRE_AGENT_SIGNING_KEY` sont des identifiants : remettez-les à l'agent
 comme des fichiers portant leur nom sous `/run/secrets/`, lus avec
-`SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/` — comme le font le profil `with-agent` de la
-composition et le chart Helm — plutôt que comme des variables, que tout client du démon relit avec
-`docker inspect`.
+`SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/` — comme le fait le profil `with-agent` de la
+composition — plutôt que comme des variables, que tout client du démon relit avec `docker inspect`. La
+chart Helm les monte sous `/etc/vectispire/secrets/` et importe ce répertoire-là : dans un pod dont l'agent
+a besoin du jeton de compte de service (l'exécuteur Kubernetes), un volume en lecture seule à
+`/run/secrets` ne laisse au kubelet aucune place pour monter ce jeton, et l'agent ne démarre jamais.
 
 | Variable | Notes |
 |---|---|

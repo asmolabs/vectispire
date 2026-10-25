@@ -114,10 +114,13 @@ spec:
             - name: DOCKER_HOST
               value: unix://{{ $socketDir }}/docker.sock
             {{- end }}
-            # The token and the signing key as files, read through the same config tree the control
-            # plane imports, rather than as variables any reader of the pod sees.
+            # The token and the signing key as files, read through a config tree, rather than as variables
+            # any reader of the pod sees. **Not under /run/secrets**: /var/run is /run in the agent's image,
+            # and a read-only volume there leaves the kubelet no place for the service account's token
+            # (/var/run/secrets/kubernetes.io/serviceaccount) — the Kubernetes executor's agent never
+            # started, "mkdirat …/run/secrets/kubernetes.io: read-only file system" (measured, k3s 1.34).
             - name: SPRING_CONFIG_IMPORT
-              value: optional:configtree:/run/secrets/
+              value: optional:configtree:/etc/vectispire/secrets/
             # The work directory is where scans live, at the path the daemon sees too; the home under it,
             # where a keyed clone records the forges' host keys.
             - name: JDK_JAVA_OPTIONS
@@ -153,7 +156,7 @@ spec:
               mountPath: {{ $socketDir }}
             {{- end }}
             - name: secrets
-              mountPath: /run/secrets
+              mountPath: /etc/vectispire/secrets
               readOnly: true
             {{- if .Values.agents.trustStore.secretName }}
             - name: trust

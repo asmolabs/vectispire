@@ -187,3 +187,11 @@ le Role ci-dessus (`kubernetesTest`, dans le job `jvm` de la CI). Ce que la cons
 - **Les ressources des pods de scan sont fixées, pas déduites** (`cpu-millis`, `memory-mib`) : le quota de
   CPU par défaut est le nombre de cœurs de cette JVM moins un, la vue qu'a le pod de l'agent de son nœud, et
   des pods de scan demandant neuf CPU sur la machine d'un développeur n'étaient jamais planifiés — mesuré.
+- **Exécuté de bout en bout** par `scripts/kubernetes-scan-check.sh`, chaque nuit : un serveur k3s et un
+  nœud d'agents, la chart installée avec cet exécuteur, l'image de l'agent déclarée et munie de sa clé par
+  l'API, et l'échantillon du contrôle de la composition scanné — chaque scanner un pod sur le nœud des
+  agents, chacun trouvant ce qui lui était destiné. Ses premières exécutions ont trouvé ce qu'aucun test d'une
+  pièce ne pouvait voir : les secrets de l'agent montés en lecture seule à `/run/secrets`, où le kubelet
+  n'avait plus de place pour le jeton du compte de service (l'agent ne démarrait jamais ; ils sont à
+  `/etc/vectispire/secrets` désormais) ; et qu'un seul nœud ne suffit pas, puisque l'anti-affinité du plan
+  de contrôle tient les pods de scan hors de son nœud — comme il se doit.
