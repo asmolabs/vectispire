@@ -60,8 +60,10 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    opérateur atteindrait d'autres charges.
 4. **L'espace de travail entre, et le rapport sort, par `exec`.** L'agent clone comme aujourd'hui, puis
    envoie l'espace de travail dans l'`emptyDir` du pod par `tar` sur `exec`, dans un conteneur d'init qui
-   l'attend ; le scanner démarre une fois qu'il est là, et un sidecar natif « holder » garde le pod en vie
-   après la sortie du scanner pour que son rapport soit lu par une lecture `exec` plafonnée. **Jamais
+   l'attend ; le scanner démarre une fois qu'il est là, et un « holder » — un second conteneur ordinaire qui
+   survit au scanner — garde le pod en marche pour que son rapport soit lu par une lecture `exec` plafonnée.
+   Pas un sidecar natif, comme le prévoyait l'étude : Kubernetes les arrête dès que les conteneurs ordinaires
+   du pod sont sortis, et le rapport partirait avec eux. **Jamais
    depuis les journaux du pod** : le kubelet les fait tourner (10 Mio par défaut), et un rapport coupé lu
    avec indulgence, c'est de nouveau le défaut « absent contre vide ». Au-delà du plafond, c'est un échec,
    pas une troncature, comme aujourd'hui. Aucun secret de clone n'atteint jamais un pod d'analyse.
@@ -94,8 +96,8 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
     l'exécuteur sera porté avec le reste quand il le sera.
 
 **Avant qu'il analyse quoi que ce soit pour l'installation**, tout ce qui suit est vérifié, et les
-résultats sont écrits dans cette décision : le cluster tourne en Kubernetes 1.29 ou plus (sidecars
-natifs) ; sur lui, un `emptyDir` en mémoire avec `sizeLimit` est mesuré pour répondre `ENOSPC` plutôt
+résultats sont écrits dans cette décision : le cluster tourne dans une version de Kubernetes encore
+maintenue en amont ; sur lui, un `emptyDir` en mémoire avec `sizeLimit` est mesuré pour répondre `ENOSPC` plutôt
 qu'une éviction ; son CNI applique les NetworkPolicy, comme la sonde le montre ;
 `scripts/composition-scan-check.sh MODE=agent` donne des **constats identiques** avec l'exécuteur Docker et
 l'exécuteur Kubernetes, analyse d'image comprise, jeux de référence inchangés ; et une revue de sécurité
@@ -104,7 +106,7 @@ du Role, de l'espace de noms et des politiques ne trouve rien au-dessus de faibl
 ## Conséquences
 
 - **Plus aucun Docker** dans une installation Kubernetes qui choisit cet exécuteur ; le sidecar
-  Docker-in-Docker de 0038 reste pour les clusters qui l'admettent et sont antérieurs aux sidecars natifs.
+  Docker-in-Docker de 0038 reste pour les clusters qui admettent les pods privilégiés et le préfèrent.
 - **L'agent détient un droit Kubernetes.** Il est plus étroit que ce qu'un agent détient aujourd'hui — un
   proxy de socket qui ne peut pas refuser un montage de `/`, ou un démon privilégié root sur son nœud —
   mais `pods/exec` est un verbe fort : d'où le Role rendu par le chart et figé par un test.
@@ -118,3 +120,24 @@ du Role, de l'espace de noms et des politiques ne trouve rien au-dessus de faibl
   sans agent ; les plugins de rapport répondent 409 comme 0038 l'a décidé, et restent une décision à part.
 - Un client Kubernetes devient une dépendance de l'agent, relue par `gradle/verification-metadata.xml`
   comme toute autre.
+
+## Maquette, 2026-10-25
+
+`scripts/k8s-executor-spike.sh` déroule le mécanisme avec kubectl et fait les mesures ci-dessus ; il est
+fait pour tourner aussi sur le cluster cible. Sur un cluster k3s jetable, Kubernetes 1.31, les quatre
+vérifications sont passées :
+
+1. Pod Security `restricted`, appliqué à l'espace de noms, refuse un pod qui tourne en root.
+2. Un pod sous la NetworkPolicy hors ligne ne peut pas sortir (le contrôleur de politiques de k3s
+   l'applique).
+3. Une écriture au-delà du `sizeLimit` (8 Mio) d'un `emptyDir` en mémoire s'arrête à la limite sur
+   `ENOSPC` ; le pod n'est pas évincé.
+4. Une étape d'analyse de bout en bout : un espace de travail copié dans un conteneur d'init en attente par
+   `exec` et `tar`, l'image gitleaks épinglée lancée dessus hors ligne sous `restricted` en uid 1000, son
+   rapport relu depuis le holder par `exec` à travers une lecture plafonnée, et le jeton planté dans
+   l'espace de travail trouvé dedans.
+
+Elle a corrigé l'étude sur un point, repris au point 4 de la décision : le holder est un conteneur
+ordinaire, puisqu'un sidecar natif est arrêté avec le pod, et le rapport avec lui — ce qui retire aussi le
+plancher de version des sidecars natifs. Pas encore mesuré : le cluster cible lui-même, et la parité des
+constats entre les deux exécuteurs, qui demande l'exécuteur Java.

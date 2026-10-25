@@ -55,8 +55,10 @@ Three cheaper shapes were weighed on 2026-10-25 and rejected:
    and a test pins its rules: `pods/exec` written wider by an operator would reach other workloads.
 4. **The workspace goes in, and the report comes out, over `exec`.** The agent clones as today, then
    streams the workspace into the pod's `emptyDir` with `tar` over `exec`, into an init container waiting
-   for it; the scanner starts once it is there, and a native-sidecar holder keeps the pod alive after the
-   scanner exits so its report can be read with a capped `exec` read. **Never from the pod's logs**: the
+   for it; the scanner starts once it is there, and a holder — a second ordinary container that outlives
+   the scanner — keeps the pod running so its report can be read with a capped `exec` read. Not a native
+   sidecar, as the study had it: Kubernetes stops those as soon as the pod's ordinary containers have
+   exited, and the report would go with them. **Never from the pod's logs**: the
    kubelet rotates them (10 MiB by default), and a cut report read leniently is the absent-versus-empty
    defect again. Over the ceiling is a failure, not a truncation, as today. No clone credential ever
    reaches a scan pod.
@@ -86,7 +88,7 @@ Three cheaper shapes were weighed on 2026-10-25 and rejected:
     is ported with the rest when it is.
 
 **Before it scans anything for the installation**, all of these hold, and the results are written in
-this record: the cluster runs Kubernetes 1.29 or later (native sidecars); on it, a memory-backed
+this record: the cluster runs a Kubernetes version its upstream still supports; on it, a memory-backed
 `emptyDir` with `sizeLimit` is measured to answer `ENOSPC` rather than an eviction; its CNI enforces
 NetworkPolicy, as the probe shows; `scripts/composition-scan-check.sh MODE=agent` gives **identical
 findings** on the Docker and the Kubernetes backends, the image scan included, with the reference sets
@@ -95,7 +97,7 @@ unchanged; and a security review of the Role, the namespace and the policies fin
 ## Consequences
 
 - **No Docker anywhere** in a Kubernetes installation that chooses this executor; the Docker-in-Docker
-  sidecar of 0038 stays for clusters that allow it and are older than native sidecars.
+  sidecar of 0038 stays for clusters that allow privileged pods and prefer it.
 - **The agent holds a Kubernetes credential.** It is narrower than what an agent holds today — a socket
   proxy that cannot refuse a bind of `/`, or a privileged daemon that is root on its node — but
   `pods/exec` is a strong verb, which is why the Role is rendered by the chart and pinned by a test.
@@ -109,3 +111,22 @@ unchanged; and a security review of the Role, the namespace and the policies fin
   report plugins answer 409 as 0038 decided, and stay a separate decision.
 - A Kubernetes client becomes a dependency of the agent, reviewed through
   `gradle/verification-metadata.xml` like any other.
+
+## Spike, 2026-10-25
+
+`scripts/k8s-executor-spike.sh` runs the mechanism with kubectl and makes the measurements above; it is
+meant to be run on the target cluster too. On a throwaway k3s cluster, Kubernetes 1.31, all four checks
+passed:
+
+1. Pod Security `restricted`, enforced on the namespace, refuses a pod running as root.
+2. A pod under the offline NetworkPolicy cannot reach the outside (k3s's policy controller enforces it).
+3. A write past a memory-backed `emptyDir`'s `sizeLimit` (8 MiB) stops at the limit with `ENOSPC`; the pod
+   is not evicted.
+4. One scan step end to end: a workspace copied into a waiting init container over `exec` and `tar`, the
+   pinned gitleaks image run on it offline under `restricted` as uid 1000, its report read back from the
+   holder over `exec` through a capped read, and the token planted in the workspace found in it.
+
+It corrected the study on one point, now in decision 4: the holder is an ordinary container, since a
+native sidecar is stopped with the pod and the report with it — which also removes the native sidecars'
+version floor. Not yet measured: the target cluster itself, and the parity of findings across the two
+backends, which needs the Java backend.
