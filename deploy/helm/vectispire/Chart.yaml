@@ -6,8 +6,8 @@ description: >-
 type: application
 # The chart's own version, moved when the chart changes. The application's is appVersion, and the
 # image is pinned by digest in values.yaml rather than inferred from it.
-version: 0.1.0
-appVersion: "0.10.0"
+version: 0.2.0
+appVersion: "0.11.1"
 kubeVersion: ">=1.27.0-0"
 home: https://github.com/asmolabs/vectispire
 sources:
