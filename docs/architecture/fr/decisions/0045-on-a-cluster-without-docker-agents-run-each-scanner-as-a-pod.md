@@ -168,7 +168,16 @@ le Role ci-dessus (`kubernetesTest`, dans le job `jvm` de la CI). Ce que la cons
 - **Un montage inscriptible rapporte les fichiers ordinaires que le scanner a écrits, et rien d'autre** :
   les entrées entrent datées de 1970, si bien que `find -type f -mtime -1` désigne ce qui est nouveau ; un
   lien, un nom hors du montage ou un chemin traversant un lien déjà présent est refusé, et l'étape échoue.
+- **Choisi par configuration et rendu par la chart** : `VECTISPIRE_AGENT_EXECUTOR=kubernetes`, refusé au
+  démarrage s'il est incomplet, balayant les restes de cet agent par son nom ; `agents.executor: kubernetes`
+  rend l'espace de noms des scans sous `restricted`, le Role — dont les tests k3s lisent les règles dans le
+  modèle —, les politiques de refus total et de sortie, et l'anti-affinité du plan de contrôle aux pods de
+  scan.
+- **Le serveur d'API est nommé, pas deviné** (`agents.kubernetes.apiServer.cidrs`) : la politique de
+  l'agent l'autorise, et celle de chaque pod de scan l'exclut quoi que couvre `excludeCidrs` — la
+  vérification de la chart a trouvé un pod de scan en ligne qui l'atteignait par un trou dans la liste d'un
+  opérateur.
 - **Pas encore construit** : les cibles image (§8 — `exportImage` fait échouer l'étape, l'inventaire est
-  donc absent), le volume de la base du matcher (§7 — la base est recopiée comme tout montage), les
-  identifiants de registre pour un outil (aucun détenu), les NetworkPolicies et leur sonde (§5 — les pods
-  portent les étiquettes), la sélection par configuration, et le chart.
+  donc absent), le volume de la base du matcher (§7 — la base, quelque 3 Go, est recopiée comme tout
+  montage), les identifiants de registre pour un outil (aucun détenu), et la sonde qui vérifie que le CNI
+  applique les politiques (§5).

@@ -1,0 +1,38 @@
+{{- if and .Values.agents.enabled (eq .Values.agents.executor "kubernetes") .Values.agents.networkPolicy.enabled }}
+# **Nothing in, nothing out, for every scan pod** (decision 0045 §5): the scanners on a tree, the matcher and
+# the plugins that declare no network run here with no route at all, not even DNS. The agent's exec does not
+# cross the pod network — it goes through the API server and the kubelet — so it is not affected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vectispire.fullname" . }}-scans-offline
+  namespace: {{ include "vectispire.scansNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scans
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# The steps that need the network — the matcher's database update, cosign, plugins that declare it — carry
+# `vectispire.dev/network: egress` and get what an agent's scanners got on Docker: the same excluded ranges,
+# the same metadata exclusions, the same allowTo entries. Never the API server.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vectispire.fullname" . }}-scans-online
+  namespace: {{ include "vectispire.scansNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scans
+spec:
+  podSelector:
+    matchLabels:
+      vectispire.dev/network: egress
+  policyTypes:
+    - Egress
+  egress:
+    {{- include "vectispire.scannerEgress" . | nindent 4 }}
+{{- end }}

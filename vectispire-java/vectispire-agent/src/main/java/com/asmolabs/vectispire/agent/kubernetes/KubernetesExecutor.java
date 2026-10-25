@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.scanning.ContainerRunner.OutputFile;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.ScannerLimits;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -22,7 +23,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -54,13 +54,23 @@ public final class KubernetesExecutor implements ContainerExecutor {
      * @param defaultUser {@code uid:gid} for a run that names none: the workspace's owner, the agent's own
      * @param startTimeout how long a pod may take to be scheduled, pull its images and receive its
      *     workspace, before the scanner's own timeout starts
-     * @param nodeSelector where scan pods go: the dedicated pool 0045 §6 requires
+     * @param placement where scan pods go — the dedicated pool 0045 §6 requires: {@code nodeSelector},
+     *     {@code tolerations} and {@code affinity}, and nothing else, copied into each pod's spec
      */
     public record Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
-            ScannerLimits limits, Map<String, String> nodeSelector) {
+            ScannerLimits limits, ObjectNode placement) {
+
+        /** What placement may set: where the pod goes, never what it may do. */
+        static final java.util.Set<String> PLACEMENT = java.util.Set.of("nodeSelector", "tolerations", "affinity");
 
         public Settings {
-            nodeSelector = Map.copyOf(nodeSelector);
+            placement = placement == null ? new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode() : placement.deepCopy();
+            for (String field : (Iterable<String>) placement::fieldNames) {
+                if (!PLACEMENT.contains(field)) {
+                    throw new IllegalArgumentException("The scan pods' placement sets nodeSelector, tolerations and "
+                            + "affinity, not \"" + field + "\".");
+                }
+            }
             agent = ScanPods.labelValue(agent);
         }
     }

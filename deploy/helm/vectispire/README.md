@@ -219,6 +219,19 @@ Docker daemon of its own:
   It also needs, on most clusters, either a privileged container or unconfined seccomp and AppArmor with
   an unmasked `/proc`. It renders only with `agents.dind.rootless.acknowledgeUnreadableWorkspaces: true`.
 
+**Without Docker (`agents.executor: kubernetes`, a preview — decision 0045).** Every scanner run is a pod in
+`agents.kubernetes.scansNamespace`, a namespace of its own enforcing Pod Security `restricted`; the agent's
+service account holds a Role there and nowhere else (pods, `pods/exec` with `create` and `get`, `pods/log`).
+No sidecar and no privileged pod: `agents.dind` is not read. The chart refuses to render:
+
+- the scans' namespace equal to the agents' or the release's — the Role reaches every pod in it;
+- with the policy on, no `agents.kubernetes.apiServer.cidrs` — the API server's endpoints, which the agent
+  calls and which every scan pod is excluded from.
+
+It renders a deny-all policy for every scan pod, and the agents' egress rules for the ones labelled
+`vectispire.dev/network: egress`. Image targets, the database volume and the policy probe are not built
+yet: see the [installation guide](../../../docs-site/getting-started/installation.md#agents-without-docker).
+
 Create the agent on the **Agents** screen, then store its key:
 
 ```bash
@@ -233,8 +246,10 @@ helm lint deploy/helm/vectispire -f deploy/helm/vectispire/ci/no-agents-values.y
 helm template vs deploy/helm/vectispire -f deploy/helm/vectispire/ci/dind-privileged-values.yaml
 ```
 
-CI renders the four value sets under `ci/`: no agents, privileged DinD, rootless DinD, and a single
-namespace with the agents beside the control plane. It checks that the first and the last render nothing
+CI renders the five value sets under `ci/`: no agents, privileged DinD, rootless DinD, a single
+namespace with the agents beside the control plane, and the Kubernetes executor — whose isolation it then
+checks as rendered: the Role's rules, the scans' namespace level, its policies, the control plane's
+anti-affinity. It checks that the first and the last render nothing
 outside the release's namespace.
 
 ## At a release

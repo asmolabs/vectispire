@@ -475,6 +475,37 @@ The chart renders it only with `agents.dind.rootless.acknowledgeUnreadableWorksp
 Each restart of the pod downloads the scanner images and the vulnerability database again — about
 3 GB. `agents.dind.imageCache` keeps the images on a volume.
 
+### Agents in the cluster without Docker (preview) {#agents-without-docker}
+
+`agents.executor: kubernetes` runs every scanner as **a pod of its own**, in a namespace the agent's
+Role reaches and nothing else (decision 0045). No Docker daemon and no privileged pod anywhere, for a
+cluster that allows neither. The chart renders:
+
+- the agent alone in its pod, under Pod Security `restricted`, with a service account;
+- the scans' namespace, `agents.kubernetes.scansNamespace` (`vectispire-scans`), enforcing `restricted`:
+  the API server itself refuses a privileged pod, a `hostPath` or a root user there. It must be a
+  namespace of its own: the chart refuses the agents' or the release's;
+- a **Role in that namespace only**: create, read, list, watch and delete pods, `exec` into them (`create`
+  and `get` on `pods/exec`), read their logs. Nothing cluster-wide, no secret;
+- two NetworkPolicies there: every scan pod denied all traffic, and the steps that need the network
+  (`vectispire.dev/network: egress`) given the agents' own egress rules — never the API server.
+
+Each scan pod copies the workspace in and the report out over `exec`, runs as the workspace's owner with a
+read-only root and no capability, and is deleted after its run. It goes on the agents' nodes
+(`agents.nodeSelector`, `agents.tolerations`, required as with DinD), and the control plane is kept off
+them.
+
+**Required: the API server's addresses** in `agents.kubernetes.apiServer.cidrs` (`kubectl get endpoints
+kubernetes -n default`). They usually lie in a range `excludeCidrs` covers; listed, they are reachable by
+the agent and excluded for every scan pod.
+
+!!! warning "A preview: not every scan runs yet"
+    - **Image targets** fail their image step: the copy step is not built.
+    - **The vulnerability database** (about 3 GB) is copied into each matching pod rather than mounted from
+      a volume.
+    - **The agent does not yet probe** that the cluster's CNI enforces NetworkPolicy. On a CNI that ignores
+      them, a scan pod is not cut off. `scripts/k8s-executor-spike.sh` measures it on your cluster.
+
 ## Running from source
 
 ```bash

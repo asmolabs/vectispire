@@ -457,7 +457,7 @@ jobs:
         working-directory: deploy/helm/vectispire
         run: |
           for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml ci/dind-rootless-values.yaml \
-              ci/single-namespace-values.yaml values.example.yaml; do
+              ci/single-namespace-values.yaml ci/kubernetes-executor-values.yaml values.example.yaml; do
             echo "::group::$values"
             helm lint . --strict -f "$values"
             helm template vs . -n vectispire -f "$values" > rendered.yaml
@@ -524,6 +524,14 @@ jobs:
             --set mail.username=vectispire
           refused -f ci/no-agents-values.yaml --set mail.username=vectispire
           refused -f ci/no-agents-values.yaml --set publicUrl=vectispire.example.org
+          # The Kubernetes executor (decision 0045): a namespace of its own for its scan pods — the Role reaches
+          # every pod there — and the API server named rather than guessed, since excludeCidrs covers it.
+          refused -f ci/kubernetes-executor-values.yaml --set agents.executor=podman
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire-agents
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.apiServer.cidrs=null
+          refused -f ci/kubernetes-executor-values.yaml --set agents.tolerations=null
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |
@@ -554,6 +562,39 @@ jobs:
               grep -A8 'podAntiAffinity' rendered.yaml | grep -q 'namespaceSelector: {}' ||
               { echo "::error::$values: the control plane may share a node with a privileged agent"; exit 1; }
           done
+      # **The Kubernetes executor's isolation, as rendered** (decision 0045): no privileged pod and no daemon
+      # anywhere, the scans' namespace enforcing `restricted`, the Role exactly the measured one and nothing
+      # cluster-wide, scan pods with no route unless they ask for one — and never to the API server, which
+      # the agent alone reaches — and the control plane kept off the scan pods' nodes.
+      - name: the Kubernetes executor renders the isolation decision 0045 describes
+        working-directory: deploy/helm/vectispire
+        run: |
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml > rendered.yaml
+          fail() { echo "::error::$1"; exit 1; }
+          ! grep -nE 'privileged: true|name: dind$|DOCKER_HOST' rendered.yaml || fail "a privileged pod or a daemon in the Kubernetes shape"
+          ! grep -nE '^kind: Cluster' rendered.yaml || fail "something cluster-wide in the Kubernetes shape"
+          [ "$(grep -c '^kind: Role$' rendered.yaml)" = 1 ] || fail "not exactly one Role"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-role.yaml |
+            awk '/^kind: Role$/{r=1} r&&/^rules:/{p=1;next} p&&/^---/{exit} p' > rules.yaml
+          printf '%s\n' '  - apiGroups: [""]' '    resources: [pods]' \
+              '    verbs: [create, get, list, watch, delete, deletecollection]' '  - apiGroups: [""]' \
+              '    resources: [pods/exec]' '    verbs: [create, get]' '  - apiGroups: [""]' '    resources: [pods/log]' \
+              '    verbs: [get]' | diff - rules.yaml || fail "the Role's rules are not the measured ones"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-namespace.yaml |
+            grep -q 'pod-security.kubernetes.io/enforce: restricted' || fail "the scans' namespace does not enforce restricted"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-networkpolicy.yaml > scans.yaml
+          awk '/name: vs-vectispire-scans-offline/,/^---/' scans.yaml | grep -q 'podSelector: {}' &&
+            ! awk '/name: vs-vectispire-scans-offline/,/^---/' scans.yaml | grep -q '^  egress:' ||
+            fail "the scans' default is not deny-all"
+          for cidr in 169.254.0.0/16 10.0.0.10/32; do
+            awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q -- "- $cidr" ||
+              fail "$cidr is not excluded from the online scan pods' egress"
+          done
+          ! awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q 'port: 6443' || fail "scan pods reach the API server"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/networkpolicy.yaml |
+            grep -A3 'cidr: 10.0.0.10/32' | grep -q 'port: 443' || fail "the agent cannot reach the API server"
+          grep -A12 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/agent$' ||
+            fail "the control plane may share a node with a scan pod"
       # **The relay and the public address reach the pod, and nothing does without them.** The chart passed
       # neither before 0.11.1, so no alert, digest or checklist reminder could leave a Kubernetes install.
       # No host must render no mail variable: the application builds a sender as soon as the host exists.

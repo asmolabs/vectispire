@@ -18,38 +18,55 @@ import org.testcontainers.utility.DockerImageName;
  * <p>Privileged, as k3s needs: these tests run under the {@code kubernetesTest} task, never in
  * {@code test}, and fail without Docker rather than skip.
  */
-final class K3sCluster implements AutoCloseable {
+public final class K3sCluster implements AutoCloseable {
 
-    static final String NAMESPACE = "vectispire-scans";
-    static final String BUSYBOX = "busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
+    public static final String NAMESPACE = "vectispire-scans";
+    public static final String BUSYBOX = "busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
 
     /** A version upstream still supports, as 0045 requires of the target. */
     private static final DockerImageName K3S = DockerImageName.parse(
             "rancher/k3s:v1.34.1-k3s1@sha256:5e0707cfd1239b358ef73f3254bc3eadc027dd30cd5ec6ca41e29e47652a1b8c")
             .asCompatibleSubstituteFor("rancher/k3s");
 
-    /** The Role of 0045 §3, verb for verb. */
+    /**
+     * The chart's Role, its rules read from the template the chart renders — so these tests run under the very
+     * rules an installation gets, and a verb the chart drops fails here (decision 0045 §3).
+     */
+    private static final java.nio.file.Path CHART_ROLE =
+            java.nio.file.Path.of("../../deploy/helm/vectispire/templates/agents/scans-role.yaml");
+
+    static String chartRules() {
+        try {
+            String template = Files.readString(CHART_ROLE);
+            String role = template.substring(template.indexOf("kind: Role\n"));
+            String rules = role.substring(role.indexOf("\nrules:\n") + 1, role.indexOf("\n---"));
+            if (rules.contains("{{") || !rules.contains("pods/exec")) {
+                throw new IllegalStateException("The chart's Role rules are not the static block expected: " + rules);
+            }
+            return rules;
+        } catch (IOException unreadable) {
+            throw new IllegalStateException("The chart's Role could not be read from " + CHART_ROLE.toAbsolutePath(), unreadable);
+        }
+    }
+
     private static final String ROLE = """
             apiVersion: rbac.authorization.k8s.io/v1
             kind: Role
             metadata: {name: vectispire-agent, namespace: %1$s}
-            rules:
-            - {apiGroups: [""], resources: [pods], verbs: [create, get, list, watch, delete, deletecollection]}
-            - {apiGroups: [""], resources: [pods/exec], verbs: [create, get]}
-            - {apiGroups: [""], resources: [pods/log], verbs: [get]}
+            %2$s
             ---
             apiVersion: rbac.authorization.k8s.io/v1
             kind: RoleBinding
             metadata: {name: vectispire-agent, namespace: %1$s}
             subjects: [{kind: ServiceAccount, name: vectispire-agent, namespace: %1$s}]
             roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: vectispire-agent}
-            """.formatted(NAMESPACE);
+            """;
 
     private final GenericContainer<?> k3s;
     private final KubernetesApi api;
 
     @SuppressWarnings("resource")
-    K3sCluster() {
+    public K3sCluster() {
         k3s = new GenericContainer<>(K3S)
                 .withPrivilegedMode(true)
                 .withCommand("server", "--disable=traefik,metrics-server,servicelb,local-storage", "--tls-san=localhost")
@@ -63,7 +80,7 @@ final class K3sCluster implements AutoCloseable {
             kubectl("label", "namespace", NAMESPACE, "pod-security.kubernetes.io/enforce=restricted",
                     "pod-security.kubernetes.io/enforce-version=latest");
             kubectl("create", "serviceaccount", "vectispire-agent", "-n", NAMESPACE);
-            apply(ROLE);
+            apply(ROLE.formatted(NAMESPACE, chartRules().stripTrailing()));
             String token = kubectl("create", "token", "vectispire-agent", "-n", NAMESPACE, "--duration=2h").strip();
 
             Path ca = Files.createTempFile("k3s-ca", ".crt");
@@ -77,12 +94,12 @@ final class K3sCluster implements AutoCloseable {
     }
 
     /** The API as the agent's service account sees it — not as the cluster's administrator. */
-    KubernetesApi api() {
+    public KubernetesApi api() {
         return api;
     }
 
     /** As the administrator, for what the test arranges and the agent may not do. */
-    String kubectl(String... arguments) {
+    public String kubectl(String... arguments) {
         try {
             String[] command = new String[arguments.length + 1];
             command[0] = "kubectl";

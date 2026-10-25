@@ -16,42 +16,18 @@ spec:
     - Ingress
     - Egress
   egress:
-    # DNS to anything on port 53 unless `dnsTo` names the resolvers: the chart cannot know them — kube-dns,
-    # a node-local cache on a link-local address, another distribution's own — and a guess that misses
-    # leaves every agent unable to resolve the control plane.
-    - ports:
-        - port: 53
-          protocol: UDP
-        - port: 53
-          protocol: TCP
-      {{- with .Values.agents.networkPolicy.dnsTo }}
-      to:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    # The scanners' traffic leaves through this pod too — the daemon's bridge is behind the pod's
-    # address — so this is what an escaped scanner can reach. The cluster's own ranges belong in
-    # excludeCidrs; the cloud metadata addresses are excluded whatever they say — link-local, and those
-    # outside it that the control plane's guard refuses too: Alibaba's, Oracle's legacy one, Azure's
-    # WireServer. IPv6 egress is not allowed at all, AWS's fd00:ec2::254 with it.
+    {{- include "vectispire.scannerEgress" . | nindent 4 }}
+    {{- if and (eq .Values.agents.executor "kubernetes") .Values.agents.kubernetes.apiServer.cidrs }}
+    # The API server, to the agent alone: its Role's calls. Scan pods have no rule to it (decision 0045).
     - to:
+        {{- range .Values.agents.kubernetes.apiServer.cidrs }}
         - ipBlock:
-            cidr: 0.0.0.0/0
-            except:
-              {{- toYaml (concat (.Values.agents.networkPolicy.excludeCidrs | default list) (list "169.254.0.0/16" "100.100.100.200/32" "192.0.0.192/32" "168.63.129.16/32") | uniq) | nindent 14 }}
-    # One rule per destination, each to the ports it names: a rule without `ports` opens every port of
-    # what it selects, and the destination here usually lies inside a range excluded above — the ingress
-    # controller's pods, which a LoadBalancer address becomes once kube-proxy has translated it. The
-    # entry is the peer, so a namespaceSelector and a podSelector in it are ANDed, never ORed.
-    {{- range .Values.agents.networkPolicy.allowTo }}
-    - to:
-        - {{ toYaml (omit . "ports") | nindent 10 | trim }}
+            cidr: {{ . }}
+        {{- end }}
       ports:
-        {{- range .ports }}
-        - port: {{ .port }}
-          protocol: {{ .protocol | default "TCP" }}
-          {{- with .endPort }}
-          endPort: {{ . }}
-          {{- end }}
+        {{- range .Values.agents.kubernetes.apiServer.ports }}
+        - port: {{ . }}
+          protocol: TCP
         {{- end }}
     {{- end }}
 {{- end }}

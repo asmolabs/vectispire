@@ -156,7 +156,13 @@ above (`kubernetesTest`, in CI's `jvm` job). What building it settled:
 - **A writable mount brings back the regular files the scanner wrote, and nothing else**: entries go in
   dated 1970, so `find -type f -mtime -1` names what is new; a link, a name outside the mount, or a path
   through a link already in the workspace is refused and the step fails.
+- **Chosen by configuration and rendered by the chart**: `VECTISPIRE_AGENT_EXECUTOR=kubernetes`, refused
+  at start when incomplete, sweeping this agent's leftovers by its name; `agents.executor: kubernetes`
+  renders the scans' namespace under `restricted`, the Role — whose rules the k3s tests read from the
+  template — the deny-all and online policies, and the control plane's anti-affinity to scan pods.
+- **The API server is named, not guessed** (`agents.kubernetes.apiServer.cidrs`): the agent's policy allows
+  it, and every scan pod's excludes it whatever `excludeCidrs` covers — the chart's own check found an
+  online scan pod that could reach it through a gap in an operator's list.
 - **Not built yet**: image targets (§8 — `exportImage` fails the step, so the inventory is absent), the
-  matcher's database volume (§7 — the database is copied in like any mount), registry credentials for a tool
-  (none held), the NetworkPolicies and their probe (§5 — pods carry the labels), the selection by
-  configuration, and the chart.
+  matcher's database volume (§7 — the database, some 3 GB, is copied in like any mount), registry
+  credentials for a tool (none held), and the probe that the CNI enforces the policies (§5).

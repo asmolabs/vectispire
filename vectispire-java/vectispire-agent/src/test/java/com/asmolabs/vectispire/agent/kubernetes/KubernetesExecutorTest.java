@@ -21,7 +21,6 @@ import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -58,7 +57,7 @@ class KubernetesExecutorTest {
 
     private static KubernetesExecutor executorWith(ScannerLimits limits) {
         return new KubernetesExecutor(cluster.api(), new KubernetesExecutor.Settings(K3sCluster.NAMESPACE, "test-agent",
-                KubernetesExecutor.HELPER_IMAGE, "1000:1000", Duration.ofMinutes(3), limits, Map.of()));
+                KubernetesExecutor.HELPER_IMAGE, "1000:1000", Duration.ofMinutes(3), limits, null));
     }
 
     /** A shell "scanner": the image has no entrypoint, so the declared one is empty and the command is whole. */

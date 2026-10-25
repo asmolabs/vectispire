@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ScanPodsTest {
@@ -17,7 +16,17 @@ class ScanPodsTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final KubernetesExecutor.Settings SETTINGS = new KubernetesExecutor.Settings("scans", "Agent 1",
             KubernetesExecutor.HELPER_IMAGE, "1000:1000", Duration.ofMinutes(5),
-            new ScannerLimits(2048L * 1024 * 1024, 512, Duration.ofMinutes(15), 1_500_000_000L), Map.of("pool", "scans"));
+            new ScannerLimits(2048L * 1024 * 1024, 512, Duration.ofMinutes(15), 1_500_000_000L), placement());
+
+    private static com.fasterxml.jackson.databind.node.ObjectNode placement() {
+        try {
+            return (com.fasterxml.jackson.databind.node.ObjectNode) new ObjectMapper().readTree("""
+                    {"nodeSelector": {"pool": "scans"},
+                     "tolerations": [{"key": "vectispire.dev/agents", "operator": "Exists", "effect": "NoSchedule"}]}""");
+        } catch (java.io.IOException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+    }
 
     private static JsonNode pod(ContainerRun request, List<String> names) {
         return ScanPods.pod("vs-x", request, SETTINGS, 1000, 1001, names, Duration.ofMinutes(15));
@@ -61,6 +70,7 @@ class ScanPodsTest {
         assertThat(spec.path("automountServiceAccountToken").asBoolean(true)).isFalse();
         assertThat(spec.path("restartPolicy").asText()).isEqualTo("Never");
         assertThat(spec.path("nodeSelector").path("pool").asText()).isEqualTo("scans");
+        assertThat(spec.path("tolerations").get(0).path("key").asText()).isEqualTo("vectispire.dev/agents");
         assertThat(spec.path("activeDeadlineSeconds").asLong()).isPositive();
     }
 
@@ -165,6 +175,15 @@ class ScanPodsTest {
                   "containerStatuses": [{"name": "scanner", "state": {"waiting": {"reason": "ContainerCreating"}}}]}}""");
         assertThat(ScanPods.failure(status)).isEmpty();
         assertThat(ScanPods.pending(status)).contains("0/3 nodes are available");
+    }
+
+    @Test
+    void placementSaysWhereAPodGoesAndNothingElse() throws Exception {
+        var widening = (com.fasterxml.jackson.databind.node.ObjectNode) JSON.readTree("{\"hostNetwork\": true}");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new KubernetesExecutor.Settings("scans", "a",
+                        KubernetesExecutor.HELPER_IMAGE, "1000:1000", Duration.ofMinutes(5), ScannerLimits.DEFAULT, widening))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("hostNetwork");
     }
 
     @Test

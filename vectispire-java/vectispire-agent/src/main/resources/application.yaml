@@ -53,3 +53,18 @@ vectispire:
     # workspaces; a disk that survives a restart spares the first scan after one the download. The
     # daemon mounts it, so it is a path on the daemon's host, like the workspaces.
     vulnerability-db-dir: ${VECTISPIRE_VULNERABILITY_DB_DIR:}
+
+    # **What runs the scanners** (decision 0045). `docker`: the daemon this agent reaches, as every
+    # release before. `kubernetes`: one pod per scanner run in a namespace of its own, for a cluster with
+    # no Docker — the agent then runs in a pod whose service account holds the Role the chart renders.
+    executor:
+      kind: ${VECTISPIRE_AGENT_EXECUTOR:docker}
+      kubernetes:
+        namespace: ${VECTISPIRE_SCANS_NAMESPACE:}
+        # This agent's name on its scan pods, stable across restarts: what its start sweeps.
+        name: ${VECTISPIRE_AGENT_NAME:vectispire-agent}
+        helper-image: ${VECTISPIRE_KUBERNETES_HELPER_IMAGE:}
+        user: ${VECTISPIRE_KUBERNETES_SCAN_USER:}
+        start-timeout: ${VECTISPIRE_KUBERNETES_START_TIMEOUT:5m}
+        # nodeSelector, tolerations and affinity as JSON: the agents' own pool.
+        placement: ${VECTISPIRE_KUBERNETES_PLACEMENT:}

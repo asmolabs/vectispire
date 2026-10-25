@@ -93,7 +93,7 @@ final class ScanPods {
         podSecurity.put("runAsUser", uid);
         podSecurity.put("runAsGroup", gid);
         podSecurity.putObject("seccompProfile").put("type", "RuntimeDefault");
-        settings.nodeSelector().forEach(spec.putObject("nodeSelector")::put);
+        settings.placement().properties().forEach(field -> spec.set(field.getKey(), field.getValue().deepCopy()));
 
         ArrayNode volumes = spec.putArray("volumes");
         volumes.addObject().put("name", "work").putObject("emptyDir");

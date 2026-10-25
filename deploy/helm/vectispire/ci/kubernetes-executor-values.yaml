@@ -1,0 +1,48 @@
+# Rendered in CI: agents in the cluster with the Kubernetes executor (decision 0045) — a pod per scanner run
+# in a namespace of its own under Pod Security restricted, no Docker and no privileged pod anywhere.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+networkPolicy:
+  enabled: true
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+agents:
+  enabled: true
+  executor: kubernetes
+  kubernetes:
+    apiServer:
+      cidrs:
+        - 10.0.0.10/32
+  controlPlaneUrl: https://vectispire.example.org
+  token:
+    secretName: vectispire-agent
+  signingKey:
+    secretName: vectispire-agent
+  nodeSelector:
+    vectispire.dev/agents: "true"
+  tolerations:
+    - key: vectispire.dev/agents
+      operator: Exists
+      effect: NoSchedule
+  networkPolicy:
+    excludeCidrs:
+      - 10.244.0.0/16
+      - 10.96.0.0/12
+      - 10.0.0.0/24
+    allowTo:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ingress-nginx
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: ingress-nginx
+        ports:
+          - port: 443

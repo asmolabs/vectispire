@@ -496,6 +496,39 @@ La chart ne la rend qu'avec `agents.dind.rootless.acknowledgeUnreadableWorkspace
 Chaque redémarrage du pod télécharge de nouveau les images des scanners et la base de
 vulnérabilités — environ 3 Go. `agents.dind.imageCache` garde les images sur un volume.
 
+### Des agents dans le cluster sans Docker (aperçu) {#agents-without-docker}
+
+`agents.executor: kubernetes` exécute chaque scanner **dans un pod à lui**, dans un espace de noms que
+le Role de l'agent atteint, et rien d'autre (décision 0045). Ni démon Docker ni pod privilégié nulle
+part, pour un cluster qui n'admet ni l'un ni l'autre. La chart rend :
+
+- l'agent seul dans son pod, sous Pod Security `restricted`, avec un compte de service ;
+- l'espace de noms des scans, `agents.kubernetes.scansNamespace` (`vectispire-scans`), qui impose
+  `restricted` : le serveur d'API refuse lui-même un pod privilégié, un `hostPath` ou un utilisateur root.
+  Ce doit être un espace de noms à part : la chart refuse celui des agents et celui de la release ;
+- un **Role dans cet espace de noms seulement** : créer, lire, lister, surveiller et supprimer des pods,
+  y faire `exec` (`create` et `get` sur `pods/exec`), lire leurs journaux. Rien à l'échelle du cluster,
+  aucun secret ;
+- deux NetworkPolicies : tout trafic refusé à chaque pod de scan, et les étapes qui ont besoin du réseau
+  (`vectispire.dev/network: egress`) reçoivent les règles de sortie des agents — jamais le serveur d'API.
+
+Chaque pod de scan reçoit l'espace de travail et rend le rapport par `exec`, tourne sous le propriétaire
+de l'espace de travail avec une racine en lecture seule et aucune capacité, et est supprimé après son
+exécution. Il va sur les nœuds des agents (`agents.nodeSelector`, `agents.tolerations`, requis comme avec
+DinD), et le plan de contrôle est tenu à l'écart de ces nœuds.
+
+**Requis : les adresses du serveur d'API** dans `agents.kubernetes.apiServer.cidrs` (`kubectl get
+endpoints kubernetes -n default`). Elles tombent d'ordinaire dans une plage que couvre `excludeCidrs` ;
+listées, l'agent les atteint et chaque pod de scan en est exclu.
+
+!!! warning "Un aperçu : tous les scans ne tournent pas encore"
+    - **Les cibles image** voient leur étape image échouer : l'étape de copie n'est pas construite.
+    - **La base de vulnérabilités** (environ 3 Go) est recopiée dans chaque pod de rapprochement au lieu
+      d'être montée depuis un volume.
+    - **L'agent ne vérifie pas encore** que le CNI du cluster applique les NetworkPolicies. Sur un CNI qui
+      les ignore, un pod de scan n'est pas isolé. `scripts/k8s-executor-spike.sh` le mesure sur votre
+      cluster.
+
 ## Exécuter depuis les sources
 
 ```bash

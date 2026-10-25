@@ -255,6 +255,28 @@ agents:
     limits:
       memory: 1Gi
 
+  # **What runs the scanners.** `dind`: a Docker daemon beside the agent, configured under `dind` below —
+  # privileged, or rootless. `kubernetes`: one pod per scanner run in a namespace of its own, under Pod
+  # Security `restricted` (decision 0045): no Docker and no privileged pod anywhere. The agent's service
+  # account then holds a Role in that namespace only — create, read, list and delete pods, exec into them,
+  # read their logs — and `dind` is not read.
+  executor: dind
+  kubernetes:
+    # **Never the agents' namespace nor the release's**: the Role reaches every pod in it, the agent's own
+    # included. The chart refuses either.
+    scansNamespace: vectispire-scans
+    createNamespace: true
+    # How long a scan pod may take to be scheduled, pull its images and receive its workspace.
+    startTimeout: 5m
+    # **Required with the network policy.** The agent calls the API server, whose real address — the
+    # endpoints of the `kubernetes` Service, `kubectl get endpoints kubernetes -n default` — usually lies in
+    # a range excludeCidrs keeps scanners out of. Listed here, it is reachable by the agent alone, on these
+    # ports; scan pods never are.
+    apiServer:
+      cidrs: []
+      #  - 10.0.0.10/32
+      ports: [443, 6443]
+
   # The work directory: each scan's clone and the vulnerability matcher's database (some 3 GB). Mounted
   # at the same path in the agent and in the daemon, because the daemon resolves a scanner's bind.
   workDir:

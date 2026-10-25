@@ -40,6 +40,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     operator's explicit choice, for its own host
  * @param vulnerabilityDbDir where the matcher's database is downloaded once and shared, read-only, by
  *     every scan this agent runs; blank is a directory beside the workspaces
+ * @param executor what runs the scanners: {@code docker}, a daemon this agent reaches, or {@code
+ *     kubernetes}, a pod per run in a namespace of its own (decision 0045) — see {@link Executor}
  */
 @ConfigurationProperties("vectispire.agent")
 public record AgentProperties(
@@ -51,7 +53,8 @@ public record AgentProperties(
         @DefaultValue("docker") String scannerEngine,
         @DefaultValue("") String signingKey,
         @DefaultValue Images images,
-        @DefaultValue("") String vulnerabilityDbDir) {
+        @DefaultValue("") String vulnerabilityDbDir,
+        @DefaultValue Executor executor) {
 
     private static final Logger log = LoggerFactory.getLogger(AgentProperties.class);
 
@@ -65,6 +68,47 @@ public record AgentProperties(
             @DefaultValue("") String pluginRegistry,
             @DefaultValue("true") boolean pluginSignatureRequired) {}
 
+    /**
+     * @param kind {@code docker} or {@code kubernetes}; anything else stops the start
+     * @param kubernetes read only when {@code kind} is {@code kubernetes}
+     */
+    public record Executor(@DefaultValue("docker") String kind, @DefaultValue Kubernetes kubernetes) {
+
+        public Executor {
+            kind = kind == null || kind.isBlank() ? "docker" : kind.trim().toLowerCase(java.util.Locale.ROOT);
+            kubernetes = kubernetes == null ? new Kubernetes("", "vectispire-agent", "", "", Duration.ofMinutes(5), "") : kubernetes;
+        }
+    }
+
+    /**
+     * @param namespace the scans' namespace, required: the one the chart labels {@code restricted} and
+     *     binds this agent's Role in
+     * @param name this agent's name on every scan pod, so its start can sweep what a crash left — the
+     *     release's name, stable across restarts, never the pod's
+     * @param helperImage the static busybox the wrapper runs; blank keeps the pinned one
+     * @param user {@code uid:gid} for a run that names none; blank is this process's own
+     * @param startTimeout how long a pod may take to be scheduled, pull and receive its workspace
+     * @param placement the scan pods' {@code nodeSelector}, {@code tolerations} and {@code affinity}, as
+     *     JSON — the agents' own pool, which the chart passes through
+     */
+    public record Kubernetes(
+            @DefaultValue("") String namespace,
+            @DefaultValue("vectispire-agent") String name,
+            @DefaultValue("") String helperImage,
+            @DefaultValue("") String user,
+            @DefaultValue("5m") Duration startTimeout,
+            @DefaultValue("") String placement) {
+
+        public Kubernetes {
+            namespace = namespace == null ? "" : namespace.trim();
+            name = name == null || name.isBlank() ? "vectispire-agent" : name.trim();
+            helperImage = helperImage == null ? "" : helperImage.trim();
+            user = user == null ? "" : user.trim();
+            startTimeout = startTimeout == null ? Duration.ofMinutes(5) : startTimeout;
+            placement = placement == null ? "" : placement.trim();
+        }
+    }
+
     /** The pinned scanner digests, for a caller with no opinion about the registry. */
     public AgentProperties(
             String url,
@@ -74,7 +118,7 @@ public record AgentProperties(
             Duration heartbeat,
             String scannerEngine) {
         this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, "",
-                new Images("", "", "", "", "", "", false), "");
+                new Images("", "", "", "", "", "", false), "", null);
     }
 
     /**
@@ -95,6 +139,7 @@ public record AgentProperties(
         // Absent means "no override", which is the same thing every blank field means.
         images = images == null ? new Images("", "", "", "", "", "", false) : images;
         vulnerabilityDbDir = vulnerabilityDbDir == null ? "" : vulnerabilityDbDir.trim();
+        executor = executor == null ? new Executor("docker", null) : executor;
     }
 
     /**

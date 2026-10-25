@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.scanning.BundledRules;
-import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.agent.kubernetes.KubernetesApi;
 import com.asmolabs.vectispire.common.scanning.GitClone;
 import com.asmolabs.vectispire.common.scanning.RulePlacement;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
@@ -88,6 +88,11 @@ public class AgentRunner implements ApplicationRunner {
             log.warn("Unencrypted link to {}: the API key and the results travel in the clear.", properties.url());
         }
 
+        // Docker or a pod per run (decision 0045), chosen before the agent announces itself or claims
+        // anything: misconfigured, it stops the start here rather than failing the first scan.
+        com.asmolabs.vectispire.common.scanning.ContainerExecutor containers =
+                ExecutorChoice.choose(properties.executor(), json, () -> KubernetesApi.inCluster(json));
+
         // **Regenerated on every start, never written.** A restarted agent is a new recipient;
         // there is no key file to protect, rotate or forget, and nothing to recover from the disk
         // of a compromised scanning machine.
@@ -113,7 +118,9 @@ public class AgentRunner implements ApplicationRunner {
                 hostName(),
                 System.getProperty("os.name") + " " + System.getProperty("os.version"),
                 version,
-                properties.scannerEngine()));
+                // What the operator reads on the agents screen: the Kubernetes executor says so, whatever
+                // `scanner-engine` was left at.
+                "kubernetes".equals(properties.executor().kind()) ? "kubernetes" : properties.scannerEngine()));
 
         // **The rule provider, wired to the protocol.** Without it, an agent handed a task naming
         // an uploaded set would fail its SAST step — loudly and correctly, but with no way ever
@@ -124,7 +131,7 @@ public class AgentRunner implements ApplicationRunner {
         // runs and names each by digest; the agent fetches exactly that manifest.
         com.asmolabs.vectispire.common.scanning.PluginProvider plugins = protocol::plugin;
         ScanRunner runner = new ScanRunner(
-                new ContainerRunner(),
+                containers,
                 ScannerImages.PINNED.withOverrides(
                         properties.images().syft(),
                         properties.images().grype(),
