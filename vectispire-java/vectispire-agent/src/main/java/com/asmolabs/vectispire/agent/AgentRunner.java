@@ -90,8 +90,13 @@ public class AgentRunner implements ApplicationRunner {
 
         // Docker or a pod per run (decision 0045), chosen before the agent announces itself or claims
         // anything: misconfigured, it stops the start here rather than failing the first scan.
+        // One download of the matcher's database for every scan this agent runs, kept here — and, on Kubernetes,
+        // its generations served to scan pods from the cache volume.
+        Path matcherDatabase = properties.vulnerabilityDbDir().isBlank()
+                ? com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase.defaultRoot()
+                : Path.of(properties.vulnerabilityDbDir());
         com.asmolabs.vectispire.common.scanning.ContainerExecutor containers =
-                ExecutorChoice.choose(properties.executor(), json, () -> KubernetesApi.inCluster(json));
+                ExecutorChoice.choose(properties.executor(), json, () -> KubernetesApi.inCluster(json), matcherDatabase);
 
         // **Regenerated on every start, never written.** A restarted agent is a new recipient;
         // there is no key file to protect, rotate or forget, and nothing to recover from the disk
@@ -154,10 +159,7 @@ public class AgentRunner implements ApplicationRunner {
                 // means; an agent in DELEGATED still gets its key and never reaches this.
                 GitClone.WithoutKey.HOST_SSH,
                 clock,
-                // One download of the matcher's database for every scan this agent runs, kept here.
-                properties.vulnerabilityDbDir().isBlank()
-                        ? com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase.defaultRoot()
-                        : Path.of(properties.vulnerabilityDbDir()));
+                matcherDatabase);
 
         AgentLoop loop = new AgentLoop(protocol, runner::run, properties, identity.maxConcurrent());
         log.info("Up to {} scan(s) at once, as set on this agent's row.", AgentConcurrency.effective(identity.maxConcurrent()));

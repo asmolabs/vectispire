@@ -100,6 +100,24 @@ class KubernetesExecutorTest {
     }
 
     @Test
+    void aWrittenNameWithALineBreakIsRefusedNotListed() throws IOException {
+        // One name per line: a name with a break in it could make the holder archive a path the scanner chose (L4).
+        Path tree = Files.createDirectories(directory.resolve("tree"));
+        assertThatThrownBy(() -> executor.run(shell("touch \"/repo/x$(printf '\\ny')\"",
+                ContainerRun.Mount.writable(tree.toString(), "/repo"))))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageContaining("line break");
+    }
+
+    @Test
+    void anOutputThatCannotBeReadBackIsAFailureNotAnEmptyReport() {
+        // The scanner removes the file its output goes to: an absent report, never "" (review, L5).
+        assertThatThrownBy(() -> executor.run(shell("rm " + ScanPods.STDOUT + "; echo '[]'")))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageContaining("could not be read back");
+    }
+
+    @Test
     void outputPastTheCeilingIsAFailureNotATruncation() {
         assertThatThrownBy(() -> executor.run(shell("head -c 2000000 /dev/zero")))
                 .isInstanceOf(ScannerFailureException.class)
@@ -170,6 +188,77 @@ class KubernetesExecutorTest {
         while (!cluster.api().pods(K3sCluster.NAMESPACE, ScanPods.LABEL_AGENT + "=test-agent").isEmpty()) {
             assertThat(System.nanoTime()).as("pods left behind").isLessThan(deadline);
             Thread.sleep(250);
+        }
+    }
+
+    @Test
+    void matcherGenerationsAreSeededOnceAndServedFromTheCacheVolume() throws Exception {
+        // The claim in the scans' namespace, as the chart renders it: ReadWriteOnce, k3s's local-path.
+        cluster.apply("""
+                apiVersion: v1
+                kind: PersistentVolumeClaim
+                metadata: {name: matcher-cache, namespace: %s}
+                spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 1Gi}}}
+                """.formatted(K3sCluster.NAMESPACE));
+        Path generations = Files.createDirectories(directory.resolve("db/generations"));
+        KubernetesExecutor cached = new KubernetesExecutor(cluster.api(), new KubernetesExecutor.Settings(
+                K3sCluster.NAMESPACE, "test-agent", KubernetesExecutor.HELPER_IMAGE, "1000:1000", Duration.ofMinutes(3),
+                new ScannerLimits(256L * 1024 * 1024, 512, Duration.ofMinutes(2), 500_000_000L, 1024 * 1024), null,
+                new KubernetesExecutor.MatcherCache("matcher-cache", generations, null)));
+
+        Path first = Files.createDirectories(generations.resolve("1761400000000-aaaaaaaa"));
+        Files.writeString(first.resolve("vulnerability.db"), "first");
+        assertThat(cached.run(shell("cat /cache/vulnerability.db",
+                ContainerRun.Mount.readOnly(first.toString(), "/cache"))).stdout()).isEqualTo("first");
+
+        // A generation never changes once published, so it is not copied again: what the pod reads is the volume's.
+        Files.writeString(first.resolve("vulnerability.db"), "changed on the agent");
+        ContainerResult again = cached.run(shell("cat /cache/vulnerability.db; touch /cache/x 2>/dev/null && echo WROTE",
+                ContainerRun.Mount.readOnly(first.toString(), "/cache")));
+        assertThat(again.stdout()).as("served from the volume, read-only").isEqualTo("first");
+
+        // The agent moves to a new generation and retires the old one: the volume follows.
+        Path second = Files.createDirectories(generations.resolve("1761500000000-bbbbbbbb"));
+        Files.writeString(second.resolve("vulnerability.db"), "second");
+        Files.delete(first.resolve("vulnerability.db"));
+        Files.delete(first);
+        assertThat(cached.run(shell("cat /cache/vulnerability.db",
+                ContainerRun.Mount.readOnly(second.toString(), "/cache"))).stdout()).isEqualTo("second");
+        assertThat(volumeListing()).contains("1761500000000-bbbbbbbb", "1761500000000-bbbbbbbb.complete")
+                .doesNotContain("1761400000000-aaaaaaaa");
+    }
+
+    /** The cache volume's generations, listed by a pod of the test's own: what a scan pod cannot see. */
+    private static String volumeListing() throws InterruptedException {
+        cluster.apply("""
+                apiVersion: v1
+                kind: Pod
+                metadata: {name: cache-lister, namespace: %s}
+                spec:
+                  restartPolicy: Never
+                  automountServiceAccountToken: false
+                  volumes: [{name: c, persistentVolumeClaim: {claimName: matcher-cache}}]
+                  containers:
+                  - name: ls
+                    image: %s
+                    command: [sh, -c, "ls -a /c/generations; sleep 300"]
+                    volumeMounts: [{name: c, mountPath: /c, readOnly: true}]
+                    securityContext: {runAsNonRoot: true, runAsUser: 1000, allowPrivilegeEscalation: false,
+                      capabilities: {drop: [ALL]}, seccompProfile: {type: RuntimeDefault}}
+                """.formatted(K3sCluster.NAMESPACE, K3sCluster.BUSYBOX));
+        long deadline = System.nanoTime() + Duration.ofMinutes(2).toNanos();
+        while (true) {
+            try {
+                String listed = cluster.kubectl("logs", "cache-lister", "-n", K3sCluster.NAMESPACE);
+                if (!listed.isBlank()) {
+                    cluster.kubectl("delete", "pod", "cache-lister", "-n", K3sCluster.NAMESPACE, "--grace-period=0");
+                    return listed;
+                }
+            } catch (IllegalStateException notYet) {
+                // Not started yet.
+            }
+            assertThat(System.nanoTime()).as("the lister ran").isLessThan(deadline);
+            Thread.sleep(500);
         }
     }
 

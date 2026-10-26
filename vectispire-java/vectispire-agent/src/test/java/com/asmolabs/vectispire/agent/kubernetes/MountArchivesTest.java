@@ -52,7 +52,7 @@ class MountArchivesTest {
     void writtenFilesComeBackIntoTheMount() throws IOException {
         Path mount = Files.createDirectories(directory.resolve("mount"));
         Files.writeString(mount.resolve("kept.txt"), "kept");
-        MountArchives.extractWritten(archive("./report.json", "[]", "./deep/er.txt", "x"), mount);
+        MountArchives.extractWritten(archive("./report.json", "[]", "./deep/er.txt", "x"), mount, 1024 * 1024);
 
         assertThat(Files.readString(mount.resolve("report.json"))).isEqualTo("[]");
         assertThat(Files.readString(mount.resolve("deep/er.txt"))).isEqualTo("x");
@@ -62,9 +62,9 @@ class MountArchivesTest {
     @Test
     void aNameOutsideTheMountIsRefused() throws IOException {
         Path mount = Files.createDirectories(directory.resolve("mount"));
-        assertThatThrownBy(() -> MountArchives.extractWritten(archive("../escaped", "x"), mount))
+        assertThatThrownBy(() -> MountArchives.extractWritten(archive("../escaped", "x"), mount, 1024 * 1024))
                 .hasMessageContaining("outside its mount");
-        assertThatThrownBy(() -> MountArchives.extractWritten(archive("/etc/escaped", "x"), mount))
+        assertThatThrownBy(() -> MountArchives.extractWritten(archive("/etc/escaped", "x"), mount, 1024 * 1024))
                 .hasMessageContaining("outside its mount");
         assertThat(directory.resolve("escaped")).doesNotExist();
     }
@@ -74,10 +74,10 @@ class MountArchivesTest {
         Path mount = Files.createDirectories(directory.resolve("mount"));
         Path elsewhere = Files.createDirectories(directory.resolve("elsewhere"));
         Files.createSymbolicLink(mount.resolve("door"), elsewhere);
-        assertThatThrownBy(() -> MountArchives.extractWritten(archive("door/planted", "x"), mount))
+        assertThatThrownBy(() -> MountArchives.extractWritten(archive("door/planted", "x"), mount, 1024 * 1024))
                 .hasMessageContaining("through the link");
         Files.createSymbolicLink(mount.resolve("target"), elsewhere.resolve("file"));
-        assertThatThrownBy(() -> MountArchives.extractWritten(archive("target", "x"), mount))
+        assertThatThrownBy(() -> MountArchives.extractWritten(archive("target", "x"), mount, 1024 * 1024))
                 .hasMessageContaining("over a link");
         assertThat(elsewhere).isEmptyDirectory();
     }
@@ -92,9 +92,16 @@ class MountArchivesTest {
             tar.putArchiveEntry(link);
             tar.closeArchiveEntry();
         }
-        assertThatThrownBy(() -> MountArchives.extractWritten(new ByteArrayInputStream(bytes.toByteArray()), mount))
+        assertThatThrownBy(() -> MountArchives.extractWritten(new ByteArrayInputStream(bytes.toByteArray()), mount, 1024 * 1024))
                 .hasMessageContaining("not a regular file");
         assertThat(mount).isEmptyDirectory();
+    }
+
+    @Test
+    void whatComesBackIsCappedInTotal() throws IOException {
+        Path mount = Files.createDirectories(directory.resolve("mount"));
+        assertThatThrownBy(() -> MountArchives.extractWritten(archive("a", "12345", "b", "67890"), mount, 8))
+                .hasMessageContaining("more than 8 bytes");
     }
 
     private static ByteArrayInputStream archive(String... namesAndContents) throws IOException {

@@ -95,11 +95,11 @@ in a pod's log.
 {{- end -}}
 {{- if eq .Values.agents.executor "kubernetes" -}}
 {{- $scans := include "vectispire.scansNamespace" . -}}
-{{- if not $scans -}}
-{{- fail "agents.kubernetes.scansNamespace is required with the Kubernetes executor: the namespace its scan pods run in, under Pod Security restricted." -}}
-{{- end -}}
 {{- if or (eq $scans (include "vectispire.agentNamespace" .)) (eq $scans .Release.Namespace) -}}
 {{- fail "agents.kubernetes.scansNamespace must be a namespace of its own: the agent's Role creates, execs into and deletes every pod there, and would reach the agent's own pod or the control plane's." -}}
+{{- end -}}
+{{- if and (not .Values.agents.kubernetes.createNamespace) (not .Values.agents.kubernetes.acknowledgeExistingNamespace) -}}
+{{- fail "agents.kubernetes.createNamespace is false: the chart cannot see whether that namespace enforces Pod Security restricted, the ceiling on what the agent's Role can start, nor whether it holds anything else. Set agents.kubernetes.acknowledgeExistingNamespace once it is dedicated and labelled; the agent refuses to start where restricted is not enforced." -}}
 {{- end -}}
 {{- if and .Values.agents.networkPolicy.enabled (not .Values.agents.kubernetes.apiServer.cidrs) -}}
 {{- fail "agents.kubernetes.apiServer.cidrs is required with the Kubernetes executor and the network policy: the agent calls the API server, whose address excludeCidrs usually covers. List its endpoints (kubectl get endpoints kubernetes -n default)." -}}
@@ -172,8 +172,10 @@ agents' nodes and none of the others' (the audit of 10 October 2026). Always ren
 agents is the one whose agents live in another.
 
 **And off the Kubernetes executor's scan pods** (decision 0045), matched on the `vectispire.dev/agent` label each
-carries: they run scanners on hostile trees, and a node is what an escape from one reaches. Two terms, both
-required: a node holding either is refused.
+carries: they run scanners on hostile trees, and a node is what an escape from one reaches. **And off that
+executor's agent pod**, by `vectispire.dev/executor`: it carries no `vectispire.dev/dind` label, and the first
+term let it share the control plane's node (security review of 2026-10-26, L2). Every term is required: a node
+holding any of them is refused.
 */}}
 {{- define "vectispire.controlPlaneAffinity" -}}
 {{- $affinity := deepCopy (.Values.affinity | default dict) -}}
@@ -183,7 +185,9 @@ required: a node holding either is refused.
 {{- $term := dict "labelSelector" $agents "namespaceSelector" dict "topologyKey" "kubernetes.io/hostname" -}}
 {{- $scanPods := dict "matchExpressions" (list (dict "key" "vectispire.dev/agent" "operator" "Exists")) -}}
 {{- $scanTerm := dict "labelSelector" $scanPods "namespaceSelector" dict "topologyKey" "kubernetes.io/hostname" -}}
-{{- $_ := set $anti "requiredDuringSchedulingIgnoredDuringExecution" (concat $required (list $term $scanTerm)) -}}
+{{- $executor := dict "matchExpressions" (list (dict "key" "vectispire.dev/executor" "operator" "Exists")) -}}
+{{- $executorTerm := dict "labelSelector" $executor "namespaceSelector" dict "topologyKey" "kubernetes.io/hostname" -}}
+{{- $_ := set $anti "requiredDuringSchedulingIgnoredDuringExecution" (concat $required (list $term $scanTerm $executorTerm)) -}}
 {{- $_ := set $affinity "podAntiAffinity" $anti -}}
 {{- if $affinity -}}
 {{- toYaml $affinity -}}
@@ -240,7 +244,7 @@ them) and the Kubernetes executor's online scan pods (decision 0045) get the sam
 {{- end -}}
 
 {{- define "vectispire.scansNamespace" -}}
-{{- .Values.agents.kubernetes.scansNamespace -}}
+{{- default (printf "%s-scans" (include "vectispire.fullname" .)) .Values.agents.kubernetes.scansNamespace -}}
 {{- end -}}
 
 {{/* The scan pods' placement, as the agent reads it: the agents' own pool. */}}

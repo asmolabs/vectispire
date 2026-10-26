@@ -75,3 +75,7 @@ vectispire:
         # which are the agent pod's view of its node.
         cpu-millis: ${VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS:2000}
         memory-mib: ${VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB:2048}
+        # The claim in the scans' namespace that keeps the matcher's database generations for scan pods, and
+        # the node this agent runs on, where the pods mounting it go. Blank copies the database into each pod.
+        matcher-cache-claim: ${VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM:}
+        node-name: ${VECTISPIRE_KUBERNETES_NODE_NAME:}

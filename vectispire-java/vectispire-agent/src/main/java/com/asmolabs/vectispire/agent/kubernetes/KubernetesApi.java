@@ -133,6 +133,16 @@ public class KubernetesApi {
         return call("POST", podsPath(namespace), pod, 201).orElseThrow();
     }
 
+    /**
+     * Asks whether {@code pod} would be admitted, creating nothing ({@code dryRun=All}: admission runs, the
+     * object is not stored). The {@code create} verb the Role holds is all it needs.
+     *
+     * @throws KubernetesException carrying the API server's refusal, when it would not be admitted
+     */
+    public void createPodDryRun(String namespace, JsonNode pod) {
+        call("POST", podsPath(namespace) + "?dryRun=All", pod, 201, 200);
+    }
+
     /** The pod, or empty when there is none of that name. */
     public Optional<JsonNode> pod(String namespace, String name) {
         return call("GET", podsPath(namespace) + "/" + segment(name), null, 200);

@@ -82,9 +82,14 @@ Three cheaper shapes were weighed on 2026-10-25 and rejected:
    chart requires); `noexec` and `nosuid` on scratch space (no volume option exists); and `fsize` and the
    inode count of a bounded output, which a memory-backed `emptyDir` with `sizeLimit` replaces — charged to
    the pod's memory, `ENOSPC` past its size — with the capped read behind it.
-7. **The matcher's database lives on a ReadWriteOnce volume the agent owns.** Scanner pods are scheduled
-   on the agent's node and mount it read-only; the download runs as a networked pod on that node, under
-   the same file lock as today. No shared network filesystem: locks over NFS depend on its configuration.
+7. **The matcher's database is kept on a ReadWriteOnce volume in the scans' namespace**, *amended on
+   2026-10-26*: a volume of the agent's, as first written, cannot be mounted by scan pods, since a claim
+   belongs to one namespace. The agent keeps its database as today — downloaded by a networked pod, under
+   the same file lock, into its own directory — and each generation, which never changes once published,
+   is copied onto the volume once, through the receiving container of the first matcher pod that needs it,
+   marked complete, and mounted read-only by every matcher after; generations the agent no longer holds
+   are removed from it. Every pod mounting it is sent to the agent's node, where the volume attaches. No
+   shared network filesystem: locks over NFS depend on its configuration.
 8. **An image target is copied, not pulled by a parser.** A pinned `crane` (or `skopeo`) step copies the
    image into an OCI layout in the workspace, with the registry login handed to it as a file; Syft and
    Grype read the layout offline. Letting them pull would give network and credentials to the parsers of
@@ -163,9 +168,11 @@ above (`kubernetesTest`, in CI's `kubernetes` job, on the runner since `jvm`'s c
 - **The API server is named, not guessed** (`agents.kubernetes.apiServer.cidrs`): the agent's policy allows
   it, and every scan pod's excludes it whatever `excludeCidrs` covers — the chart's own check found an
   online scan pod that could reach it through a gap in an operator's list.
-- **Not built yet**: image targets (§8 — `exportImage` fails the step, so the inventory is absent), the
-  matcher's database volume (§7 — the database, some 3 GB, is copied in like any mount), registry
-  credentials for a tool (none held).
+- **Not built yet**: image targets (§8 — `exportImage` fails the step, so the inventory is absent) and
+  registry credentials for a tool (none held).
+- **The matcher's cache (§7, as amended)**: on k3s a generation is seeded once and then served without a
+  copy — a change made to the agent's copy afterwards does not reach the pod — mounted read-only, and a
+  retired generation is pruned from the volume; the end-to-end check finds its claim bound by the matcher.
 - **The probe (§5) runs at every start**: a pod offline and one online try the API server's address with
   `nc`; either reaching it, or a probe that cannot run, stops the agent. On k3s it refuses the namespace
   with no policy and the online policy whose exclusions miss the API server, and starts under the chart's.
@@ -179,3 +186,26 @@ above (`kubernetesTest`, in CI's `kubernetes` job, on the runner since `jvm`'s c
   where the kubelet then had no place for the service account's token (the agent never started; they are at
   `/etc/vectispire/secrets` now); and that one node is not enough, since the control plane's anti-affinity
   keeps scan pods off its node — as it should.
+
+## Security review, 2026-10-26
+
+A read-only review of the branch at 1072613c0 found nothing critical or high, and two mediums arising from
+operator values, both fixed before merge:
+
+- **M1 — the namespace's level was the chart's alone to set.** With `createNamespace: false` nothing checked
+  that the scans' namespace enforced `restricted`, and a compromised agent could have started a privileged
+  pod there. The agent now proves it at every start — a dry run of a privileged, root, host-mounting pod, which
+  its `create` verb allows, must be refused by Pod Security — with no switch to turn it off; the chart asks for
+  an acknowledgement before using a namespace it did not create.
+- **M2 — one scans namespace for every release.** The default name was shared and the online policy selected
+  scan pods by their network label alone, so two releases would have shared policies and the Role's reach. The
+  namespace is now `<release>-scans` by default, and the online policy selects this agent's pods only.
+
+And the lows: the probe gets a positive control on the pod's loopback, so a missing or broken `nc` reads as an
+unknown rather than as "blocked" (L1); the control plane's anti-affinity also covers the Kubernetes executor's
+agent pod (L2); the work volume has a size — what was copied, what the scanner may write and a margin (L3);
+the copy back refuses a written name with a line break, which would have let the holder archive a path the
+scanner chose (L4); a stdout that cannot be read back fails the step instead of reading as empty (L5); and the
+archive reader refuses sparse entries and caps what it writes. **Left for later, named**: an admission policy
+holding scan pods to their pool against a compromised agent setting `nodeName` (L2, first half — it needs a
+compromise and then a kernel escape), and probing every API server address rather than the Service's.

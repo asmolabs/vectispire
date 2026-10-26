@@ -31,6 +31,9 @@ spec:
   podSelector:
     matchLabels:
       vectispire.dev/network: egress
+      # This release's agent's pods only: another release's policy must never select them, nor this one theirs
+      # (security review of 2026-10-26, M2). The value the agent labels its pods with: VECTISPIRE_AGENT_NAME.
+      vectispire.dev/agent: {{ printf "%s-agent" (include "vectispire.fullname" .) }}
   policyTypes:
     - Egress
   egress:

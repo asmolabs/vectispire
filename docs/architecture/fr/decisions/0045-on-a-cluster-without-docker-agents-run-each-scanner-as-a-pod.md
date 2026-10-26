@@ -89,10 +89,15 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    volume n'existe) ; et `fsize` et le nombre d'inodes d'une sortie bornée, que remplace un `emptyDir` en
    mémoire avec `sizeLimit` — compté dans la mémoire du pod, `ENOSPC` au-delà de sa taille — avec la lecture
    plafonnée derrière.
-7. **La base de l'appariement vit sur un volume ReadWriteOnce de l'agent.** Les pods des scanners sont
-   placés sur le nœud de l'agent et la montent en lecture seule ; le téléchargement tourne dans un pod en
-   réseau sur ce nœud, sous le même verrou de fichier qu'aujourd'hui. Pas de système de fichiers réseau
-   partagé : les verrous sur NFS dépendent de sa configuration.
+7. **La base de l'appariement est conservée sur un volume ReadWriteOnce de l'espace de noms des scans**,
+   *amendé le 2026-10-26* : un volume de l'agent, comme d'abord écrit, ne peut pas être monté par les pods
+   de scan, puisqu'une revendication appartient à un seul espace de noms. L'agent garde sa base comme
+   aujourd'hui — téléchargée par un pod en réseau, sous le même verrou de fichier, dans son propre
+   répertoire — et chaque génération, qui ne change plus une fois publiée, est copiée une fois sur le
+   volume, par le conteneur de réception du premier pod d'appariement qui en a besoin, marquée complète, et
+   montée en lecture seule par chaque appariement ensuite ; les générations que l'agent ne détient plus en
+   sont retirées. Chaque pod qui le monte est envoyé sur le nœud de l'agent, où le volume s'attache. Pas de
+   système de fichiers réseau partagé : les verrous sur NFS dépendent de sa configuration.
 8. **Une cible image est copiée, pas tirée par un analyseur.** Une étape `crane` (ou `skopeo`) épinglée
    copie l'image en disposition OCI dans l'espace de travail, l'identifiant du registre lui étant remis en
    fichier ; Syft et Grype lisent la disposition hors ligne. Les laisser tirer donnerait réseau et
@@ -178,8 +183,11 @@ le Role ci-dessus (`kubernetesTest`, dans le job `kubernetes` de la CI, sur le r
   vérification de la chart a trouvé un pod de scan en ligne qui l'atteignait par un trou dans la liste d'un
   opérateur.
 - **Pas encore construit** : les cibles image (§8 — `exportImage` fait échouer l'étape, l'inventaire est
-  donc absent), le volume de la base du matcher (§7 — la base, quelque 3 Go, est recopiée comme tout
-  montage), et les identifiants de registre pour un outil (aucun détenu).
+  donc absent) et les identifiants de registre pour un outil (aucun détenu).
+- **Le cache de l'appariement (§7, tel qu'amendé)** : sur k3s, une génération est copiée une fois puis
+  servie sans copie — un changement fait ensuite à la copie de l'agent n'atteint pas le pod —, montée en
+  lecture seule, et une génération retirée est supprimée du volume ; le contrôle de bout en bout trouve sa
+  revendication liée par l'appariement.
 - **La sonde (§5) tourne à chaque démarrage** : un pod hors ligne et un en ligne tentent l'adresse du
   serveur d'API avec `nc` ; que l'un l'atteigne, ou qu'une sonde ne puisse pas tourner, arrête l'agent. Sur
   k3s, elle refuse l'espace de noms sans politique et la politique en ligne dont les exclusions manquent le
@@ -195,3 +203,28 @@ le Role ci-dessus (`kubernetesTest`, dans le job `kubernetes` de la CI, sur le r
   n'avait plus de place pour le jeton du compte de service (l'agent ne démarrait jamais ; ils sont à
   `/etc/vectispire/secrets` désormais) ; et qu'un seul nœud ne suffit pas, puisque l'anti-affinité du plan
   de contrôle tient les pods de scan hors de son nœud — comme il se doit.
+
+## Revue de sécurité, 2026-10-26
+
+Une revue en lecture seule de la branche à 1072613c0 n'a rien trouvé de critique ni d'élevé, et deux moyens
+nés des valeurs de l'opérateur, corrigés tous deux avant la fusion :
+
+- **M1 — le niveau de l'espace de noms ne tenait qu'à la chart.** Avec `createNamespace: false`, rien ne
+  vérifiait que l'espace de noms des scans imposait `restricted`, et un agent compromis aurait pu y démarrer un
+  pod privilégié. L'agent le prouve désormais à chaque démarrage — un essai à blanc d'un pod privilégié, root,
+  montant l'hôte, que son verbe `create` permet, doit être refusé par Pod Security —, sans interrupteur pour
+  l'éteindre ; la chart demande un acquittement avant d'utiliser un espace de noms qu'elle n'a pas créé.
+- **M2 — un seul espace de noms de scans pour toutes les releases.** Le nom par défaut était partagé et la
+  politique en ligne choisissait les pods de scan par leur seule étiquette réseau : deux releases auraient
+  partagé politiques et portée du Role. L'espace de noms est désormais `<release>-scans` par défaut, et la
+  politique en ligne ne choisit que les pods de cet agent.
+
+Et les faibles : la sonde reçoit un témoin positif sur la boucle locale du pod, si bien qu'un `nc` absent ou
+cassé se lit comme une inconnue et non comme « bloqué » (L1) ; l'anti-affinité du plan de contrôle couvre aussi
+le pod de l'agent de l'exécuteur Kubernetes (L2) ; le volume de travail a une taille — ce qui a été copié, ce
+que le scanner peut écrire et une marge (L3) ; le retour refuse un nom écrit contenant un saut de ligne, qui
+aurait laissé le holder archiver un chemin choisi par le scanner (L4) ; une sortie standard illisible fait
+échouer l'étape au lieu de se lire comme vide (L5) ; et le lecteur d'archives refuse les entrées creuses et
+plafonne ce qu'il écrit. **Laissés pour plus tard, nommés** : une politique d'admission tenant les pods de scan
+à leur pool face à un agent compromis qui fixerait `nodeName` (L2, première moitié — il faut une compromission
+puis une évasion du noyau), et sonder chaque adresse du serveur d'API plutôt que celle du Service.

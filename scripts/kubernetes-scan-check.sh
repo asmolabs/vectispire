@@ -72,7 +72,7 @@ cleanup() {
     k get pods -A -o wide 2>/dev/null || true
     k logs -n vectispire-agents deploy/vs-vectispire-agent --tail 80 2>/dev/null || true
     k logs -n vectispire deploy/vs-vectispire --tail 40 2>/dev/null || true
-    k get events -n vectispire-scans --sort-by=.lastTimestamp 2>/dev/null | tail -20 || true
+    k get events -n vs-vectispire-scans --sort-by=.lastTimestamp 2>/dev/null | tail -20 || true
   fi
   if [ -z "${KEEP:-}" ]; then
     docker rm -f "$NAME" "$AGENTS_NODE" > /dev/null 2>&1 || true
@@ -437,13 +437,17 @@ if problems:
 # **The scan ran as pods, one per scanner**, scheduled in the scans' namespace — and the two probe pods
 # before them — and none outlived it. Read from the cluster's events, since the agents list does not
 # publish an agent's engine.
-scheduled="$(k get events -n vectispire-scans --field-selector reason=Scheduled \
+scheduled="$(k get events -n vs-vectispire-scans --field-selector reason=Scheduled \
   -o jsonpath='{range .items[*]}{.involvedObject.name}{"\n"}{end}')"
 for pod in vs-network-probe vs-gitleaks-secret-detection vs-syft-directory-sbom vs-grype-sbom-analysis \
     vs-checkov-iac-analysis vs-semgrep-source-code-analysis; do
   grep -q "^$pod-[0-9a-f]\{10\}$" <<< "$scheduled" || fail "no $pod pod was scheduled in the scans' namespace"
 done
-left="$(k get pods -n vectispire-scans -l vectispire.dev/agent --no-headers 2>/dev/null | wc -l | tr -d ' ')"
+# The matcher read its database from the cache volume, not a copy: k3s's local-path claim binds when a pod first
+# mounts it, so a claim still pending is one no matcher pod used.
+claim="$(k get pvc vs-vectispire-matcher-cache -n vs-vectispire-scans -o jsonpath='{.status.phase}' 2> /dev/null || true)"
+[ "$claim" = Bound ] || fail "the matcher's cache claim is \"$claim\": the matcher did not read the database from it"
+left="$(k get pods -n vs-vectispire-scans -l vectispire.dev/agent --no-headers 2>/dev/null | wc -l | tr -d ' ')"
 [ "$left" = 0 ] || fail "$left scan pod(s) outlived the scan"
 
 echo "✓ the chart's Kubernetes shape scans: every scanner ran as a pod, read the tree and found its plant ($(elapsed "$started_at"))"

@@ -527,12 +527,13 @@ jobs:
           # The Kubernetes executor (decision 0045): a namespace of its own for its scan pods — the Role reaches
           # every pod there — and the API server named rather than guessed, since excludeCidrs covers it.
           refused -f ci/kubernetes-executor-values.yaml --set agents.executor=podman
-          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire-agents
           # `-n`: this helper renders in `default` otherwise, and the release's namespace would not be the one named.
           refused -n vectispire -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.apiServer.cidrs=null
           refused -f ci/kubernetes-executor-values.yaml --set agents.tolerations=null
+          # A namespace the chart did not create: its Pod Security level is unseen, so it is acknowledged (M1).
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.createNamespace=false
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |
@@ -596,10 +597,20 @@ jobs:
             grep -A3 'cidr: 10.0.0.10/32' | grep -q 'port: 443' || fail "the agent cannot reach the API server"
           grep -A12 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/agent$' ||
             fail "the control plane may share a node with a scan pod"
+          grep -A20 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/executor$' ||
+            fail "the control plane may share a node with the Kubernetes executor's agent"
+          # One release's online policy selects its own agent's scan pods only (review of 2026-10-26, M2).
+          awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q 'vectispire.dev/agent: vs-vectispire-agent' ||
+            fail "the online policy would select another release's scan pods"
           # The agent's own secrets are not mounted at /run/secrets: /var/run is /run in its image, and the
           # service account's token could not be mounted beside them — the agent never started (measured).
           ! helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/deployment.yaml |
             grep -q 'mountPath: /run/secrets' || fail "the agent's secrets hide the service account token's mountpoint"
+          # The matcher's database is kept for scan pods in their own namespace (0045 §7), and the agent is told
+          # the claim and its node.
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-matcher-cache.yaml |
+            grep -q '^  namespace: vs-vectispire-scans$' || fail "the matcher's cache is not in the scans' namespace"
+          grep -q 'name: VECTISPIRE_KUBERNETES_NODE_NAME' rendered.yaml || fail "the agent is not told its node"
           # The agent proves the policies are enforced before it scans, unless the operator turned them off.
           grep -A1 'name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION' rendered.yaml | grep -q 'value: "true"' ||
             fail "the agent is not asked to prove its scan pods are cut off"

@@ -98,6 +98,10 @@ public record AgentProperties(
      *     never derived from this JVM's cores</b>: those are the agent pod's view of its node, and scan pods
      *     asking for all but one of them could not be scheduled beside anything — measured, on k3s
      * @param memoryMiB the scanner's memory, request and limit alike
+     * @param matcherCacheClaim the claim in the scans' namespace that keeps the matcher's database for scan pods
+     *     (decision 0045 §7); blank copies the database into each matcher pod
+     * @param nodeName the node this agent runs on — the downward API's {@code spec.nodeName} — where every pod
+     *     mounting the matcher's cache goes, since the claim attaches to one node
      */
     public record Kubernetes(
             @DefaultValue("") String namespace,
@@ -109,7 +113,9 @@ public record AgentProperties(
             @DefaultValue("true") boolean requireIsolation,
             @DefaultValue("") String probeTarget,
             @DefaultValue("2000") int cpuMillis,
-            @DefaultValue("2048") int memoryMiB) {
+            @DefaultValue("2048") int memoryMiB,
+            @DefaultValue("") String matcherCacheClaim,
+            @DefaultValue("") String nodeName) {
 
         /** The one the binder uses — marked, because the convenience constructor below makes two (see the outer record's). */
         @ConstructorBinding
@@ -121,6 +127,8 @@ public record AgentProperties(
             startTimeout = startTimeout == null ? Duration.ofMinutes(5) : startTimeout;
             placement = placement == null ? "" : placement.trim();
             probeTarget = probeTarget == null ? "" : probeTarget.trim();
+            matcherCacheClaim = matcherCacheClaim == null ? "" : matcherCacheClaim.trim();
+            nodeName = nodeName == null ? "" : nodeName.trim();
             if (cpuMillis <= 0 || memoryMiB <= 0) {
                 throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are "
                         + "positive: a scan pod with no limit is not in the closed shape. The agent does not start.");
@@ -130,7 +138,7 @@ public record AgentProperties(
         /** Without the two probe settings: isolation required, against the API server. */
         public Kubernetes(String namespace, String name, String helperImage, String user, Duration startTimeout,
                 String placement) {
-            this(namespace, name, helperImage, user, startTimeout, placement, true, "", 2000, 2048);
+            this(namespace, name, helperImage, user, startTimeout, placement, true, "", 2000, 2048, "", "");
         }
     }
 

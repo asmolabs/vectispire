@@ -50,7 +50,7 @@ class ExecutorChoiceClusterTest {
 
     private static AgentProperties.Kubernetes settings(boolean requireIsolation) {
         return new AgentProperties.Kubernetes(K3sCluster.NAMESPACE, "vs-agent", "", "1000:1000", Duration.ofMinutes(3), "",
-                requireIsolation, apiService + ":443", 250, 128);
+                requireIsolation, apiService + ":443", 250, 128, "", "");
     }
 
     /** The chart's two policies for the scans' namespace, as `scans-networkpolicy.yaml` renders them. */
@@ -76,8 +76,22 @@ class ExecutorChoiceClusterTest {
     }
 
     @Test
+    void aScansNamespaceThatWouldAdmitAPrivilegedPodStopsTheStart() {
+        // A namespace created outside the chart, without the label: the Role's ceiling is gone (review, M1).
+        cluster.kubectl("label", "namespace", K3sCluster.NAMESPACE, "pod-security.kubernetes.io/enforce-");
+        try {
+            assertThatThrownBy(() -> ExecutorChoice.kubernetes(settings(false), JSON, cluster::api, java.nio.file.Path.of("db")))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("would admit a privileged pod");
+        } finally {
+            cluster.kubectl("label", "namespace", K3sCluster.NAMESPACE, "pod-security.kubernetes.io/enforce=restricted",
+                    "--overwrite");
+        }
+    }
+
+    @Test
     void withoutPoliciesTheStartIsRefused() {
-        assertThatThrownBy(() -> ExecutorChoice.kubernetes(settings(true), JSON, cluster::api))
+        assertThatThrownBy(() -> ExecutorChoice.kubernetes(settings(true), JSON, cluster::api, java.nio.file.Path.of("db")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("offline scan pod reached the API server")
                 .hasMessageContaining("does not start");
@@ -86,14 +100,14 @@ class ExecutorChoiceClusterTest {
     @Test
     void withTheChartsPoliciesItStarts() {
         chartPolicies("169.254.0.0/16, " + apiService + "/32, " + apiEndpoint + "/32");
-        assertThat(ExecutorChoice.kubernetes(settings(true), JSON, cluster::api).isAvailable()).isTrue();
+        assertThat(ExecutorChoice.kubernetes(settings(true), JSON, cluster::api, java.nio.file.Path.of("db")).isAvailable()).isTrue();
     }
 
     @Test
     void anOnlinePolicyThatLetsScanPodsReachTheApiServerIsRefused() {
         // The gap the chart's check found: an online rule whose exclusions miss the API server.
         chartPolicies("169.254.0.0/16");
-        assertThatThrownBy(() -> ExecutorChoice.kubernetes(settings(true), JSON, cluster::api))
+        assertThatThrownBy(() -> ExecutorChoice.kubernetes(settings(true), JSON, cluster::api, java.nio.file.Path.of("db")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("online scan pod reached the API server");
     }
@@ -111,7 +125,7 @@ class ExecutorChoiceClusterTest {
                     """.formatted(pod[0], pod[1], K3sCluster.BUSYBOX)));
         }
         // Isolation not required: the operator's acknowledged choice, and the sweep alone is under test here.
-        KubernetesExecutor executor = ExecutorChoice.kubernetes(settings(false), JSON, cluster::api);
+        KubernetesExecutor executor = ExecutorChoice.kubernetes(settings(false), JSON, cluster::api, java.nio.file.Path.of("db"));
 
         assertThat(executor.isAvailable()).isTrue();
         long deadline = System.nanoTime() + Duration.ofMinutes(1).toNanos();

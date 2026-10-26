@@ -111,14 +111,24 @@ final class MountArchives {
      *
      * @return the files written, relative to {@code destination}
      */
-    static List<String> extractWritten(InputStream archive, Path destination) throws IOException {
+    static List<String> extractWritten(InputStream archive, Path destination, long ceiling) throws IOException {
         Path root = destination.toRealPath();
         java.util.ArrayList<String> written = new java.util.ArrayList<>();
+        long total = 0;
         try (TarArchiveInputStream tar = new TarArchiveInputStream(archive)) {
             for (TarArchiveEntry entry; (entry = tar.getNextEntry()) != null; ) {
                 String name = entry.getName();
                 if (entry.isDirectory()) {
                     continue;
+                }
+                // A sparse entry expands to its declared size from a few bytes: refused, and the total capped, so
+                // what comes back can never be larger than what crossed the wire (review of 2026-10-26).
+                if (entry.isSparse()) {
+                    throw new IOException("It wrote " + name + " as a sparse file, which is not brought back.");
+                }
+                total += entry.getSize();
+                if (total > ceiling) {
+                    throw new IOException("It wrote more than " + ceiling + " bytes into its workspace.");
                 }
                 if (!regular(entry)) {
                     throw new IOException("It wrote " + name + ", which is not a regular file; nothing is brought back but files.");

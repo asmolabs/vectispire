@@ -1,0 +1,25 @@
+{{- if and .Values.agents.enabled (eq .Values.agents.executor "kubernetes") .Values.agents.kubernetes.matcherCache.enabled }}
+# **The matcher's database, for scan pods** (decision 0045 §7). In the scans' namespace, since a claim belongs to
+# one and scan pods can mount only theirs; ReadWriteOnce, since every pod mounting it is sent to the agent's node.
+# The agent copies each generation of the database onto it once, through a scan pod's receiving container, and
+# removes those it no longer holds. Kept across upgrades and restarts: a new agent finds the generations already
+# there and copies nothing.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vectispire.fullname" . }}-matcher-cache
+  namespace: {{ include "vectispire.scansNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scans
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.agents.kubernetes.matcherCache.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.agents.kubernetes.matcherCache.size }}
+{{- end }}

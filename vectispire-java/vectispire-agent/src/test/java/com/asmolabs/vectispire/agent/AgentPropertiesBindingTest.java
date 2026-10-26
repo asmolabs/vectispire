@@ -180,7 +180,9 @@ class AgentPropertiesBindingTest {
                 "VECTISPIRE_KUBERNETES_PLACEMENT", "{\"nodeSelector\":{\"pool\":\"scans\"}}",
                 "VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION", "false",
                 "VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS", "500",
-                "VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB", "1024")));
+                "VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB", "1024",
+                "VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM", "vs-vectispire-matcher-cache",
+                "VECTISPIRE_KUBERNETES_NODE_NAME", "node-a")));
         AgentProperties.Executor executor = Binder.get(environment).bind("vectispire.agent", AgentProperties.class).get().executor();
         assertThat(executor.kind()).isEqualTo("kubernetes");
         assertThat(executor.kubernetes().namespace()).isEqualTo("vectispire-scans");
@@ -190,6 +192,8 @@ class AgentPropertiesBindingTest {
         assertThat(executor.kubernetes().requireIsolation()).isFalse();
         assertThat(executor.kubernetes().cpuMillis()).isEqualTo(500);
         assertThat(executor.kubernetes().memoryMiB()).isEqualTo(1024);
+        assertThat(executor.kubernetes().matcherCacheClaim()).isEqualTo("vs-vectispire-matcher-cache");
+        assertThat(executor.kubernetes().nodeName()).isEqualTo("node-a");
         assertThat(plain.executor().kubernetes().requireIsolation()).as("required unless said otherwise").isTrue();
     }
 }

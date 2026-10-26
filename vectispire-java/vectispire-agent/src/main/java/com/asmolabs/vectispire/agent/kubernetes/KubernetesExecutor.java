@@ -56,9 +56,17 @@ public final class KubernetesExecutor implements ContainerExecutor {
      *     workspace, before the scanner's own timeout starts
      * @param placement where scan pods go — the dedicated pool 0045 §6 requires: {@code nodeSelector},
      *     {@code tolerations} and {@code affinity}, and nothing else, copied into each pod's spec
+     * @param cache where the matcher's database generations are kept for scan pods, or {@code null} to copy
+     *     each into its pod like any mount
      */
     public record Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
-            ScannerLimits limits, ObjectNode placement) {
+            ScannerLimits limits, ObjectNode placement, MatcherCache cache) {
+
+        /** Without a matcher cache: every mount is copied. */
+        public Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
+                ScannerLimits limits, ObjectNode placement) {
+            this(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, null);
+        }
 
         /** What placement may set: where the pod goes, never what it may do. */
         static final java.util.Set<String> PLACEMENT = java.util.Set.of("nodeSelector", "tolerations", "affinity");
@@ -75,6 +83,30 @@ public final class KubernetesExecutor implements ContainerExecutor {
         }
     }
 
+    /**
+     * **The matcher's database, kept once per generation where scan pods can mount it** (decision 0045 §7).
+     *
+     * <p>The database is some 3 GB, and copied into each matcher pod like any mount it would cross the API
+     * server at every scan. A volume of the agent's cannot be shared: a claim belongs to one namespace, and scan
+     * pods live in another. So the claim is in the scans' namespace, and each generation — a directory
+     * {@code VulnerabilityDatabase} publishes once and never changes — is copied onto it the first time a pod
+     * needs it, then mounted read-only by every matcher after.
+     *
+     * @param claim the ReadWriteOnce claim in the scans' namespace
+     * @param generations the agent's own {@code generations} directory: a read-only mount of one of its entries
+     *     is served from the cache
+     * @param node the agent's node: every pod mounting the claim goes there, since the claim attaches to one
+     */
+    public record MatcherCache(String claim, Path generations, String node) {
+
+        public MatcherCache {
+            generations = generations.toAbsolutePath().normalize();
+        }
+    }
+
+    /** A generation's name, as {@code VulnerabilityDatabase} writes it: nothing a shell or a path could misread. */
+    private static final java.util.regex.Pattern GENERATION = java.util.regex.Pattern.compile("[0-9a-z][0-9a-z-]{0,63}");
+
     /** The static busybox the wrapper runs: musl, so it needs nothing of the scanner's image. */
     public static final String HELPER_IMAGE =
             "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092";
@@ -86,6 +118,8 @@ public final class KubernetesExecutor implements ContainerExecutor {
 
     private final KubernetesApi api;
     private final Settings settings;
+    /** One seeding at a time: two matcher pods must not both copy the same generation onto the volume. */
+    private final java.util.concurrent.locks.ReentrantLock seeding = new java.util.concurrent.locks.ReentrantLock();
 
     public KubernetesExecutor(KubernetesApi api, Settings settings) {
         this.api = api;
@@ -118,6 +152,39 @@ public final class KubernetesExecutor implements ContainerExecutor {
         api.deletePods(settings.namespace(), ScanPods.LABEL_AGENT + "=" + settings.agent());
     }
 
+    /**
+     * **Does the scans' namespace refuse a privileged pod?** (decision 0045 §3) Asked of the API server with a
+     * dry run of the widest pod there is — privileged, root, the host's filesystem, its network and PIDs — since
+     * the Role cannot read the namespace's labels. Only Pod Security's own refusal counts: a pod admitted, or
+     * refused for any other reason, says nothing about the ceiling, and a compromised agent would start that pod
+     * for real (the security review of 2026-10-26, M1).
+     *
+     * @return {@link Isolation#ENFORCED} when Pod Security refused it, {@link Isolation#NOT_ENFORCED} when it
+     *     would have been admitted
+     * @throws KubernetesException for any other answer: an unknown
+     */
+    public Isolation podSecurity() {
+        com.fasterxml.jackson.databind.node.ObjectNode pod = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+        pod.put("apiVersion", "v1").put("kind", "Pod");
+        pod.putObject("metadata").put("name", "vs-pod-security-probe");
+        com.fasterxml.jackson.databind.node.ObjectNode spec = pod.putObject("spec");
+        spec.put("hostNetwork", true).put("hostPID", true);
+        spec.putArray("volumes").addObject().put("name", "host").putObject("hostPath").put("path", "/");
+        com.fasterxml.jackson.databind.node.ObjectNode container = spec.putArray("containers").addObject();
+        container.put("name", "probe").put("image", settings.helperImage());
+        container.putObject("securityContext").put("privileged", true).put("runAsUser", 0);
+        container.putArray("volumeMounts").addObject().put("name", "host").put("mountPath", "/host");
+        try {
+            api.createPodDryRun(settings.namespace(), pod);
+            return Isolation.NOT_ENFORCED;
+        } catch (KubernetesException refused) {
+            if (refused.status() == 403 && refused.getMessage().contains("PodSecurity")) {
+                return Isolation.ENFORCED;
+            }
+            throw refused;
+        }
+    }
+
     /** What a probe found: whether a scan pod is cut off from the address it tried. */
     public enum Isolation { ENFORCED, NOT_ENFORCED }
 
@@ -138,8 +205,12 @@ public final class KubernetesExecutor implements ContainerExecutor {
         if (!host.matches("[0-9A-Fa-f.:]+") || port <= 0 || port > 65535) {
             throw new IllegalArgumentException("The probe's target is an address and a port, not \"" + host + ":" + port + "\".");
         }
+        // **A connection on the pod's own loopback first, which must succeed**: without it, an image whose `nc`
+        // is missing or broken would fail every connection and read as "blocked" (review of 2026-10-26, L1).
         ContainerRun probe = ContainerRun.of(settings.helperImage(), List.of("sh", "-c",
-                "if nc -w 5 " + host + " " + port + " </dev/null >/dev/null 2>&1; then echo REACHED; else echo BLOCKED; fi"),
+                "nc -l -p 7777 -s 127.0.0.1 >/dev/null 2>&1 & sleep 1; "
+                        + "if ! nc -w 2 127.0.0.1 7777 </dev/null >/dev/null 2>&1; then echo NO-CONTROL; exit 0; fi; "
+                        + "if nc -w 5 " + host + " " + port + " </dev/null >/dev/null 2>&1; then echo REACHED; else echo BLOCKED; fi"),
                 List.of(), "network probe").withEntrypoint(List.of()).withTimeout(Duration.ofMinutes(1));
         String said = run(online ? probe.withNetwork() : probe).stdout().strip();
         return switch (said) {
@@ -177,17 +248,21 @@ public final class KubernetesExecutor implements ContainerExecutor {
             throw new IllegalArgumentException("A bounded output needs the user it belongs to.");
         }
         long[] owner = owner(request.user() == null ? settings.defaultUser() : request.user(), label);
-        List<String> names = new ArrayList<>();
+        List<ScanPods.MountSource> sources = new ArrayList<>();
         for (ContainerRun.Mount mount : request.mounts()) {
             Path source = Path.of(mount.source());
             if (!Files.exists(source)) {
                 throw ScannerFailureException.of(label, "Its mount " + mount.source() + " does not exist.");
             }
+            if (cachedGeneration(mount, source)) {
+                sources.add(new ScanPods.MountSource(true, source.getFileName().toString()));
+                continue;
+            }
             String name = MountArchives.nameOf(source);
             if (!mount.readOnly() && !name.isEmpty()) {
                 throw new IllegalArgumentException("A writable mount is a directory here: " + mount.source() + ".");
             }
-            names.add(name);
+            sources.add(new ScanPods.MountSource(false, name));
         }
 
         String slug = ScanPods.labelValue(label).replaceAll("[^a-z0-9-]", "-");
@@ -196,14 +271,20 @@ public final class KubernetesExecutor implements ContainerExecutor {
         RANDOM.nextBytes(suffix);
         String pod = "vs-" + slug + "-" + HexFormat.of().formatHex(suffix);
         try {
-            api.createPod(settings.namespace(), ScanPods.pod(pod, request, settings, owner[0], owner[1], names, timeout));
+            api.createPod(settings.namespace(),
+                    ScanPods.pod(pod, request, settings, owner[0], owner[1], sources, copiedBytes(request, sources), timeout));
         } catch (KubernetesException refused) {
             throw ScannerFailureException.of(label, "Its pod could not be created: " + refused.getMessage());
         }
         try {
             awaitReceiving(pod, label);
             for (int i = 0; i < request.mounts().size(); i++) {
-                copyIn(pod, i, Path.of(request.mounts().get(i).source()), label);
+                Path source = Path.of(request.mounts().get(i).source());
+                if (sources.get(i).cached()) {
+                    seed(pod, source, label);
+                } else {
+                    copyIn(pod, i, source, label);
+                }
             }
             exec(pod, ScanPods.RECEIVE, List.of("touch", ScanPods.RECEIVED), SMALL, label);
 
@@ -222,10 +303,15 @@ public final class KubernetesExecutor implements ContainerExecutor {
                     throw ScannerFailureException.of(label, "Scanner \"" + label + "\" wrote more than " + outputBytes()
                             + " bytes of output; it was stopped and its output discarded.");
                 }
+                KubernetesApi.ExecResult err = exec(pod, ScanPods.HOLDER, List.of("head", "-c",
+                        String.valueOf(ContainerRunner.STDERR_BYTES), ScanPods.STDERR), ContainerRunner.STDERR_BYTES, label);
+                if (out.exitCode() != 0 || err.exitCode() != 0) {
+                    // An output that could not be read is absent, not empty (0007; review of 2026-10-26, L5).
+                    throw ScannerFailureException.of(label, "Scanner \"" + label + "\"'s output could not be read back: "
+                            + excerpt(out.stderr() + err.stderr()));
+                }
                 stdout = new String(out.stdout(), StandardCharsets.UTF_8);
-                stderr = new String(exec(pod, ScanPods.HOLDER, List.of("head", "-c",
-                        String.valueOf(ContainerRunner.STDERR_BYTES), ScanPods.STDERR), ContainerRunner.STDERR_BYTES, label)
-                        .stdout(), StandardCharsets.UTF_8);
+                stderr = new String(err.stdout(), StandardCharsets.UTF_8);
             } else {
                 // No entrypoint declared, so no wrapper: the tool wrote to its log, read as a diagnostic only.
                 // Its standard output is not captured, and a caller parsing it reads an absent report.
@@ -252,6 +338,114 @@ public final class KubernetesExecutor implements ContainerExecutor {
                 // The sweep at the next start removes it; the run's own outcome is what matters here.
             }
         }
+    }
+
+    /** What the copied mounts hold, in bytes, links not followed: what the work volume receives. */
+    private static long copiedBytes(ContainerRun request, List<ScanPods.MountSource> sources) {
+        long total = 0;
+        for (int i = 0; i < request.mounts().size(); i++) {
+            if (sources.get(i).cached()) {
+                continue;
+            }
+            try (java.util.stream.Stream<Path> files = Files.walk(Path.of(request.mounts().get(i).source()))) {
+                total += files.filter(file -> Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                        .mapToLong(file -> {
+                            try {
+                                return Files.size(file);
+                            } catch (IOException unreadable) {
+                                return 0;
+                            }
+                        }).sum();
+            } catch (IOException unreadable) {
+                // Counted as nothing: the copy that follows reads the same tree and fails on it, by name.
+            }
+        }
+        return total;
+    }
+
+    /** A read-only mount of one of the agent's database generations, with a cache to serve it from. */
+    private boolean cachedGeneration(ContainerRun.Mount mount, Path source) {
+        MatcherCache cache = settings.cache();
+        if (cache == null || !mount.readOnly()) {
+            return false;
+        }
+        Path absolute = source.toAbsolutePath().normalize();
+        return cache.generations().equals(absolute.getParent())
+                && Files.isDirectory(absolute, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                && GENERATION.matcher(absolute.getFileName().toString()).matches();
+    }
+
+    /**
+     * Puts {@code generation} on the cache volume unless it is there already, through the pod's receiving
+     * container, then removes the generations the agent no longer holds.
+     *
+     * <p><b>Complete or absent.</b> It is received into a directory of its own, renamed into place, and only
+     * then marked {@code <name>.complete}; a generation without its mark — an agent that died mid-copy — is
+     * removed and copied again. Names are checked against what {@code VulnerabilityDatabase} writes before
+     * they reach a shell.
+     */
+    private void seed(String pod, Path generation, String label) {
+        String name = generation.getFileName().toString();
+        String root = ScanPods.CACHE + "/" + ScanPods.GENERATIONS;
+        seeding.lock();
+        try {
+            if (exec(pod, ScanPods.RECEIVE, List.of("test", "-f", root + "/" + name + ".complete"), SMALL, label).exitCode() != 0) {
+                String partial = root + "/." + name + ".partial";
+                AtomicReference<IOException> unreadable = new AtomicReference<>();
+                PipedInputStream in = new PipedInputStream(1024 * 1024);
+                Thread writer;
+                try {
+                    PipedOutputStream out = new PipedOutputStream(in);
+                    writer = Thread.ofVirtual().start(() -> {
+                        try (OutputStream closing = out) {
+                            MountArchives.write(generation, closing);
+                        } catch (IOException failed) {
+                            unreadable.set(failed);
+                        }
+                    });
+                } catch (IOException impossible) {
+                    throw new IllegalStateException(impossible);
+                }
+                KubernetesApi.ExecResult received;
+                try (InputStream reading = in) {
+                    received = api.exec(settings.namespace(), pod, ScanPods.RECEIVE, List.of("sh", "-c",
+                            "rm -rf " + root + "/" + name + " " + partial + " && mkdir -p " + partial + " && tar -x -C " + partial),
+                            reading, SMALL, settings.startTimeout());
+                } catch (IOException closing) {
+                    throw ScannerFailureException.of(label, "The matcher's database could not be sent: " + closing.getMessage());
+                }
+                join(writer);
+                if (unreadable.get() != null || received.exitCode() != 0) {
+                    throw ScannerFailureException.of(label, "The matcher's database could not be put on its volume: "
+                            + (unreadable.get() != null ? unreadable.get().getMessage() : excerpt(received.stderr())));
+                }
+                if (exec(pod, ScanPods.RECEIVE, List.of("sh", "-c", "mv " + partial + " " + root + "/" + name
+                        + " && touch " + root + "/" + name + ".complete"), SMALL, label).exitCode() != 0) {
+                    throw ScannerFailureException.of(label, "The matcher's database could not be marked complete on its volume.");
+                }
+            }
+            prune(pod, name, label);
+        } finally {
+            seeding.unlock();
+        }
+    }
+
+    /** Removes from the volume every generation the agent no longer holds: the volume follows the agent's cache. */
+    private void prune(String pod, String using, String label) {
+        java.util.Set<String> held = new java.util.TreeSet<>(List.of(using));
+        try (java.util.stream.Stream<Path> entries = Files.list(settings.cache().generations())) {
+            entries.map(entry -> entry.getFileName().toString()).filter(entry -> GENERATION.matcher(entry).matches())
+                    .forEach(held::add);
+        } catch (IOException unreadable) {
+            return; // Nothing removed: a generation kept too long costs space, one removed too early a scan.
+        }
+        String root = ScanPods.CACHE + "/" + ScanPods.GENERATIONS;
+        StringBuilder script = new StringBuilder("cd " + root + " && for entry in * .*.partial; do case \"$entry\" in");
+        for (String generation : held) {
+            script.append(" ").append(generation).append("|").append(generation).append(".complete) ;;");
+        }
+        script.append(" '*'|'.*.partial') ;; *) rm -rf \"$entry\" ;; esac; done");
+        exec(pod, ScanPods.RECEIVE, List.of("sh", "-c", script.toString()), SMALL, label);
     }
 
     /** {@code uid:gid}, numeric and not root: the namespace refuses root, and a name means nothing in a pod. */
@@ -345,9 +539,12 @@ public final class KubernetesExecutor implements ContainerExecutor {
     /** What the scanner wrote into a writable mount, and nothing else: see {@link MountArchives}. */
     private void copyBack(String pod, int index, Path destination, String label) {
         String directory = ScanPods.WORK + "/m" + index;
-        // tar refuses an empty list, so nothing written sends nothing.
-        String script = "cd " + directory + " && if [ -n \"$(find . -type f -mtime -1)\" ]; then "
-                + "find . -type f -mtime -1 | tar -c -T -; fi";
+        // tar refuses an empty list, so nothing written sends nothing. **A name with a line break is refused
+        // before the list is built**: the list is one name per line, and such a name would make the holder archive
+        // a path the scanner chose (review of 2026-10-26, L4).
+        String script = "cd " + directory + " && nl=$(printf '\\nx') && nl=${nl%x} && "
+                + "if [ -n \"$(find . -name \"*$nl*\")\" ]; then echo 'a name with a line break' >&2; exit 3; fi && "
+                + "if [ -n \"$(find . -type f -mtime -1)\" ]; then find . -type f -mtime -1 | tar -c -T -; fi";
         Path received = null;
         try {
             received = Files.createTempFile("vectispire-written", ".tar");
@@ -365,7 +562,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
             }
             if (Files.size(received) > 0) {
                 try (InputStream in = Files.newInputStream(received)) {
-                    MountArchives.extractWritten(in, destination);
+                    MountArchives.extractWritten(in, destination, outputBytes());
                 }
             }
         } catch (IOException refused) {

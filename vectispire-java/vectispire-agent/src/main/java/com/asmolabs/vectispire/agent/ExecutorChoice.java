@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerLimits;
+import com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -33,17 +34,23 @@ final class ExecutorChoice {
      * @param cluster the API server as this pod sees it — asked for only when the kind is {@code kubernetes},
      *     since outside a pod there is none to ask for
      */
-    static ContainerExecutor choose(AgentProperties.Executor executor, ObjectMapper json, Supplier<KubernetesApi> cluster) {
+    static ContainerExecutor choose(AgentProperties.Executor executor, ObjectMapper json, Supplier<KubernetesApi> cluster,
+            Path matcherDatabase) {
         return switch (executor.kind()) {
             case "docker" -> new ContainerRunner();
-            case "kubernetes" -> kubernetes(executor.kubernetes(), json, cluster);
+            case "kubernetes" -> kubernetes(executor.kubernetes(), json, cluster, matcherDatabase);
             default -> throw new IllegalArgumentException("vectispire.agent.executor.kind (VECTISPIRE_AGENT_EXECUTOR) is \""
                     + executor.kind() + "\": docker or kubernetes. The agent does not start.");
         };
     }
 
-    /** Every setting checked before the cluster is asked for: a refusal names the property, not a missing pod. */
-    static KubernetesExecutor kubernetes(AgentProperties.Kubernetes settings, ObjectMapper json, Supplier<KubernetesApi> cluster) {
+    /**
+     * Every setting checked before the cluster is asked for: a refusal names the property, not a missing pod.
+     *
+     * @param matcherDatabase the matcher's database directory on this agent, whose generations the cache serves
+     */
+    static KubernetesExecutor kubernetes(AgentProperties.Kubernetes settings, ObjectMapper json, Supplier<KubernetesApi> cluster,
+            Path matcherDatabase) {
         if (settings.namespace().isEmpty()) {
             throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.namespace (VECTISPIRE_SCANS_NAMESPACE) "
                     + "is required with the Kubernetes executor: the namespace whose Role this agent holds. The agent does not start.");
@@ -57,10 +64,14 @@ final class ExecutorChoice {
                 // The pod's own resources, never the default's CPU count: see AgentProperties.Kubernetes#cpuMillis.
                 new ScannerLimits(settings.memoryMiB() * 1024L * 1024, ScannerLimits.DEFAULT.pids(),
                         ScannerLimits.DEFAULT.timeout(), settings.cpuMillis() * 1_000_000L, ScannerLimits.DEFAULT.outputBytes()),
-                placement(settings.placement(), json));
+                placement(settings.placement(), json),
+                settings.matcherCacheClaim().isEmpty() ? null : new KubernetesExecutor.MatcherCache(
+                        settings.matcherCacheClaim(), matcherDatabase.resolve(VulnerabilityDatabase.GENERATIONS),
+                        settings.nodeName()));
         KubernetesExecutor executor = new KubernetesExecutor(cluster.get(), checked);
         // What a crash of this agent left: its pods carry its name, and nobody else removes them.
         executor.sweep();
+        requirePodSecurity(executor, settings.namespace());
         if (settings.requireIsolation()) {
             requireIsolation(executor, probeTarget(settings));
         } else {
@@ -96,6 +107,28 @@ final class ExecutorChoice {
             }
         }
         log.info("Scan pods are cut off from the API server at {}, offline and online: the policies are enforced.", target);
+    }
+
+    /**
+     * **Refuses the start unless the scans' namespace refuses a privileged pod** — Pod Security {@code
+     * restricted}, the ceiling on what this agent's Role can start (decision 0045 §3). Not something to turn
+     * off: a namespace without it lets a compromised agent start a root pod on any node. The chart labels the
+     * namespace it creates; one created elsewhere is checked here, since nothing else can (review of
+     * 2026-10-26, M1).
+     */
+    static void requirePodSecurity(KubernetesExecutor executor, String namespace) {
+        KubernetesExecutor.Isolation found;
+        try {
+            found = executor.podSecurity();
+        } catch (RuntimeException unknown) {
+            throw new IllegalStateException("Whether the scans' namespace " + namespace + " refuses a privileged pod could "
+                    + "not be checked: " + unknown.getMessage() + " The agent does not start.", unknown);
+        }
+        if (found != KubernetesExecutor.Isolation.ENFORCED) {
+            throw new IllegalStateException("The scans' namespace " + namespace + " would admit a privileged pod: label it "
+                    + "pod-security.kubernetes.io/enforce=restricted. The agent does not start; its Role creates pods there.");
+        }
+        log.info("The scans' namespace {} refuses a privileged pod: Pod Security restricted is enforced.", namespace);
     }
 
     private static String probeTarget(AgentProperties.Kubernetes settings) {

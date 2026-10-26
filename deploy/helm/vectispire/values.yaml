@@ -262,16 +262,31 @@ agents:
   # read their logs — and `dind` is not read.
   executor: dind
   kubernetes:
-    # **Never the agents' namespace nor the release's**: the Role reaches every pod in it, the agent's own
-    # included. The chart refuses either.
-    scansNamespace: vectispire-scans
+    # **One per release, and never the agents' namespace nor the release's**: the Role reaches every pod in
+    # it. Empty is `<release fullname>-scans`, so two releases never share one — their policies and Roles would
+    # reach each other's scan pods (security review of 2026-10-26, M2). The chart refuses the agents' or the
+    # release's.
+    scansNamespace: ""
     createNamespace: true
+    # Using a namespace the chart did not create — GitOps, a namespace given to you — needs this: the chart
+    # cannot see its labels, and it must enforce Pod Security `restricted` and hold nothing else. The agent
+    # checks the first at every start and refuses to scan without it; the second is yours.
+    acknowledgeExistingNamespace: false
     # How long a scan pod may take to be scheduled, pull its images and receive its workspace.
     startTimeout: 5m
     # Each scan pod's scanner, request and limit alike — the closed shape's bound. The pods go on the agents'
     # nodes: size the pool for the agent's concurrency times these.
     scanCpuMillis: 2000
     scanMemoryMiB: 2048
+    # **The matcher's database, kept for scan pods** (decision 0045 §7): a ReadWriteOnce claim in the scans'
+    # namespace, onto which each generation the agent downloads — some 3 GB — is copied once, then mounted
+    # read-only by every matcher pod, on the agent's node. It keeps the generations the agent still holds — the
+    # current one and, for a while, the one before. Off, the database is copied into each matcher pod, at every
+    # scan.
+    matcherCache:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
     # **Required with the network policy.** The agent calls the API server, whose real address — the
     # endpoints of the `kubernetes` Service, `kubectl get endpoints kubernetes -n default` — usually lies in
     # a range excludeCidrs keeps scanners out of. Listed here, it is reachable by the agent alone, on these

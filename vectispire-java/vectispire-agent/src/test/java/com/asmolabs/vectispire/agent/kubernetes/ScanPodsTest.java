@@ -29,7 +29,8 @@ class ScanPodsTest {
     }
 
     private static JsonNode pod(ContainerRun request, List<String> names) {
-        return ScanPods.pod("vs-x", request, SETTINGS, 1000, 1001, names, Duration.ofMinutes(15));
+        return ScanPods.pod("vs-x", request, SETTINGS, 1000, 1001,
+                names.stream().map(name -> new ScanPods.MountSource(false, name)).toList(), 1024, Duration.ofMinutes(15));
     }
 
     private static List<String> strings(JsonNode array) {
@@ -72,6 +73,9 @@ class ScanPodsTest {
         assertThat(spec.path("nodeSelector").path("pool").asText()).isEqualTo("scans");
         assertThat(spec.path("tolerations").get(0).path("key").asText()).isEqualTo("vectispire.dev/agents");
         assertThat(spec.path("activeDeadlineSeconds").asLong()).isPositive();
+        // The work volume holds what was copied, what the scanner may write, and a margin — no more.
+        long expected = 1024 + SETTINGS.limits().outputBytes() + 256L * 1024 * 1024;
+        assertThat(spec.path("volumes").get(0).path("emptyDir").path("sizeLimit").asText()).isEqualTo(String.valueOf(expected));
     }
 
     @Test
@@ -142,6 +146,41 @@ class ScanPodsTest {
         assertThat(volume.path("emptyDir").path("medium").asText()).isEqualTo("Memory");
         assertThat(volume.path("emptyDir").path("sizeLimit").asText()).isEqualTo("4096");
         assertThat(container(pod, ScanPods.HOLDER).path("volumeMounts").toString()).contains("\"mountPath\":\"/output\",\"readOnly\":true");
+    }
+
+    @Test
+    void aCachedGenerationIsMountedFromTheVolume_onTheAgentsNode() {
+        KubernetesExecutor.Settings cached = new KubernetesExecutor.Settings("scans", "agent", KubernetesExecutor.HELPER_IMAGE,
+                "1000:1000", Duration.ofMinutes(5), SETTINGS.limits(), placement(),
+                new KubernetesExecutor.MatcherCache("vs-matcher-cache", java.nio.file.Path.of("/db/generations"), "node-a"));
+        ContainerRun grype = ContainerRun.of("grype@sha256:abc", List.of("sbom:/repo/sbom.json"), List.of(
+                ContainerRun.Mount.readOnly("/w", "/repo"),
+                ContainerRun.Mount.readOnly("/db/generations/1761400000000-abcd1234", "/cache")), "grype");
+        JsonNode pod = ScanPods.pod("vs-x", grype, cached, 1000, 1001, List.of(
+                new ScanPods.MountSource(false, ""), new ScanPods.MountSource(true, "1761400000000-abcd1234")),
+                1024, Duration.ofMinutes(15));
+
+        JsonNode database = container(pod, ScanPods.SCANNER).path("volumeMounts").get(1);
+        assertThat(database.path("name").asText()).isEqualTo("matcher-cache");
+        assertThat(database.path("subPath").asText()).isEqualTo("generations/1761400000000-abcd1234");
+        assertThat(database.path("readOnly").asBoolean()).isTrue();
+        assertThat(pod.path("spec").path("volumes").toString())
+                .contains("\"persistentVolumeClaim\":{\"claimName\":\"vs-matcher-cache\"}");
+        assertThat(container(pod, ScanPods.RECEIVE).path("volumeMounts").toString())
+                .contains("\"name\":\"matcher-cache\",\"mountPath\":\"" + ScanPods.CACHE + "\",\"readOnly\":false");
+        // The claim attaches to one node: the agent's, by name, added to the operator's placement — not instead of it.
+        JsonNode spec = pod.path("spec");
+        assertThat(spec.path("affinity").path("nodeAffinity").path("requiredDuringSchedulingIgnoredDuringExecution")
+                .path("nodeSelectorTerms").get(0).path("matchFields").get(0).toString())
+                .isEqualTo("{\"key\":\"metadata.name\",\"operator\":\"In\",\"values\":[\"node-a\"]}");
+        assertThat(spec.path("nodeSelector").path("pool").asText()).isEqualTo("scans");
+        assertThat(spec.path("securityContext").path("fsGroup").asLong()).isEqualTo(1001);
+
+        // A run without a cached mount stays where the scheduler puts it, with no volume and no group change.
+        JsonNode plain = ScanPods.pod("vs-y", SYFT, cached, 1000, 1001, List.of(new ScanPods.MountSource(false, "")),
+                1024, Duration.ofMinutes(15));
+        assertThat(plain.path("spec").has("affinity")).isFalse();
+        assertThat(plain.path("spec").path("securityContext").has("fsGroup")).isFalse();
     }
 
     @Test

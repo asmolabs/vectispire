@@ -503,9 +503,12 @@ le Role de l'agent atteint, et rien d'autre (décision 0045). Ni démon Docker n
 part, pour un cluster qui n'admet ni l'un ni l'autre. La chart rend :
 
 - l'agent seul dans son pod, sous Pod Security `restricted`, avec un compte de service ;
-- l'espace de noms des scans, `agents.kubernetes.scansNamespace` (`vectispire-scans`), qui impose
+- l'espace de noms des scans, `agents.kubernetes.scansNamespace` (`<release>-scans`, un par release), qui impose
   `restricted` : le serveur d'API refuse lui-même un pod privilégié, un `hostPath` ou un utilisateur root.
-  Ce doit être un espace de noms à part : la chart refuse celui des agents et celui de la release ;
+  Ce doit être un espace de noms à part : la chart refuse celui des agents et celui de la release, et un
+  espace de noms qu'elle n'a pas créé sans `agents.kubernetes.acknowledgeExistingNamespace`. L'agent vérifie
+  à chaque démarrage, par un essai à blanc, que l'espace de noms refuse un pod privilégié, et ne démarre pas
+  sinon ;
 - un **Role dans cet espace de noms seulement** : créer, lire, lister, surveiller et supprimer des pods,
   y faire `exec` (`create` et `get` sur `pods/exec`), lire leurs journaux. Rien à l'échelle du cluster,
   aucun secret ;
@@ -527,6 +530,12 @@ NetworkPolicies, ou des politiques absentes —, l'agent ne démarre pas et dit 
 Une sonde qui ne peut pas tourner arrête aussi le démarrage. Seulement là où `agents.networkPolicy.enabled`
 vaut false, avec son acquittement, la chart dit à l'agent de ne pas vérifier.
 
+La base de vulnérabilités, quelque 3 Go, est conservée pour les pods de scan sur une revendication de
+l'espace de noms des scans, `agents.kubernetes.matcherCache` (10Gi, la classe de stockage par défaut du cluster
+sauf si elle est nommée) : chaque version que l'agent télécharge y est copiée une fois et montée en lecture
+seule par chaque pod de rapprochement, qui tourne sur le nœud de l'agent puisque le volume s'y attache. La
+revendication est conservée quand la release est supprimée.
+
 Le scanner de chaque pod de scan reçoit `agents.kubernetes.scanCpuMillis` (2000) et `scanMemoryMiB` (2048),
 en demande comme en limite : dimensionnez le pool de nœuds des agents pour la concurrence de l'agent fois ces
 valeurs.
@@ -536,8 +545,6 @@ fait passer un scan de bout en bout ; la CI de nuit l'exécute sur les images de
 
 !!! warning "Un aperçu : tous les scans ne tournent pas encore"
     - **Les cibles image** voient leur étape image échouer : l'étape de copie n'est pas construite.
-    - **La base de vulnérabilités** (environ 3 Go) est recopiée dans chaque pod de rapprochement au lieu
-      d'être montée depuis un volume.
 
 ## Exécuter depuis les sources
 

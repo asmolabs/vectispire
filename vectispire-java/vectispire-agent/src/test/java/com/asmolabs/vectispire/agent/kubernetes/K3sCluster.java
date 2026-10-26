@@ -69,7 +69,7 @@ public final class K3sCluster implements AutoCloseable {
     public K3sCluster() {
         k3s = new GenericContainer<>(K3S)
                 .withPrivilegedMode(true)
-                .withCommand("server", "--disable=traefik,metrics-server,servicelb,local-storage", "--tls-san=localhost")
+                .withCommand("server", "--disable=traefik,metrics-server,servicelb", "--tls-san=localhost")
                 .withExposedPorts(6443);
         k3s.start();
         try {

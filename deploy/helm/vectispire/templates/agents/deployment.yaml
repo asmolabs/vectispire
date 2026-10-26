@@ -105,6 +105,15 @@ spec:
             # except where the operator turned the policy off and acknowledged it: there is nothing to prove.
             - name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION
               value: {{ .Values.agents.networkPolicy.enabled | quote }}
+            {{- if .Values.agents.kubernetes.matcherCache.enabled }}
+            # The matcher's database, served to scan pods from a claim in their namespace, on this agent's node.
+            - name: VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM
+              value: {{ printf "%s-matcher-cache" $fullname | quote }}
+            - name: VECTISPIRE_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            {{- end }}
             # The scan pods go where the agents go: the pool of their own the chart requires.
             - name: VECTISPIRE_KUBERNETES_PLACEMENT
               value: {{ include "vectispire.scanPlacement" . | quote }}

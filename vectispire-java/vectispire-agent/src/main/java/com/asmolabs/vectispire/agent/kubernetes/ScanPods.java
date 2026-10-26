@@ -63,12 +63,26 @@ final class ScanPods {
     private ScanPods() {}
 
     /**
+     * Where one mount's content comes from in the pod.
+     *
+     * @param cached a generation of the matcher's database, mounted from the cache volume rather than copied
+     * @param name for a copied mount, the name its content has under its subdirectory — empty for a directory,
+     *     the file's name for a file; for a cached one, the generation's name
+     */
+    record MountSource(boolean cached, String name) {}
+
+    /** Where the receiving container sees the cache volume, read-write, to seed it. */
+    static final String CACHE = "/matcher-cache";
+
+    /**
      * @param uid the numeric user the three containers run as — the workspace's owner, never root
-     * @param mountNames the name each mount's content has under its subdirectory: empty for a directory,
-     *     the file's name for a file
+     * @param mounts where each of the request's mounts comes from, in its order
+     * @param workBytes what the copied mounts hold: the work volume's size is that, plus what the scanner may
+     *     write into a writable one and a margin — past it the pod is evicted, a failure (review of 2026-10-26, L3)
      */
     static ObjectNode pod(String name, ContainerRun request, KubernetesExecutor.Settings settings, long uid, long gid,
-            List<String> mountNames, Duration timeout) {
+            List<MountSource> mounts, long workBytes, Duration timeout) {
+        boolean cached = mounts.stream().anyMatch(MountSource::cached);
 
         ObjectNode pod = JSON.createObjectNode();
         pod.put("apiVersion", "v1");
@@ -94,9 +108,17 @@ final class ScanPods {
         podSecurity.put("runAsGroup", gid);
         podSecurity.putObject("seccompProfile").put("type", "RuntimeDefault");
         settings.placement().properties().forEach(field -> spec.set(field.getKey(), field.getValue().deepCopy()));
+        if (cached) {
+            // Writable by the scan user whatever the volume's driver created it as, and relabelled only when its
+            // root does not match already: a recursive change over gigabytes at every pod would cost a minute.
+            podSecurity.put("fsGroup", gid);
+            podSecurity.put("fsGroupChangePolicy", "OnRootMismatch");
+            onNode(spec, settings.cache().node());
+        }
 
         ArrayNode volumes = spec.putArray("volumes");
-        volumes.addObject().put("name", "work").putObject("emptyDir");
+        volumes.addObject().put("name", "work").putObject("emptyDir")
+                .put("sizeLimit", String.valueOf(workBytes + settings.limits().outputBytes() + 256L * 1024 * 1024));
         volumes.addObject().put("name", "tools").putObject("emptyDir")
                 // The busybox, the standard output up to its ceiling and the error stream: past it the pod is
                 // evicted, a failure, never a truncation.
@@ -107,6 +129,10 @@ final class ScanPods {
             // Memory-backed with a size: the kernel answers ENOSPC past it (measured, 0045's spike).
             memory(volumes, "output", String.valueOf(request.output().bytes()));
         }
+        if (cached) {
+            volumes.addObject().put("name", "matcher-cache").putObject("persistentVolumeClaim")
+                    .put("claimName", settings.cache().claim());
+        }
 
         ArrayNode init = spec.putArray("initContainers");
         ObjectNode receive = container(init, RECEIVE, settings.helperImage(), uid, gid, 64);
@@ -114,6 +140,9 @@ final class ScanPods {
                 + " && until [ -f " + RECEIVED + " ]; do sleep 0.2; done");
         mount(receive, "work", WORK, false, null);
         mount(receive, "tools", TOOLS, false, null);
+        if (cached) {
+            mount(receive, "matcher-cache", CACHE, false, null);
+        }
 
         ArrayNode containers = spec.putArray("containers");
         ObjectNode scanner = containers.addObject();
@@ -144,8 +173,13 @@ final class ScanPods {
         scanner.set("securityContext", closedShape(uid, gid));
         for (int i = 0; i < request.mounts().size(); i++) {
             ContainerRun.Mount mount = request.mounts().get(i);
-            String subPath = "m" + i + (mountNames.get(i).isEmpty() ? "" : "/" + mountNames.get(i));
-            mount(scanner, "work", mount.target(), mount.readOnly(), subPath);
+            MountSource source = mounts.get(i);
+            if (source.cached()) {
+                mount(scanner, "matcher-cache", mount.target(), true, GENERATIONS + "/" + source.name());
+            } else {
+                mount(scanner, "work", mount.target(), mount.readOnly(),
+                        "m" + i + (source.name().isEmpty() ? "" : "/" + source.name()));
+            }
         }
         mount(scanner, "tools", TOOLS, false, null);
         mount(scanner, "tmp", "/tmp", false, null);
@@ -201,6 +235,37 @@ final class ScanPods {
             }
         }
         return "phase " + pod.path("status").path("phase").asText("unknown");
+    }
+
+    /** The cache volume's directory of generations, as the volume's sub-path and under {@link #CACHE}. */
+    static final String GENERATIONS = "generations";
+
+    /**
+     * Requires {@code node}, the agent's, for a pod that mounts the cache volume: a ReadWriteOnce volume
+     * attaches to one node, and a pod scheduled elsewhere waits on it until its start times out. Added to each
+     * of the operator's required terms, which are ORed, so every one of them now also names the node — by its
+     * name, a field, since the hostname label is not the node's name everywhere.
+     */
+    private static void onNode(ObjectNode spec, String node) {
+        if (node == null || node.isBlank()) {
+            return;
+        }
+        ObjectNode affinity = spec.has("affinity") ? (ObjectNode) spec.get("affinity") : spec.putObject("affinity");
+        ObjectNode nodeAffinity = affinity.has("nodeAffinity") ? (ObjectNode) affinity.get("nodeAffinity")
+                : affinity.putObject("nodeAffinity");
+        String required = "requiredDuringSchedulingIgnoredDuringExecution";
+        ObjectNode selector = nodeAffinity.has(required) ? (ObjectNode) nodeAffinity.get(required)
+                : nodeAffinity.putObject(required);
+        ArrayNode terms = selector.has("nodeSelectorTerms") ? (ArrayNode) selector.get("nodeSelectorTerms")
+                : selector.putArray("nodeSelectorTerms");
+        if (terms.isEmpty()) {
+            terms.addObject();
+        }
+        for (JsonNode term : terms) {
+            ObjectNode object = (ObjectNode) term;
+            ArrayNode fields = object.has("matchFields") ? (ArrayNode) object.get("matchFields") : object.putArray("matchFields");
+            fields.addObject().put("key", "metadata.name").put("operator", "In").putArray("values").add(node);
+        }
     }
 
     /** Is the receiving init container running, ready for the workspace? */

@@ -482,9 +482,11 @@ Role reaches and nothing else (decision 0045). No Docker daemon and no privilege
 cluster that allows neither. The chart renders:
 
 - the agent alone in its pod, under Pod Security `restricted`, with a service account;
-- the scans' namespace, `agents.kubernetes.scansNamespace` (`vectispire-scans`), enforcing `restricted`:
+- the scans' namespace, `agents.kubernetes.scansNamespace` (`<release>-scans`, one per release), enforcing `restricted`:
   the API server itself refuses a privileged pod, a `hostPath` or a root user there. It must be a
-  namespace of its own: the chart refuses the agents' or the release's;
+  namespace of its own: the chart refuses the agents' or the release's, and one it did not create unless
+  `agents.kubernetes.acknowledgeExistingNamespace` is set. The agent checks at every start, with a dry run,
+  that the namespace refuses a privileged pod, and does not start otherwise;
 - a **Role in that namespace only**: create, read, list, watch and delete pods, `exec` into them (`create`
   and `get` on `pods/exec`), read their logs. Nothing cluster-wide, no secret;
 - two NetworkPolicies there: every scan pod denied all traffic, and the steps that need the network
@@ -505,6 +507,11 @@ missing — the agent does not start, and says why in its log. A probe that cann
 too. Only where `agents.networkPolicy.enabled` is false, with its acknowledgement, does the chart tell the
 agent not to check.
 
+The vulnerability database, some 3 GB, is kept for scan pods on a claim in the scans' namespace,
+`agents.kubernetes.matcherCache` (10Gi, the cluster's default storage class unless named): each version the
+agent downloads is copied onto it once and mounted read-only by every matching pod, which runs on the agent's
+node since the volume attaches there. The claim is kept when the release is removed.
+
 Each scan pod's scanner gets `agents.kubernetes.scanCpuMillis` (2000) and `scanMemoryMiB` (2048), as request
 and limit: size the agents' node pool for the agent's concurrency times these.
 
@@ -513,8 +520,6 @@ scan through it end to end; the nightly runs it on every night's images.
 
 !!! warning "A preview: not every scan runs yet"
     - **Image targets** fail their image step: the copy step is not built.
-    - **The vulnerability database** (about 3 GB) is copied into each matching pod rather than mounted from
-      a volume.
 
 ## Running from source
 
