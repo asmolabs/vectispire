@@ -287,6 +287,14 @@ agents:
       enabled: true
       size: 10Gi
       storageClassName: ""
+    # **An admission policy keeping scan pods on the agents' pool** (security review of 2026-10-26, L2): every
+    # pod created in the scans' namespace must carry `agents.nodeSelector`, must not name its node and must not
+    # mount a token — refused by the API server even if the agent asks. Cluster-scoped, so installing it needs
+    # the right to create a ValidatingAdmissionPolicy; Kubernetes 1.30 or later. Turning it off needs the
+    # acknowledgement: a compromised agent could then place a scan pod on any node, the control plane's included.
+    admissionPolicy:
+      enabled: true
+      acknowledgeUnpinnedScanPods: false
     # **Required with the network policy.** The agent calls the API server, whose real address — the
     # endpoints of the `kubernetes` Service, `kubectl get endpoints kubernetes -n default` — usually lies in
     # a range excludeCidrs keeps scanners out of. Listed here, it is reachable by the agent alone, on these

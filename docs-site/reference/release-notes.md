@@ -26,6 +26,9 @@ keeps Docker. What follows is against 0.11.1.
     measures both on your cluster beforehand.
   - The matcher's database is kept on a claim in the scans' namespace (`agents.kubernetes.matcherCache`,
     10Gi). The claim is kept when the release is removed.
+  - **Kubernetes 1.30 or later**, and the right to create a cluster-scoped `ValidatingAdmissionPolicy`: the
+    chart renders one that keeps scan pods on the agents' pool. Turning it off needs
+    `agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods`.
 
 ### Changes an integration can see {#changes-an-integration-can-see-0112}
 
@@ -68,6 +71,8 @@ A review of the executor found nothing critical or high. What it found is fixed:
 - **The work volume has a size**, and an output that cannot be read back fails the step instead of reading
   as empty.
 - The control plane is kept off the scan pods' nodes and off the executor's agent pod's.
+- **Scan pods stay on the agents' pool even if the agent is compromised.** An admission policy refuses any pod
+  in the scans' namespace without the pool's node selector, with a `nodeName`, or with a service account token.
 
 ### Fixed {#fixed-0112}
 

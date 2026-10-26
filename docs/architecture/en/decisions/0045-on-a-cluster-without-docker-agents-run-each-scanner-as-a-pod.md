@@ -206,6 +206,8 @@ unknown rather than as "blocked" (L1); the control plane's anti-affinity also co
 agent pod (L2); the work volume has a size — what was copied, what the scanner may write and a margin (L3);
 the copy back refuses a written name with a line break, which would have let the holder archive a path the
 scanner chose (L4); a stdout that cannot be read back fails the step instead of reading as empty (L5); and the
-archive reader refuses sparse entries and caps what it writes. **Left for later, named**: an admission policy
-holding scan pods to their pool against a compromised agent setting `nodeName` (L2, first half — it needs a
-compromise and then a kernel escape), and probing every API server address rather than the Service's.
+archive reader refuses sparse entries and caps what it writes. The first half of L2 followed the same day: a
+`ValidatingAdmissionPolicy`, rendered by the chart, refuses any pod created in the scans' namespace without the
+agents' `nodeSelector`, with a `nodeName`, or with a token — whatever the agent asks (Kubernetes 1.30 or
+later; the agent's own Pod Security dry run carries the same placement, so only Pod Security answers it).
+**Left for later, named**: probing every API server address rather than the Service's.

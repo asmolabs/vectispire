@@ -89,6 +89,101 @@ class ExecutorChoiceClusterTest {
         }
     }
 
+    /** The chart's `scans-admission-policy.yaml`, as it renders for a pool selected by `vectispire.dev/agents=true`. */
+    private static final String ADMISSION_POLICY = """
+            apiVersion: admissionregistration.k8s.io/v1
+            kind: ValidatingAdmissionPolicy
+            metadata: {name: test-scan-pods}
+            spec:
+              failurePolicy: Fail
+              matchConstraints:
+                resourceRules: [{apiGroups: [""], apiVersions: [v1], operations: [CREATE], resources: [pods]}]
+              validations:
+              - expression: "!has(object.spec.nodeName) || object.spec.nodeName == ''"
+                message: "A scan pod is placed by the scheduler: it never names its node."
+              - expression: "has(object.spec.automountServiceAccountToken) && object.spec.automountServiceAccountToken == false"
+                message: "A scan pod mounts no service account token."
+              - expression: "has(object.spec.nodeSelector) && \\"vectispire.dev/agents\\" in object.spec.nodeSelector && object.spec.nodeSelector[\\"vectispire.dev/agents\\"] == \\"true\\""
+                message: "A scan pod runs on the agents' pool: nodeSelector vectispire.dev/agents=true."
+            ---
+            apiVersion: admissionregistration.k8s.io/v1
+            kind: ValidatingAdmissionPolicyBinding
+            metadata: {name: test-scan-pods}
+            spec:
+              policyName: test-scan-pods
+              validationActions: [Deny]
+              matchResources: {namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: %s}}}
+            """;
+
+    private static com.fasterxml.jackson.databind.node.ObjectNode bare(String name) throws Exception {
+        return (com.fasterxml.jackson.databind.node.ObjectNode) JSON.readTree("""
+                {"apiVersion": "v1", "kind": "Pod", "metadata": {"name": "%s"},
+                 "spec": {"restartPolicy": "Never", "automountServiceAccountToken": false,
+                   "containers": [{"name": "c", "image": "%s", "command": ["true"],
+                     "securityContext": {"runAsNonRoot": true, "runAsUser": 1000, "allowPrivilegeEscalation": false,
+                       "capabilities": {"drop": ["ALL"]}, "seccompProfile": {"type": "RuntimeDefault"}}}]}}
+                """.formatted(name, K3sCluster.BUSYBOX));
+    }
+
+    /** The API server's refusal of {@code pod}, waited for while the policy it is applied from takes effect. */
+    private static String refusal(com.fasterxml.jackson.databind.node.ObjectNode pod) throws InterruptedException {
+        long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+        while (true) {
+            try {
+                cluster.api().createPodDryRun(K3sCluster.NAMESPACE, pod);
+            } catch (com.asmolabs.vectispire.agent.kubernetes.KubernetesException refused) {
+                return refused.getMessage();
+            }
+            assertThat(System.nanoTime()).as("the policy refused the pod").isLessThan(deadline);
+            Thread.sleep(1000);
+        }
+    }
+
+    @Test
+    void theAdmissionPolicyKeepsScanPodsOnTheirPool_andTheAgentStillStartsUnderIt() throws Exception {
+        String node = cluster.kubectl("get", "nodes", "-o", "jsonpath={.items[0].metadata.name}").strip();
+        cluster.kubectl("label", "node", node, "vectispire.dev/agents=true", "--overwrite");
+        cluster.apply(ADMISSION_POLICY.formatted(K3sCluster.NAMESPACE));
+        try {
+            assertThat(refusal(bare("no-selector"))).contains("agents' pool");
+
+            var named = bare("named");
+            ((com.fasterxml.jackson.databind.node.ObjectNode) named.get("spec")).putObject("nodeSelector").put("vectispire.dev/agents", "true");
+            ((com.fasterxml.jackson.databind.node.ObjectNode) named.get("spec")).put("nodeName", node);
+            assertThat(refusal(named)).contains("never names its node");
+
+            var token = bare("token");
+            ((com.fasterxml.jackson.databind.node.ObjectNode) token.get("spec")).putObject("nodeSelector").put("vectispire.dev/agents", "true");
+            ((com.fasterxml.jackson.databind.node.ObjectNode) token.get("spec")).remove("automountServiceAccountToken");
+            assertThat(refusal(token)).contains("no service account token");
+
+            // The agent's own start: its Pod Security dry run is refused by Pod Security alone, and a scan pod with
+            // the pool's placement runs.
+            KubernetesExecutor executor = ExecutorChoice.kubernetes(new AgentProperties.Kubernetes(K3sCluster.NAMESPACE,
+                    "vs-agent", "", "1000:1000", Duration.ofMinutes(3), "{\"nodeSelector\":{\"vectispire.dev/agents\":\"true\"}}",
+                    false, apiService + ":443", 250, 128, "", ""), JSON, cluster::api, java.nio.file.Path.of("db"));
+            assertThat(executor.run(com.asmolabs.vectispire.common.scanning.ContainerRun.of(KubernetesExecutor.HELPER_IMAGE,
+                    java.util.List.of("sh", "-c", "echo scanned"), java.util.List.of(), "pinned run")
+                    .withEntrypoint(java.util.List.of())).stdout()).isEqualTo("scanned\n");
+        } finally {
+            cluster.kubectl("delete", "validatingadmissionpolicybinding,validatingadmissionpolicy", "test-scan-pods",
+                    "--ignore-not-found");
+            cluster.kubectl("label", "node", node, "vectispire.dev/agents-");
+            // Deleted is not yet unenforced: the API server stops applying a policy a moment later, and the next
+            // test's pods carry no pool selector. Waited for, rather than left to the order the tests run in.
+            long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+            while (true) {
+                try {
+                    cluster.api().createPodDryRun(K3sCluster.NAMESPACE, bare("unpinned"));
+                    break;
+                } catch (com.asmolabs.vectispire.agent.kubernetes.KubernetesException stillEnforced) {
+                    assertThat(System.nanoTime()).as("the policy stopped being enforced").isLessThan(deadline);
+                    Thread.sleep(1000);
+                }
+            }
+        }
+    }
+
     @Test
     void withoutPoliciesTheStartIsRefused() {
         assertThatThrownBy(() -> ExecutorChoice.kubernetes(settings(true), JSON, cluster::api, java.nio.file.Path.of("db")))

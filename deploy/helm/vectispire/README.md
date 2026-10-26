@@ -228,7 +228,9 @@ No sidecar and no privileged pod: `agents.dind` is not read. The chart refuses t
 - with the policy on, no `agents.kubernetes.apiServer.cidrs` — the API server's endpoints, which the agent
   calls and which every scan pod is excluded from.
 
-It renders a deny-all policy for every scan pod, and the agents' egress rules for the ones labelled
+It renders an admission policy that keeps every pod of the scans' namespace on `agents.nodeSelector`, without
+`nodeName` and without a token (Kubernetes 1.30 or later; off only with
+`agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods`), a deny-all policy for every scan pod, and the agents' egress rules for the ones labelled
 `vectispire.dev/network: egress`. The agent refuses to start unless a probe pod, offline and online,
 cannot reach the API server — told not to check only when `agents.networkPolicy.enabled` is false. Scan
 pods get `agents.kubernetes.scanCpuMillis` and `scanMemoryMiB`. The matcher's database is kept on a claim in

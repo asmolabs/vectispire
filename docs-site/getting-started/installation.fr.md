@@ -512,6 +512,9 @@ part, pour un cluster qui n'admet ni l'un ni l'autre. La chart rend :
 - un **Role dans cet espace de noms seulement** : créer, lire, lister, surveiller et supprimer des pods,
   y faire `exec` (`create` et `get` sur `pods/exec`), lire leurs journaux. Rien à l'échelle du cluster,
   aucun secret ;
+- une politique d'admission (Kubernetes 1.30 ou plus) : le serveur d'API refuse tout pod créé là qui ne porte
+  pas le `nodeSelector` des agents, qui nomme son nœud ou qui monte un jeton de compte de service — même si
+  l'agent le demande. La désactiver demande `agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods` ;
 - deux NetworkPolicies : tout trafic refusé à chaque pod de scan, et les étapes qui ont besoin du réseau
   (`vectispire.dev/network: egress`) reçoivent les règles de sortie des agents — jamais le serveur d'API.
 

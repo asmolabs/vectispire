@@ -168,6 +168,12 @@ public final class KubernetesExecutor implements ContainerExecutor {
         pod.put("apiVersion", "v1").put("kind", "Pod");
         pod.putObject("metadata").put("name", "vs-pod-security-probe");
         com.fasterxml.jackson.databind.node.ObjectNode spec = pod.putObject("spec");
+        // Everything else a scan pod carries — its pool's placement, no token — so that the chart's admission
+        // policy, which refuses a pod without them, has nothing to refuse: only Pod Security may answer, or the
+        // answer proves nothing about it. On k3s 1.34 Pod Security answers first whatever the pod (measured: the
+        // test still passes without these lines); they make the answer independent of the admission order.
+        settings.placement().properties().forEach(field -> spec.set(field.getKey(), field.getValue().deepCopy()));
+        spec.put("automountServiceAccountToken", false);
         spec.put("hostNetwork", true).put("hostPID", true);
         spec.putArray("volumes").addObject().put("name", "host").putObject("hostPath").put("path", "/");
         com.fasterxml.jackson.databind.node.ObjectNode container = spec.putArray("containers").addObject();

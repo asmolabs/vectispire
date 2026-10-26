@@ -225,6 +225,8 @@ le pod de l'agent de l'exécuteur Kubernetes (L2) ; le volume de travail a une t
 que le scanner peut écrire et une marge (L3) ; le retour refuse un nom écrit contenant un saut de ligne, qui
 aurait laissé le holder archiver un chemin choisi par le scanner (L4) ; une sortie standard illisible fait
 échouer l'étape au lieu de se lire comme vide (L5) ; et le lecteur d'archives refuse les entrées creuses et
-plafonne ce qu'il écrit. **Laissés pour plus tard, nommés** : une politique d'admission tenant les pods de scan
-à leur pool face à un agent compromis qui fixerait `nodeName` (L2, première moitié — il faut une compromission
-puis une évasion du noyau), et sonder chaque adresse du serveur d'API plutôt que celle du Service.
+plafonne ce qu'il écrit. La première moitié de L2 a suivi le même jour : une `ValidatingAdmissionPolicy`, rendue
+par la chart, refuse tout pod créé dans l'espace de noms des scans sans le `nodeSelector` des agents, avec un
+`nodeName` ou avec un jeton — quoi que demande l'agent (Kubernetes 1.30 ou plus ; l'essai à blanc Pod Security de
+l'agent porte le même placement, si bien que seul Pod Security y répond). **Laissé pour plus tard, nommé** :
+sonder chaque adresse du serveur d'API plutôt que celle du Service.

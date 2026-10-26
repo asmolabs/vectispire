@@ -462,8 +462,10 @@ jobs:
             helm lint . --strict -f "$values"
             helm template vs . -n vectispire -f "$values" > rendered.yaml
             # The floor the chart declares (`kubeVersion`), not the newest schema: a field that exists
-            # only in a later release must not pass here.
-            kubeconform -strict -summary -kubernetes-version 1.27.0 rendered.yaml
+            # only in a later release must not pass here. The Kubernetes executor's shape has its own, 1.30,
+            # for its ValidatingAdmissionPolicy — the chart refuses an older cluster for it.
+            floor=1.27.0; [ "$values" = ci/kubernetes-executor-values.yaml ] && floor=1.30.0
+            kubeconform -strict -summary -kubernetes-version "$floor" rendered.yaml
             echo "::endgroup::"
           done
       # **One namespace and nothing outside it.** An installation in a namespace somebody else owns
@@ -534,6 +536,10 @@ jobs:
           refused -f ci/kubernetes-executor-values.yaml --set agents.tolerations=null
           # A namespace the chart did not create: its Pod Security level is unseen, so it is acknowledged (M1).
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.createNamespace=false
+          # Scan pods pinned to their pool by an admission policy (review L2): off only when acknowledged, and
+          # only on a cluster that has the API.
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.admissionPolicy.enabled=false
+          refused -f ci/kubernetes-executor-values.yaml --kube-version 1.29.0
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |
@@ -611,6 +617,14 @@ jobs:
           helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-matcher-cache.yaml |
             grep -q '^  namespace: vs-vectispire-scans$' || fail "the matcher's cache is not in the scans' namespace"
           grep -q 'name: VECTISPIRE_KUBERNETES_NODE_NAME' rendered.yaml || fail "the agent is not told its node"
+          # The admission policy pins every pod of the scans' namespace to the pool's selector, refuses nodeName
+          # and a mounted token, and its binding names that namespace alone (review of 2026-10-26, L2).
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-admission-policy.yaml > vap.yaml
+          grep -q 'object.spec.nodeSelector\[\\"vectispire.dev/agents\\"\] == \\"true\\"' vap.yaml &&
+            grep -q 'object.spec.nodeName' vap.yaml && grep -q 'automountServiceAccountToken == false' vap.yaml &&
+            grep -q 'kubernetes.io/metadata.name: vs-vectispire-scans' vap.yaml &&
+            grep -q 'validationActions: \[Deny\]' vap.yaml ||
+            fail "the admission policy does not hold scan pods to their pool"
           # The agent proves the policies are enforced before it scans, unless the operator turned them off.
           grep -A1 'name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION' rendered.yaml | grep -q 'value: "true"' ||
             fail "the agent is not asked to prove its scan pods are cut off"

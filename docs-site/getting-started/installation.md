@@ -489,6 +489,9 @@ cluster that allows neither. The chart renders:
   that the namespace refuses a privileged pod, and does not start otherwise;
 - a **Role in that namespace only**: create, read, list, watch and delete pods, `exec` into them (`create`
   and `get` on `pods/exec`), read their logs. Nothing cluster-wide, no secret;
+- an admission policy (Kubernetes 1.30 or later): the API server refuses any pod created there that lacks
+  the agents' `nodeSelector`, names its node, or mounts a service account token — even if the agent asks.
+  Turning it off needs `agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods`;
 - two NetworkPolicies there: every scan pod denied all traffic, and the steps that need the network
   (`vectispire.dev/network: egress`) given the agents' own egress rules — never the API server.
 

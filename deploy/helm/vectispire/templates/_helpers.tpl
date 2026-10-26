@@ -101,6 +101,16 @@ in a pod's log.
 {{- if and (not .Values.agents.kubernetes.createNamespace) (not .Values.agents.kubernetes.acknowledgeExistingNamespace) -}}
 {{- fail "agents.kubernetes.createNamespace is false: the chart cannot see whether that namespace enforces Pod Security restricted, the ceiling on what the agent's Role can start, nor whether it holds anything else. Set agents.kubernetes.acknowledgeExistingNamespace once it is dedicated and labelled; the agent refuses to start where restricted is not enforced." -}}
 {{- end -}}
+{{- if .Values.agents.kubernetes.admissionPolicy.enabled -}}
+{{- if semverCompare "<1.30-0" .Capabilities.KubeVersion.Version -}}
+{{- fail (printf "agents.kubernetes.admissionPolicy needs Kubernetes 1.30 or later (ValidatingAdmissionPolicy), and this cluster is %s. Decision 0045 asks for a version its upstream still supports." .Capabilities.KubeVersion.Version) -}}
+{{- end -}}
+{{- if not .Values.agents.nodeSelector -}}
+{{- fail "agents.kubernetes.admissionPolicy pins scan pods to agents.nodeSelector, which is empty: set it to the agents' pool (a required node affinity alone cannot be pinned this way)." -}}
+{{- end -}}
+{{- else if not .Values.agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods -}}
+{{- fail "agents.kubernetes.admissionPolicy.enabled is false: nothing would stop a compromised agent from placing a scan pod on any node, the control plane's included. Set agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods to render it anyway." -}}
+{{- end -}}
 {{- if and .Values.agents.networkPolicy.enabled (not .Values.agents.kubernetes.apiServer.cidrs) -}}
 {{- fail "agents.kubernetes.apiServer.cidrs is required with the Kubernetes executor and the network policy: the agent calls the API server, whose address excludeCidrs usually covers. List its endpoints (kubectl get endpoints kubernetes -n default)." -}}
 {{- end -}}

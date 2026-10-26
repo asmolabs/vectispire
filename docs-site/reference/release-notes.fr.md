@@ -27,6 +27,9 @@ Docker. Ce qui suit est par rapport à la 0.11.1.
     `scripts/k8s-executor-spike.sh` mesure les deux sur votre cluster au préalable.
   - La base de l'appariement est conservée sur une revendication de l'espace de noms des scans
     (`agents.kubernetes.matcherCache`, 10Gi). La revendication est conservée quand la release est supprimée.
+  - **Kubernetes 1.30 ou plus**, et le droit de créer une `ValidatingAdmissionPolicy` à l'échelle du cluster :
+    la chart en rend une qui tient les pods de scan sur le pool des agents. La désactiver demande
+    `agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods`.
 
 ### Changements visibles par une intégration {#changements-visibles-par-une-integration-0112}
 
@@ -72,6 +75,9 @@ Une revue de l'exécuteur n'a rien trouvé de critique ni d'élevé. Ce qu'elle 
 - **Le volume de travail a une taille**, et une sortie illisible fait échouer l'étape au lieu de se lire
   comme vide.
 - Le plan de contrôle est tenu hors des nœuds des pods de scan et de celui du pod de l'agent de l'exécuteur.
+- **Les pods de scan restent sur le pool des agents même si l'agent est compromis.** Une politique d'admission
+  refuse tout pod de l'espace de noms des scans sans le sélecteur de nœuds du pool, avec un `nodeName` ou avec un
+  jeton de compte de service.
 
 ### Corrigé {#corrige-0112}
 
