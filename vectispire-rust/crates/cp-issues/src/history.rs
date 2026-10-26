@@ -29,6 +29,7 @@ pub struct TriageHistoryRepository {
     #[serde(rename = "scanCount")]
     pub scan_count: usize,
     #[serde(rename = "lastScanAt")]
+    #[serde(default, with = "time::serde::rfc3339::option")]
     pub last_scan_at: Option<OffsetDateTime>,
     #[serde(rename = "openIssues")]
     pub open_issues: i64,
@@ -44,6 +45,7 @@ pub struct TriageHistoryScan {
     #[serde(rename = "projectType")]
     pub project_type: Option<String>,
     #[serde(rename = "createdAt")]
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
     #[serde(rename = "durationMs")]
     pub duration_ms: Option<i64>,
@@ -74,8 +76,10 @@ pub struct ObservedIssue {
     #[serde(rename = "triageStatus")]
     pub triage_status: String,
     #[serde(rename = "firstSeenAt")]
+    #[serde(with = "time::serde::rfc3339")]
     pub first_seen_at: OffsetDateTime,
     #[serde(rename = "resolvedAt")]
+    #[serde(default, with = "time::serde::rfc3339::option")]
     pub resolved_at: Option<OffsetDateTime>,
     pub decisions: Vec<DecisionView>,
 }
@@ -85,6 +89,7 @@ pub struct Dossier {
     pub repository: TriageHistoryRepository,
     pub scans: Vec<TriageHistoryScan>,
     #[serde(rename = "generatedAt")]
+    #[serde(with = "time::serde::rfc3339")]
     pub generated_at: OffsetDateTime,
 }
 

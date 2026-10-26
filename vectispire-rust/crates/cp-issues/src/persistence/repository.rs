@@ -41,7 +41,7 @@ pub struct IssueRow {
     pub purl: Option<String>,
     pub file_path: Option<String>,
     pub owasp_category: Option<String>,
-    pub source: String,
+    pub source: Option<String>,
     pub tool: Option<String>,
     pub tool_name: Option<String>,
     pub tool_version: Option<String>,
@@ -167,8 +167,9 @@ pub struct NewTriageEvent {
 }
 
 impl From<IssueModel> for IssueRow {
-    /// `identifier`, `source` and `severity` may be null in the schema and have always been read here as text: an
-    /// absent one is the empty string, as the hand-written reader made it.
+    /// `identifier` and `severity` may be null in the schema and have always been read here as text: an absent one is
+    /// the empty string, as the hand-written reader made it. `source` stays absent — Java answers `null` for it, and
+    /// the replay of `DualTargetVisibilityRoutesTest` caught the `""`.
     fn from(model: IssueModel) -> IssueRow {
         IssueRow {
             id: model.id,
@@ -182,7 +183,7 @@ impl From<IssueModel> for IssueRow {
             purl: model.purl,
             file_path: model.file_path,
             owasp_category: model.owasp_category,
-            source: model.source.unwrap_or_default(),
+            source: model.source,
             tool: model.tool,
             tool_name: model.tool_name,
             tool_version: model.tool_version,
@@ -260,7 +261,8 @@ macro_rules! issue_columns {
             purl: Set(from.purl.clone()),
             file_path: Set(from.file_path.clone()),
             owasp_category: Set(from.owasp_category.clone()),
-            source: Set(Some(from.source.clone())),
+            // A `NewIssue`'s source is text, an `IssueRow`'s may be null: `into` takes either.
+            source: Set(from.source.clone().into()),
             tool: Set(from.tool.clone()),
             tool_name: Set(from.tool_name.clone()),
             tool_version: Set(from.tool_version.clone()),

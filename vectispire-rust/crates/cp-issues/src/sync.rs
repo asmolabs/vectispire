@@ -345,7 +345,7 @@ impl IssueSyncService {
             issue.owasp_category = finding.owasp_category.clone();
         }
         if !finding.source.is_empty() {
-            issue.source = finding.source.clone();
+            issue.source = Some(finding.source.clone());
         }
         if finding.epss_score.is_some() || overwrite_nulls {
             issue.epss_score = finding.epss_score;

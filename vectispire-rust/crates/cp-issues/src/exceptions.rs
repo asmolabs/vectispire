@@ -37,11 +37,14 @@ pub struct ExceptionEntry {
     pub actor: Option<String>,
     pub origin: Option<String>,
     #[serde(rename = "decided_at")]
+    #[serde(default, with = "time::serde::rfc3339::option")]
     pub decided_at: Option<OffsetDateTime>,
     #[serde(rename = "expires_at")]
+    #[serde(default, with = "time::serde::rfc3339::option")]
     pub expires_at: Option<OffsetDateTime>,
     pub lapsed: bool,
     #[serde(rename = "last_reviewed_at")]
+    #[serde(default, with = "time::serde::rfc3339::option")]
     pub last_reviewed_at: Option<OffsetDateTime>,
     #[serde(rename = "last_reviewed_by")]
     pub last_reviewed_by: Option<String>,

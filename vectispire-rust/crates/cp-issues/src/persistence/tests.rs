@@ -182,7 +182,7 @@ fn as_row(id: i64, new: &NewIssue) -> IssueRow {
         purl: new.purl.clone(),
         file_path: new.file_path.clone(),
         owasp_category: new.owasp_category.clone(),
-        source: new.source.clone(),
+        source: Some(new.source.clone()),
         tool: new.tool.clone(),
         tool_name: new.tool_name.clone(),
         tool_version: new.tool_version.clone(),

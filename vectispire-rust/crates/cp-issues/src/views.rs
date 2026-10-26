@@ -24,7 +24,7 @@ pub struct IssueView {
     pub purl: Option<String>,
     pub file_path: Option<String>,
     pub owasp_category: Option<String>,
-    pub source: String,
+    pub source: Option<String>,
     pub tool: Option<String>,
     pub tool_name: Option<String>,
     pub tool_version: Option<String>,
