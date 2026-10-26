@@ -86,7 +86,7 @@ pub const IN_LIST_BATCH: usize = 1_000;
 /// reader, as on the Java side.
 ///
 /// `None` for [`Visibility::Everything`]: no restriction, and no `WHERE` written for it.
-fn visible<T: TargetTable>(visibility: &Visibility) -> Option<Condition> {
+pub(crate) fn visible<T: TargetTable>(visibility: &Visibility) -> Option<Condition> {
     let Visibility::Only(targets) = visibility else {
         return None;
     };
@@ -121,6 +121,12 @@ fn visible<T: TargetTable>(visibility: &Visibility) -> Option<Condition> {
         return Some(Condition::all().add(Expr::cust("1 = 0")));
     }
     Some(Condition::all().add(either))
+}
+
+/// The rows of these targets — a project's or a solution's (`IssueSpecifications.within`): [`visible`]'s condition,
+/// for the same reason, and no row at all for no target.
+pub fn rows_of<T: TargetTable>(targets: &std::collections::BTreeSet<crate::visibility::ScanTarget>) -> Condition {
+    visible::<T>(&Visibility::Only(targets.clone())).unwrap_or_else(|| Condition::all().add(Expr::cust("1 = 0")))
 }
 
 fn in_literals(column: &'static str, ids: &[i64]) -> Condition {

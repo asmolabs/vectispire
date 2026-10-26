@@ -78,6 +78,14 @@ pub const fn nullable(name: &'static str, ty: ColumnType) -> Column {
     Column { name, ty, nullable: true }
 }
 
+/// A table as a SeaORM entity declares it — [`crate::orm::entity_table`] reads it off the entity, so the check
+/// judges the declaration the statements are built from, and not a list kept beside it.
+#[derive(Debug, Clone)]
+pub struct EntityTable {
+    pub name: &'static str,
+    pub columns: Vec<Column>,
+}
+
 /// One way the schema disagrees with a declaration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mismatch {
@@ -134,6 +142,18 @@ pub async fn check(db: &Db, tables: &[Table]) -> Result<(), ParityError> {
     if mismatches.is_empty() { Ok(()) } else { Err(ParityError::Mismatches { engine: db.engine(), mismatches }) }
 }
 
+/// Compares the entities' tables with the schema `db` reaches — what `check` does for a declared [`Table`].
+pub async fn check_entities(db: &Db, tables: &[EntityTable]) -> Result<(), ParityError> {
+    let declared: Vec<Table> = tables.iter().map(|table| Table { name: table.name, columns: &[] }).collect();
+    let found = read(db).await.map_err(|error| ParityError::Unreadable(error.to_string()))?;
+    let mismatches: Vec<Mismatch> = declared
+        .iter()
+        .zip(tables)
+        .flat_map(|(table, entity)| compare_columns(db.engine(), table.name, &entity.columns, &found))
+        .collect();
+    if mismatches.is_empty() { Ok(()) } else { Err(ParityError::Mismatches { engine: db.engine(), mismatches }) }
+}
+
 async fn read(db: &Db) -> Result<BTreeMap<(String, String), Found>, sqlx::Error> {
     // The current schema only — `database()` / `current_schema()` — so a server shared with other
     // databases cannot make a missing table look present.
@@ -164,32 +184,35 @@ async fn read(db: &Db) -> Result<BTreeMap<(String, String), Found>, sqlx::Error>
 }
 
 fn compare(engine: Engine, tables: &[Table], found: &BTreeMap<(String, String), Found>) -> Vec<Mismatch> {
+    tables.iter().flat_map(|table| compare_columns(engine, table.name, table.columns, found)).collect()
+}
+
+fn compare_columns(
+    engine: Engine,
+    table: &'static str,
+    columns: &[Column],
+    found: &BTreeMap<(String, String), Found>,
+) -> Vec<Mismatch> {
     let mut mismatches = Vec::new();
-    for table in tables {
-        if !found.keys().any(|(name, _)| name == table.name) {
-            mismatches.push(Mismatch::MissingTable { table: table.name });
+    if !found.keys().any(|(name, _)| name == table) {
+        mismatches.push(Mismatch::MissingTable { table });
+        return mismatches;
+    }
+    for column in columns {
+        let Some(actual) = found.get(&(table.to_owned(), column.name.to_owned())) else {
+            mismatches.push(Mismatch::MissingColumn { table, column: column.name });
             continue;
+        };
+        if !matches_type(engine, column.ty, actual) {
+            mismatches.push(Mismatch::Type {
+                table,
+                column: column.name,
+                declared: column.ty,
+                found: describe(actual),
+            });
         }
-        for column in table.columns {
-            let Some(actual) = found.get(&(table.name.to_owned(), column.name.to_owned())) else {
-                mismatches.push(Mismatch::MissingColumn { table: table.name, column: column.name });
-                continue;
-            };
-            if !matches_type(engine, column.ty, actual) {
-                mismatches.push(Mismatch::Type {
-                    table: table.name,
-                    column: column.name,
-                    declared: column.ty,
-                    found: describe(actual),
-                });
-            }
-            if column.nullable != actual.nullable {
-                mismatches.push(Mismatch::Nullability {
-                    table: table.name,
-                    column: column.name,
-                    declared_nullable: column.nullable,
-                });
-            }
+        if column.nullable != actual.nullable {
+            mismatches.push(Mismatch::Nullability { table, column: column.name, declared_nullable: column.nullable });
         }
     }
     mismatches

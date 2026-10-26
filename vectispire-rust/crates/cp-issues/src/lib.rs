@@ -26,6 +26,7 @@ mod persistence;
 #[doc(hidden)]
 pub mod repository_for_tests {
     pub use crate::persistence::checked;
+    pub use crate::persistence::entities::tables as entity_tables;
     pub use crate::persistence::{IssueRepository, IssueRow, NewIssue, NewTriageEvent, TriageEventRepository};
 }
 pub use persistence::{IssueFilters, Lifetime, StoreError};

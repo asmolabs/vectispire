@@ -9,6 +9,8 @@
 //! - [`VisibleSelect`] builds the dynamic queries on a target's rows and cannot be built without a
 //!   [`Visibility`] ([`query`]).
 //! - [`parity::check`] compares declared tables with the schema the migrations built.
+//! - [`orm`] runs SeaORM's entities and statements on a [`Tx`], and reads a target's rows for a reader through
+//!   [`orm::Visible`] (the SeaORM spike of 2026-10-26).
 //! - [`types`] holds the column types whose mapping is not obvious — the `char(36)` ids above all.
 //!
 //! **Fixed queries are `sqlx::query!`, checked against both engines** from the two offline caches in
@@ -18,6 +20,7 @@
 
 pub mod db;
 pub mod engine;
+pub mod orm;
 pub mod parity;
 pub mod query;
 pub mod settings;

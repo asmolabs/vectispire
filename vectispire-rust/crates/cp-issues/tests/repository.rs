@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 
 use support::Migrated;
 use time::{Duration, OffsetDateTime};
+use vectispire_cp_db::parity;
 use vectispire_cp_db::types::to_microseconds;
 use vectispire_cp_db::{Db, Engine, Mode, ScanTarget, Tx, Visibility};
 use vectispire_cp_issues::repository_for_tests::{
@@ -80,6 +81,9 @@ fn run(engine: Engine) {
             the_backlog_shows_a_reader_only_what_it_was_granted,
             the_exceptions_register_pages_by_cursor_and_visibility,
         );
+        the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
+            failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
+        });
         one_transaction_runs_a_checked_query_and_the_repository(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("one_transaction_runs_a_checked_query_and_the_repository: {failure}"));
         });
@@ -721,6 +725,25 @@ async fn the_exceptions_register_pages_by_cursor_and_visibility(tx: &mut Tx) -> 
             .await
             .map_err(|e| e.to_string())?;
     ensure_eq!(granted.iter().map(|r| r.id).collect::<Vec<_>>(), vec![image.id], "an image's grant");
+    Ok(())
+}
+
+/// Condition 3 of the spike: the entities the statements are built from, held to the migrated schema as
+/// `ddl-auto: validate` holds Java's — and a column renamed in a declaration is caught, not run.
+async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
+    let tables = vectispire_cp_issues::repository_for_tests::entity_tables()?;
+    parity::check_entities(db, &tables).await.map_err(|error| error.to_string())?;
+    let mut renamed = tables.clone();
+    let severity = renamed[0].columns.iter_mut().find(|column| column.name == "severity").unwrap();
+    severity.name = "severity_level";
+    match parity::check_entities(db, &renamed).await {
+        Err(parity::ParityError::Mismatches { mismatches, .. }) => ensure_eq!(
+            mismatches,
+            vec![parity::Mismatch::MissingColumn { table: "t_issue", column: "severity_level" }],
+            "a renamed column"
+        ),
+        other => return Err(format!("a renamed column: {other:?}")),
+    }
     Ok(())
 }
 
