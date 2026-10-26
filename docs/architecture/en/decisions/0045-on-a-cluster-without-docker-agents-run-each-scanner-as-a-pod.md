@@ -168,8 +168,13 @@ above (`kubernetesTest`, in CI's `kubernetes` job, on the runner since `jvm`'s c
 - **The API server is named, not guessed** (`agents.kubernetes.apiServer.cidrs`): the agent's policy allows
   it, and every scan pod's excludes it whatever `excludeCidrs` covers — the chart's own check found an
   online scan pod that could reach it through a gap in an operator's list.
-- **Not built yet**: image targets (§8 — `exportImage` fails the step, so the inventory is absent) and
-  registry credentials for a tool (none held).
+- **Image targets (§8), built on 2026-10-26**: the pinned crane (v0.22.1, by digest, its entrypoint held to
+  the image by `ScannerEntrypointsTest`) pulls the target for its platform, in a pod with the network, into an
+  archive of the **format a Docker daemon exports** rather than an OCI layout: the cataloguer reads the very kind
+  of input it reads on Docker. The reference set is a test: on k3s, the same image catalogued through the
+  cluster and through Docker gives the same packages. The archive comes back under its own ceiling (8 GiB).
+- **Not built yet**: registry credentials for a tool — images are copied anonymously, and a private one fails
+  its step (none held).
 - **The matcher's cache (§7, as amended)**: on k3s a generation is seeded once and then served without a
   copy — a change made to the agent's copy afterwards does not reach the pod — mounted read-only, and a
   retired generation is pruned from the volume; the end-to-end check finds its claim bound by the matcher.

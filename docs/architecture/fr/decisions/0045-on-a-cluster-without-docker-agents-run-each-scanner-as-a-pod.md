@@ -182,8 +182,13 @@ le Role ci-dessus (`kubernetesTest`, dans le job `kubernetes` de la CI, sur le r
   l'agent l'autorise, et celle de chaque pod de scan l'exclut quoi que couvre `excludeCidrs` — la
   vérification de la chart a trouvé un pod de scan en ligne qui l'atteignait par un trou dans la liste d'un
   opérateur.
-- **Pas encore construit** : les cibles image (§8 — `exportImage` fait échouer l'étape, l'inventaire est
-  donc absent) et les identifiants de registre pour un outil (aucun détenu).
+- **Cibles image (§8), construites le 2026-10-26** : le crane épinglé (v0.22.1, par empreinte, son point
+  d'entrée confronté à l'image par `ScannerEntrypointsTest`) tire la cible pour sa plateforme, dans un pod avec le
+  réseau, en une archive au **format qu'exporte un démon Docker** plutôt qu'en disposition OCI : le catalogueur
+  lit le même genre d'entrée que sur Docker. Le jeu de référence est un test : sur k3s, la même image cataloguée
+  par le cluster et par Docker donne les mêmes paquets. L'archive revient sous son propre plafond (8 Gio).
+- **Pas encore construit** : les identifiants de registre pour un outil — les images sont copiées anonymement,
+  et une image privée fait échouer son étape (aucun détenu).
 - **Le cache de l'appariement (§7, tel qu'amendé)** : sur k3s, une génération est copiée une fois puis
   servie sans copie — un changement fait ensuite à la copie de l'agent n'atteint pas le pod —, montée en
   lecture seule, et une génération retirée est supprimée du volume ; le contrôle de bout en bout trouve sa

@@ -80,4 +80,14 @@ public record ScannerImages(String syft, String grype, String gitleaks, String c
     public static final List<String> CHECKOV_ENTRYPOINT = List.of("/entrypoint.sh");
     /** None: the scanner's command starts with {@code semgrep} itself. */
     public static final List<String> SEMGREP_ENTRYPOINT = List.of();
+
+    /**
+     * **The copier of an image target, on a cluster with no Docker** (decision 0045 §8): crane v0.22.1, a released
+     * version — `:latest` is a development build — pulled for the target's platform into an archive of the same
+     * format a Docker daemon exports, so the cataloguer reads what it reads on Docker and the fingerprints do not
+     * move. Not a scanner and not overridable: it runs with the network, and only the Kubernetes executor uses it.
+     */
+    public static final String CRANE =
+            "gcr.io/go-containerregistry/crane@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1";
+    public static final List<String> CRANE_ENTRYPOINT = List.of("/ko-app/crane");
 }

@@ -521,8 +521,12 @@ and limit: size the agents' node pool for the agent's concurrency times these.
 `scripts/kubernetes-scan-check.sh` installs this shape in k3s — a server and an agents' node — and runs a
 scan through it end to end; the nightly runs it on every night's images.
 
-!!! warning "A preview: not every scan runs yet"
-    - **Image targets** fail their image step: the copy step is not built.
+An **image target** is copied by a pinned `crane`, in a pod of its own with the network, into an archive of the
+format a Docker daemon exports; the cataloguer then reads it offline, as on Docker, and finds the same packages.
+
+!!! warning "A preview: no registry credentials yet"
+    - **Images are copied anonymously.** A private image fails its image step, and its inventory is absent:
+      the executor holds no registry credentials yet.
 
 ## Running from source
 

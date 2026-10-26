@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.scanning.ContainerRunner.ContainerResult;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.OutputFile;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.ScannerLimits;
+import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
@@ -228,13 +229,66 @@ public final class KubernetesExecutor implements ContainerExecutor {
     }
 
     /**
-     * Not yet: an image target is copied into the workspace by a pinned copy step (0045 §8), which is not
-     * built. A failure, so the image's inventory is absent — never an empty one.
+     * **The ceiling on an image target's archive**, which comes back from the copier's pod like any file a step
+     * wrote — but an image runs to gigabytes where a report stays under the output ceiling. Past it the step fails.
+     */
+    static final long IMAGE_ARCHIVE_BYTES = 8L * 1024 * 1024 * 1024;
+
+    /** A platform as a registry names one: {@code os/arch[/variant]}. */
+    private static final java.util.regex.Pattern PLATFORM = java.util.regex.Pattern.compile("[a-z0-9]+/[a-z0-9_]+(/[a-z0-9]+)?");
+
+    /**
+     * **Copies an image target into {@code destination}, as an archive of the format a Docker daemon exports**
+     * (decision 0045 §8): the pinned crane, in a pod of its own with the network, pulls {@code reference} for
+     * {@code platform} into an empty directory, which comes back like any step's written files. The cataloguer then
+     * reads the same kind of archive it reads on Docker, offline — a parser of hostile metadata is never handed the
+     * network or a registry.
+     *
+     * <p><b>Anonymously.</b> No registry credential is held here ({@link #registryAccessFor}): a private image fails
+     * the step, and its inventory is absent — never an empty one.
      */
     @Override
     public void exportImage(String reference, String platform, Path destination) {
-        throw ScannerFailureException.of("image export", "Image targets are not scanned by the Kubernetes executor yet: "
-                + "the copy step of decision 0045 §8 is not built. " + reference + " was not examined.");
+        String label = "image copy (" + reference + ")";
+        // Arguments in exec form, so no shell reads them; but crane would read a leading dash as an option.
+        if (reference.isBlank() || reference.startsWith("-") || reference.chars().anyMatch(Character::isWhitespace)) {
+            throw ScannerFailureException.of(label, "\"" + reference + "\" is not an image reference.");
+        }
+        if (!PLATFORM.matcher(platform).matches()) {
+            throw ScannerFailureException.of(label, "\"" + platform + "\" is not a platform: os/arch[/variant].");
+        }
+        Path scratch;
+        try {
+            scratch = Files.createTempDirectory(destination.toAbsolutePath().getParent(), ".image-copy-");
+        } catch (IOException unwritable) {
+            throw ScannerFailureException.of(label, "No directory to copy the image into: " + unwritable.getMessage());
+        }
+        try {
+            String archive = "image.tar";
+            ContainerRun copy = ContainerRun.of(ScannerImages.CRANE,
+                            List.of("pull", "--platform", platform, reference, "/out/" + archive),
+                            List.of(ContainerRun.Mount.writable(scratch.toString(), "/out")), label)
+                    .withNetwork()
+                    .runningAsOwnerOf(scratch)
+                    .withEntrypoint(ScannerImages.CRANE_ENTRYPOINT);
+            ContainerResult copied = run(copy, IMAGE_ARCHIVE_BYTES);
+            if (copied.exitCode() != 0) {
+                throw ScannerFailureException.exited(label, copied.exitCode(), copied.stderr());
+            }
+            Path written = scratch.resolve(archive);
+            if (!Files.isRegularFile(written, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                throw ScannerFailureException.of(label, "crane exited 0 and wrote no archive: the image was not copied.");
+            }
+            Files.move(written, destination, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException unmovable) {
+            throw ScannerFailureException.of(label, "The image's archive could not be put in place: " + unmovable.getMessage());
+        } finally {
+            try (java.util.stream.Stream<Path> left = Files.walk(scratch)) {
+                left.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+            } catch (IOException ignored) {
+                // The workspace's removal takes what is left.
+            }
+        }
     }
 
     /**
@@ -248,6 +302,14 @@ public final class KubernetesExecutor implements ContainerExecutor {
 
     @Override
     public ContainerResult run(ContainerRun request) {
+        return run(request, outputBytes());
+    }
+
+    /**
+     * @param writtenCeiling what a writable mount may bring back, in bytes: the output ceiling for a scanner, an
+     *     image's for the copier
+     */
+    private ContainerResult run(ContainerRun request, long writtenCeiling) {
         String label = request.label();
         Duration timeout = request.timeout() == null ? settings.limits().timeout() : request.timeout();
         if (request.output() != null && request.user() == null) {
@@ -278,7 +340,8 @@ public final class KubernetesExecutor implements ContainerExecutor {
         String pod = "vs-" + slug + "-" + HexFormat.of().formatHex(suffix);
         try {
             api.createPod(settings.namespace(),
-                    ScanPods.pod(pod, request, settings, owner[0], owner[1], sources, copiedBytes(request, sources), timeout));
+                    ScanPods.pod(pod, request, settings, owner[0], owner[1], sources,
+                            copiedBytes(request, sources) + Math.max(0, writtenCeiling - outputBytes()), timeout));
         } catch (KubernetesException refused) {
             throw ScannerFailureException.of(label, "Its pod could not be created: " + refused.getMessage());
         }
@@ -331,7 +394,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
             for (int i = 0; i < request.mounts().size(); i++) {
                 ContainerRun.Mount mount = request.mounts().get(i);
                 if (!mount.readOnly()) {
-                    copyBack(pod, i, Path.of(mount.source()), label);
+                    copyBack(pod, i, Path.of(mount.source()), label, writtenCeiling);
                 }
             }
             return new ContainerResult(stdout, stderr, exitCode, collected);
@@ -543,7 +606,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
     }
 
     /** What the scanner wrote into a writable mount, and nothing else: see {@link MountArchives}. */
-    private void copyBack(String pod, int index, Path destination, String label) {
+    private void copyBack(String pod, int index, Path destination, String label, long ceiling) {
         String directory = ScanPods.WORK + "/m" + index;
         // tar refuses an empty list, so nothing written sends nothing. **A name with a line break is refused
         // before the list is built**: the list is one name per line, and such a name would make the holder archive
@@ -557,10 +620,10 @@ public final class KubernetesExecutor implements ContainerExecutor {
             KubernetesApi.ExecResult result;
             try (OutputStream out = Files.newOutputStream(received)) {
                 result = api.exec(settings.namespace(), pod, ScanPods.HOLDER, List.of("sh", "-c", script), null, out,
-                        outputBytes(), settings.startTimeout());
+                        ceiling, settings.startTimeout());
             }
             if (result.overCeiling()) {
-                throw ScannerFailureException.of(label, "It wrote more than " + outputBytes() + " bytes into its workspace.");
+                throw ScannerFailureException.of(label, "It wrote more than " + ceiling + " bytes into its workspace.");
             }
             if (result.exitCode() != 0) {
                 throw ScannerFailureException.of(label, "What it wrote could not be read back (exit "
@@ -568,7 +631,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
             }
             if (Files.size(received) > 0) {
                 try (InputStream in = Files.newInputStream(received)) {
-                    MountArchives.extractWritten(in, destination, outputBytes());
+                    MountArchives.extractWritten(in, destination, ceiling);
                 }
             }
         } catch (IOException refused) {

@@ -546,8 +546,13 @@ valeurs.
 `scripts/kubernetes-scan-check.sh` installe cette forme dans k3s — un serveur et un nœud d'agents — et y
 fait passer un scan de bout en bout ; la CI de nuit l'exécute sur les images de chaque nuit.
 
-!!! warning "Un aperçu : tous les scans ne tournent pas encore"
-    - **Les cibles image** voient leur étape image échouer : l'étape de copie n'est pas construite.
+Une **cible image** est copiée par un `crane` épinglé, dans un pod à lui avec le réseau, en une archive au
+format qu'exporte un démon Docker ; le catalogueur la lit ensuite hors ligne, comme sur Docker, et y trouve les
+mêmes paquets.
+
+!!! warning "Un aperçu : pas encore d'identifiants de registre"
+    - **Les images sont copiées anonymement.** Une image privée fait échouer son étape image, et son inventaire
+      est absent : l'exécuteur ne détient pas encore d'identifiants de registre.
 
 ## Exécuter depuis les sources
 

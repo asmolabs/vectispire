@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Duration;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -260,6 +261,61 @@ class KubernetesExecutorTest {
             assertThat(System.nanoTime()).as("the lister ran").isLessThan(deadline);
             Thread.sleep(500);
         }
+    }
+
+    /** A small image with packages, pinned: the composition check's fixture base. */
+    private static final String ALPINE = "alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8";
+
+    private static String nodePlatform() {
+        return "linux/" + cluster.kubectl("get", "nodes", "-o", "jsonpath={.items[0].metadata.labels.kubernetes\\.io/arch}").strip();
+    }
+
+    @Test
+    void anImageTargetIsCopiedIntoAnArchiveTheCataloguerReads() throws Exception {
+        Path archive = directory.resolve("image.tar");
+        executor.exportImage(ALPINE, nodePlatform(), archive);
+        // The format a Docker daemon exports: a manifest.json naming the layers.
+        List<String> entries = new java.util.ArrayList<>();
+        try (var tar = new org.apache.commons.compress.archivers.tar.TarArchiveInputStream(Files.newInputStream(archive))) {
+            for (var entry = tar.getNextEntry(); entry != null; entry = tar.getNextEntry()) {
+                entries.add(entry.getName());
+            }
+        }
+        assertThat(entries).contains("manifest.json");
+        assertThat(directory).isDirectoryNotContaining(path -> path.getFileName().toString().startsWith(".image-copy-"));
+    }
+
+    /**
+     * **The reference set of 0045 §8: the fingerprints must not move.** The same image, for the same platform,
+     * catalogued through Docker's export and through crane's copy, gives the same packages — what an issue's
+     * fingerprint is made of.
+     */
+    @Test
+    void anImageCataloguedThroughTheClusterHasTheSamePackagesAsThroughDocker() {
+        String platform = nodePlatform();
+        var database = org.mockito.Mockito.mock(com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase.class);
+        java.util.function.Function<com.asmolabs.vectispire.common.scanning.ContainerExecutor, java.util.Set<String>> packages =
+                runner -> Workspace.withWorkspace(workspace -> {
+                    JsonNode sbom = new com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner(
+                            runner, ScannerImages.PINNED, database).sbomOfImage(workspace, ALPINE, platform).orElseThrow();
+                    java.util.Set<String> purls = new java.util.TreeSet<>();
+                    sbom.path("artifacts").forEach(artifact -> purls.add(artifact.path("purl").asText()));
+                    return purls;
+                });
+        java.util.Set<String> throughCluster = packages.apply(executor);
+        java.util.Set<String> throughDocker = packages.apply(new com.asmolabs.vectispire.common.scanning.ContainerRunner());
+        assertThat(throughCluster).as("packages catalogued through the cluster").isNotEmpty().isEqualTo(throughDocker);
+    }
+
+    @Test
+    void anImageThatCannotBeCopiedIsAFailure() {
+        assertThatThrownBy(() -> executor.exportImage("--insecure", "linux/amd64", directory.resolve("a.tar")))
+                .isInstanceOf(ScannerFailureException.class).hasMessageContaining("not an image reference");
+        assertThatThrownBy(() -> executor.exportImage(ALPINE, "linux/amd64; rm -rf /", directory.resolve("b.tar")))
+                .isInstanceOf(ScannerFailureException.class).hasMessageContaining("not a platform");
+        assertThatThrownBy(() -> executor.exportImage("alpine@sha256:" + "0".repeat(64), nodePlatform(), directory.resolve("c.tar")))
+                .isInstanceOf(ScannerFailureException.class);
+        assertThat(directory.resolve("c.tar")).doesNotExist();
     }
 
     @Test
