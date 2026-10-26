@@ -8,10 +8,10 @@ pub mod repository;
 pub use filters::{IssueFilters, Lifetime};
 pub use repository::*;
 
-// The repository on both engines (persistence/suite.rs): in the crate, so that it reaches `persistence` without
+// The repository on both engines (persistence/tests.rs): in the crate, so that it reaches `persistence` without
 // opening it, and needs Docker as every engine suite does.
 #[cfg(test)]
-mod suite;
+mod tests;
 
 /// A read-only transaction on `db`. The services take theirs here so that the driver's error is converted where
 /// the driver is allowed to be named.

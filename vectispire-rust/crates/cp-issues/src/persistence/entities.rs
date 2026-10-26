@@ -1,5 +1,5 @@
 //! `t_issue` and `t_issue_triage_event` as SeaORM entities — the declarations the repository's statements are built
-//! from, held to the migrated schema by `parity::check_entities` on both engines (persistence/suite.rs).
+//! from, held to the migrated schema by `parity::check_entities` on both engines (persistence/tests.rs).
 //!
 //! **Each `Model` mirrors the schema, not the module's rows**: a column the schema lets be null is an `Option` here
 //! even where `IssueRow` has always read it as text (`identifier`, `source`, `severity`), so that the check can hold
