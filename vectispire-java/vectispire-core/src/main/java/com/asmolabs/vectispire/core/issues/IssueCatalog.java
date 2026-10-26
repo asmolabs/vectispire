@@ -377,6 +377,21 @@ public class IssueCatalog {
         return issues.attachTicket(issueId, reference, url);
     }
 
+    /**
+     * Claims the issue for {@code holder}'s ticket sweep until {@code until}: true when the sweep may ask the
+     * tracker, false when the issue has a reference or another instance is asking for one — see V93.
+     */
+    @Transactional
+    public boolean claimTicket(long issueId, String holder, Instant at, Instant until) {
+        return issues.claimTicket(issueId, holder, until, at) == 1;
+    }
+
+    /** Gives {@code holder}'s claim on the issue up, so the next pass of any instance may try again. */
+    @Transactional
+    public void releaseTicketClaim(long issueId, String holder) {
+        issues.releaseTicketClaim(issueId, holder);
+    }
+
     /** Records that the sweep closed this ticket: 1, or 0 when the issue carries another reference now. */
     @Transactional
     public int markTicketClosed(long issueId, String reference) {

@@ -221,6 +221,16 @@ public class IssueEntity {
     private String ticketAttachedBy;
 
     /**
+     * The instance whose ticket sweep is asking the tracker for this issue's ticket, until {@link #ticketClaimUntil}
+     * — so that two instances never both ask (V93). Written by conditional updates only, never by saving the row.
+     */
+    @Column(name = "ticket_claimed_by", length = 64)
+    private String ticketClaimedBy;
+
+    @Column(name = "ticket_claim_until")
+    private Instant ticketClaimUntil;
+
+    /**
      * The revision a write names, so that the second of two writers is refused rather than winning (V89).
      *
      * <p>A scan reads a target's issues when its ingestion begins and saves them whole when it ends; a
@@ -665,6 +675,17 @@ public class IssueEntity {
 
     public void setTicketUrl(String ticketUrl) {
         this.ticketUrl = ticketUrl;
+    }
+
+    /** The sweep's own state, never published: a reader learns nothing from which instance is asking (V93). */
+    @JsonIgnore
+    public String getTicketClaimedBy() {
+        return ticketClaimedBy;
+    }
+
+    @JsonIgnore
+    public Instant getTicketClaimUntil() {
+        return ticketClaimUntil;
     }
 
     public String getReachability() {

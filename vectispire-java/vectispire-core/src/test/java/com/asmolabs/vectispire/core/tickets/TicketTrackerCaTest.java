@@ -216,7 +216,8 @@ class TicketTrackerCaTest {
         when(policies.findByIsActiveTrue()).thenReturn(List.of());
         when(issues.findActionableWithoutTicket(anyString(), any(), any())).thenReturn(List.of(critical()));
         TicketSweepService sweep = new TicketSweepService(new IssueCatalog(issues), new ActiveGatePolicies(policies),
-                naming, service, mock(AuditLogService.class));
+                naming, service, mock(AuditLogService.class), java.time.Clock.systemUTC());
+        when(issues.claimTicket(anyLong(), anyString(), any(), any())).thenReturn(1);
 
         assertThat(sweep.sweep(20)).isZero();
         verify(issues, never()).attachTicket(anyLong(), anyString(), anyString());

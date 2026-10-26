@@ -55,11 +55,24 @@ public class TicketSweepService {
     private static final String SCOPE_REPOSITORY = "repository";
     private static final String SCOPE_CONTAINER = "container";
 
+    /**
+     * This process, as the holder of the claims it takes: every instance runs the sweep (`MaintenanceTask`), and
+     * the claim is what keeps two of them from asking the tracker for the same issue (V93).
+     */
+    static final String INSTANCE = java.util.UUID.randomUUID().toString().replace("-", "");
+
+    /**
+     * How long a claim holds: far longer than a tracker call, so it is only ever waited out when its instance died
+     * between the claim and the reference — and then the issue is tried again by the next pass after it lapses.
+     */
+    static final java.time.Duration CLAIM = java.time.Duration.ofMinutes(10);
+
     private final IssueCatalog issues;
     private final ActiveGatePolicies policies;
     private final TargetNaming names;
     private final TicketService tickets;
     private final AuditLogService audit;
+    private final java.time.Clock clock;
 
     /** The integration the last pass found suspended, empty when none: so that only a change is logged. */
     private final AtomicReference<String> suspension = new AtomicReference<>("");
@@ -69,12 +82,14 @@ public class TicketSweepService {
             ActiveGatePolicies policies,
             TargetNaming names,
             TicketService tickets,
-            AuditLogService audit) {
+            AuditLogService audit,
+            java.time.Clock clock) {
         this.issues = issues;
         this.policies = policies;
         this.names = names;
         this.tickets = tickets;
         this.audit = audit;
+        this.clock = clock;
     }
 
     /** One pass. Returns how many tickets were opened. */
@@ -136,19 +151,34 @@ public class TicketSweepService {
                 continue;
             }
 
-            Optional<TicketService.Ticket> ticket = tickets.createForIssue(
-                    IssueViews.forTicket(issue), targetNames.of(issue.repoId(), issue.containerId()));
-            // Left without a reference on purpose: the next pass will try again.
+            // **Claimed before the tracker is asked.** Every instance runs this sweep, and a tracker does not
+            // deduplicate: without the claim, two passes that overlapped both opened a ticket for the issue.
+            // Lost: another instance is asking for it now, or it has a reference already.
+            java.time.Instant now = clock.instant();
+            if (!issues.claimTicket(issue.id(), INSTANCE, now, now.plus(CLAIM))) {
+                continue;
+            }
+            Optional<TicketService.Ticket> ticket;
+            try {
+                ticket = tickets.createForIssue(
+                        IssueViews.forTicket(issue), targetNames.of(issue.repoId(), issue.containerId()));
+            } catch (RuntimeException failed) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
+                throw failed;
+            }
+            // Left without a reference on purpose, and the claim given up: the next pass will try again.
             if (ticket.isEmpty()) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
                 continue;
             }
 
             created++;
             // **Only onto an issue that still carries no reference.** One a person attached while the
             // tracker answered is kept; the ticket just opened exists all the same, and is said to,
-            // in the log and in the audit entry, for whoever has to close it.
+            // in the log and in the audit entry, for whoever has to close it. Attaching clears the claim.
             boolean recorded = issues.attachTicket(issue.id(), ticket.get().reference(), ticket.get().url()) == 1;
             if (!recorded) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
                 log.warn("Ticket {} was opened on the tracker for issue {}, which carries another reference attached "
                         + "meanwhile: the new ticket is not recorded on the issue and may need closing by hand.",
                         LogText.of(ticket.get().reference()), issue.id());

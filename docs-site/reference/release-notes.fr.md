@@ -14,7 +14,8 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   et y inscrit activées les dix-sept intégrations d'aujourd'hui : une mise à jour ne change rien tant
   qu'un gouverneur n'agit pas. Sauvegardez la base d'abord, comme pour toute migration
   ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
-  Rien d'autre n'est demandé à un opérateur.
+  La migration V93 ajoute la réclamation du balayage des tickets, deux colonnes nulles sur `t_issue`. Rien
+  d'autre n'est demandé à un opérateur.
 
 ### Changements visibles d'une intégration {#changements-visibles-dune-integration-0120}
 
@@ -103,6 +104,15 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   la CA épinglée et les références des issues sont gardés, la carte du tracker affiche *Suspendu —
   intégration désactivée*, et le réactiver reprend tout tel quel
   ([tickets](../integrations/ticketing.fr.md#tracker-suspended)).
+
+### Corrigé {#corrige-0120}
+
+- **Deux plans de contrôle n'ouvrent plus deux tickets pour un constat.** Chaque instance exécute le balayage
+  horaire des tickets, et deux passages qui se chevauchaient demandaient tous deux au tracker un ticket pour le
+  même constat. Le balayage réclame désormais chaque constat avant de demander (migration V93, deux colonnes
+  nulles sur `t_issue`) : un passage qui perd la réclamation laisse le constat à l'autre, une tentative refusée
+  rend la réclamation, et la réclamation d'une instance morte est reprise après dix minutes. Une seule réplique,
+  la valeur par défaut de la chart, n'a jamais rencontré ce cas.
 
 ## 0.11.2 — 27 octobre 2026
 

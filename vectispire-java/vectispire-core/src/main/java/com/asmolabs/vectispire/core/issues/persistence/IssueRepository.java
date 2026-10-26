@@ -287,9 +287,33 @@ public interface IssueRepository
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
-            update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.revision = i.revision + 1
+            update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.revision = i.revision + 1,
+                   i.ticketClaimedBy = null, i.ticketClaimUntil = null
              where i.id = :id and i.ticketRef is null""")
     int attachTicket(@Param("id") Long id, @Param("reference") String reference, @Param("url") String url);
+
+    /**
+     * Claims the issue for {@code holder}'s ticket sweep until {@code until}: 1 when it is now {@code holder}'s —
+     * no reference, and no claim still running at {@code at}, **its own included**: two passes in one process are two
+     * askers too (the database test runs exactly that, and caught the first version letting a holder reclaim). The
+     * row count names the winner, as the leader's lease does. Not a revision: nothing a person edits has changed.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update IssueEntity i set i.ticketClaimedBy = :holder, i.ticketClaimUntil = :until
+             where i.id = :id and i.ticketRef is null
+               and (i.ticketClaimUntil is null or i.ticketClaimUntil <= :at)""")
+    int claimTicket(@Param("id") Long id, @Param("holder") String holder, @Param("until") Instant until,
+            @Param("at") Instant at);
+
+    /** Gives {@code holder}'s claim up — the tracker refused, or a person attached a reference meanwhile. */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update IssueEntity i set i.ticketClaimedBy = null, i.ticketClaimUntil = null
+             where i.id = :id and i.ticketClaimedBy = :holder""")
+    int releaseTicketClaim(@Param("id") Long id, @Param("holder") String holder);
 
     /**
      * Marks the ticket a sweep closed — {@code CLOSED:} before its reference — while the issue still carries

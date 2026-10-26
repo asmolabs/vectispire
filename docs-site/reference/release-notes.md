@@ -13,7 +13,8 @@ the trackers' part of the sixth.
   the seventeen integrations of today enabled, so an upgrade changes nothing until a governor acts. Back
   up the database first, as for any migration
   ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
-  Nothing else is asked of an operator.
+  Migration V93 adds the ticket sweep's claim, two nullable columns on `t_issue`. Nothing else is asked of an
+  operator.
 
 ### Changes an integration can see {#changes-an-integration-can-see-0120}
 
@@ -94,6 +95,14 @@ the trackers' part of the sixth.
   token, the settings, the pinned CA and the issues' references are kept, the tracker card reads
   *Suspended — integration disabled*, and switching it back on resumes everything as it was
   ([tickets](../integrations/ticketing.md#tracker-suspended)).
+
+### Fixed {#fixed-0120}
+
+- **Two control planes no longer open two tickets for one issue.** Every instance runs the hourly ticket sweep,
+  and two passes that overlapped both asked the tracker for the same issue. The sweep now claims each issue
+  before asking (migration V93, two nullable columns on `t_issue`): a pass that loses the claim leaves the issue
+  to the other, a refused attempt gives the claim up, and a claim whose instance died is taken over after ten
+  minutes. One replica, the chart's default, never met this.
 
 ## 0.11.2 — 2026-10-27
 

@@ -53,7 +53,10 @@ class TicketSweepServiceTest {
 
         sweep = new TicketSweepService(
                 new com.asmolabs.vectispire.core.issues.IssueCatalog(issues),
-                new com.asmolabs.vectispire.core.gate.ActiveGatePolicies(policies), naming, tickets, audit);
+                new com.asmolabs.vectispire.core.gate.ActiveGatePolicies(policies), naming, tickets, audit,
+                java.time.Clock.systemUTC());
+        // The claim this instance takes before asking the tracker (V93): won, as one instance alone wins it.
+        when(issues.claimTicket(anyLong(), anyString(), any(), any())).thenReturn(1);
 
         when(tickets.isEnabled()).thenReturn(true);
         when(policies.findByIsActiveTrue()).thenReturn(List.of());
