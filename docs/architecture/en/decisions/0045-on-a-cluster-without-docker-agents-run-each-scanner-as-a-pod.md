@@ -143,7 +143,7 @@ backends, which needs the Java backend.
 ## Built so far, 2026-10-25
 
 `KubernetesExecutor` in `vectispire-agent`, tested on k3s 1.34 as the agent's service account under the Role
-above (`kubernetesTest`, in CI's `jvm` job). What building it settled:
+above (`kubernetesTest`, in CI's `kubernetes` job, on the runner since `jvm`'s container has no Docker). What building it settled:
 
 - **Standard output goes to a file through a wrapper**, never through the log: the scanner runs as
   `busybox sh -c 'exec "$@" >stdout 2>stderr'`, with a **static** busybox (the musl image, pinned) that the

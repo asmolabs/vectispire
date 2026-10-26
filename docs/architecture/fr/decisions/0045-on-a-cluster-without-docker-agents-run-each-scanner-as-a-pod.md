@@ -154,7 +154,7 @@ constats entre les deux exécuteurs, qui demande l'exécuteur Java.
 ## Construit à ce jour, 2026-10-25
 
 `KubernetesExecutor` dans `vectispire-agent`, testé sur k3s 1.34 avec le compte de service de l'agent sous
-le Role ci-dessus (`kubernetesTest`, dans le job `jvm` de la CI). Ce que la construction a tranché :
+le Role ci-dessus (`kubernetesTest`, dans le job `kubernetes` de la CI, sur le runner puisque le conteneur de `jvm` n'a pas Docker). Ce que la construction a tranché :
 
 - **La sortie standard va dans un fichier par un enveloppeur**, jamais par le journal : le scanner tourne en
   `busybox sh -c 'exec "$@" >stdout 2>stderr'`, avec un busybox **statique** (l'image musl, épinglée) que

@@ -106,8 +106,8 @@ tasks.named("check") {
  * scan namespace under Pod Security `restricted`, the agent's service account holding the chart's Role.
  *
  * **Its own task, not a skip.** `test` excludes the tag because k3s needs a privileged container and a
- * minute to start; this task runs them, needs Docker, and fails without it. CI's `jvm` job runs it
- * beside `build`, on every push.
+ * minute to start; this task runs them, needs Docker, and fails without it. CI's `kubernetes` job runs
+ * it on every push, on the runner: the `jvm` job's JDK container has no Docker.
  */
 tasks.named<Test>("test") {
     useJUnitPlatform { excludeTags("kubernetes") }
@@ -141,7 +141,7 @@ val kubernetesCoverageVerification = tasks.register<JacocoCoverageVerification>(
 }
 
 // Depends on the suite rather than following it: a run filtered to one class would otherwise be held to the
-// whole suite's floor. CI's `jvm` job calls this task, which runs the suite first.
+// whole suite's floor. CI's `kubernetes` job calls this task, which runs the suite first.
 kubernetesCoverageVerification.configure { dependsOn(kubernetesTest) }
 
 tasks.named<Jar>("bootJar") {

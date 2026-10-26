@@ -694,11 +694,7 @@ jobs:
       - run: |
           cd vectispire-java
           test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
-          # `kubernetesCoverageVerification`, which runs `kubernetesTest` — the agent's Kubernetes executor
-          # against k3s in a privileged container — and holds it to its own floor
-          # (decision 0045), its own task because `test` must not need one — and run here, on every
-          # push, because a client tested by nothing is the wiring nobody exercised.
-          ./gradlew build :vectispire-agent:kubernetesCoverageVerification --dependency-verification=strict
+          ./gradlew build --dependency-verification=strict
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -1174,6 +1170,33 @@ jobs:
   # front-end file, and that case is not to be paid for here: thirty minutes on every backend push
   # is precisely the cost that teaches people to route around CI. It is the OpenAPI contract that
   # must catch it, as a diff rather than in a browser.
+  # **The Kubernetes executor against a real cluster** (decision 0045): `kubernetesCoverageVerification` runs
+  # `kubernetesTest` — the agent's client, its executor and its start-up choice against k3s in a privileged
+  # container, as the agent's service account under the chart's own Role — and holds those classes to their
+  # floor. On the runner, not in `jvm`: that job runs in a JDK container with no Docker, where k3s cannot
+  # start (the first push put it there, and it could not have run). Every push, because a client tested by
+  # nothing is the wiring nobody exercised.
+  kubernetes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: |
+          cd vectispire-java
+          test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
+          ./gradlew :vectispire-agent:kubernetesCoverageVerification --dependency-verification=strict
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: kubernetes-test-reports
+          path: vectispire-java/vectispire-agent/build/reports/tests/kubernetesTest/
+          retention-days: 7
+
   frontend-changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
