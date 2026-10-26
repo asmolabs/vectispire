@@ -17,6 +17,7 @@
 //! | `unsafe_code.rs` | `unsafe` is forbidden, with one named exception | — (the JVM has none) |
 //! | `isolation.rs` | the agent links no control-plane code and never names the encryption key | `AgentIsolationTest` |
 //! | `routes.rs` | every route declares who may call it and settles whose data it serves | `RouteAuthorizationTest`, `AuthorizationCoverageTest` |
+//! | `wire_time.rs` | a serialised instant names its format, never `time`'s array of numbers | — (Jackson's `Instant` is a string) |
 //!
 //! **A green result says what it read.** Every check returns, or is paired with, a count of the crates, files and
 //! paths it examined, and the tests assert a floor: a rule that read nothing is the failure mode these checks
@@ -34,3 +35,4 @@ pub mod routes;
 pub mod source;
 pub mod sql;
 pub mod unsafe_code;
+pub mod wire_time;

@@ -13,7 +13,7 @@ use std::path::Path;
 use vectispire_cp_arch_tests::graph::Workspace;
 use vectispire_cp_arch_tests::model::{Config, EDGES};
 use vectispire_cp_arch_tests::sql::{KNOWN, Ownership, TABLES, parse_known, references};
-use vectispire_cp_arch_tests::{edges, isolation, layering, routes, unsafe_code};
+use vectispire_cp_arch_tests::{edges, isolation, layering, routes, unsafe_code, wire_time};
 
 /// Java's `ArchitectureTest.MODULES`, which `ModularityTest` reads: the twenty-eight modules of `core`.
 const JAVA_MODULES: [&str; 28] = [
@@ -134,6 +134,14 @@ fn unsafe_stays_the_one_documented_exception() {
     assert_none("unsafe", &violations);
     assert!(read >= 40, "the check read {read} files");
     println!("unsafe: {read} files read");
+}
+
+#[test]
+fn every_serialised_instant_names_its_format() {
+    let (violations, read) = wire_time::check(&config(), &workspace());
+    assert_none("wire time", &violations);
+    assert!(read >= 200, "the check read {read} files");
+    println!("wire time: {read} files read");
 }
 
 #[test]
