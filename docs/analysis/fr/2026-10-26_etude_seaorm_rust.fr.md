@@ -104,3 +104,67 @@ exiger :
 **Coût** : 2 à 3 jours-dev pour la maquette, les 20 audits de la chaîne d'approvisionnement compris. Si elle
 tient, environ 8 à 12 pour les autres dépôts, module par module, chacun derrière son propre rejeu doré. Le
 portage reste en pause tant que ce n'est pas tranché ; rien ici ne change le côté Java.
+
+## Résultat de la maquette (26 octobre 2026)
+
+Menée sur la branche `rust/seaorm-spike` (commits 0f1490288 et 7274cd728, non poussés : les contrôles de chaîne
+d'approvisionnement de la CI la refusent tant que la décision ci-dessous n'est pas prise). **Les cinq conditions
+tiennent ; le coût en chaîne d'approvisionnement est plus élevé qu'estimé plus haut.**
+
+**Comment elle a été jugée.** `cp-issues` n'avait aucun test de son dépôt sur aucun moteur — son seul test vérifiait
+la liste des routes — : la maquette a commencé par en écrire un, chaque fonction du dépôt sur MySQL 9.4 et
+PostgreSQL 17, tenue à ce que répondent `IssueRepository` et `IssueSpecifications` côté Java. Exécuté d'abord sur le
+code écrit à la main, puis sur SeaORM.
+
+**Sa première trouvaille est une fuite du portage écrit à la main, indépendante de SeaORM.** Un lecteur à qui l'on
+accorde une *image* voyait aussi les anomalies qui nomment le *dépôt* de cette image : le backlog, les comptes par
+sévérité et le registre des exceptions écrivaient `repo_id in (…) or container_id in (…)`, là où Java ne lit l'image
+que lorsque le dépôt est nul (0.11.1). Le portage n'est pas livré : personne n'y a été exposé. La version SeaORM lit
+la condition dans la fonction même qu'utilise déjà `VisibleSelect`, et la fuite disparaît.
+
+| Condition | Résultat |
+|---|---|
+| Rejeu doré et tests du module sur les deux moteurs | Suite verte sur les deux. Les routes des anomalies n'avaient jamais été rejouées (`deferred.txt`, phase 3) ; rejouées pour la maquette contre le dépôt écrit à la main et contre SeaORM, sur un même enregistrement de la suite Java (2 368 tests) : **327 → 333 enregistrements verts sur 523, aucun perdu**. Les six gagnés sont le `DualTargetVisibilityRoutesTest` de Java lui-même — la fuite ci-dessus. |
+| Une transaction pour un `query!` et un appel d'entité | **Par construction.** SeaORM construit l'instruction ; `cp-db::orm` la rend pour le moteur et l'exécute avec sqlx sur la connexion que tient déjà le `Tx` du portage. Aucune connexion ni transaction SeaORM n'existe. La suite montre chaque côté lisant l'écriture non validée de l'autre, et un seul retour arrière emportant les deux. |
+| `parity::check` étendu aux entités | `parity::check_entities` lit colonnes, longueurs et nullabilité sur l'entité et les compare au schéma migré ; vert sur les deux moteurs. Une colonne renommée et une longueur changée sont chacune détectées. |
+| La garde de visibilité gardée dans le type | `Visible<E>` ne se construit qu'à partir d'une `Visibility`, n'ajoute que des conditions `AND` et ne rend jamais le `Select` de SeaORM, dont `query()` laisserait revenir un `OR`. L'entité des anomalies n'est pas exportée de son module : `Entity::find()` ne compile pas dans le dépôt. Comme pour `VisibleSelect` et une table nommée dans une chaîne, un détour délibéré par un type associé reste possible. |
+| Lignes et instructions en double | Ci-dessous. |
+
+| Persistance de `cp-issues` | écrite à la main | SeaORM |
+|---|---|---|
+| lignes (code seul) | 1 836 (1 721) | 1 209 (1 046), plus 248 dans `cp-db::orm`, partagées par tous les modules |
+| instructions vérifiées par rien | 60 | 0 |
+| bras `match` par moteur | 80 | 0 |
+| appels `.bind(` | 320 | 0 |
+| `query!` vérifiés (deux moteurs) | 0 | 8 — l'insertion d'une ligne, deux comptes, le balayage des orphelins |
+| fragments de SQL brut | 0 | 3 — l'âge de résolution (`TIMESTAMPDIFF` / `EXTRACT(EPOCH …)`), l'ordre des sévérités |
+
+Cinq mutants ont été exécutés, chacun détecté sur les deux moteurs : une colonne renommée dans l'entité, une
+longueur changée, `Visible` abandonnant la visibilité, la règle de l'image perdant `repo_id is null`, une mise à jour
+ignorant la révision.
+
+**Ce que la maquette a coûté et que l'étude ne comptait pas.**
+
+- **cargo vet demande 48 crates, pas 20.** Il juge toutes les fonctionnalités du fichier de verrouillage : la prise
+  en charge facultative d'Arrow par SeaORM (douze crates `arrow-*`), les analyseurs `lexical-*`, `sea-schema` et
+  `num-bigint` comptent bien que la compilation ne les construise jamais ; la compilation elle-même en lie vingt.
+  Chacune demande un audit ou une exemption nommée.
+- **cargo deny** refuse une chose : `heck` 0.4 à côté de 0.5, à nommer dans `skip`.
+- **Une entité est vérifiée quand la suite s'exécute, pas quand le code compile.** Une colonne renommée fait échouer
+  chaque instruction qui la nomme — à l'exécution, par la suite et par `check_entities` — là où un `query!` n'aurait
+  pas compilé.
+
+**Trouvé en chemin, quelle que soit la décision.**
+
+- Aucun démarrage n'exécute `parity::check` pour aucun module : le `ddl-auto: validate` du portage existe et n'est
+  pas branché (2.11).
+- Le rejeu montre deux réponses qui diffèrent de Java dans les deux versions : un `source` absent répondu `""` au
+  lieu de `null`, et le `decided_at` des exceptions sérialisé en tableau de nombres au lieu d'un instant.
+- Chaque enregistrement de l'historique des dépôts échoue dans le module des scans, sur une requête nommant une
+  colonne `repository_id` qui n'existe pas.
+
+**Recommandation : adopter l'hybride**, module par module, chacun derrière la même suite et un rejeu de ses routes,
+une fois les 48 entrées de cargo vet ajoutées avec leurs raisons et `heck` nommé dans `skip`. Les dépôts restants
+portent environ 257 instructions non vérifiées ; l'estimation de 8 à 12 jours-dev tient, la partie commune
+(`cp-db::orm`, `Visible`, la parité des entités) étant désormais écrite. S'il n'est pas adopté, le seul correctif de
+visibilité est porté dans le dépôt écrit à la main avant 2.11.

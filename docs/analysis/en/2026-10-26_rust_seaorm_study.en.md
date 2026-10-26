@@ -98,3 +98,61 @@ Measured against the port:
 **Cost**: 2 to 3 developer-days for the spike, the 20 supply-chain audits included. If it holds, about 8 to 12
 for the other repositories, module by module, each behind its own golden replay. The port stays paused until
 this is decided; nothing here changes the Java side.
+
+## Spike result (October 26, 2026)
+
+Run on branch `rust/seaorm-spike` (commits 0f1490288 and 7274cd728, not pushed: CI's supply-chain checks refuse it
+until the decision below). **All five conditions hold; the supply-chain cost is higher than estimated above.**
+
+**How it was judged.** `cp-issues` had no test of its repository on any engine — its only test checked the route
+list — so the spike began with one: every repository function on MySQL 9.4 and PostgreSQL 17, held to what Java's
+`IssueRepository` and `IssueSpecifications` answer. Run first on the hand-written code, then on SeaORM.
+
+**Its first finding was a leak in the hand-written port, independent of SeaORM.** A reader granted an *image* also
+saw the issues naming that image's *repository*: the backlog, the counts by severity and the exceptions register
+wrote `repo_id in (…) or container_id in (…)`, where Java reads the image only where the repository is null
+(0.11.1). The port is not shipped, so nobody was exposed. The SeaORM version reads the condition from the one
+function `VisibleSelect` already uses, and the leak goes.
+
+| Condition | Result |
+|---|---|
+| Golden replay and the module's tests on both engines | Suite green on both. The issues routes had never been replayed (`deferred.txt`, Phase 3); replayed for the spike against the hand-written and the SeaORM repository on the same recording of the Java suite (2,368 tests): **327 → 333 of 523 recordings green, none lost**. The six gained are Java's own `DualTargetVisibilityRoutesTest` — the leak above. |
+| One transaction for a `query!` and an entity call | **By construction.** SeaORM builds the statement; `cp-db::orm` renders it for the engine and runs it with sqlx on the connection the port's `Tx` already holds. No SeaORM connection or transaction exists. The suite shows each side reading the other's uncommitted write, and one rollback taking both. |
+| `parity::check` extended to the entities | `parity::check_entities` reads columns, lengths and nullability off the entity and compares them with the migrated schema; green on both engines. A renamed column and a changed length are each caught. |
+| The visibility guard kept in the type | `Visible<E>` is built only from a `Visibility`, only adds `AND` conditions and never hands out SeaORM's `Select`, whose `query()` would let an `OR` back in. The issue entity is not exported from its module, so `Entity::find()` does not compile in the repository. As with `VisibleSelect` and a table named in a string, a deliberate detour through an associated type is still possible. |
+| Lines and duplicated statements | Below. |
+
+| `cp-issues` persistence | hand-written | SeaORM |
+|---|---|---|
+| lines (code only) | 1,836 (1,721) | 1,209 (1,046), plus 248 in `cp-db::orm`, shared by every module |
+| statements checked by nothing | 60 | 0 |
+| engine `match` arms | 80 | 0 |
+| `.bind(` calls | 320 | 0 |
+| checked `query!` (both engines) | 0 | 8 — the one-row insert, two counts, the orphan sweep |
+| raw SQL fragments | 0 | 3 — the resolution age (`TIMESTAMPDIFF` / `EXTRACT(EPOCH …)`), the severity order |
+
+Five mutants were run, each caught on both engines: a column renamed in the entity, a length changed, `Visible`
+dropping the visibility, the image rule losing `repo_id is null`, an update ignoring the revision.
+
+**What the spike cost that the study did not count.**
+
+- **cargo vet wants 48 crates, not 20.** It judges every feature of the lockfile, so SeaORM's optional Arrow
+  support (twelve `arrow-*` crates), the `lexical-*` parsers, `sea-schema` and `num-bigint` count although the
+  build never compiles them; the build itself links the twenty. Each needs an audit or a named exemption.
+- **cargo deny** refuses one thing: `heck` 0.4 beside 0.5, to be named in `skip`.
+- **An entity is checked when the suite runs, not when the code compiles.** A renamed column fails every statement
+  that names it — at run time, by the suite and by `check_entities` — where a `query!` would not have compiled.
+
+**Found on the way, whatever is decided.**
+
+- No start-up runs `parity::check` for any module: the port's `ddl-auto: validate` exists and is not wired (2.11).
+- The replay shows two answers that differ from Java's in both versions: an absent `source` answered `""` instead
+  of `null`, and the exceptions' `decided_at` serialised as an array of numbers instead of an instant.
+- Every repository-history recording fails in the scans module, on a query naming a column `repository_id` that
+  does not exist.
+
+**Recommendation: adopt the hybrid**, module by module, each behind the same suite and a replay of its routes,
+once the 48 vet entries are added with their reasons and `heck` is skipped. The remaining repositories hold about
+257 unchecked statements; the estimate of 8 to 12 developer-days stands, since the shared part (`cp-db::orm`,
+`Visible`, entity parity) is now written. If it is not adopted, the visibility fix alone is ported to the
+hand-written repository before 2.11.
