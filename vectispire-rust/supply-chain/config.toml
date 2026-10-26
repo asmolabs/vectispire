@@ -48,9 +48,89 @@ version = "0.5.3"
 criteria = "safe-to-deploy"
 notes = "RustCrypto's Argon2, for the PHC strings PasswordHasher writes (API keys, passwords) — cp-access; no imported set audits it yet."
 
+[[exemptions.arrow]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-arith]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-array]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-buffer]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-cast]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-cmp]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-data]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-ord]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-row]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-schema]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-select]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.arrow-string]]
+version = "60.0.0"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.async-stream]]
+version = "0.3.6"
+criteria = "safe-to-deploy"
+notes = "Streams in sea-orm's executor, which cp-db does not call; linked because sea-orm is."
+
+[[exemptions.async-stream-impl]]
+version = "0.3.6"
+criteria = "safe-to-deploy"
+notes = "async-stream's macro; build time only."
+
+[[exemptions.async-trait]]
+version = "0.1.92"
+criteria = "safe-to-deploy"
+notes = "sea-orm's connection traits, which cp-db does not call; linked because sea-orm is."
+
 [[exemptions.atoi]]
 version = "2.0.0"
 criteria = "safe-to-deploy"
+
+[[exemptions.atoi]]
+version = "3.1.1"
+criteria = "safe-to-deploy"
+notes = "Behind arrow-cast (SeaORM's Arrow export, off) in this lockfile entry; in Cargo.lock only, never compiled."
 
 [[exemptions.autocfg]]
 version = "1.5.1"
@@ -141,6 +221,16 @@ criteria = "safe-to-deploy"
 version = "0.9.6"
 criteria = "safe-to-deploy"
 
+[[exemptions.const-random]]
+version = "0.1.18"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.const-random-macro]]
+version = "0.1.16"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
 [[exemptions.cpufeatures]]
 version = "0.2.17"
 criteria = "safe-to-deploy"
@@ -168,6 +258,11 @@ criteria = "safe-to-deploy"
 [[exemptions.crossbeam-utils]]
 version = "0.8.23"
 criteria = "safe-to-deploy"
+
+[[exemptions.crunchy]]
+version = "0.2.4"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
 
 [[exemptions.crypto-bigint]]
 version = "0.5.5"
@@ -197,6 +292,21 @@ criteria = "safe-to-deploy"
 version = "0.1.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.darling]]
+version = "0.20.11"
+criteria = "safe-to-deploy"
+notes = "Attribute parsing for sea-query-derive; build time only."
+
+[[exemptions.darling_core]]
+version = "0.20.11"
+criteria = "safe-to-deploy"
+notes = "darling's; build time only."
+
+[[exemptions.darling_macro]]
+version = "0.20.11"
+criteria = "safe-to-deploy"
+notes = "darling's; build time only."
+
 [[exemptions.data-encoding]]
 version = "2.11.1"
 criteria = "safe-to-deploy"
@@ -216,6 +326,21 @@ criteria = "safe-to-deploy"
 [[exemptions.deranged]]
 version = "0.5.9"
 criteria = "safe-to-deploy"
+
+[[exemptions.derive-where]]
+version = "1.7.0"
+criteria = "safe-to-deploy"
+notes = "Derives with bounds, used by sea-orm's generic types."
+
+[[exemptions.derive_more]]
+version = "2.1.1"
+criteria = "safe-to-deploy"
+notes = "Derives used by sea-orm."
+
+[[exemptions.derive_more-impl]]
+version = "2.1.1"
+criteria = "safe-to-deploy"
+notes = "derive_more's procedural macros; build time only."
 
 [[exemptions.digest]]
 version = "0.10.7"
@@ -297,6 +422,11 @@ criteria = "safe-to-deploy"
 version = "0.12.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.fnv]]
+version = "1.0.7"
+criteria = "safe-to-deploy"
+notes = "A hasher darling_core uses; build time only."
+
 [[exemptions.fraction]]
 version = "0.17.0"
 criteria = "safe-to-deploy"
@@ -364,6 +494,11 @@ criteria = "safe-to-run"
 [[exemptions.group]]
 version = "0.13.0"
 criteria = "safe-to-deploy"
+
+[[exemptions.half]]
+version = "2.7.1"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
 
 [[exemptions.hashbrown]]
 version = "0.14.2"
@@ -465,6 +600,11 @@ criteria = "safe-to-deploy"
 version = "2.3.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.ident_case]]
+version = "1.0.1"
+criteria = "safe-to-deploy"
+notes = "Case conversion for darling; build time only."
+
 [[exemptions.idna]]
 version = "1.1.0"
 criteria = "safe-to-deploy"
@@ -484,6 +624,11 @@ criteria = "safe-to-deploy"
 [[exemptions.ipnet]]
 version = "2.12.2"
 criteria = "safe-to-deploy"
+
+[[exemptions.itertools]]
+version = "0.14.0"
+criteria = "safe-to-deploy"
+notes = "Iterator helpers, used by sea-orm and sea-orm-macros."
 
 [[exemptions.itoa]]
 version = "1.0.18"
@@ -533,6 +678,36 @@ criteria = "safe-to-deploy"
 version = "1.5.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.lexical-core]]
+version = "1.0.6"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.lexical-parse-float]]
+version = "1.0.6"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.lexical-parse-integer]]
+version = "1.0.6"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.lexical-util]]
+version = "1.0.7"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.lexical-write-float]]
+version = "1.0.6"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.lexical-write-integer]]
+version = "1.0.6"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
 [[exemptions.libc]]
 version = "0.2.190"
 criteria = "safe-to-deploy"
@@ -540,6 +715,11 @@ criteria = "safe-to-deploy"
 [[exemptions.libgit2-sys]]
 version = "0.18.8+1.9.7"
 criteria = "safe-to-deploy"
+
+[[exemptions.libm]]
+version = "0.2.16"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
 
 [[exemptions.libsqlite3-sys]]
 version = "0.37.0"
@@ -609,6 +789,11 @@ criteria = "safe-to-deploy"
 version = "0.4.8"
 criteria = "safe-to-deploy"
 
+[[exemptions.num-bigint]]
+version = "0.5.1"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
 [[exemptions.num-cmp]]
 version = "0.1.0"
 criteria = "safe-to-deploy"
@@ -636,6 +821,11 @@ criteria = "safe-to-deploy"
 [[exemptions.openssl-sys]]
 version = "0.9.117"
 criteria = "safe-to-deploy"
+
+[[exemptions.ordered-float]]
+version = "4.6.0"
+criteria = "safe-to-deploy"
+notes = "sea-query's float values (Eq/Hash for f32/f64), reached through SeaORM's value types."
 
 [[exemptions.outref]]
 version = "0.5.2"
@@ -678,6 +868,11 @@ criteria = "safe-to-deploy"
 [[exemptions.pkcs8]]
 version = "0.10.2"
 criteria = "safe-to-deploy"
+
+[[exemptions.pluralizer]]
+version = "0.5.0"
+criteria = "safe-to-deploy"
+notes = "Names the generated entity types in sea-orm-macros; build time only."
 
 [[exemptions.polyval]]
 version = "0.6.2"
@@ -829,13 +1024,48 @@ version = "0.11.0"
 criteria = "safe-to-deploy"
 notes = "RustCrypto's scrypt, for EncryptionKey.derive's passphrase branch (BouncyCastle's SCrypt.generate, N=2^15) — cp-crypto; no imported set audits it yet."
 
+[[exemptions.sea-bae]]
+version = "0.2.2"
+criteria = "safe-to-deploy"
+notes = "Attribute parsing for sea-orm-macros; build time only."
+
+[[exemptions.sea-orm]]
+version = "2.0.4"
+criteria = "safe-to-deploy"
+notes = "SeaORM 2.0, the entities and statement builders of the control plane's repositories (cp-db::orm, decided 2026-10-26 after the cp-issues spike); its connections and transactions are never made — statements run on cp-db's own sqlx Tx."
+
+[[exemptions.sea-orm-arrow]]
+version = "2.0.0-rc.5"
+criteria = "safe-to-deploy"
+notes = "SeaORM's optional Arrow export (feature `with-arrow`), off: in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
+[[exemptions.sea-orm-macros]]
+version = "2.0.4"
+criteria = "safe-to-deploy"
+notes = "SeaORM's derives (DeriveEntityModel, FromQueryResult), at build time only."
+
 [[exemptions.sea-query]]
 version = "1.0.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.sea-query-derive]]
+version = "1.0.0"
+criteria = "safe-to-deploy"
+notes = "sea-query's Iden derive, which SeaORM's entities expand to; build time only."
+
 [[exemptions.sea-query-sqlx]]
 version = "0.9.1"
 criteria = "safe-to-deploy"
+
+[[exemptions.sea-schema]]
+version = "0.18.1"
+criteria = "safe-to-deploy"
+notes = "SeaORM's optional schema discovery (`schema-sync`), off — the schema is Flyway's: in Cargo.lock only, never compiled."
+
+[[exemptions.sea-schema-derive]]
+version = "0.3.0"
+criteria = "safe-to-deploy"
+notes = "sea-schema's derive; in Cargo.lock only, never compiled (see sea-schema)."
 
 [[exemptions.sec1]]
 version = "0.7.3"
@@ -1013,6 +1243,11 @@ criteria = "safe-to-deploy"
 version = "0.2.32"
 criteria = "safe-to-deploy"
 
+[[exemptions.tiny-keccak]]
+version = "2.0.2"
+criteria = "safe-to-deploy"
+notes = "Behind SeaORM's optional Arrow export (`sea-orm-arrow`, off): in Cargo.lock only, never compiled. cargo vet judges every feature of the lockfile, so it is exempted rather than audited."
+
 [[exemptions.tinystr]]
 version = "0.8.4"
 criteria = "safe-to-deploy"
@@ -1112,6 +1347,11 @@ criteria = "safe-to-deploy"
 [[exemptions.unicode-properties]]
 version = "0.1.4"
 criteria = "safe-to-deploy"
+
+[[exemptions.unicode-xid]]
+version = "0.2.6"
+criteria = "safe-to-deploy"
+notes = "Identifier classes for derive_more-impl; build time only."
 
 [[exemptions.untrusted]]
 version = "0.9.0"
