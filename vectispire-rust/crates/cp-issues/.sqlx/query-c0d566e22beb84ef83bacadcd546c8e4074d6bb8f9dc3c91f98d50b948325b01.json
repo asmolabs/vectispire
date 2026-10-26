@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select count(e.id) as \"count!\" from t_issue_triage_event e join t_issue i on e.issue_id = i.id where i.repo_id = $1 and e.origin <> $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c0d566e22beb84ef83bacadcd546c8e4074d6bb8f9dc3c91f98d50b948325b01"
+}

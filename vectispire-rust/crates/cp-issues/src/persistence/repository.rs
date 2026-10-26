@@ -1134,22 +1134,7 @@ impl IssueRepository {
 
     /// `IssueRepository::find_orphaned_ids`: cross-module orphan sweep checked against `t_container` and `t_repository`.
     pub async fn find_orphaned_ids(tx: &mut Tx) -> Result<Vec<i64>, StoreError> {
-        let sql = "select i.id from t_issue i where (i.container_id is not null and i.container_id not in (select c.id from t_container c)) or (i.repo_id is not null and i.repo_id not in (select r.id from t_repository r))";
-        let rows = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| r.get::<i64, _>("id"))
-                .collect::<Vec<i64>>(),
-            Tx::PostgreSql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| r.get::<i64, _>("id"))
-                .collect::<Vec<i64>>(),
-        };
-        Ok(rows)
+        super::checked::find_orphaned_ids(tx).await
     }
 
     pub async fn delete_by_ids(tx: &mut Tx, ids: &[i64]) -> Result<u64, StoreError> {
@@ -1189,44 +1174,7 @@ impl IssueRepository {
 
     pub async fn insert_triage_events(tx: &mut Tx, events: &[NewTriageEvent]) -> Result<(), StoreError> {
         for event in events {
-            match tx {
-                Tx::MySql(conn) => {
-                    let sql = "insert into t_issue_triage_event (issue_id, from_status, to_status, justification, comment, actor, origin, occurred_at, expires_at, requested_status, scan_id, previous_resolved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                    sqlx::query(AssertSqlSafe(sql))
-                        .bind(event.issue_id)
-                        .bind(&event.from_status)
-                        .bind(&event.to_status)
-                        .bind(&event.justification)
-                        .bind(&event.comment)
-                        .bind(&event.actor)
-                        .bind(&event.origin)
-                        .bind(UtcInstant(event.occurred_at))
-                        .bind(event.expires_at.map(UtcInstant))
-                        .bind(&event.requested_status)
-                        .bind(event.scan_id)
-                        .bind(event.previous_resolved_at.map(UtcInstant))
-                        .execute(&mut **conn)
-                        .await?;
-                }
-                Tx::PostgreSql(conn) => {
-                    let sql = "insert into t_issue_triage_event (issue_id, from_status, to_status, justification, comment, actor, origin, occurred_at, expires_at, requested_status, scan_id, previous_resolved_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
-                    sqlx::query(AssertSqlSafe(sql))
-                        .bind(event.issue_id)
-                        .bind(&event.from_status)
-                        .bind(&event.to_status)
-                        .bind(&event.justification)
-                        .bind(&event.comment)
-                        .bind(&event.actor)
-                        .bind(&event.origin)
-                        .bind(UtcInstant(event.occurred_at))
-                        .bind(event.expires_at.map(UtcInstant))
-                        .bind(&event.requested_status)
-                        .bind(event.scan_id)
-                        .bind(event.previous_resolved_at.map(UtcInstant))
-                        .execute(&mut **conn)
-                        .await?;
-                }
-            }
+            super::checked::insert_triage_event(tx, event).await?;
         }
         Ok(())
     }
@@ -1528,45 +1476,11 @@ impl IssueRepository {
     }
 
     pub async fn count_by_state_and_repository(tx: &mut Tx, state: &str, repo_id: i64) -> Result<i64, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "select count(id) as cnt from t_issue where state = ? and repo_id = ?",
-            Tx::PostgreSql(_) => "select count(id) as cnt from t_issue where state = $1 and repo_id = $2",
-        };
-        let cnt: i64 = match tx {
-            Tx::MySql(conn) => {
-                let r = sqlx::query(AssertSqlSafe(sql)).bind(state).bind(repo_id).fetch_one(&mut **conn).await?;
-                r.get("cnt")
-            }
-            Tx::PostgreSql(conn) => {
-                let r = sqlx::query(AssertSqlSafe(sql)).bind(state).bind(repo_id).fetch_one(&mut **conn).await?;
-                r.get("cnt")
-            }
-        };
-        Ok(cnt)
+        super::checked::count_by_state_and_repository(tx, state, repo_id).await
     }
 
     pub async fn count_for_repository(tx: &mut Tx, repo_id: i64, not_a_decision: &str) -> Result<i64, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => {
-                "select count(e.id) as cnt from t_issue_triage_event e join t_issue i on e.issue_id = i.id where i.repo_id = ? and e.origin <> ?"
-            }
-            Tx::PostgreSql(_) => {
-                "select count(e.id) as cnt from t_issue_triage_event e join t_issue i on e.issue_id = i.id where i.repo_id = $1 and e.origin <> $2"
-            }
-        };
-        let cnt: i64 = match tx {
-            Tx::MySql(conn) => {
-                let r =
-                    sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(not_a_decision).fetch_one(&mut **conn).await?;
-                r.get("cnt")
-            }
-            Tx::PostgreSql(conn) => {
-                let r =
-                    sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(not_a_decision).fetch_one(&mut **conn).await?;
-                r.get("cnt")
-            }
-        };
-        Ok(cnt)
+        super::checked::count_decisions_for_repository(tx, repo_id, not_a_decision).await
     }
 
     // -------------------------------------------------------------------------

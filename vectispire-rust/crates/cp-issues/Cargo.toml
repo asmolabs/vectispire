@@ -11,6 +11,8 @@ publish.workspace = true
 default = ["mysql-queries", "postgres-queries"]
 mysql-queries = []
 postgres-queries = []
+# Opens `persistence` to tests/repository.rs; see lib.rs.
+repository-tests = []
 
 [dependencies]
 axum.workspace = true
@@ -37,6 +39,7 @@ vectispire-domain.workspace = true
 vectispire-protocol.workspace = true
 
 [dev-dependencies]
+vectispire-cp-issues = { path = ".", features = ["repository-tests"] }
 http-body-util.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }

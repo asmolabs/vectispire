@@ -3789,6 +3789,7 @@ dependencies = [
  "vectispire-cp-crypto",
  "vectispire-cp-db",
  "vectispire-cp-http",
+ "vectispire-cp-issues",
  "vectispire-cp-maintenance",
  "vectispire-cp-outbound",
  "vectispire-cp-scanning",
