@@ -2,7 +2,7 @@
 //!
 //! `time`'s own `Serialize` writes an `OffsetDateTime` as an array of its parts — `[2090,1,0,3,22,0,0,0,0]` —
 //! where Java's Jackson writes `"2090-01-01T00:03:22Z"`. It compiles, it round-trips through serde, and every
-//! client parsing the field as a date breaks. Ten fields of the issues module's exceptions register and triage
+//! client parsing the field as a date breaks. Eight fields of the issues module's exceptions register and triage
 //! history went out that way, and only the replay of Java's recorded traffic saw it (2026-10-26): the issues routes
 //! were not yet in the replay CI runs. So the rule reads the source instead: a field of a struct deriving
 //! `Serialize` whose type is `OffsetDateTime`, `PrimitiveDateTime` or `Date` — bare or in an `Option` — carries a
