@@ -20,15 +20,6 @@ pub mod error;
 pub mod exceptions;
 pub mod history;
 mod persistence;
-/// The repository, for this crate's own suite of it on both engines (`tests/repository.rs`) and nothing else: the
-/// crate turns `repository-tests` on for its tests only, and the services stay the module's door.
-#[cfg(feature = "repository-tests")]
-#[doc(hidden)]
-pub mod repository_for_tests {
-    pub use crate::persistence::checked;
-    pub use crate::persistence::entities::tables as entity_tables;
-    pub use crate::persistence::{IssueRepository, IssueRow, NewIssue, NewTriageEvent, TriageEventRepository};
-}
 pub use persistence::{IssueFilters, Lifetime, StoreError};
 pub mod purge;
 pub mod queries;

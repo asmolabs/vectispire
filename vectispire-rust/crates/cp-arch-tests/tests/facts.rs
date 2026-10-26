@@ -101,6 +101,15 @@ fn the_forbid_attribute_is_read_and_deny_is_not_it() {
 }
 
 #[test]
+fn a_file_of_tests_is_skipped_as_a_test_module_is() {
+    let source = "use crate::persistence::rows;\nfn f() { other::module::call(\"select * from t_repository\"); }\n";
+    let facts = read(&format!("#![cfg(test)]\n{source}")).unwrap();
+    assert!(facts.paths.is_empty() && facts.literals.is_empty(), "{:?} {:?}", facts.paths, facts.literals);
+    assert!(!read(source).unwrap().paths.is_empty(), "the same file without the attribute is read");
+    assert!(!read(&format!("#![cfg(not(test))]\n{source}")).unwrap().paths.is_empty(), "not(test) is not a test");
+}
+
+#[test]
 fn a_file_that_does_not_parse_is_an_error_with_a_position() {
     let error = read("fn f( {\n").unwrap_err();
     assert!(error.starts_with("1:"), "{error}");

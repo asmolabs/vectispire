@@ -1,5 +1,5 @@
 //! `t_issue` and `t_issue_triage_event` as SeaORM entities — the declarations the repository's statements are built
-//! from, held to the migrated schema by `parity::check_entities` on both engines (tests/repository.rs).
+//! from, held to the migrated schema by `parity::check_entities` on both engines (persistence/suite.rs).
 //!
 //! **Each `Model` mirrors the schema, not the module's rows**: a column the schema lets be null is an `Option` here
 //! even where `IssueRow` has always read it as text (`identifier`, `source`, `severity`), so that the check can hold
@@ -179,7 +179,7 @@ pub(crate) async fn insert_issue(tx: &mut Tx, row: IssueActive) -> Result<i64, s
 
 /// The two tables, for `parity::check_entities` — run by this crate's suite on both engines; no start-up runs
 /// `parity::check` for any module yet.
-#[cfg(feature = "repository-tests")]
+#[cfg(test)]
 pub fn tables() -> Result<Vec<vectispire_cp_db::parity::EntityTable>, String> {
     Ok(vec![
         vectispire_cp_db::orm::entity_table::<issue::Entity>()?,

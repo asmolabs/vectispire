@@ -8,6 +8,11 @@ pub mod repository;
 pub use filters::{IssueFilters, Lifetime};
 pub use repository::*;
 
+// The repository on both engines (persistence/suite.rs): in the crate, so that it reaches `persistence` without
+// opening it, and needs Docker as every engine suite does.
+#[cfg(test)]
+mod suite;
+
 /// A read-only transaction on `db`. The services take theirs here so that the driver's error is converted where
 /// the driver is allowed to be named.
 pub async fn read(db: &vectispire_cp_db::Db) -> Result<vectispire_cp_db::Tx, StoreError> {

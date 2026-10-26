@@ -7,21 +7,21 @@
 //! Every check runs, and the failures are reported together: a baseline that stopped at its first difference would
 //! say one thing about a repository that may have several.
 
+#![cfg(test)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 mod support;
 
 use std::collections::BTreeMap;
 
-use support::Migrated;
+use self::support::Migrated;
+use crate::persistence::{
+    IssueFilters, IssueRepository, IssueRow, Lifetime, NewIssue, NewTriageEvent, TriageEventRepository,
+};
 use time::{Duration, OffsetDateTime};
 use vectispire_cp_db::parity;
 use vectispire_cp_db::types::to_microseconds;
 use vectispire_cp_db::{Db, Engine, Mode, ScanTarget, Tx, Visibility};
-use vectispire_cp_issues::repository_for_tests::{
-    IssueRepository, IssueRow, NewIssue, NewTriageEvent, TriageEventRepository,
-};
-use vectispire_cp_issues::{IssueFilters, Lifetime};
 
 const REPO_A: i64 = 101;
 const REPO_B: i64 = 102;
@@ -731,7 +731,7 @@ async fn the_exceptions_register_pages_by_cursor_and_visibility(tx: &mut Tx) -> 
 /// Condition 3 of the spike: the entities the statements are built from, held to the migrated schema as
 /// `ddl-auto: validate` holds Java's — and a column renamed in a declaration is caught, not run.
 async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
-    let tables = vectispire_cp_issues::repository_for_tests::entity_tables()?;
+    let tables = crate::persistence::entities::tables()?;
     parity::check_entities(db, &tables).await.map_err(|error| error.to_string())?;
     let mut renamed = tables.clone();
     let severity = renamed[0].columns.iter_mut().find(|column| column.name == "severity").unwrap();
@@ -750,7 +750,7 @@ async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
 /// Condition 2 of the spike: a compile-checked `query!` and the repository's statements in one transaction —
 /// each sees the other's uncommitted write, and a rollback takes both away.
 async fn one_transaction_runs_a_checked_query_and_the_repository(db: &Db) -> Check {
-    use vectispire_cp_issues::repository_for_tests::checked;
+    use crate::persistence::checked;
     let mut tx = db.begin(Mode::ReadWrite).await.map_err(|e| e.to_string())?;
     let written = insert(&mut tx, issue("tx-1", Some(REPO_B), None)).await?;
     let counted = checked::count_by_state_and_repository(&mut tx, "open", REPO_B).await.map_err(|e| e.to_string())?;

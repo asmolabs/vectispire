@@ -57,6 +57,13 @@ pub fn read(source: &str) -> Result<Facts, String> {
         format!("{}:{}: {error}", start.line, start.column)
     })?;
     let mut collector = Collector::default();
+    // A file that opens with `#![cfg(test)]` is a test module kept in a file of its own — the inline `#[cfg(test)]
+    // mod` of the items below, written where it does not crowd its module — and is skipped as they are.
+    if file.attrs.iter().any(|attribute| matches!(attribute.style, syn::AttrStyle::Inner(_)))
+        && is_cfg_test(&file.attrs)
+    {
+        return Ok(collector.facts);
+    }
     collector.facts.forbids_unsafe = file.attrs.iter().any(|attribute| {
         matches!(attribute.style, syn::AttrStyle::Inner(_))
             && attribute.path().is_ident("forbid")

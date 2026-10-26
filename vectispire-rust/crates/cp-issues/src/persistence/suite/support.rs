@@ -4,6 +4,7 @@
 //! The engines are the campaign's, by digest (`Engine.java`, `scripts/upgrade-drill.sh`). Every container is
 //! `vs-rs-iss-*`, removed on drop; a missing Docker fails the test (AGENTS.md, "Never skip silently").
 
+#![cfg(test)]
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used)]
 
 use std::process::Command;

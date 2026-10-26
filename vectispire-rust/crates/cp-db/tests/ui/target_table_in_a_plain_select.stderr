@@ -12,6 +12,10 @@ error[E0277]: the trait bound `Issues: IntoTableRef` is not satisfied
             MySqlType
             NullAlias
             PgLTree
+            sea_orm::entity::column::types::BoolColumn<E>
+            sea_orm::entity::column::types::BytesColumn<E>
+            sea_orm::entity::column::types::DateLikeColumn<E>
+          and $N others
   = note: required for `DynIden` to implement `From<Issues>`
   = note: required for `Issues` to implement `Into<DynIden>`
   = note: required for `Issues` to implement `IntoIden`
