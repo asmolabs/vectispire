@@ -1056,13 +1056,15 @@ const FINDING_COLS_CONST: &str = "f.id, f.scan_id, f.type, f.severity, f.identif
                     f.fix_versions, f.link, f.issue_id, f.is_direct_dependency, f.line, f.description";
 
 pub async fn last_scan_at_per_repository(tx: &mut Tx) -> Result<BTreeMap<i64, OffsetDateTime>, StoreError> {
-    let sql = "select repository_id, max(created_at) as last_scan from t_scan where repository_id is not null and status = 'completed' group by repository_id";
+    // Every scan, whatever its status, as Java's `findLastScanInstantPerRepository`: the history's last scan is the
+    // newest one started, and a target whose only scan failed still shows when it was last looked at.
+    let sql = "select repo_id, max(created_at) as last_scan from t_scan where repo_id is not null group by repo_id";
     match tx {
         Tx::MySql(conn) => {
             let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
             let mut map = BTreeMap::new();
             for r in rows {
-                let repo_id: i64 = r.get("repository_id");
+                let repo_id: i64 = r.get("repo_id");
                 let last_scan: Option<UtcInstant> = r.try_get("last_scan").ok().flatten();
                 if let Some(instant) = last_scan {
                     map.insert(repo_id, instant.0);
@@ -1074,7 +1076,7 @@ pub async fn last_scan_at_per_repository(tx: &mut Tx) -> Result<BTreeMap<i64, Of
             let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
             let mut map = BTreeMap::new();
             for r in rows {
-                let repo_id: i64 = r.get("repository_id");
+                let repo_id: i64 = r.get("repo_id");
                 let last_scan: Option<UtcInstant> = r.try_get("last_scan").ok().flatten();
                 if let Some(instant) = last_scan {
                     map.insert(repo_id, instant.0);
