@@ -1,5 +1,79 @@
 # Release notes
 
+## 0.11.2 — 2026-10-27
+
+0.11.2 runs scans on a Kubernetes cluster that has no Docker. With `agents.executor: kubernetes`, the
+in-cluster agent runs each scanner as a pod of its own, in a namespace under Pod Security `restricted`
+([decision 0045](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md)).
+It is a **preview**: image targets are not scanned by it yet. Nothing changes for an installation that
+keeps Docker. What follows is against 0.11.1.
+
+### Before you upgrade {#before-you-upgrade-0112}
+
+- **No migration and no API change.** Going back to 0.11.1 is a matter of images.
+- **The chart mounts the in-cluster agent's credentials at `/etc/vectispire/secrets`**, not `/run/secrets`,
+  in both shapes. There is nothing to do with the chart. A deployment written by hand from the chart's agent
+  needs the same change before it uses the Kubernetes executor: a read-only volume at `/run/secrets` leaves
+  the kubelet nowhere to mount the service account's token, and the agent never starts.
+- **With `agents.executor: kubernetes`**:
+  - `agents.kubernetes.apiServer.cidrs` is required while the network policy is on. List the endpoints of
+    the `kubernetes` Service (`kubectl get endpoints kubernetes -n default`).
+  - The scans' namespace is `<release>-scans` by default. Using one the chart did not create needs
+    `agents.kubernetes.acknowledgeExistingNamespace`.
+  - **The agent refuses to start** unless the scans' namespace refuses a privileged pod (Pod Security
+    `restricted`, checked with a dry run), and unless a probe pod, offline and online, cannot reach the API
+    server. A CNI that ignores NetworkPolicy fails the second check. `scripts/k8s-executor-spike.sh`
+    measures both on your cluster beforehand.
+  - The matcher's database is kept on a claim in the scans' namespace (`agents.kubernetes.matcherCache`,
+    10Gi). The claim is kept when the release is removed.
+
+### Changes an integration can see {#changes-an-integration-can-see-0112}
+
+- None in the REST API, the agents' protocol or the exports. An agent using the Kubernetes executor
+  announces `kubernetes` as its scanner engine.
+
+### New {#new-0112}
+
+- **The Kubernetes scan executor (preview).** Each scanner run is a pod: a static busybox receives the
+  workspace over `exec`, the scanner runs in the closed shape, and a holder keeps the pod so its output is
+  read back over `exec`:
+  - the closed shape: no capability, no privilege escalation, read-only root, the workspace owner's uid,
+    seccomp, limits equal to requests, no service account token;
+  - the scanner's standard output goes to a file, never through the kubelet's rotating log;
+  - each pod is deleted after its run, and the agent removes at start what a crash left;
+  - every Kubernetes outcome is a named failure, never an empty result.
+
+  The chart renders the namespace, the agent's Role (pods, `pods/exec`, `pods/log` in that namespace
+  only), a deny-all policy for scan pods, the agents' egress rules for the steps that need the network, and
+  the database cache. See
+  [Agents in the cluster without Docker](../getting-started/installation.md#agents-without-docker).
+- **`scripts/kubernetes-scan-check.sh`** installs that shape in k3s, with a server and an agents' node, and
+  runs a scan through it end to end: every scanner must find what was planted for it. The nightly runs it.
+
+### Security {#security-0112}
+
+A review of the executor found nothing critical or high. What it found is fixed:
+
+- **The scans' namespace is checked rather than trusted.** The agent proves at every start, with a dry run of
+  a privileged, root, host-mounting pod, that Pod Security refuses it there. This check cannot be turned off.
+- **One scans' namespace per release by default.** Each release's online policy selects only its own
+  agent's pods, so two releases never share policies or the Role's reach.
+- **Scan pods never reach the API server**, whatever `excludeCidrs` covers; only the agent's own policy
+  allows it.
+- **The network probe has a positive control**, so a missing or broken `nc` stops the start instead of
+  reading as "blocked".
+- **What a scanner writes is brought back as regular files inside its mount, and nothing else.** A link, a
+  name outside the mount, a path through a link, a name with a line break or a sparse entry is refused, and
+  the total is capped.
+- **The work volume has a size**, and an output that cannot be read back fails the step instead of reading
+  as empty.
+- The control plane is kept off the scan pods' nodes and off the executor's agent pod's.
+
+### Fixed {#fixed-0112}
+
+- The in-cluster agent's credentials, mounted read-only at `/run/secrets`, hid the service account token's
+  mountpoint: an agent that needed the token could not start.
+
 ## 0.11.1 — 2026-10-25
 
 0.11.1 links a checklist's contact profiles to accounts and reminds them of their open lines weekly,

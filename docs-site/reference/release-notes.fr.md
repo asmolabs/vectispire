@@ -1,5 +1,83 @@
 # Notes de version
 
+## 0.11.2 — 27 octobre 2026
+
+La 0.11.2 exécute les scans sur un cluster Kubernetes sans Docker. Avec `agents.executor: kubernetes`,
+l'agent du cluster exécute chaque scanner dans un pod à lui, dans un espace de noms sous Pod Security
+`restricted` ([décision 0045](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md)).
+C'est un **aperçu** : il ne scanne pas encore les cibles image. Rien ne change pour une installation qui garde
+Docker. Ce qui suit est par rapport à la 0.11.1.
+
+### Avant la mise à jour {#avant-la-mise-a-jour-0112}
+
+- **Aucune migration, aucun changement d'API.** Revenir à la 0.11.1 est une affaire d'images.
+- **La chart monte les identifiants de l'agent du cluster sous `/etc/vectispire/secrets`**, et non plus
+  `/run/secrets`, dans les deux formes. Rien à faire avec la chart. Un déploiement écrit à la main d'après
+  l'agent de la chart demande le même changement avant d'utiliser l'exécuteur Kubernetes : un volume en
+  lecture seule à `/run/secrets` ne laisse au kubelet aucune place pour monter le jeton du compte de service,
+  et l'agent ne démarre jamais.
+- **Avec `agents.executor: kubernetes`** :
+  - `agents.kubernetes.apiServer.cidrs` est requis tant que la politique réseau est active. Listez les
+    adresses du Service `kubernetes` (`kubectl get endpoints kubernetes -n default`).
+  - L'espace de noms des scans est `<release>-scans` par défaut. En utiliser un que la chart n'a pas créé
+    demande `agents.kubernetes.acknowledgeExistingNamespace`.
+  - **L'agent refuse de démarrer** si l'espace de noms des scans ne refuse pas un pod privilégié (Pod Security
+    `restricted`, vérifié par un essai à blanc), et si un pod de sonde, hors ligne ou en ligne, atteint le
+    serveur d'API. Un CNI qui ignore les NetworkPolicies fait échouer la seconde vérification.
+    `scripts/k8s-executor-spike.sh` mesure les deux sur votre cluster au préalable.
+  - La base de l'appariement est conservée sur une revendication de l'espace de noms des scans
+    (`agents.kubernetes.matcherCache`, 10Gi). La revendication est conservée quand la release est supprimée.
+
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-0112}
+
+- Aucun dans l'API REST, le protocole des agents ou les exports. Un agent qui utilise l'exécuteur Kubernetes
+  annonce `kubernetes` comme moteur de scan.
+
+### Nouveautés {#nouveautes-0112}
+
+- **L'exécuteur de scans Kubernetes (aperçu).** Chaque exécution d'un scanner est un pod : un busybox
+  statique reçoit l'espace de travail par `exec`, le scanner tourne dans la forme fermée, et un holder garde
+  le pod pour que sa sortie soit relue par `exec` :
+  - la forme fermée : aucune capacité, aucune élévation, racine en lecture seule, l'uid du propriétaire de
+    l'espace de travail, seccomp, limites égales aux demandes, aucun jeton de compte de service ;
+  - la sortie standard du scanner va dans un fichier, jamais par le journal que le kubelet fait tourner ;
+  - chaque pod est supprimé après son exécution, et l'agent retire au démarrage ce qu'un arrêt brutal a
+    laissé ;
+  - chaque issue côté Kubernetes est un échec nommé, jamais un résultat vide.
+
+  La chart rend l'espace de noms, le Role de l'agent (pods, `pods/exec`, `pods/log` dans cet espace de noms
+  seulement), une politique qui coupe tout trafic aux pods de scan, les règles de sortie des agents pour les
+  étapes qui ont besoin du réseau, et le cache de la base. Voir
+  [Des agents dans le cluster sans Docker](../getting-started/installation.md#agents-without-docker).
+- **`scripts/kubernetes-scan-check.sh`** installe cette forme dans k3s, avec un serveur et un nœud d'agents,
+  et y fait passer un scan de bout en bout : chaque scanner doit trouver ce qui lui était destiné. La CI de nuit
+  l'exécute.
+
+### Sécurité {#securite-0112}
+
+Une revue de l'exécuteur n'a rien trouvé de critique ni d'élevé. Ce qu'elle a trouvé est corrigé :
+
+- **L'espace de noms des scans est vérifié, pas supposé.** L'agent prouve à chaque démarrage, par un essai à
+  blanc d'un pod privilégié, root, montant l'hôte, que Pod Security l'y refuse. Cette vérification ne peut pas
+  être désactivée.
+- **Un espace de noms de scans par release par défaut.** La politique en ligne de chaque release ne choisit
+  que les pods de son propre agent : deux releases ne partagent jamais de politique ni la portée du Role.
+- **Les pods de scan n'atteignent jamais le serveur d'API**, quoi que couvre `excludeCidrs` ; seule la
+  politique de l'agent l'autorise.
+- **La sonde réseau a un témoin positif** : un `nc` absent ou cassé arrête le démarrage au lieu de se lire
+  comme « bloqué ».
+- **Ce qu'un scanner écrit revient en fichiers ordinaires dans son montage, et rien d'autre.** Un lien, un nom
+  hors du montage, un chemin traversant un lien, un nom contenant un saut de ligne ou une entrée creuse est
+  refusé, et le total est plafonné.
+- **Le volume de travail a une taille**, et une sortie illisible fait échouer l'étape au lieu de se lire
+  comme vide.
+- Le plan de contrôle est tenu hors des nœuds des pods de scan et de celui du pod de l'agent de l'exécuteur.
+
+### Corrigé {#corrige-0112}
+
+- Les identifiants de l'agent du cluster, montés en lecture seule à `/run/secrets`, masquaient le point de
+  montage du jeton du compte de service : un agent qui avait besoin du jeton ne pouvait pas démarrer.
+
 ## 0.11.1 — 25 octobre 2026
 
 La 0.11.1 lie les profils de contact d'une checklist à des comptes et leur rappelle chaque semaine leurs
