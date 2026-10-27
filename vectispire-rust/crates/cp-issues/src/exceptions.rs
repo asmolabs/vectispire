@@ -224,7 +224,7 @@ impl ExceptionReviewService {
     pub async fn review(
         &self,
         issue_id: i64,
-        outcome: ReviewOutcome,
+        outcome: Option<ReviewOutcome>,
         comment: Option<&str>,
         reviewer: Option<(&str, Role)>,
         new_expiry: Option<OffsetDateTime>,
@@ -248,18 +248,24 @@ impl ExceptionReviewService {
         let issue = IssueRepository::find_by_id(&mut tx, issue_id)
             .await
             .map_err(IssueError::from)?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {issue_id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
         crate::persistence::commit(tx).await?;
 
         let target = match (issue.repo_id, issue.container_id) {
             (Some(r), _) => ScanTarget::Repository(r),
             (None, Some(c)) => ScanTarget::Container(c),
-            (None, None) => return Err(IssueError::NotFound(format!("Issue {issue_id} not found."))),
+            (None, None) => return Err(IssueError::NotFound("Issue not found.".to_owned())),
         };
         if !allowed.permits(target) {
-            return Err(IssueError::NotFound(format!("Issue {issue_id} not found.")));
+            return Err(IssueError::NotFound("Issue not found.".to_owned()));
         }
 
+        // After the role and the issue's visibility, as Java's `IssueTriageService.review` asks it first of what it reads.
+        let Some(outcome) = outcome else {
+            return Err(IssueError::InvalidInput(
+                "A review needs an outcome: CONFIRMED, EXTENDED, REVOKED.".to_owned(),
+            ));
+        };
         self.triage
             .review_now(issue_id, outcome, comment.map(str::to_owned), Some(username.to_owned()), new_expiry)
             .await?;

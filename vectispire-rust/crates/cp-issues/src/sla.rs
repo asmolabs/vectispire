@@ -44,6 +44,8 @@ impl Assessment {
     }
 }
 
+const NANOS_PER_DAY: i128 = 86_400_000_000_000;
+
 /// How long a finding of a given severity may stay open.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemediationSla {
@@ -97,7 +99,14 @@ impl RemediationSla {
         let window = self.window_for(severity)?;
         let due_at = first_seen_at.saturating_add(window);
         let late = now > due_at;
-        let days = due_at.unix_timestamp().saturating_sub(now.unix_timestamp()).checked_div(86_400).unwrap_or(0);
+        // `ChronoUnit.DAYS.between(now, dueAt)`: whole days to the nanosecond, truncated toward zero. Counted in whole
+        // seconds, an issue first seen at 10:00:00.2 and read at 10:00:00.7 was 30 days from due, where Java says 29.
+        let days = due_at
+            .unix_timestamp_nanos()
+            .saturating_sub(now.unix_timestamp_nanos())
+            .checked_div(NANOS_PER_DAY)
+            .and_then(|days| i64::try_from(days).ok())
+            .unwrap_or(0);
 
         let state = if late {
             SlaState::Overdue
@@ -284,3 +293,24 @@ impl SlaBreachSignals {
 }
 
 opaque_debug!(SlaService, SlaBreachSignals);
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    fn days(first_seen: OffsetDateTime, now: OffsetDateTime) -> i64 {
+        RemediationSla::default_policy().assess(Severity::High, first_seen, true, false, now).unwrap().days
+    }
+
+    #[test]
+    fn the_days_to_due_are_counted_to_the_nanosecond_as_chrono_unit_counts_them() {
+        let first_seen = OffsetDateTime::from_unix_timestamp_nanos(1_793_103_941_200_000_000).unwrap();
+        // Half a second later, in the same second: 29 days and some hours left, not 30.
+        assert_eq!(days(first_seen, first_seen + Duration::milliseconds(500)), 29);
+        assert_eq!(days(first_seen, first_seen), 30);
+        // Late by less than a day is 0, by a day and a half -1: truncated toward zero, as Java's between.
+        assert_eq!(days(first_seen, first_seen + Duration::days(30) + Duration::hours(1)), 0);
+        assert_eq!(days(first_seen, first_seen + Duration::days(31) + Duration::hours(12)), -1);
+    }
+}

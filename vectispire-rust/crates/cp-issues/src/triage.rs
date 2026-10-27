@@ -2,6 +2,7 @@
 
 use time::{Duration, OffsetDateTime};
 use vectispire_cp_db::{Db, ScanTarget, Tx, Visibility};
+use vectispire_domain::bounded_text;
 
 use crate::error::IssueError;
 use crate::persistence::{IssueRepository, IssueRow, NewTriageEvent};
@@ -153,7 +154,9 @@ pub struct TriageDecision {
 
 impl Triage {
     pub const MAX_REVIEW_DAYS: i64 = 3650;
-    pub const MAX_COMMENT_LENGTH: usize = 10_000;
+    /// Java's `Triage.MAX_COMMENT_LENGTH`, which is `BoundedText.TEXT_MAX`: it was 10,000 here, and a 12,000-character comment
+    /// Java stores was refused.
+    pub const MAX_COMMENT_LENGTH: usize = bounded_text::TEXT_MAX;
 
     pub fn decide(request: &TriageRequest, as_of: OffsetDateTime) -> Result<TriageDecision, IssueError> {
         let status =
@@ -178,13 +181,11 @@ impl Triage {
             }
         }
 
-        if let Some(comment) = &request.comment
-            && comment.len() > Self::MAX_COMMENT_LENGTH
+        // In UTF-16 units, as Java's `String.length`: `len()` counted bytes, and 9,000 accented letters Java stores were refused.
+        if let Some(refused) =
+            bounded_text::too_long(request.comment.as_deref(), Self::MAX_COMMENT_LENGTH, "The comment")
         {
-            return Err(IssueError::InvalidTriage(format!(
-                "The comment is longer than {} characters.",
-                Self::MAX_COMMENT_LENGTH
-            )));
+            return Err(IssueError::InvalidTriage(refused));
         }
 
         let expires_at = Self::expiry_from(status, request.expires_in_days, as_of)?;
@@ -282,7 +283,7 @@ impl IssueTriageService {
 
         let mut issue = IssueRepository::find_by_id(tx, issue_id)
             .await?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {issue_id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
 
         let previous = issue.triage_status.clone();
         let origin = if previous == TriageStatus::PendingApproval.wire_name() && decision.status.is_settled() {
@@ -335,7 +336,7 @@ impl IssueTriageService {
         // Re-read with incremented revision
         let refreshed = IssueRepository::find_by_id(tx, issue_id)
             .await?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {issue_id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
         Ok(refreshed)
     }
 
@@ -359,14 +360,14 @@ impl IssueTriageService {
         let mut previous_statuses = Vec::with_capacity(issue_ids.len());
 
         for &id in issue_ids {
-            let row = issue_map.get(&id).ok_or_else(|| IssueError::NotFound(format!("Issue {id} not found.")))?;
+            let row = issue_map.get(&id).ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
 
             let target = match (row.repo_id, row.container_id) {
                 (Some(repo_id), _) => ScanTarget::Repository(repo_id),
                 (None, Some(container_id)) => ScanTarget::Container(container_id),
                 (None, None) => {
                     if !matches!(visibility, Visibility::Everything) {
-                        return Err(IssueError::NotFound(format!("Issue {} not found.", row.id)));
+                        return Err(IssueError::NotFound("Issue not found.".to_owned()));
                     }
                     ordered_existing.push(row.clone());
                     previous_statuses.push(row.triage_status.clone());
@@ -375,7 +376,7 @@ impl IssueTriageService {
             };
 
             if !visibility.permits(target) {
-                return Err(IssueError::NotFound(format!("Issue {} not found.", row.id)));
+                return Err(IssueError::NotFound("Issue not found.".to_owned()));
             }
 
             ordered_existing.push(row.clone());
@@ -483,13 +484,8 @@ impl IssueTriageService {
         actor: Option<String>,
         new_expiry: Option<OffsetDateTime>,
     ) -> Result<IssueRow, IssueError> {
-        if let Some(c) = &comment
-            && c.len() > Triage::MAX_COMMENT_LENGTH
-        {
-            return Err(IssueError::InvalidInput(format!(
-                "The comment is longer than {} characters.",
-                Triage::MAX_COMMENT_LENGTH
-            )));
+        if let Some(refused) = bounded_text::too_long(comment.as_deref(), Triage::MAX_COMMENT_LENGTH, "The comment") {
+            return Err(IssueError::InvalidInput(refused));
         }
 
         let mut issue = IssueRepository::find_by_id(tx, issue_id)
@@ -526,6 +522,7 @@ impl IssueTriageService {
         let from_status = issue.triage_status.clone();
         let mut to_status = from_status.clone();
 
+        let unchanged = issue.clone();
         match outcome {
             ReviewOutcome::Confirmed => {}
             ReviewOutcome::Extended => {
@@ -539,8 +536,10 @@ impl IssueTriageService {
             }
         }
 
-        let updated = IssueRepository::update_issue(tx, &issue).await?;
-        if !updated {
+        // Written only when the review changed it, as Hibernate writes an entity only when it is dirty: a confirmation —
+        // the review that leaves the decision as it was — moved the issue's revision, and a client holding it was told
+        // the issue had changed meanwhile when nothing had. The review itself is the event below, whatever the outcome.
+        if issue != unchanged && !IssueRepository::update_issue(tx, &issue).await? {
             return Err(IssueError::ChangedMeanwhile);
         }
 
@@ -562,7 +561,7 @@ impl IssueTriageService {
 
         let refreshed = IssueRepository::find_by_id(tx, issue_id)
             .await?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {issue_id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
         Ok(refreshed)
     }
 
@@ -637,3 +636,34 @@ impl IssueTriageService {
 }
 
 opaque_debug!(Triage, BulkTriageResult, IssueTriageService);
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    fn commented(comment: String) -> TriageRequest {
+        TriageRequest {
+            status: Some(TriageStatus::Affected),
+            actor: Some("alice".to_owned()),
+            justification: None,
+            comment: Some(comment),
+            expires_in_days: None,
+        }
+    }
+
+    #[test]
+    fn a_comment_is_held_to_java_s_ceiling_in_utf16_units() {
+        let now = OffsetDateTime::now_utc();
+        // Java's BoundedText.TEXT_MAX: 12,000 characters were refused at the old 10,000.
+        assert!(Triage::decide(&commented("a".repeat(16_000)), now).is_ok());
+        let Err(IssueError::InvalidTriage(refused)) = Triage::decide(&commented("a".repeat(16_001)), now) else {
+            panic!("16,001 units must be refused");
+        };
+        assert_eq!(refused, "The comment is longer than 16000 characters.");
+        // 16,000 units, 32,000 bytes: Java stores it, a count in bytes refused it.
+        assert!(Triage::decide(&commented("é".repeat(16_000)), now).is_ok());
+        // An astral character is two units, as String.length counts it.
+        assert!(Triage::decide(&commented("😀".repeat(8_001)), now).is_err());
+    }
+}

@@ -96,15 +96,15 @@ impl IssueQueryService {
         let issue = IssueRepository::find_by_id(&mut tx, id)
             .await
             .map_err(IssueError::from)?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
 
         let target = match (issue.repo_id, issue.container_id) {
             (Some(r), _) => ScanTarget::Repository(r),
             (None, Some(c)) => ScanTarget::Container(c),
-            (None, None) => return Err(IssueError::NotFound(format!("Issue {id} not found."))),
+            (None, None) => return Err(IssueError::NotFound("Issue not found.".to_owned())),
         };
         if !allowed.permits(target) {
-            return Err(IssueError::NotFound(format!("Issue {id} not found.")));
+            return Err(IssueError::NotFound("Issue not found.".to_owned()));
         }
 
         let events = TriageEventRepository::find_for_issues(&mut tx, &[id]).await.map_err(IssueError::from)?;
@@ -272,9 +272,10 @@ fn finding_type(raw: Option<&str>) -> Result<Option<String>, IssueError> {
             return Ok(Some(lower));
         }
     }
-    Err(IssueError::InvalidInput(format!(
-        "Unknown finding type \"{trimmed}\". Expected one of: vulnerability, secret, iac, sast, quality, eol, license."
-    )))
+    // Every type, in `FindingType`'s declaration order as Java's sentence lists them: the list written out here had
+    // seven, so a caller was never told `ai_review`, `plugin` or `imported` existed — and they are accepted.
+    let expected = FindingType::ALL.iter().map(|ft| ft.wire_name()).collect::<Vec<_>>().join(", ");
+    Err(IssueError::InvalidInput(format!("Unknown finding type \"{trimmed}\". Expected one of: {expected}.")))
 }
 
 fn owasp_category(raw: Option<&str>) -> Result<Option<String>, IssueError> {
@@ -385,3 +386,22 @@ fn parse_day(name: &str, raw: Option<&str>) -> Result<Option<Date>, IssueError> 
 }
 
 opaque_debug!(IssueQueryService);
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_unknown_finding_type_is_told_every_type_in_java_s_order() {
+        let Err(IssueError::InvalidInput(refused)) = finding_type(Some("vulnerabilities")) else {
+            panic!("an unknown type must be refused");
+        };
+        assert_eq!(
+            refused,
+            "Unknown finding type \"vulnerabilities\". Expected one of: vulnerability, secret, iac, license, eol, sast, \
+             ai_review, plugin, imported, quality."
+        );
+        assert_eq!(finding_type(Some(" Imported ")).unwrap().as_deref(), Some("imported"));
+    }
+}

@@ -91,7 +91,9 @@ pub struct AttachTicketRequestDto {
 
 #[derive(Debug, Deserialize)]
 pub struct BulkTriageRequestDto {
-    pub ids: Option<Vec<i64>>,
+    /// A `null` among them is read, and refused in the selection's terms — Java's `triageMany` — rather than as a body
+    /// that cannot be read.
+    pub ids: Option<Vec<Option<i64>>>,
     pub status: Option<String>,
     pub justification: Option<String>,
     pub comment: Option<String>,
@@ -302,7 +304,10 @@ fn issues_routes(issues: &Arc<Issues>, entries: &mut Vec<RouteEntry>) {
                     Err(resp) => return resp,
                 };
                 let d_caller = decision_caller(&caller, &address, &headers, allow);
-                let ids = body.ids.unwrap_or_default();
+                let Some(ids) = body.ids.unwrap_or_default().into_iter().collect::<Option<Vec<i64>>>() else {
+                    return IssueError::InvalidTriage("Every selected issue needs an identifier.".to_owned())
+                        .into_response();
+                };
                 let decision = Decision {
                     status: body.status,
                     justification: body.justification,
@@ -334,8 +339,8 @@ fn history_routes(issues: &Arc<Issues>, entries: &mut Vec<RouteEntry>) {
                     Err(resp) => return resp,
                 };
                 let q = query.as_deref();
-                let limit = read_param!(read::query_int(q, "limit")).and_then(|v| usize::try_from(v).ok());
-                let offset = read_param!(read::query_int(q, "offset")).and_then(|v| usize::try_from(v).ok());
+                let limit = read_param!(read::query_int(q, "limit")).map(i64::from);
+                let offset = read_param!(read::query_int(q, "offset")).map(i64::from);
 
                 let repos = attempt!(iss.history().repositories(&allow.visibility, limit, offset).await);
                 json_response(StatusCode::OK, &repos)
@@ -456,22 +461,26 @@ fn exceptions_routes(issues: &Arc<Issues>, entries: &mut Vec<RouteEntry>) {
                 };
                 let issue_id = read_param!(read::path_long("issueId", &raw_id));
 
-                let outcome = match body.outcome.as_deref().and_then(ReviewOutcome::parse) {
-                    Some(o) => o,
-                    None => {
-                        return Problem::handler(
-                            StatusCode::BAD_REQUEST,
-                            "A review needs an outcome: CONFIRMED, EXTENDED, REVOKED.",
-                        )
-                        .into_response();
-                    }
+                // What Jackson refuses before Java's controller runs — an outcome it does not know, a date it cannot
+                // read — is refused here, as a body that cannot be read. A missing outcome is not: the service asks
+                // for it after the role and the issue's visibility, so a governor's refusal, and a hidden issue's
+                // 404, do not depend on the body (Java's ExceptionReviewService).
+                let outcome = match body.outcome.as_deref() {
+                    Some(raw) => match ReviewOutcome::parse(raw) {
+                        Some(outcome) => Some(outcome),
+                        None => {
+                            return Problem::handler(StatusCode::BAD_REQUEST, vectispire_cp_http::extract::UNREADABLE)
+                                .into_response();
+                        }
+                    },
+                    None => None,
                 };
 
                 let new_expiry = match body.new_expiry.as_deref() {
                     Some(raw) => match OffsetDateTime::parse(raw, &Rfc3339) {
                         Ok(dt) => Some(dt),
                         Err(_) => {
-                            return Problem::handler(StatusCode::BAD_REQUEST, "Failed to parse new_expiry date.")
+                            return Problem::handler(StatusCode::BAD_REQUEST, vectispire_cp_http::extract::UNREADABLE)
                                 .into_response();
                         }
                     },

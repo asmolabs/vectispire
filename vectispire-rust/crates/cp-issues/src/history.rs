@@ -7,6 +7,7 @@ use time::OffsetDateTime;
 use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_targets::Targets;
+use vectispire_domain::list_window::ListWindow;
 use vectispire_domain::repository_url;
 
 use crate::error::IssueError;
@@ -108,9 +109,13 @@ impl HistoryQueryService {
     pub async fn repositories(
         &self,
         allowed: &Visibility,
-        limit: Option<usize>,
-        offset: Option<usize>,
+        limit: Option<i64>,
+        offset: Option<i64>,
     ) -> Result<Vec<TriageHistoryRepository>, IssueError> {
+        // Java's `ListWindow.requested`, before anything is read: a limit outside 1–500, an offset that is not a multiple
+        // of it, or an offset without a limit is refused. The window was clipped here unread, and a negative limit
+        // dropped by the route — every one of those answered a list.
+        let window = ListWindow::requested(limit, offset).map_err(IssueError::InvalidInput)?;
         let last_scan_at =
             self.scanning.last_scan_at_per_repository().await.map_err(|e| IssueError::Store(e.to_string()))?;
         let all_repos = self.targets.catalog_repositories().await.map_err(|e| IssueError::Store(e.to_string()))?;
@@ -129,11 +134,9 @@ impl HistoryQueryService {
             }
         });
 
-        let from = offset.unwrap_or(0);
-        let sliced: Vec<_> = if let Some(l) = limit {
-            visible.iter().skip(from).take(l).cloned().collect()
-        } else {
-            visible.iter().skip(from).cloned().collect()
+        let sliced = match window {
+            Some(window) => window.of(&visible),
+            None => visible,
         };
 
         let mut rows = Vec::with_capacity(sliced.len());
@@ -166,14 +169,14 @@ impl HistoryQueryService {
         allowed: &Visibility,
     ) -> Result<vectispire_cp_targets::views::RepositoryView, IssueError> {
         if !allowed.permits(ScanTarget::Repository(id)) {
-            return Err(IssueError::NotFound(format!("Repository {id} not found.")));
+            return Err(IssueError::NotFound("Repository not found.".to_owned()));
         }
         let repo = self
             .targets
             .catalog_repository(id)
             .await
             .map_err(|e| IssueError::Store(e.to_string()))?
-            .ok_or_else(|| IssueError::NotFound(format!("Repository {id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Repository not found.".to_owned()))?;
         Ok(repo)
     }
 
@@ -453,8 +456,10 @@ impl TriageHistoryCsv {
         }
     }
 
+    /// `Instant.toString`, as Java's export writes it — `2026-10-27T12:25:41.321456Z`. It was `Display`'s
+    /// `2026-10-27 12:25:41.321456 +00:00:00`, which a spreadsheet or a script reading the export does not take for a date.
     fn stamp(instant: Option<OffsetDateTime>) -> String {
-        instant.map(|i| i.to_string()).unwrap_or_default()
+        instant.map(vectispire_cp_audit::iso_instant).unwrap_or_default()
     }
 
     fn neutralize(value: &str) -> String {
@@ -469,3 +474,16 @@ impl TriageHistoryCsv {
 }
 
 opaque_debug!(HistoryQueryService, TriageHistoryCsv);
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_export_stamps_an_instant_as_java_s_instant_to_string() {
+        let at = OffsetDateTime::from_unix_timestamp_nanos(1_793_103_941_321_456_000).unwrap();
+        assert_eq!(TriageHistoryCsv::stamp(Some(at)), "2026-10-27T12:25:41.321456Z");
+        assert_eq!(TriageHistoryCsv::stamp(None), "");
+    }
+}

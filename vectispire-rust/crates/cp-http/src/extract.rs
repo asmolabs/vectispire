@@ -21,7 +21,9 @@ use serde::de::DeserializeOwned;
 /// expects": the parser's own message quotes a position and a Rust type, which a client cannot act on.
 pub const INPUT_REFUSED_PREFIX: &str = "input refused: ";
 
-const UNREADABLE: &str = "The request body could not be read: it is not JSON, or not the shape this route expects.";
+/// What a body that cannot be read as the route's shape is refused with — Spring's `HttpMessageNotReadable`, before the
+/// handler runs. A route that reads a field itself (an enum, a date) refuses with the same sentence.
+pub const UNREADABLE: &str = "The request body could not be read: it is not JSON, or not the shape this route expects.";
 
 /// The principal the chain resolved; refuses 401 (as the chain's entry point does) when there is none.
 #[derive(Clone, Debug)]

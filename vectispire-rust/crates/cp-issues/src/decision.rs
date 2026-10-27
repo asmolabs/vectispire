@@ -73,7 +73,7 @@ impl IssueDecisionService {
         // Check visibility first
         let issue = IssueRepository::find_by_id(&mut tx, id)
             .await?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
 
         Self::require_visible(&issue, &caller.visibility)?;
         let _previous = issue.triage_status.clone();
@@ -187,7 +187,7 @@ impl IssueDecisionService {
 
         let mut issue = IssueRepository::find_by_id(&mut tx, id)
             .await?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
 
         Self::require_visible(&issue, &caller.visibility)?;
 
@@ -220,7 +220,7 @@ impl IssueDecisionService {
         let mut tx = crate::persistence::read(&self.db).await?;
         let issue = IssueRepository::find_by_id(&mut tx, id)
             .await?
-            .ok_or_else(|| IssueError::NotFound(format!("Issue {id} not found.")))?;
+            .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
         Ok(issue.to_view())
     }
 
@@ -230,14 +230,14 @@ impl IssueDecisionService {
             (None, Some(container_id)) => ScanTarget::Container(container_id),
             (None, None) => {
                 if !matches!(visibility, Visibility::Everything) {
-                    return Err(IssueError::NotFound(format!("Issue {} not found.", issue.id)));
+                    return Err(IssueError::NotFound("Issue not found.".to_owned()));
                 }
                 return Ok(());
             }
         };
 
         if !visibility.permits(target) {
-            return Err(IssueError::NotFound(format!("Issue {} not found.", issue.id)));
+            return Err(IssueError::NotFound("Issue not found.".to_owned()));
         }
         Ok(())
     }
