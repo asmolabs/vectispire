@@ -20,8 +20,9 @@ use crate::persistence::catalog_queries::{self as catalog, ScanFindingView};
 use crate::persistence::findings::{self, NewFinding};
 use crate::persistence::{self, NewScan, ResultWrite};
 use time::{Duration, OffsetDateTime};
+use vectispire_cp_db::parity;
 use vectispire_cp_db::types::to_microseconds;
-use vectispire_cp_db::{Engine, Mode, ScanTarget, Tx, Visibility};
+use vectispire_cp_db::{Db, Engine, Mode, ScanTarget, Tx, Visibility};
 
 const REPO_A: i64 = 101;
 const REPO_B: i64 = 102;
@@ -82,6 +83,9 @@ fn run(engine: Engine) {
             an_issue_s_sightings_are_newest_scan_first,
             the_latest_finished_scan_is_completed_or_failed_never_in_flight,
         );
+        the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
+            failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
+        });
         db.close().await;
         assert!(failures.is_empty(), "{engine}: {} check(s) failed:\n  {}", failures.len(), failures.join("\n  "));
     });
@@ -627,5 +631,24 @@ async fn the_latest_finished_scan_is_completed_or_failed_never_in_flight(tx: &mu
         .await
         .map_err(|e| e.to_string())?;
     ensure_eq!(read.map(|row| row.scan_id), None, "none for a target never scanned");
+    Ok(())
+}
+
+/// The two entities against the migrated schema — the declarations the catalog's statements are built from — and a
+/// renamed column refused, so that a check that compared nothing cannot pass.
+async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
+    let tables = crate::persistence::entities::tables()?;
+    parity::check_entities(db, &tables).await.map_err(|error| error.to_string())?;
+    let mut renamed = tables.clone();
+    let column = renamed[1].columns.iter_mut().find(|column| column.name == "package_name").unwrap();
+    column.name = "package";
+    match parity::check_entities(db, &renamed).await {
+        Err(parity::ParityError::Mismatches { mismatches, .. }) => ensure_eq!(
+            mismatches,
+            vec![parity::Mismatch::MissingColumn { table: "t_finding", column: "package" }],
+            "a renamed column"
+        ),
+        other => return Err(format!("a renamed column: {other:?}")),
+    }
     Ok(())
 }

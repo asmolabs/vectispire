@@ -54,6 +54,23 @@ where
     }
 }
 
+/// The rows themselves, for a statement whose row holds two models — a finding and its scan, read under prefixes —
+/// which the caller decodes with each one's `from_query_result(&row, prefix)`.
+pub async fn fetch_rows<S: SqlxBinder>(tx: &mut Tx, statement: &S) -> Result<Vec<QueryResult>, sqlx::Error> {
+    match tx {
+        Tx::MySql(conn) => {
+            let (sql, values) = statement.build_sqlx(MysqlQueryBuilder);
+            let rows = sqlx::query_with(AssertSqlSafe(sql), values).fetch_all(&mut **conn).await?;
+            Ok(rows.into_iter().map(QueryResult::from).collect())
+        }
+        Tx::PostgreSql(conn) => {
+            let (sql, values) = statement.build_sqlx(PostgresQueryBuilder);
+            let rows = sqlx::query_with(AssertSqlSafe(sql), values).fetch_all(&mut **conn).await?;
+            Ok(rows.into_iter().map(QueryResult::from).collect())
+        }
+    }
+}
+
 /// At most one row.
 pub async fn fetch_optional<M, S>(tx: &mut Tx, statement: &S) -> Result<Option<M>, sqlx::Error>
 where

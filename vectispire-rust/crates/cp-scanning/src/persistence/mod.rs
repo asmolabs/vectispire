@@ -19,6 +19,7 @@
 //! row ([`ScanRow::has_sbom`]); the document itself is [`sbom`], read for the one route that serves it.
 
 pub mod catalog_queries;
+mod entities;
 pub mod findings;
 #[cfg(feature = "mysql-queries")]
 mod mysql;

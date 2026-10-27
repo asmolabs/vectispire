@@ -4493,6 +4493,7 @@ dependencies = [
  "http",
  "http-body-util",
  "percent-encoding",
+ "sea-orm",
  "serde",
  "serde_json",
  "sqlx",
