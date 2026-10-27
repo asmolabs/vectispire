@@ -24,6 +24,8 @@ pub mod findings;
 mod mysql;
 #[cfg(feature = "postgres-queries")]
 mod postgres;
+#[cfg(test)]
+mod tests;
 
 use time::OffsetDateTime;
 use vectispire_cp_db::{Db, Mode, Tx};
