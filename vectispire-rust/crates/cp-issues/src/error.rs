@@ -51,9 +51,8 @@ impl axum::response::IntoResponse for IssueError {
                     .with("requestedStatus", requested_status)
                     .into_response()
             }
-            IssueError::Forbidden(msg) => {
-                vectispire_cp_http::Problem::handler(http::StatusCode::FORBIDDEN, msg).into_response()
-            }
+            // Java's `AccessDeniedException`: audited and answered by the chain, not by the handler.
+            IssueError::Forbidden(msg) => vectispire_cp_http::chain::denied(msg),
             IssueError::Store(msg) => {
                 vectispire_cp_http::Problem::handler(http::StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
             }

@@ -146,6 +146,11 @@ async fn nothing() -> Response<Body> {
     Response::builder().header(header::CONTENT_TYPE, "text/plain").body(Body::from("ok")).expect("a response")
 }
 
+/// A service's `AccessDeniedException`, with the reason the audit log keeps.
+async fn refused_by_the_service() -> Response<Body> {
+    vectispire_cp_http::chain::denied("the platform governor takes no triage decision.")
+}
+
 async fn drain(body: Body) -> Result<Response<Body>, Problem> {
     use http_body_util::BodyExt;
     match body.collect().await {
@@ -253,6 +258,9 @@ pub fn routes() -> Routes<String> {
         .route(Route::get("/api/v1/_t/write").requires(Access::WriteAccount).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/agent/_t").requires(Access::AgentKey).names_no_target().handler(nothing))
         .route(Route::get("/api/v1/_t/misuse").requires(Access::Account).names_no_target().handler(who_scoped))
+        .route(
+            Route::get("/api/v1/_t/denied").requires(Access::Account).names_no_target().handler(refused_by_the_service),
+        )
         .route(Route::get("/api/v1/typo").requires(Access::Administrator).names_no_target().handler(nothing))
 }
 

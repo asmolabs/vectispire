@@ -95,6 +95,26 @@ async fn a_refusal_names_no_role_and_is_audited_with_who_where_and_with_what() {
 }
 
 #[tokio::test]
+async fn a_service_s_refusal_is_answered_and_audited_by_the_chain_with_the_service_s_reason() {
+    let app = app();
+    let (status, headers, body) =
+        text(send(&app, request("GET", "/api/v1/_t/denied", &[("authorization", &bearer(USER))], Body::empty())).await)
+            .await;
+    assert_eq!(status, 403);
+    assert_eq!(headers["content-type"], "application/problem+json;charset=UTF-8");
+    // The caller is told what every refusal tells it; the reason is the audit log's.
+    assert_eq!(
+        body,
+        r#"{"title":"Forbidden","status":403,"detail":"This credential is not allowed to call this route.","instance":"/api/v1/_t/denied"}"#
+    );
+    let denied = app.audit.denied.lock().expect("lock");
+    assert_eq!(denied.len(), 1);
+    assert_eq!(denied[0].detail, "Access denied: the platform governor takes no triage decision.");
+    assert_eq!(denied[0].path, "/api/v1/_t/denied");
+    assert_eq!(denied[0].who.as_deref(), Some("vs-rs-http-user"));
+}
+
+#[tokio::test]
 async fn the_actuator_beyond_health_takes_an_administrators_session_and_nothing_else() {
     let app = app();
     assert_eq!(with(&app, "/actuator/metrics", ADMIN).await, 200);

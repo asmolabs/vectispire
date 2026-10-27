@@ -583,11 +583,33 @@ pub(crate) fn refuse_denied(chain: &Chain, request: &Request, principal: Option<
 
 // ── problems ──────────────────────────────────────────────────────────────────────────────
 
-/// A problem a handler raised has no `instance` yet: Spring fills it in from the request, and so does this.
+/// A service's `AccessDeniedException`, as a handler answers it: see [`denied`].
+#[derive(Clone, Debug)]
+pub struct Denied(pub String);
+
+/// The refusal of a service that decided this caller may not do this — Java's `AccessDeniedException` thrown below the
+/// controller. No `@ExceptionHandler` takes it: it travels back up to the chain's `ExceptionTranslationFilter`, whose
+/// handler audits `Access denied: <its message>` and answers the chain's sentence, which names no role. Answered as a
+/// handler's 403 with the message, it told the caller why and left no trace in the audit log — and the audit's hash
+/// chain then differed from Java's from that entry on.
+pub fn denied(reason: impl Into<String>) -> Response {
+    let mut response = Problem::chain(StatusCode::FORBIDDEN, FORBIDDEN).into_response();
+    response.extensions_mut().insert(Denied(reason.into()));
+    response
+}
+
+/// A problem a handler raised has no `instance` yet: Spring fills it in from the request, and so does this. A
+/// [`denied`] refusal is audited here, the one layer that holds both the request and the handler's answer.
 async fn problems(State(chain): State<Arc<Chain>>, request: Request, next: Next) -> Response {
     chain.visit("problems");
     let path = request.uri().path().to_owned();
+    let principal = request.extensions().get::<Principal>().cloned();
+    let refusal = chain.denial(&request, "", principal.as_ref());
     let response = next.run(request).await;
+    if let Some(Denied(reason)) = response.extensions().get::<Denied>() {
+        chain.audit.access_denied(AccessDenied { detail: format!("Access denied: {reason}"), ..refusal });
+        return Problem::chain(StatusCode::FORBIDDEN, FORBIDDEN).at(path).into_response();
+    }
     match response.extensions().get::<Problem>() {
         Some(problem) if problem.instance().is_none() => problem.clone().at(path).into_response(),
         _ => response,
