@@ -14,12 +14,20 @@ cd "$(dirname "$0")/.."
 platform=${1:-linux/amd64}
 epoch=$(git log -1 --format=%ct 2>/dev/null || echo 0)
 work=$(mktemp -d "${TMPDIR:-/tmp}/vs-rs-repro.XXXXXX")
-trap 'rm -rf "$work"' EXIT
+# A builder of its own, BuildKit pinned by digest: the default `docker` driver writes an OCI archive only where the
+# daemon keeps its images in containerd — Docker Desktop does, GitHub's runner does not ("OCI exporter is not
+# supported for the docker driver"), and the job failed before building anything. Pinned, BuildKit is also one input
+# fewer that differs from one machine to the next.
+builder="vs-rs-repro-$$"
+docker buildx create --name "$builder" --driver docker-container \
+  --driver-opt image=moby/buildkit:v0.26.2@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa \
+  >/dev/null
+trap 'docker buildx rm "$builder" >/dev/null 2>&1; rm -rf "$work"' EXIT
 
 # An OCI archive rather than the daemon's store: BuildKit rewrites timestamps only on an export it
 # writes itself, and the archive's manifest digest is the image's identity, whatever loads it later.
 build() {
-  docker buildx build --quiet --no-cache --platform "$platform" -f Dockerfile.agent \
+  docker buildx build --builder "$builder" --quiet --no-cache --platform "$platform" -f Dockerfile.agent \
     --build-arg SOURCE_DATE_EPOCH="$epoch" \
     --output "type=oci,dest=$work/$1.tar,rewrite-timestamp=true" . >/dev/null
 }
