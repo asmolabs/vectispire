@@ -56,16 +56,20 @@ impl LicenseGovernanceService {
         InventoryRepository::upsert_license_policy(
             &mut tx,
             &disallowed_cats,
-            if allowed_lics.is_empty() { None } else { Some(&allowed_lics) },
-            if disallowed_lics.is_empty() { None } else { Some(&disallowed_lics) },
+            // An empty list is `""`, as Java's `String.join` stores it — not null, which the readers took alike but a
+            // reader of the table does not.
+            Some(&allowed_lics),
+            Some(&disallowed_lics),
             // The application's instant, as Java's `clock.instant()`: the database's `now()` is the session's zone.
             time::OffsetDateTime::now_utc(),
         )
         .await?;
         tx.commit().await.map_err(StoreError::from)?;
 
-        let desc =
-            format!("Updated open source license compliance policy (disallowed={:?})", policy.disallowed_categories);
+        let desc = format!(
+            "Updated open source license compliance policy (disallowed={})",
+            java_set(&policy.disallowed_categories)
+        );
         self.audit.record(actor.entry(AuditOperation::SettingUpdated, "license_policy", &desc)).await;
 
         Ok(policy)
@@ -132,7 +136,11 @@ impl LicenseGovernanceService {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<LicenseEntry>, InventoryError> {
-        Self::require_estate_or_target(allowed, repo_id_filter, container_id_filter)?;
+        // Narrowed, not refused: Java's `LicenseController.getInventory` checks only that a named target is the
+        // reader's, and its service keeps the entries of the reader's targets. The refusal below is the summary's and
+        // the conflicts', whose answers cannot be narrowed after the fact; applied here too, a restricted reader asking
+        // for their own inventory was told it did not exist.
+        Self::require_named_targets_visible(allowed, repo_id_filter, container_id_filter)?;
         let window = ListWindow::requested(limit, offset).map_err(InventoryError::invalid)?;
         let inventory = self.get_raw_inventory(allowed, repo_id_filter, container_id_filter).await?;
 
@@ -191,6 +199,15 @@ impl LicenseGovernanceService {
         if repo_id_filter.is_none() && container_id_filter.is_none() && !matches!(allowed, Visibility::Everything) {
             return Err(InventoryError::not_found("Not found."));
         }
+        Self::require_named_targets_visible(allowed, repo_id_filter, container_id_filter)
+    }
+
+    /// A target the request names is one the reader may see — 404 otherwise, never 403.
+    fn require_named_targets_visible(
+        allowed: &Visibility,
+        repo_id_filter: Option<i64>,
+        container_id_filter: Option<i64>,
+    ) -> Result<(), InventoryError> {
         if let Some(rid) = repo_id_filter {
             vectispire_cp_access::rows::require_visible(ScanTarget::Repository(rid), allowed)?;
         }
@@ -238,13 +255,8 @@ impl LicenseGovernanceService {
     ) -> Result<Vec<LicenseEntry>, InventoryError> {
         let policy = self.get_policy().await?;
 
-        let repos = self
-            .targets
-            .catalog_repositories()
-            .await?
-            .into_iter()
-            .map(|r| (r.id, r.name.unwrap_or_else(|| format!("repo-{}", r.id))))
-            .collect::<HashMap<_, _>>();
+        let repos =
+            self.targets.catalog_repositories().await?.into_iter().map(|r| (r.id, r.name)).collect::<HashMap<_, _>>();
 
         let containers = self
             .targets
@@ -254,7 +266,9 @@ impl LicenseGovernanceService {
             .map(|c| (c.id, format!("{}:{}", c.image_name, c.tag)))
             .collect::<HashMap<_, _>>();
 
-        let name_of = |scan: &ScanSbom| -> String {
+        // Java's `nameOf`: the repository's own name, which it may not have (`null`, not `repo-<id>`); the image's
+        // `name:tag`; "General" for a scan of no known target.
+        let name_of = |scan: &ScanSbom| -> Option<String> {
             if let Some(repo_id) = scan.repo_id
                 && let Some(name) = repos.get(&repo_id)
             {
@@ -263,9 +277,9 @@ impl LicenseGovernanceService {
             if let Some(container_id) = scan.container_id
                 && let Some(name) = containers.get(&container_id)
             {
-                return name.clone();
+                return Some(name.clone());
             }
-            "General".to_owned()
+            Some("General".to_owned())
         };
 
         self.entries(selected, reads_sbom, &policy, name_of).await
@@ -276,7 +290,7 @@ impl LicenseGovernanceService {
         selected: Vec<ScanSbom>,
         reads_sbom: impl Fn(&ScanSbom) -> bool,
         policy: &LicensePolicy,
-        name_of: impl Fn(&ScanSbom) -> String,
+        name_of: impl Fn(&ScanSbom) -> Option<String>,
     ) -> Result<Vec<LicenseEntry>, InventoryError> {
         let mut entry_map: HashMap<String, LicenseEntry> = HashMap::new();
         let mut scans_map: BTreeMap<i64, ScanSbom> = BTreeMap::new();
@@ -320,7 +334,7 @@ impl LicenseGovernanceService {
                     let violation_reason = if compliant {
                         None
                     } else {
-                        Some(format!("License {} is forbidden under active compliance policy ({:?})", license, risk))
+                        Some(format!("License {} is forbidden under active compliance policy ({})", license, risk))
                     };
 
                     let key = format!("{}:{}:{}:{}", target_kind, target_id.unwrap_or(0), name_str, version);
@@ -404,7 +418,7 @@ impl LicenseGovernanceService {
                 let violation_reason = if compliant {
                     None
                 } else {
-                    Some(format!("License {} is forbidden under active compliance policy ({:?})", license, risk))
+                    Some(format!("License {} is forbidden under active compliance policy ({})", license, risk))
                 };
 
                 entry_map.insert(
@@ -432,7 +446,7 @@ impl LicenseGovernanceService {
                 let violation_reason = if compliant {
                     None
                 } else {
-                    Some(format!("License {} is forbidden under active compliance policy ({:?})", inferred, risk))
+                    Some(format!("License {} is forbidden under active compliance policy ({})", inferred, risk))
                 };
 
                 e.insert(LicenseEntry {
@@ -478,7 +492,7 @@ impl LicenseGovernanceService {
             let violation_reason = if compliant {
                 None
             } else {
-                Some(format!("License {} is forbidden under active compliance policy ({:?})", license, risk))
+                Some(format!("License {} is forbidden under active compliance policy ({})", license, risk))
             };
 
             let pkg_name = finding.package_name.as_deref().unwrap_or("unknown");
@@ -502,7 +516,12 @@ impl LicenseGovernanceService {
             );
         }
 
-        Ok(entry_map.into_values().collect())
+        // In the page order, the unpaged answer too. Java promises no order for it (a `HashMap`'s values), and the
+        // values of a Rust `HashMap` come in an order drawn afresh in every process: the same inventory, and its
+        // conflicts, listed differently from one call to the next.
+        let mut entries: Vec<LicenseEntry> = entry_map.into_values().collect();
+        entries.sort_by(Self::page_order);
+        Ok(entries)
     }
 
     fn summarize(inventory: &[LicenseEntry]) -> LicenseSummary {
@@ -541,7 +560,7 @@ impl LicenseGovernanceService {
                 &entry.package_version,
                 &entry.license,
                 &entry.target_kind,
-                &entry.target_name,
+                entry.target_name.as_deref(),
                 is_proprietary_target,
             );
             if eval.compatibility != Compatibility::Compatible {
@@ -572,5 +591,42 @@ impl LicenseGovernanceService {
             .then_with(|| a.compliant.cmp(&b.compliant))
             .then_with(|| a.violation_reason.cmp(&b.violation_reason))
             .then_with(|| a.target_name.cmp(&b.target_name))
+    }
+}
+
+/// A set as Java's `AbstractCollection.toString` prints it — `[STRONG_COPYLEFT, FORBIDDEN]` — for the audit text,
+/// which is read as the Java side wrote it; the debug form was `{StrongCopyleft, Forbidden}`.
+fn java_set<T: std::fmt::Display>(items: impl IntoIterator<Item = T>) -> String {
+    format!("[{}]", items.into_iter().map(|item| item.to_string()).collect::<Vec<_>>().join(", "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Java's `ListPagingReadsRoutesTest.licencePagesKeepTheVisibility`: a restricted reader asking for the inventory
+    /// with no target is answered with their own targets' entries; the summary and the conflicts refuse them.
+    #[test]
+    fn the_inventory_narrows_where_the_aggregates_refuse() {
+        let reader = Visibility::only([ScanTarget::Repository(7)]);
+        assert!(LicenseGovernanceService::require_named_targets_visible(&reader, None, None).is_ok());
+        assert!(matches!(
+            LicenseGovernanceService::require_estate_or_target(&reader, None, None),
+            Err(InventoryError::NotFound(_))
+        ));
+        assert!(LicenseGovernanceService::require_estate_or_target(&reader, Some(7), None).is_ok());
+        assert!(matches!(
+            LicenseGovernanceService::require_named_targets_visible(&reader, Some(8), None),
+            Err(InventoryError::NotFound(_))
+        ));
+        assert!(LicenseGovernanceService::require_estate_or_target(&Visibility::Everything, None, None).is_ok());
+    }
+
+    /// The audit text as Java wrote it: `(disallowed=[STRONG_COPYLEFT, FORBIDDEN])`.
+    #[test]
+    fn a_set_is_printed_as_java_prints_it() {
+        let categories = BTreeSet::from([LicenseRiskCategory::Forbidden, LicenseRiskCategory::StrongCopyleft]);
+        assert_eq!(java_set(&categories), "[STRONG_COPYLEFT, FORBIDDEN]");
+        assert_eq!(java_set(Vec::<LicenseRiskCategory>::new()), "[]");
     }
 }

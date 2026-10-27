@@ -13,6 +13,14 @@ pub enum LicenseRiskCategory {
     Unknown,
 }
 
+/// The wire name, `STRONG_COPYLEFT` — what Java's `enum.toString()` prints into a sentence. Without it, a
+/// `{:?}` wrote `StrongCopyleft` into every licence violation's reason.
+impl std::fmt::Display for LicenseRiskCategory {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
 impl LicenseRiskCategory {
     pub const ALL: [LicenseRiskCategory; 5] = [
         LicenseRiskCategory::Permissive,
@@ -191,7 +199,12 @@ impl LicenseRiskCategory {
 }
 
 /// Policy governing allowed license categories and exemptions.
+///
+/// **Normalised on construction, from the wire too** (Java's compact constructor): this is the body of
+/// `PUT /licenses/policy`, and a missing list, a `null` one or a `null` entry is no entry — they were refused as a
+/// malformed body, where Java stores the policy. Identifiers are trimmed and in capitals, blanks dropped.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "LicensePolicyOnTheWire")]
 pub struct LicensePolicy {
     #[serde(default, rename = "disallowedCategories")]
     pub disallowed_categories: BTreeSet<LicenseRiskCategory>,
@@ -210,12 +223,12 @@ impl LicensePolicy {
         let cats = disallowed_categories.into_iter().collect();
         let allowed = explicitly_allowed_licenses
             .into_iter()
-            .map(|s| s.as_ref().trim().to_ascii_uppercase())
+            .map(|s| s.as_ref().trim().to_uppercase())
             .filter(|s| !s.is_empty())
             .collect();
         let disallowed = explicitly_disallowed_licenses
             .into_iter()
-            .map(|s| s.as_ref().trim().to_ascii_uppercase())
+            .map(|s| s.as_ref().trim().to_uppercase())
             .filter(|s| !s.is_empty())
             .collect();
 
@@ -238,7 +251,7 @@ impl LicensePolicy {
     }
 
     pub fn is_compliant(&self, license: Option<&str>, category: LicenseRiskCategory) -> bool {
-        let normalized = license.map(|l| l.trim().to_ascii_uppercase());
+        let normalized = license.map(|l| l.trim().to_uppercase());
         if let Some(ref norm) = normalized {
             if self.explicitly_disallowed_licenses.contains(norm) {
                 return false;
@@ -248,6 +261,29 @@ impl LicensePolicy {
             }
         }
         !self.disallowed_categories.contains(&category)
+    }
+}
+
+/// The body as a client may send it: every list absent or `null`, any entry `null`.
+#[derive(Debug, Deserialize)]
+struct LicensePolicyOnTheWire {
+    /// A `null` list is none, but a `null` category is refused, as Jackson refuses it into Java's `EnumSet`.
+    #[serde(default, rename = "disallowedCategories")]
+    disallowed_categories: Option<Vec<LicenseRiskCategory>>,
+    #[serde(default, rename = "explicitlyAllowedLicenses")]
+    explicitly_allowed_licenses: Option<Vec<Option<String>>>,
+    #[serde(default, rename = "explicitlyDisallowedLicenses")]
+    explicitly_disallowed_licenses: Option<Vec<Option<String>>>,
+}
+
+impl From<LicensePolicyOnTheWire> for LicensePolicy {
+    fn from(wire: LicensePolicyOnTheWire) -> LicensePolicy {
+        let entries = |list: Option<Vec<Option<String>>>| list.into_iter().flatten().flatten();
+        LicensePolicy::new(
+            wire.disallowed_categories.into_iter().flatten(),
+            entries(wire.explicitly_allowed_licenses),
+            entries(wire.explicitly_disallowed_licenses),
+        )
     }
 }
 
@@ -312,8 +348,9 @@ pub struct LicenseConflict {
     pub risk_category: LicenseRiskCategory,
     #[serde(rename = "targetKind")]
     pub target_kind: String,
+    /// The target's name, `null` for a repository that has none — as Java's; it was `repo-<id>`.
     #[serde(rename = "targetName")]
-    pub target_name: String,
+    pub target_name: Option<String>,
     pub compatibility: Compatibility,
     pub verdict: ConflictVerdict,
 }
@@ -386,7 +423,7 @@ impl LicenseConflictMatrix {
         package_version: &str,
         license_expression: &str,
         target_kind: &str,
-        target_name: &str,
+        target_name: Option<&str>,
         is_proprietary_target: bool,
     ) -> LicenseConflict {
         let category = LicenseRiskCategory::classify(license_expression);
@@ -411,7 +448,7 @@ impl LicenseConflictMatrix {
             license_expression: license_expression.to_owned(),
             risk_category: category,
             target_kind: target_kind.to_owned(),
-            target_name: target_name.to_owned(),
+            target_name: target_name.map(str::to_owned),
             compatibility,
             verdict,
         }
@@ -435,8 +472,9 @@ pub struct LicenseEntry {
     pub target_id: Option<i64>,
     #[serde(rename = "targetKind")]
     pub target_kind: String,
+    /// The target's name, `null` for a repository that has none — as Java's; it was `repo-<id>`.
     #[serde(rename = "targetName")]
-    pub target_name: String,
+    pub target_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -500,5 +538,36 @@ impl SbomLicences {
             Some(lic) if !lic.trim().is_empty() && !lic.eq_ignore_ascii_case(Self::UNDECLARED) => lic,
             _ => Self::UNDECLARED.to_owned(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Java's `MalformedBodyRoutesTest.aLicencePolicyWithNulls`: a `null` list, a `null` entry and a blank one are no
+    /// entry, the others trimmed and in capitals — the body Java stores, which was refused as malformed.
+    #[test]
+    fn a_policy_body_with_nulls_is_the_policy_java_stores() {
+        let body = r#"{"disallowedCategories":["FORBIDDEN"],"explicitlyAllowedLicenses":[" mit ",null,""],"explicitlyDisallowedLicenses":null}"#;
+        let policy: LicensePolicy = serde_json::from_str(body).unwrap();
+        assert_eq!(policy.disallowed_categories, BTreeSet::from([LicenseRiskCategory::Forbidden]));
+        assert_eq!(policy.explicitly_allowed_licenses, BTreeSet::from(["MIT".to_owned()]));
+        assert!(policy.explicitly_disallowed_licenses.is_empty());
+        let empty: LicensePolicy = serde_json::from_str("{}").unwrap();
+        assert!(empty.disallowed_categories.is_empty() && empty.explicitly_allowed_licenses.is_empty());
+    }
+
+    /// And a `null` category is refused, as Jackson refuses it into Java's `EnumSet`.
+    #[test]
+    fn a_null_category_is_refused() {
+        assert!(serde_json::from_str::<LicensePolicy>(r#"{"disallowedCategories":[null]}"#).is_err());
+    }
+
+    /// The name a sentence prints is the wire's, `STRONG_COPYLEFT` — Java's `enum.toString()`.
+    #[test]
+    fn a_category_is_printed_by_its_wire_name() {
+        assert_eq!(LicenseRiskCategory::StrongCopyleft.to_string(), "STRONG_COPYLEFT");
+        assert_eq!(format!("({})", LicenseRiskCategory::WeakCopyleft), "(WEAK_COPYLEFT)");
     }
 }
