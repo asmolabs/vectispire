@@ -69,6 +69,12 @@ cleanup() {
   local status=$?
   if [ "$status" -ne 0 ]; then
     echo "── what the cluster had to say"
+    # The nodes first, and the agents' node's own k3s log: on 2026-10-27 a nightly stopped at "k3s did not come
+    # up" with every pod Running on the server, and nothing said whether the agents' node had never registered,
+    # registered NotReady, or been refused its token.
+    k get nodes -o wide 2>/dev/null || true
+    echo "── the agents' node, as its k3s agent logged it"
+    docker logs --tail 60 "$AGENTS_NODE" 2>&1 || true
     k get pods -A -o wide 2>/dev/null || true
     k logs -n vectispire-agents deploy/vs-vectispire-agent --tail 80 2>/dev/null || true
     k logs -n vectispire deploy/vs-vectispire --tail 40 2>/dev/null || true
