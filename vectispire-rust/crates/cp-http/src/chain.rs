@@ -250,9 +250,12 @@ impl Chain {
     }
 }
 
+/// The refusal's actor, as Java's filter names it — `VectispirePrincipal.getName()`. An integration key's refusal is
+/// "account (API key name)", which the resolution wrote into the grounds: read from the account alone it was the
+/// account's name, and the audit log could not say which of an account's keys a pipeline had been refused with.
 fn who(principal: &Principal) -> String {
     match (&principal.account, &principal.credential) {
-        (Some(account), _) => account.username.clone(),
+        (Some(account), _) => principal.actor().unwrap_or_else(|| account.username.clone()),
         (None, Credential::Agent { agent }) => agent.clone(),
         (None, _) => "scim".to_owned(),
     }
@@ -594,6 +597,20 @@ async fn problems(State(chain): State<Arc<Chain>>, request: Request, next: Next)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Java's `ApiKeyIntegrationRoutesTest.theGateIsAWriteForTheKeysOwner`: a key's refusal is audited with the key's
+    /// name beside its account's.
+    #[test]
+    fn a_refusal_names_the_key_it_was_made_with() {
+        let account =
+            crate::principal::Account { username: "governor".into(), role: None, must_change_password: false };
+        let mut key = Principal::integration(account.clone(), "k-1", Vec::new());
+        key.grounds.actor = Some("governor (API key governor-pipeline)".into());
+        assert_eq!(who(&key), "governor (API key governor-pipeline)");
+        // A principal a test double built without grounds is still its account.
+        assert_eq!(who(&Principal::session(account)), "governor");
+        assert_eq!(who(&Principal::agent("builder-1")), "builder-1");
+    }
 
     #[test]
     fn a_window_is_printed_as_java_prints_a_duration() {
