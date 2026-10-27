@@ -13,7 +13,7 @@ use vectispire_cp_issues::views::IssueView;
 use vectispire_cp_rules::RuleCoverageService;
 use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_targets::{Clock, Targets};
-use vectispire_domain::{FindingType, ScanStatus, Severity};
+use vectispire_domain::{FindingType, ScanStatus, Severity, bounded_text};
 
 use crate::cursor::RegisterCursor;
 use crate::error::GateError;
@@ -243,6 +243,22 @@ impl ActiveGatePolicies {
     }
 }
 
+/// `BoundedText.within(note, TEXT_MAX, "The note")`: Java's ceiling for every stored text, in UTF-16 units. The bound
+/// here was MySQL's 65,535 bytes, so a note Java refuses — 16,001 characters — was stored.
+fn note_within_bounds(note: Option<&str>) -> Result<(), GateError> {
+    if let Some(note) = note {
+        bounded_text::within(note, bounded_text::TEXT_MAX, "The note")
+            .map_err(|refused| GateError::InvalidInput(refused.0))?;
+    }
+    Ok(())
+}
+
+/// The observation the newest finished scan's stored status stands for; no scan, or a status this version cannot
+/// read, is [`Observation::NeverScanned`] — never "no observation", which the gate does not refuse.
+fn observation_of(newest_finished: Option<&str>) -> Observation {
+    Observation::of(newest_finished.and_then(|status| ScanStatus::from_wire_name(Some(status))))
+}
+
 /// `GateService`: evaluations, stored policies, and posture overview.
 pub struct GateService {
     db: Db,
@@ -314,16 +330,19 @@ impl GateService {
         let coverage = self.coverage_of(target).await?;
         let examination = self.examination_of(target).await?;
 
-        let verdict = PolicyGate::evaluate(&issues, &resolved.policy, &coverage, examination);
+        let verdict = PolicyGate::evaluate(&issues, &resolved.policy, &coverage, Some(examination));
         Ok(Decision { verdict, policy: resolved })
     }
 
-    async fn examination_of(&self, target: ScanTarget) -> Result<Option<Observation>, GateError> {
+    /// Whether the backlog about to be judged rests on a scan that ran to its end — Java's `examinationOf`.
+    ///
+    /// **No finished scan is an observation, not the absence of one.** It was answered `None` here, which
+    /// `PolicyGate` reads as "no examination to judge": a target never scanned — an empty backlog — passed the gate
+    /// it should have failed, and so did one whose only scans were still in flight. A status this version cannot
+    /// read is no observation either, as on the Java side: guessing "ok" would be a confident wrong answer.
+    async fn examination_of(&self, target: ScanTarget) -> Result<Observation, GateError> {
         let latest = self.scans.latest_finished(target).await.map_err(|e| GateError::Store(StoreError(Box::new(e))))?;
-        Ok(latest.map(|row| {
-            let status = ScanStatus::from_wire_name(Some(&row.status));
-            Observation::of(status)
-        }))
+        Ok(observation_of(latest.as_ref().map(|row| row.status.as_str())))
     }
 
     async fn record(&self, target: ScanTarget, decision: &Decision, caller: &Caller) {
@@ -687,11 +706,7 @@ impl GatePolicyAdministrationService {
         actor: &RequestActor,
     ) -> Result<StoredGatePolicyView, GateError> {
         let policy = fields.as_replacement()?;
-        if let Some(n) = note
-            && n.len() > 65535
-        {
-            return Err(GateError::InvalidInput("The note is too long.".to_owned()));
-        }
+        note_within_bounds(note)?;
         let stored = self.gate.store(scope, &policy, note, actor.username.as_deref()).await?;
 
         let what =
@@ -874,5 +889,41 @@ impl std::fmt::Debug for GatePolicyAdministrationService {
 impl std::fmt::Debug for GateRegisterService {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.debug_struct("GateRegisterService").finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::verdict::Coverage;
+
+    #[test]
+    fn a_target_with_no_finished_scan_was_never_examined() {
+        assert_eq!(observation_of(None), Observation::NeverScanned);
+        assert_eq!(observation_of(Some("a status from a later version")), Observation::NeverScanned);
+        assert_eq!(observation_of(Some("failed")), Observation::LastScanFailed);
+        assert_eq!(observation_of(Some("completed")), Observation::Ok);
+    }
+
+    /// Java's `DecisionInputBoundsTest.aPolicyNoteIsBounded`: 16,000 characters fit, one more is refused in Java's words.
+    #[test]
+    fn a_policy_note_is_bounded_as_java_bounds_it() {
+        assert!(note_within_bounds(None).is_ok());
+        assert!(note_within_bounds(Some(&"n".repeat(16_000))).is_ok());
+        match note_within_bounds(Some(&"n".repeat(16_001))) {
+            Err(GateError::InvalidInput(message)) => assert_eq!(message, "The note is longer than 16000 characters."),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    /// The pipeline's question on a target never scanned: an empty backlog, refused — Java's
+    /// `GateObservationRoutesTest.neverScanned`.
+    #[test]
+    fn an_empty_backlog_never_examined_fails_the_gate() {
+        let verdict =
+            PolicyGate::evaluate(&[], &GatePolicy::BUILT_IN, &Coverage::new(Vec::new()), Some(observation_of(None)));
+        assert!(!verdict.passed, "{verdict:?}");
+        assert_eq!(verdict.violations.len(), 1);
+        assert_eq!(verdict.violations[0].rule, crate::verdict::Rule::Observation);
     }
 }
