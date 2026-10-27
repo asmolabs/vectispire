@@ -76,6 +76,14 @@ pub fn query_bool(query: Option<&str>, name: &str, default: bool) -> Result<bool
     }
 }
 
+/// A parameter the route cannot answer without: refused as Spring refuses a missing `@RequestParam` — the sentence
+/// Java's problem carries, which a client may already show.
+pub fn required_query_string(query: Option<&str>, name: &str) -> Result<String, Problem> {
+    query_string(query, name).ok_or_else(|| {
+        Problem::handler(StatusCode::BAD_REQUEST, format!("Required parameter '{name}' is not present."))
+    })
+}
+
 pub fn query_string(query: Option<&str>, name: &str) -> Option<String> {
     let raw = first_value(query, name)?;
     if raw.is_empty() { None } else { Some(raw) }
@@ -91,4 +99,19 @@ fn first_value(query: Option<&str>, name: &str) -> Option<String> {
 fn decode(text: &str) -> String {
     let unescaped = text.replace('+', " ");
     percent_encoding::percent_decode_str(&unescaped).decode_utf8_lossy().into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Spring's refusal of a missing `@RequestParam`, the sentence Java's problem carries.
+    #[test]
+    fn a_missing_parameter_is_refused_in_spring_s_words() {
+        let refused = required_query_string(Some("version=1"), "name").unwrap_err();
+        assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
+        let body: serde_json::Value = serde_json::from_str(&refused.body()).unwrap();
+        assert_eq!(body["detail"], "Required parameter 'name' is not present.");
+        assert_eq!(required_query_string(Some("name=log4j"), "name").unwrap(), "log4j");
+    }
 }

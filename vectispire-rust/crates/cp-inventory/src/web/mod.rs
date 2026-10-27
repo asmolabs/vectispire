@@ -345,9 +345,9 @@ fn inventory_query_routes(inventory: &Arc<Inventory>, entries: &mut Vec<RouteEnt
                     Ok(a) => a,
                     Err(resp) => return resp,
                 };
-                let name = match read::query_string(query.as_deref(), "name") {
-                    Some(n) => n,
-                    None => return Problem::handler(StatusCode::BAD_REQUEST, "name is required").into_response(),
+                let name = match read::required_query_string(query.as_deref(), "name") {
+                    Ok(n) => n,
+                    Err(problem) => return problem.into_response(),
                 };
                 let version = read::query_string(query.as_deref(), "version");
 
@@ -373,9 +373,9 @@ fn inventory_query_routes(inventory: &Arc<Inventory>, entries: &mut Vec<RouteEnt
                     Ok(a) => a,
                     Err(resp) => return resp,
                 };
-                let name = match read::query_string(query.as_deref(), "name") {
-                    Some(n) => n,
-                    None => return Problem::handler(StatusCode::BAD_REQUEST, "name is required").into_response(),
+                let name = match read::required_query_string(query.as_deref(), "name") {
+                    Ok(n) => n,
+                    Err(problem) => return problem.into_response(),
                 };
 
                 let versions = attempt!(inv.query().versions(&name, &allow.visibility).await);

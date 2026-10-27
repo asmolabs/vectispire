@@ -5,10 +5,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphNode {
     pub id: String,
-    pub label: String,
+    /// A target's node is labelled with its name, which a repository may not have: `null`, as Java's.
+    pub label: Option<String>,
     pub r#type: String, // "TARGET", "PACKAGE", "CVE"
     pub version: Option<String>,
     pub ecosystem: Option<String>,
+    /// Java's `DependencyGraph.GraphNode.riskScore`; it went out as `score`, which no client reads.
+    #[serde(rename = "riskScore")]
     pub score: i32,
     #[serde(rename = "isDirect")]
     pub is_direct: bool,
@@ -34,8 +37,9 @@ pub struct TargetImpact {
     pub target_id: Option<i64>,
     #[serde(rename = "targetKind")]
     pub target_kind: String, // "REPOSITORY" or "CONTAINER"
+    /// The repository's name, `null` when it has none — never a name the response invents.
     #[serde(rename = "targetName")]
-    pub target_name: String,
+    pub target_name: Option<String>,
     #[serde(rename = "targetContext")]
     pub target_context: String,
     #[serde(rename = "sourceFile")]

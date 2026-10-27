@@ -76,32 +76,26 @@ impl ApiInventoryService {
         if let Some(endpoints) = endpoints_found
             && !endpoints.is_empty()
         {
-            let mut seen = HashSet::new();
-            let mut unique: Vec<ApiEndpoint> = Vec::new();
-            for ep in endpoints {
-                let method = ep.method.as_deref().unwrap_or(Self::ANY_METHOD).to_ascii_uppercase();
-                let key = format!("{}:{}", method, ep.path);
-                if seen.insert(key) {
-                    unique.push(ep);
-                }
-            }
+            let unique = latest_in_place(endpoints, |ep| {
+                format!("{}:{}", ep.method.as_deref().unwrap_or(Self::ANY_METHOD).to_uppercase(), ep.path)
+            });
 
             let new_endpoints: Vec<NewApiEndpoint> = unique
                 .into_iter()
                 .map(|ep| NewApiEndpoint {
                     scan_id,
                     repository_id: repo_id,
-                    http_method: ep.method.unwrap_or_else(|| Self::ANY_METHOD.to_owned()),
-                    path: ep.path,
+                    http_method: fit(ep.method.as_deref().unwrap_or(Self::ANY_METHOD), 20),
+                    path: fit(&ep.path, 1000),
                     auth_required: ep.auth_required,
-                    auth_type: ep.auth_type,
+                    auth_type: fit_optional(ep.auth_type.as_deref(), 50),
                     visibility: visibility_to_str(ep.visibility).to_owned(),
-                    file_path: ep.file_path,
+                    file_path: fit_optional(ep.file_path.as_deref(), 1000),
                     line_number: ep.line_number,
-                    framework: ep.framework,
-                    operation_id: ep.operation_id,
-                    summary: ep.summary,
-                    tags: ep.tags,
+                    framework: fit_optional(ep.framework.as_deref(), 50),
+                    operation_id: fit_optional(ep.operation_id.as_deref(), 255),
+                    summary: fit_optional(ep.summary.as_deref(), 500),
+                    tags: fit_optional(ep.tags.as_deref(), 255),
                     created_at: now,
                 })
                 .collect();
@@ -117,10 +111,10 @@ impl ApiInventoryService {
                 .map(|c| NewApiContract {
                     repository_id: repo_id.unwrap_or(0),
                     scan_id: Some(scan_id),
-                    contract_path: c.contract_path.unwrap_or_default(),
-                    format: c.format,
-                    title: c.title,
-                    version: c.version,
+                    contract_path: fit(c.contract_path.as_deref().unwrap_or_default(), 1000),
+                    format: fit_optional(c.format.as_deref(), 50),
+                    title: fit_optional(c.title.as_deref(), 255),
+                    version: fit_optional(c.version.as_deref(), 50),
                     endpoints_count: c.endpoints_count,
                     created_at: now,
                 })
@@ -156,7 +150,8 @@ impl ApiInventoryService {
         let raw_endpoints = InventoryRepository::find_api_endpoints_by_repo(&self.db, repository_id).await?;
         let contract_rows = InventoryRepository::find_api_contracts_by_repo(&self.db, repository_id).await?;
 
-        let (views, domain_endpoints, diff) = Self::compute_diff_and_views(&raw_endpoints, &contract_rows);
+        let endpoints = latest_in_place(raw_endpoints, |e| format!("{}:{}", e.http_method.to_uppercase(), e.path));
+        let (views, domain_endpoints, diff) = Self::compute_diff_and_views(&endpoints, &contract_rows);
         let summary = AttackSurfaceSummary::from(&domain_endpoints, Some(&diff));
 
         let contract_views = contract_rows
@@ -214,13 +209,10 @@ impl ApiInventoryService {
 
         let frameworks = InventoryRepository::find_distinct_frameworks(&self.db).await?;
 
-        // Deduplicate in memory by repositoryId + method + path (keep latest by ID)
-        let mut by_repo_method_path: HashMap<String, ApiEndpointRow> = HashMap::new();
-        for e in raw_all {
-            let key = format!("{}:{}:{}", e.repository_id.unwrap_or(0), e.http_method.to_ascii_uppercase(), e.path);
-            by_repo_method_path.insert(key, e);
-        }
-        let deduped = by_repo_method_path.into_values().collect::<Vec<_>>();
+        // By repository, method and path: one route in two repositories is two routes of the estate.
+        let deduped = latest_in_place(raw_all, |e| {
+            format!("{}:{}:{}", e.repository_id.unwrap_or(0), e.http_method.to_uppercase(), e.path)
+        });
 
         let (all_views, domain_list, diff) = Self::compute_diff_and_views(&deduped, &all_contracts);
         let summary = AttackSurfaceSummary::from(&domain_list, Some(&diff));
@@ -341,16 +333,13 @@ impl ApiInventoryService {
         taken.claim(&base)
     }
 
+    /// The views of endpoints de-duplicated by the caller — by method and path for one repository, by repository too
+    /// for the estate. It de-duplicated by method and path itself, so the estate's view merged the same route of two
+    /// repositories into one, and every figure of the global attack surface counted it once.
     fn compute_diff_and_views(
-        raw_endpoints: &[ApiEndpointRow],
+        endpoints: &[ApiEndpointRow],
         contract_rows: &[ApiContractRow],
     ) -> (Vec<EndpointView>, Vec<ApiEndpoint>, ShadowApiDiff) {
-        let mut by_method_path: HashMap<String, ApiEndpointRow> = HashMap::new();
-        for e in raw_endpoints {
-            by_method_path.insert(format!("{}:{}", e.http_method.to_ascii_uppercase(), e.path), e.clone());
-        }
-        let endpoints = by_method_path.into_values().collect::<Vec<_>>();
-
         let domain_endpoints: Vec<ApiEndpoint> = endpoints
             .iter()
             .map(|e| ApiEndpoint {
@@ -388,7 +377,7 @@ impl ApiInventoryService {
             .collect();
 
         let mut views = Vec::new();
-        for e in &endpoints {
+        for e in endpoints {
             let key = format!("{}:{}", e.http_method.to_ascii_uppercase(), e.path);
             let status = if contract_rows.is_empty() {
                 ShadowApiStatus::Undocumented.as_str()
@@ -435,5 +424,61 @@ fn visibility_to_str(v: ApiVisibility) -> &'static str {
         ApiVisibility::Public => "PUBLIC",
         ApiVisibility::Internal => "INTERNAL",
         ApiVisibility::Unknown => "UNKNOWN",
+    }
+}
+
+/// Java's `LinkedHashMap.put` over `items`: one per key, the **last** written, in the place the key **first** took.
+///
+/// What every de-duplication of endpoints here does on the Java side. The ones it replaced kept the first (a scan's
+/// own endpoints) or went through a `HashMap`, whose order is drawn afresh in every process — the same repository's
+/// view came back in a different order from one call to the next.
+fn latest_in_place<T, K: std::hash::Hash + Eq>(items: impl IntoIterator<Item = T>, key: impl Fn(&T) -> K) -> Vec<T> {
+    let mut place: HashMap<K, usize> = HashMap::new();
+    let mut kept: Vec<T> = Vec::new();
+    for item in items {
+        match place.entry(key(&item)) {
+            std::collections::hash_map::Entry::Occupied(at) => {
+                if let Some(slot) = kept.get_mut(*at.get()) {
+                    *slot = item;
+                }
+            }
+            std::collections::hash_map::Entry::Vacant(at) => {
+                at.insert(kept.len());
+                kept.push(item);
+            }
+        }
+    }
+    kept
+}
+
+/// Java's `trim(value, max)` before an endpoint or a contract is saved: a field a scanner reported longer than its
+/// column is cut, not refused. Unbounded, one over-long path failed the scan's whole write on PostgreSQL (and on MySQL
+/// in strict mode).
+fn fit(value: &str, max: usize) -> String {
+    vectispire_domain::bounded_text::clip(Some(value), max).unwrap_or_default().to_owned()
+}
+
+fn fit_optional(value: Option<&str>, max: usize) -> Option<String> {
+    vectispire_domain::bounded_text::clip(value, max).map(str::to_owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `LinkedHashMap.put`: one per key, the last written, where the key first stood.
+    #[test]
+    fn a_duplicate_keeps_its_place_and_takes_the_last_value() {
+        let kept = latest_in_place([("GET /a", 1), ("POST /b", 2), ("GET /a", 3), ("PUT /c", 4)], |(key, _)| *key);
+        assert_eq!(kept, vec![("GET /a", 3), ("POST /b", 2), ("PUT /c", 4)]);
+    }
+
+    /// Java's `trim(value, max)` before the insert: cut to the column, never refused.
+    #[test]
+    fn a_field_longer_than_its_column_is_cut() {
+        assert_eq!(fit(&"p".repeat(1_001), 1_000).len(), 1_000);
+        assert_eq!(fit("/short", 1_000), "/short");
+        assert_eq!(fit_optional(Some(&"s".repeat(501)), 500).map(|kept| kept.len()), Some(500));
+        assert_eq!(fit_optional(None, 500), None);
     }
 }

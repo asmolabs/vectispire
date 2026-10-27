@@ -8,6 +8,7 @@ use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_scanning::ScanCatalog;
 
 use crate::component::ComponentOrigin;
+use crate::error::InventoryError;
 use crate::persistence::{InventoryRepository, StoreError};
 
 pub const MAX_ROWS: usize = 500;
@@ -61,13 +62,15 @@ impl InventoryQueryService {
         name: &str,
         version: Option<&str>,
         allowed: &Visibility,
-    ) -> Result<SearchResults, StoreError> {
-        let wanted = name.trim();
-        if wanted.is_empty() {
-            return Err(StoreError::Message("A component name is required.".to_owned()));
-        }
+    ) -> Result<SearchResults, InventoryError> {
+        // Java's `BoundedText.search(name, "name")` then its own refusal — 400s both. The blank name was a
+        // `StoreError`, which the route answered as a 500 "database error", and nothing bounded the name.
+        let Some(wanted) = search_term(name)? else {
+            return Err(InventoryError::invalid("A component name is required."));
+        };
 
-        let name_like = format!("%{}%", wanted.to_ascii_lowercase());
+        // `Locale.ROOT`'s lower case, not ASCII's: SQL's `lower()` folds a name's non-ASCII capitals too.
+        let name_like = format!("%{}%", wanted.to_lowercase());
         let version_clean = version.map(|v| v.trim()).filter(|v| !v.is_empty());
 
         let rows =
@@ -133,13 +136,12 @@ impl InventoryQueryService {
         Ok(SearchResults { occurrences: occurrences_final, total, truncated })
     }
 
-    pub async fn versions(&self, name: &str, allowed: &Visibility) -> Result<Vec<String>, StoreError> {
-        let wanted = name.trim();
-        if wanted.is_empty() {
+    pub async fn versions(&self, name: &str, allowed: &Visibility) -> Result<Vec<String>, InventoryError> {
+        let Some(wanted) = search_term(name)? else {
             return Ok(Vec::new());
-        }
+        };
 
-        let name_like = format!("%{}%", wanted.to_ascii_lowercase());
+        let name_like = format!("%{}%", wanted.to_lowercase());
         let rows = InventoryRepository::versions_of(&self.db, &name_like, MAX_ROWS as i64).await?;
 
         let mut seen = HashSet::new();
@@ -174,5 +176,29 @@ impl InventoryQueryService {
 
     pub async fn distinct_containers_with_components(&self) -> Result<Vec<i64>, StoreError> {
         InventoryRepository::distinct_containers_with_components(&self.db).await
+    }
+}
+
+/// Java's `BoundedText.search(value, "name")`: trimmed, `None` when blank, refused past `SEARCH_MAX` — "name is longer
+/// than 500 characters." — rather than searched for.
+fn search_term(name: &str) -> Result<Option<String>, InventoryError> {
+    vectispire_domain::bounded_text::optional(Some(name), vectispire_domain::bounded_text::SEARCH_MAX, "name")
+        .map_err(|refused| InventoryError::invalid(refused.0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Java's `BoundedText.search(name, "name")`: trimmed, blank is none, past 500 characters refused in its words.
+    #[test]
+    fn a_search_term_is_bounded_as_java_bounds_it() {
+        assert_eq!(search_term("  log4j ").unwrap(), Some("log4j".to_owned()));
+        assert_eq!(search_term("   ").unwrap(), None);
+        assert!(search_term(&"n".repeat(500)).is_ok());
+        match search_term(&"n".repeat(501)) {
+            Err(InventoryError::Invalid(message)) => assert_eq!(message, "name is longer than 500 characters."),
+            other => panic!("{other:?}"),
+        }
     }
 }

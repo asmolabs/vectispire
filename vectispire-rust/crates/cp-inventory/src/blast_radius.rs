@@ -30,8 +30,13 @@ impl BlastRadiusService {
         raw_query: Option<&str>,
         allowed: &Visibility,
     ) -> Result<BlastRadiusReport, InventoryError> {
-        let query = raw_query.unwrap_or("").trim().to_owned();
-        let is_cve_query = query.to_ascii_uppercase().starts_with("CVE-");
+        // Java's `BoundedText.search(rawQuery, "q")`: blank is the whole graph, past 500 characters a 400 rather than a
+        // search of the estate for it.
+        let query =
+            vectispire_domain::bounded_text::optional(raw_query, vectispire_domain::bounded_text::SEARCH_MAX, "q")
+                .map_err(|refused| InventoryError::invalid(refused.0))?
+                .unwrap_or_default();
+        let is_cve_query = query.to_uppercase().starts_with("CVE-");
 
         let rows = self.findings_repo.findings_for_graph(&query, is_cve_query, true, allowed).await?;
 
@@ -39,7 +44,7 @@ impl BlastRadiusService {
         let containers_map = self.named_containers(&rows).await?;
 
         let mut targets_list = Vec::new();
-        let mut nodes_map: HashMap<String, GraphNode> = HashMap::new();
+        let mut nodes = FirstSeen::default();
         let mut edges = Vec::new();
 
         let mut direct_count: i32 = 0;
@@ -58,20 +63,16 @@ impl BlastRadiusService {
             let target_id = scan.repo_id.or(scan.container_id);
             let Some(tid) = target_id else { continue };
 
-            let target_name = if let Some(repo_id) = scan.repo_id {
-                if let Some(r) = repos_map.get(&repo_id) {
-                    r.name.clone().unwrap_or_else(|| format!("target-{tid}"))
-                } else {
-                    format!("target-{tid}")
+            // Java's: the repository's own name — absent when it has none, never one made up — the image as
+            // `name:tag`, and `target-<id>` only for a target the lookup did not find.
+            let target_name = match (scan.repo_id, scan.container_id) {
+                (Some(repo_id), _) if repos_map.contains_key(&repo_id) => {
+                    repos_map.get(&repo_id).and_then(|r| r.name.clone())
                 }
-            } else if let Some(container_id) = scan.container_id {
-                if let Some(c) = containers_map.get(&container_id) {
-                    format!("{}:{}", c.image_name, c.tag)
-                } else {
-                    format!("target-{tid}")
+                (None, Some(container_id)) if containers_map.contains_key(&container_id) => {
+                    containers_map.get(&container_id).map(|c| format!("{}:{}", c.image_name, c.tag))
                 }
-            } else {
-                format!("target-{tid}")
+                _ => Some(format!("target-{tid}")),
             };
 
             let target_context = if scan.repo_id.is_some() {
@@ -145,7 +146,7 @@ impl BlastRadiusService {
                 });
 
                 // Target Node
-                nodes_map.entry(target_node_id.clone()).or_insert_with(|| GraphNode {
+                nodes.put_if_absent(target_node_id.clone(), || GraphNode {
                     id: target_node_id.clone(),
                     label: target_name.clone(),
                     r#type: "TARGET".to_owned(),
@@ -161,9 +162,9 @@ impl BlastRadiusService {
                 let score_int =
                     finding.cvss_score.and_then(|cvss| format!("{:.0}", cvss * 10.0).parse::<i32>().ok()).unwrap_or(0);
 
-                nodes_map.entry(pkg_node_id.clone()).or_insert_with(|| GraphNode {
+                nodes.put_if_absent(pkg_node_id.clone(), || GraphNode {
                     id: pkg_node_id.clone(),
-                    label: pkg_name.to_owned(),
+                    label: Some(pkg_name.to_owned()),
                     r#type: "PACKAGE".to_owned(),
                     version: Some(pkg_ver.clone()),
                     ecosystem: Some(extract_ecosystem(finding.purl.as_deref())),
@@ -193,9 +194,9 @@ impl BlastRadiusService {
                         .and_then(|cvss| format!("{:.0}", cvss * 10.0).parse::<i32>().ok())
                         .unwrap_or(50);
 
-                    nodes_map.entry(cve_node_id.clone()).or_insert_with(|| GraphNode {
+                    nodes.put_if_absent(cve_node_id.clone(), || GraphNode {
                         id: cve_node_id.clone(),
-                        label: cve.to_owned(),
+                        label: Some(cve.to_owned()),
                         r#type: "CVE".to_owned(),
                         version: None,
                         ecosystem: None,
@@ -235,7 +236,7 @@ impl BlastRadiusService {
             total_associated_cves: i32::try_from(unique_cves.len()).unwrap_or(0),
             blast_radius_score: score,
             targets: targets_list,
-            graph: BlastDependencyGraph { nodes: nodes_map.into_values().collect(), edges },
+            graph: BlastDependencyGraph { nodes: nodes.nodes, edges },
         })
     }
 
@@ -290,5 +291,60 @@ impl BlastRadiusService {
         }
         let containers = self.targets.catalog_containers_by_ids(&ids).await?;
         Ok(containers.into_iter().map(|c| (c.id, c)).collect())
+    }
+}
+
+/// Java's `nodesMap.putIfAbsent`, in the order the nodes were first met — where a `HashMap`'s values came out in an
+/// order drawn afresh in every process, so one graph was drawn differently from one call to the next.
+#[derive(Default)]
+struct FirstSeen {
+    seen: HashSet<String>,
+    nodes: Vec<GraphNode>,
+}
+
+impl FirstSeen {
+    fn put_if_absent(&mut self, id: String, node: impl FnOnce() -> GraphNode) {
+        if self.seen.insert(id) {
+            self.nodes.push(node());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn node(id: &str, score: i32) -> GraphNode {
+        GraphNode {
+            id: id.into(),
+            label: None,
+            r#type: "PACKAGE".into(),
+            version: None,
+            ecosystem: None,
+            score,
+            is_direct: false,
+            cves: Vec::new(),
+        }
+    }
+
+    /// `putIfAbsent`, in the order first met: the first node of an id is kept, and the order does not move between
+    /// two calls the way a `HashMap`'s did.
+    #[test]
+    fn the_graph_keeps_its_nodes_in_the_order_they_were_met() {
+        let mut nodes = FirstSeen::default();
+        for (id, score) in [("target-1", 1), ("pkg-b", 2), ("pkg-a", 3), ("target-1", 9)] {
+            nodes.put_if_absent(id.to_owned(), || node(id, score));
+        }
+        let read: Vec<(String, i32)> = nodes.nodes.into_iter().map(|node| (node.id, node.score)).collect();
+        assert_eq!(read, vec![("target-1".into(), 1), ("pkg-b".into(), 2), ("pkg-a".into(), 3)]);
+    }
+
+    /// Java's `GraphNode.riskScore`, and a target with no name labelled `null`.
+    #[test]
+    fn a_node_goes_out_under_java_s_names() {
+        let json = serde_json::to_value(node("target-1", 50)).unwrap();
+        assert_eq!(json["riskScore"], 50);
+        assert!(json.get("score").is_none());
+        assert!(json["label"].is_null());
     }
 }
