@@ -335,7 +335,7 @@ impl SbomDiffService {
 
         let root: serde_json::Value = serde_json::from_str(&sbom).map_err(|e| {
             tracing::warn!(scan_id, error = %e, "SBOM unreadable in diff");
-            InventoryError::not_found(format!("Scan {} SBOM unreadable.", scan_id))
+            InventoryError::sbom_unreadable(scan_id)
         })?;
 
         let artifacts = root.get("artifacts").and_then(|v| v.as_array()).cloned().unwrap_or_default();
