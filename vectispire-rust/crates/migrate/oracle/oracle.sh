@@ -14,12 +14,16 @@ target=${CARGO_TARGET_DIR:-$repo/vectispire-rust/target}
 classpath_file=${ORACLE_CLASSPATH_FILE:-$target/flyway-oracle.classpath}
 java=${JAVA_HOME:+$JAVA_HOME/bin/}java
 
+# The suite runs two cases at a time, and on a fresh target directory both ask Gradle. A temporary file of each
+# process's own: with one name for both, the first `mv` took the second's file away before its check, which then
+# found nothing and failed the case ("Gradle printed no classpath"). The `mv` is atomic, so either result is whole.
 if [ ! -s "$classpath_file" ]; then
     mkdir -p "$(dirname "$classpath_file")"
+    pending="$classpath_file.$$.tmp"
     (cd "$repo/vectispire-java" && ./gradlew -q -I "$here/classpath.gradle" :vectispire-core:printRuntimeClasspath) \
-        | sed -n 's/^CLASSPATH=//p' > "$classpath_file.tmp"
-    [ -s "$classpath_file.tmp" ] || { echo "oracle.sh: Gradle printed no classpath" >&2; exit 1; }
-    mv "$classpath_file.tmp" "$classpath_file"
+        | sed -n 's/^CLASSPATH=//p' > "$pending"
+    [ -s "$pending" ] || { rm -f "$pending"; echo "oracle.sh: Gradle printed no classpath" >&2; exit 1; }
+    mv "$pending" "$classpath_file"
 fi
 
 exec "$java" -cp "$(cat "$classpath_file")" "$here/FlywayOracle.java" "$@"

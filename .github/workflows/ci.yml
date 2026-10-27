@@ -1320,6 +1320,11 @@ jobs:
       CARGO_TERM_COLOR: never
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history: the migration runner is also held to Flyway on the 0.11.1 line's migrations, which
+          # `crates/migrate/tests/oracle.rs` reads by commit (`git ls-tree`). A shallow clone has no such commit, and
+          # the four `*_on_0111` cases failed with "not in this repository" the first time the step ran here.
+          fetch-depth: 0
       # A JDK for the suites that run Flyway itself — the migration runner is held to it, and the checked
       # queries' schema is the one Flyway builds — with the Gradle caches the `jvm` job keeps.
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
