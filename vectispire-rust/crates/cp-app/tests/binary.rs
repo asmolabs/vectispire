@@ -116,6 +116,45 @@ fn it_serves_until_it_is_told_to_stop_and_then_stops_gracefully() {
     assert!(all.contains("Graceful shutdown complete"), "{all}");
 }
 
+/// A database that accepts connections and never answers — a server hung, a firewall dropping the replies — does not
+/// hold the stop. The release of the scheduler's lease, the last step, waited on the pool's 30-second acquire timeout,
+/// which is the whole grace period: CI's runner, where the default database address answers that way, saw the process
+/// abandoned (exit 1) after "Commencing graceful shutdown".
+#[test]
+fn a_database_that_does_not_answer_does_not_hold_the_stop() {
+    let silent = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = silent.local_addr().unwrap().port();
+    // Accepted and held open, never answered.
+    let held = std::thread::spawn(move || silent.incoming().take(64).filter_map(Result::ok).collect::<Vec<_>>());
+    let url = format!("jdbc:mysql://127.0.0.1:{port}/vectispire");
+    let mut child = command(&[("VECTISPIRE_PORT", "3182"), ("VECTISPIRE_DB_URL", &url)])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let mut lines = BufReader::new(stdout).lines();
+    let mut seen = Vec::new();
+    loop {
+        let line = lines.next().expect("the process ended before it started").unwrap();
+        seen.push(line.clone());
+        if line.contains("Started vectispire") {
+            break;
+        }
+    }
+
+    let stopping = Instant::now();
+    let killed = Command::new("kill").args(["-TERM", &child.id().to_string()]).status().unwrap();
+    assert!(killed.success());
+    let rest: Vec<String> = lines.map(Result::unwrap).collect();
+    let status = child.wait().unwrap();
+    let took = stopping.elapsed();
+    assert!(status.success(), "{status:?} after {took:?}: {rest:#?}");
+    assert!(took < Duration::from_secs(20), "the stop took {took:?}: {rest:#?}");
+    assert!(rest.iter().any(|line| line.contains("Graceful shutdown complete")), "{rest:#?}");
+    drop(held);
+}
+
 #[test]
 fn a_log_format_it_does_not_know_stops_it_before_it_serves() {
     let output = command(&[("VECTISPIRE_LOG_FORMAT", "xml")]).output().unwrap();

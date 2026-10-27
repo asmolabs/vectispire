@@ -79,6 +79,9 @@ impl vectispire_cp_rules::InventoryEcosystems for InventoryForRules {
     }
 }
 
+/// How long the stop waits to hand the scheduler's lease back: a fraction of the 30-second grace period.
+const LEASE_RELEASE: Duration = Duration::from_secs(5);
+
 /// The composed control plane service running HTTP routing, background maintenance, and the worker.
 struct ControlPlaneService {
     router: axum::Router,
@@ -145,9 +148,16 @@ impl Service for ControlPlaneService {
             let _ = wh.await;
         }
 
-        // Release scheduler lease on shutdown
-        if let Err(error) = self.scanning.election().release_scheduler().await {
-            tracing::warn!("Could not release scheduler lease on shutdown: {error}");
+        // The scheduler's lease, released for the next instance — a courtesy bounded well inside the grace period. It
+        // waited on the pool's 30-second acquire timeout, the whole grace, so a database that accepts connections and
+        // never answers had the process abandoned (exit 1) instead of stopped. Unreleased, the lease lapses by itself.
+        match tokio::time::timeout(LEASE_RELEASE, self.scanning.election().release_scheduler()).await {
+            Ok(Ok(_)) => {}
+            Ok(Err(error)) => tracing::warn!("Could not release scheduler lease on shutdown: {error}"),
+            Err(_) => tracing::warn!(
+                "Could not release scheduler lease on shutdown within {} s: it lapses by itself",
+                LEASE_RELEASE.as_secs()
+            ),
         }
 
         Ok(())
