@@ -211,7 +211,7 @@ fn router(db: &Db) -> axum::Router {
 /// replays green on both engines (2026-10-27). The modules are composed whole — a request of an owed test to another of
 /// their routes is answered by Java's recorded effect, as for any route not served — and each route leaves
 /// `golden/deferred.txt` as it joins this list, which only grows. What keeps the others there is in the list.
-const PHASE_THREE_REPLAYED: [(&str, &str); 19] = [
+const PHASE_THREE_REPLAYED: [(&str, &str); 22] = [
     ("DELETE", "/api/v1/attack-surface"),
     ("DELETE", "/api/v1/gate/policies/{kind}/{id}"),
     ("DELETE", "/api/v1/repositories/{id}/apis"),
@@ -219,6 +219,8 @@ const PHASE_THREE_REPLAYED: [(&str, &str); 19] = [
     ("GET", "/api/v1/blast-radius/top-impact"),
     ("GET", "/api/v1/gate/policies"),
     ("GET", "/api/v1/gate/verdicts"),
+    ("GET", "/api/v1/history/repositories/{id}"),
+    ("GET", "/api/v1/history/repositories/{id}/export.csv"),
     ("GET", "/api/v1/inventory/versions"),
     ("GET", "/api/v1/licenses/matrix"),
     ("GET", "/api/v1/licenses/policy"),
@@ -228,6 +230,7 @@ const PHASE_THREE_REPLAYED: [(&str, &str); 19] = [
     ("GET", "/api/v1/sbom/diff"),
     ("GET", "/api/v1/sbom/diff/latest"),
     ("GET", "/api/v1/security/overview"),
+    ("POST", "/api/v1/issues/triage"),
     ("PUT", "/api/v1/gate/policies/global"),
     ("PUT", "/api/v1/gate/policies/{kind}/{id}"),
     ("PUT", "/api/v1/licenses/policy"),

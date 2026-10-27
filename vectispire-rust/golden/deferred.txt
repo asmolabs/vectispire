@@ -67,8 +67,6 @@ route GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/rep
 route GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection | forges — Phase 4
 route GET /api/v1/forge-connections/{id} | forges — Phase 4
 route GET /api/v1/history/repositories | issues — Phase 3
-route GET /api/v1/history/repositories/{id} | issues — Phase 3
-route GET /api/v1/history/repositories/{id}/export.csv | issues — Phase 3
 route GET /api/v1/history/repositories/{id}/export.pdf | issues — Phase 3
 route GET /api/v1/inventory/search | inventory — Phase 3
 route GET /api/v1/issues | issues — Phase 3
@@ -178,7 +176,6 @@ route POST /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/se
 route POST /api/v1/forge-connections/{connectionId}/imports | forges — Phase 4
 route POST /api/v1/forge-connections/{connectionId}/imports/preview | forges — Phase 4
 route POST /api/v1/gate | gate — Phase 3
-route POST /api/v1/issues/triage | issues — Phase 3
 route POST /api/v1/issues/{id}/triage | issues — Phase 3
 route POST /api/v1/issues/{issueId}/tickets | tickets — Phase 4
 route POST /api/v1/notifications/test/{channelType} | notifications — Phase 4
