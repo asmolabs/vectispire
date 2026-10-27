@@ -29,6 +29,7 @@ The mutant lists are data, one script per task; the shared logic is in `_runner.
 | `p2-6-targets.py` | 2.6 targets | `cp-targets`: visibility in every service and route, a deletion's order and revocations, the identity guard, the schedule, the credentials, the forms, the readers; the principal's restriction (`cp-http`, `cp-access`), `TargetGrants`; the domain rules it reads |
 | `p2-8-ingestion.py` | 2.8 ingestion | `cp-scanning`'s `ingestion`: the columns and clipping after the fingerprint, the low-confidence downgrade, the secrets' deduplication, a plugin's scope, the end-of-life conditions, the licences read per scan, the exploited flag, a `null` element refused in every list; the ingestor `cp-app` composes |
 | `p2-7-scanning.py` | 2.7 scanning | `cp-scanning`: the claim's conditions, the attempts, the leader lease, the scheduler, retention, the dispatcher's sealing and refusals, the result's write, the routes' visibility; `domain`'s `schedules` and `scan_queue` |
+| `p4-2a-siem-domain.py` | 4.2 SIEM, domain layer | `crates/domain`'s `siem`, `triage_status` and `Instant`'s calendar; `cp-audit`'s guards between the audit operations and the SIEM's placements and signals |
 
 ## Running
 
