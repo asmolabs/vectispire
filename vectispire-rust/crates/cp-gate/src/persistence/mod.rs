@@ -1,6 +1,8 @@
 //! The tables `gate` owns: `t_gate_policy` and `t_gate_verdict`.
 
 pub mod repository;
+#[cfg(test)]
+mod tests;
 
 use time::OffsetDateTime;
 use vectispire_cp_db::{Db, Tx};
