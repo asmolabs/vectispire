@@ -1,11 +1,34 @@
-//! Persistence statements for inventory tables:
-//! `t_component`, `t_build_sbom`, `t_build_sbom_component`, `t_license_policy`,
-//! `t_api_endpoint`, `t_api_contract`.
+//! Persistence statements for the inventory's tables: `t_component`, `t_build_sbom`, `t_build_sbom_component`,
+//! `t_license_policy`, `t_api_endpoint`, `t_api_contract`.
+//!
+//! **Built with SeaORM, run on the caller's [`Tx`]** (`vectispire_cp_db::orm`): each statement is written once, from the
+//! entities in [`super::entities`], and rendered for the transaction's engine — where there were two hand-written copies
+//! of each, and readers that turned a flag they could not decode into `false` (an endpoint read as open) or `None`.
 
-use sqlx::{AssertSqlSafe, Row};
+use sea_orm::sea_query::{
+    Alias, Condition, Expr, ExprTrait, Func, IntoColumnRef, OnConflict, Order, Query, SelectStatement,
+};
+use sea_orm::{
+    ActiveValue::NotSet, ActiveValue::Set, ColumnTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
+    QuerySelect, QueryTrait,
+};
 use time::OffsetDateTime;
-use vectispire_cp_db::types::UtcInstant;
-use vectispire_cp_db::{Db, Mode, Tx};
+use vectispire_cp_db::{Db, Mode, Tx, orm};
+
+use super::entities::{api_contract, api_endpoint, build_sbom, build_sbom_component, component, license_policy};
+
+use super::entities::api_contract::Column as ApiContractColumn;
+use super::entities::api_contract::Entity as ApiContracts;
+use super::entities::api_endpoint::Column as ApiEndpointColumn;
+use super::entities::api_endpoint::Entity as ApiEndpoints;
+use super::entities::build_sbom::Column as BuildSbomColumn;
+use super::entities::build_sbom::Entity as BuildSboms;
+use super::entities::build_sbom_component::Column as BuildSbomComponentColumn;
+use super::entities::build_sbom_component::Entity as BuildSbomComponents;
+use super::entities::component::Column as ComponentColumn;
+use super::entities::component::Entity as Components;
+use super::entities::license_policy::Column as LicensePolicyColumn;
+use super::entities::license_policy::Entity as LicensePolicies;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
@@ -179,142 +202,156 @@ pub struct NewApiContract {
     pub created_at: OffsetDateTime,
 }
 
-macro_rules! parse_bool {
-    ($row:expr, $col:expr) => {
-        match $row.try_get::<Option<bool>, _>($col) {
-            Ok(val) => val,
-            Err(_) => match $row.try_get::<Option<i8>, _>($col) {
-                Ok(Some(n)) => Some(n != 0),
-                Ok(None) => None,
-                Err(_) => None,
-            },
-        }
-    };
+/// How many identifiers one bound `IN` list carries — `LOOKUP_BATCH`: one parameter each, and both drivers refuse a
+/// statement past 65,535.
+const LOOKUP_BATCH: usize = 1_000;
+
+/// Rows per multi-row insert: fourteen columns at most, so 7,000 parameters a statement.
+const INSERT_BATCH: usize = 500;
+
+/// Each identifier once, in order — two copies of one in two batches would read its rows twice.
+fn distinct(ids: &[i64]) -> Vec<i64> {
+    let mut ids = ids.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
 }
 
-macro_rules! parse_bool_required {
-    ($row:expr, $col:expr) => {
-        match $row.try_get::<bool, _>($col) {
-            Ok(val) => val,
-            Err(_) => match $row.try_get::<i8, _>($col) {
-                Ok(n) => n != 0,
-                Err(_) => false,
-            },
-        }
-    };
+/// A read for a caller holding no transaction: one of its own, read-only, closed when the read is done.
+async fn reading<T>(db: &Db, read: impl AsyncFnOnce(&mut Tx) -> Result<T, StoreError>) -> Result<T, StoreError> {
+    let mut tx = db.begin(Mode::ReadOnly).await?;
+    let answer = read(&mut tx).await?;
+    tx.commit().await?;
+    Ok(answer)
 }
 
-macro_rules! parse_component_row {
-    ($r:expr) => {{
-        let scan_created_at: Option<UtcInstant> = $r.try_get("scan_created_at").ok().flatten();
-        let is_direct = parse_bool!($r, "is_direct");
+/// A write for a caller holding no transaction: one of its own, committed.
+async fn writing<T>(db: &Db, write: impl AsyncFnOnce(&mut Tx) -> Result<T, StoreError>) -> Result<T, StoreError> {
+    let mut tx = db.begin(Mode::ReadWrite).await?;
+    let answer = write(&mut tx).await?;
+    tx.commit().await?;
+    Ok(answer)
+}
+
+/// `lower(<column>) like <pattern>`; the pattern is the caller's, lowered already.
+fn lower_like(column: impl IntoColumnRef, pattern: &str) -> Expr {
+    Expr::expr(Func::lower(Expr::col(column))).like(pattern)
+}
+
+/// Java's `lower(c.name) like :name or lower(c.purl) like :name`: nobody remembers whether it is `log4j-core` or
+/// `org.apache.logging.log4j:log4j-core`, and the purl says both.
+fn names_or_purl(pattern: &str) -> Condition {
+    Condition::any().add(lower_like(ComponentColumn::Name, pattern)).add(lower_like(ComponentColumn::Purl, pattern))
+}
+
+async fn components(tx: &mut Tx, select: SelectStatement) -> Result<Vec<ComponentRow>, StoreError> {
+    let models: Vec<component::Model> = orm::fetch_all(tx, &select).await?;
+    Ok(models.into_iter().map(ComponentRow::from).collect())
+}
+
+impl From<component::Model> for ComponentRow {
+    fn from(model: component::Model) -> ComponentRow {
         ComponentRow {
-            id: $r.get("id"),
-            scan_id: $r.get("scan_id"),
-            repo_id: $r.get("repo_id"),
-            container_id: $r.get("container_id"),
-            scan_created_at: scan_created_at.map(|t| t.0),
-            name: $r.get("name"),
-            version: $r.get("version"),
-            purl: $r.get("purl"),
-            type_: $r.get("type"),
-            is_direct,
-            origin: $r.get("origin"),
-            build_sbom_id: $r.get("build_sbom_id"),
-            scanned_version: $r.get("scanned_version"),
-            scanned_purl: $r.get("scanned_purl"),
-            declared_license: $r.get("declared_license"),
+            id: model.id,
+            scan_id: model.scan_id,
+            repo_id: model.repo_id,
+            container_id: model.container_id,
+            scan_created_at: model.scan_created_at,
+            name: model.name,
+            version: model.version,
+            purl: model.purl,
+            type_: model.type_,
+            is_direct: model.is_direct,
+            origin: model.origin,
+            build_sbom_id: model.build_sbom_id,
+            scanned_version: model.scanned_version,
+            scanned_purl: model.scanned_purl,
+            declared_license: model.declared_license,
         }
-    }};
+    }
 }
 
-macro_rules! parse_build_sbom_row {
-    ($r:expr) => {{
-        let imported_at: UtcInstant = $r.get("imported_at");
+impl From<build_sbom::Model> for BuildSbomRow {
+    fn from(model: build_sbom::Model) -> BuildSbomRow {
         BuildSbomRow {
-            id: $r.get("id"),
-            source_id: $r.get("source_id"),
-            source_slug: $r.get("source_slug"),
-            repo_id: $r.get("repo_id"),
-            spec_version: $r.get("spec_version"),
-            tool: $r.get("tool"),
-            components_count: $r.get("components_count"),
-            commit_sha: $r.get("commit_sha"),
-            branch_name: $r.get("branch_name"),
-            document_sha256: $r.get("document_sha256"),
-            imported_at: imported_at.0,
-            imported_by: $r.get("imported_by"),
-            api_key_id: $r.get("api_key_id"),
+            id: model.id,
+            source_id: model.source_id,
+            source_slug: model.source_slug,
+            repo_id: model.repo_id,
+            spec_version: model.spec_version,
+            tool: model.tool,
+            components_count: model.components_count,
+            commit_sha: model.commit_sha,
+            branch_name: model.branch_name,
+            document_sha256: model.document_sha256,
+            imported_at: model.imported_at,
+            imported_by: model.imported_by,
+            api_key_id: model.api_key_id,
         }
-    }};
+    }
 }
 
-macro_rules! parse_build_sbom_component_row {
-    ($r:expr) => {
-        BuildSbomComponentRow {
-            id: $r.get("id"),
-            import_id: $r.get("import_id"),
-            name: $r.get("name"),
-            version: $r.get("version"),
-            purl: $r.get("purl"),
-            type_: $r.get("type"),
-            license: $r.get("license"),
-        }
-    };
-}
-
-macro_rules! parse_api_endpoint_row {
-    ($r:expr) => {{
-        let created_at: UtcInstant = $r.get("created_at");
-        let auth_required = parse_bool_required!($r, "auth_required");
+impl From<api_endpoint::Model> for ApiEndpointRow {
+    fn from(model: api_endpoint::Model) -> ApiEndpointRow {
         ApiEndpointRow {
-            id: $r.get("id"),
-            scan_id: $r.get("scan_id"),
-            repository_id: $r.get("repository_id"),
-            http_method: $r.get("http_method"),
-            path: $r.get("path"),
-            auth_required,
-            auth_type: $r.get("auth_type"),
-            visibility: $r.get("visibility"),
-            file_path: $r.get("file_path"),
-            line_number: $r.get("line_number"),
-            framework: $r.get("framework"),
-            operation_id: $r.get("operation_id"),
-            summary: $r.get("summary"),
-            tags: $r.get("tags"),
-            created_at: created_at.0,
+            id: model.id,
+            scan_id: model.scan_id,
+            repository_id: model.repository_id,
+            http_method: model.http_method,
+            path: model.path,
+            auth_required: model.auth_required,
+            auth_type: model.auth_type,
+            visibility: model.visibility,
+            file_path: model.file_path,
+            line_number: model.line_number,
+            framework: model.framework,
+            operation_id: model.operation_id,
+            summary: model.summary,
+            tags: model.tags,
+            created_at: model.created_at,
         }
-    }};
+    }
 }
 
-macro_rules! parse_api_contract_row {
-    ($r:expr) => {{
-        let created_at: UtcInstant = $r.get("created_at");
+impl From<api_contract::Model> for ApiContractRow {
+    fn from(model: api_contract::Model) -> ApiContractRow {
         ApiContractRow {
-            id: $r.get("id"),
-            repository_id: $r.get("repository_id"),
-            scan_id: $r.get("scan_id"),
-            contract_path: $r.get("contract_path"),
-            format: $r.get("format"),
-            title: $r.get("title"),
-            version: $r.get("version"),
-            endpoints_count: $r.get("endpoints_count"),
-            created_at: created_at.0,
+            id: model.id,
+            repository_id: model.repository_id,
+            scan_id: model.scan_id,
+            contract_path: model.contract_path,
+            format: model.format,
+            title: model.title,
+            version: model.version,
+            endpoints_count: model.endpoints_count,
+            created_at: model.created_at,
         }
-    }};
+    }
 }
 
-macro_rules! parse_license_policy_row {
-    ($r:expr) => {{
-        let updated_at: UtcInstant = $r.get("updated_at");
-        LicensePolicyRow {
-            id: $r.get("id"),
-            disallowed_categories: $r.get("disallowed_categories"),
-            allowed_licenses: $r.get("allowed_licenses"),
-            disallowed_licenses: $r.get("disallowed_licenses"),
-            updated_at: updated_at.0,
-        }
-    }};
+async fn endpoints(tx: &mut Tx, select: SelectStatement) -> Result<Vec<ApiEndpointRow>, StoreError> {
+    let models: Vec<api_endpoint::Model> = orm::fetch_all(tx, &select).await?;
+    Ok(models.into_iter().map(ApiEndpointRow::from).collect())
+}
+
+async fn contracts(tx: &mut Tx, select: SelectStatement) -> Result<Vec<ApiContractRow>, StoreError> {
+    let models: Vec<api_contract::Model> = orm::fetch_all(tx, &select).await?;
+    Ok(models.into_iter().map(ApiContractRow::from).collect())
+}
+
+#[derive(Debug, FromQueryResult)]
+struct One<T: sea_orm::TryGetable> {
+    value: T,
+}
+
+/// `select [distinct] <expression> as value …`, one column, each row's value.
+async fn values<T: sea_orm::TryGetable>(tx: &mut Tx, select: SelectStatement) -> Result<Vec<T>, StoreError> {
+    let rows: Vec<One<T>> = orm::fetch_all(tx, &select).await?;
+    Ok(rows.into_iter().map(|row| row.value).collect())
+}
+
+fn select_value(expression: impl Into<Expr>) -> SelectStatement {
+    Query::select().expr_as(expression.into(), Alias::new("value")).to_owned()
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -322,780 +359,368 @@ pub struct InventoryRepository;
 
 impl InventoryRepository {
     // -------------------------------------------------------------------------
-    // t_component queries
+    // t_component
     // -------------------------------------------------------------------------
 
     pub async fn delete_components_by_scan_id(tx: &mut Tx, scan_id: i64) -> Result<u64, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "delete from t_component where scan_id = ?",
-            Tx::PostgreSql(_) => "delete from t_component where scan_id = $1",
-        };
-        let rows = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(scan_id).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(scan_id).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(rows)
+        let delete = Components::delete_many().filter(ComponentColumn::ScanId.eq(scan_id)).into_query();
+        Ok(orm::execute(tx, &delete).await?)
     }
 
     pub async fn delete_components_by_scan_ids(tx: &mut Tx, scan_ids: &[i64]) -> Result<u64, StoreError> {
-        if scan_ids.is_empty() {
-            return Ok(0);
-        }
-        let mut total: u64 = 0;
-        for chunk in scan_ids.chunks(1000) {
-            let res = match tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!("delete from t_component where scan_id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!("delete from t_component where scan_id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-            };
-            total = total.saturating_add(res);
+        let mut total = 0u64;
+        for chunk in distinct(scan_ids).chunks(LOOKUP_BATCH) {
+            let delete =
+                Components::delete_many().filter(ComponentColumn::ScanId.is_in(chunk.iter().copied())).into_query();
+            total = total.saturating_add(orm::execute(tx, &delete).await?);
         }
         Ok(total)
     }
 
     pub async fn delete_components_by_ids(tx: &mut Tx, ids: &[i64]) -> Result<u64, StoreError> {
-        if ids.is_empty() {
-            return Ok(0);
-        }
-        let mut total: u64 = 0;
-        for chunk in ids.chunks(1000) {
-            let res = match tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!("delete from t_component where id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!("delete from t_component where id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-            };
-            total = total.saturating_add(res);
+        let mut total = 0u64;
+        for chunk in distinct(ids).chunks(LOOKUP_BATCH) {
+            let delete =
+                Components::delete_many().filter(ComponentColumn::Id.is_in(chunk.iter().copied())).into_query();
+            total = total.saturating_add(orm::execute(tx, &delete).await?);
         }
         Ok(total)
     }
 
-    pub async fn insert_components(tx: &mut Tx, components: &[NewComponent]) -> Result<(), StoreError> {
-        if components.is_empty() {
-            return Ok(());
-        }
-        for chunk in components.chunks(500) {
-            match tx {
-                Tx::MySql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_component (scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        sql.push_str("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for c in chunk {
-                        q = q
-                            .bind(c.scan_id)
-                            .bind(c.repo_id)
-                            .bind(c.container_id)
-                            .bind(c.scan_created_at.map(UtcInstant))
-                            .bind(&c.name)
-                            .bind(&c.version)
-                            .bind(&c.purl)
-                            .bind(&c.type_)
-                            .bind(c.is_direct)
-                            .bind(&c.origin)
-                            .bind(c.build_sbom_id)
-                            .bind(&c.scanned_version)
-                            .bind(&c.scanned_purl)
-                            .bind(&c.declared_license);
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-                Tx::PostgreSql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_component (scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        let base = i.saturating_mul(14);
-                        let params = (1..=14)
-                            .map(|offset| format!("${}", base.saturating_add(offset)))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        sql.push_str(&format!("({params})"));
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for c in chunk {
-                        q = q
-                            .bind(c.scan_id)
-                            .bind(c.repo_id)
-                            .bind(c.container_id)
-                            .bind(c.scan_created_at.map(UtcInstant))
-                            .bind(&c.name)
-                            .bind(&c.version)
-                            .bind(&c.purl)
-                            .bind(&c.type_)
-                            .bind(c.is_direct)
-                            .bind(&c.origin)
-                            .bind(c.build_sbom_id)
-                            .bind(&c.scanned_version)
-                            .bind(&c.scanned_purl)
-                            .bind(&c.declared_license);
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-            }
+    pub async fn insert_components(tx: &mut Tx, rows: &[NewComponent]) -> Result<(), StoreError> {
+        for chunk in rows.chunks(INSERT_BATCH) {
+            let actives = chunk.iter().map(|row| component::ActiveModel {
+                id: NotSet,
+                scan_id: Set(row.scan_id),
+                name: Set(row.name.clone()),
+                version: Set(row.version.clone()),
+                purl: Set(row.purl.clone()),
+                type_: Set(row.type_.clone()),
+                is_direct: Set(row.is_direct),
+                repo_id: Set(row.repo_id),
+                container_id: Set(row.container_id),
+                scan_created_at: Set(row.scan_created_at),
+                origin: Set(row.origin.clone()),
+                build_sbom_id: Set(row.build_sbom_id),
+                scanned_version: Set(row.scanned_version.clone()),
+                scanned_purl: Set(row.scanned_purl.clone()),
+                declared_license: Set(row.declared_license.clone()),
+            });
+            orm::execute(tx, &Components::insert_many(actives).into_query()).await?;
         }
         Ok(())
     }
 
-    pub async fn update_components(tx: &mut Tx, components: &[ComponentRow]) -> Result<(), StoreError> {
-        for c in components {
-            let sql = match tx {
-                Tx::MySql(_) => {
-                    "update t_component set version = ?, purl = ?, origin = ?, build_sbom_id = ?, scanned_version = ?, scanned_purl = ?, declared_license = ? where id = ?"
-                }
-                Tx::PostgreSql(_) => {
-                    "update t_component set version = $1, purl = $2, origin = $3, build_sbom_id = $4, scanned_version = $5, scanned_purl = $6, declared_license = $7 where id = $8"
-                }
-            };
-            match tx {
-                Tx::MySql(conn) => {
-                    sqlx::query(AssertSqlSafe(sql))
-                        .bind(&c.version)
-                        .bind(&c.purl)
-                        .bind(&c.origin)
-                        .bind(c.build_sbom_id)
-                        .bind(&c.scanned_version)
-                        .bind(&c.scanned_purl)
-                        .bind(&c.declared_license)
-                        .bind(c.id)
-                        .execute(&mut **conn)
-                        .await?;
-                }
-                Tx::PostgreSql(conn) => {
-                    sqlx::query(AssertSqlSafe(sql))
-                        .bind(&c.version)
-                        .bind(&c.purl)
-                        .bind(&c.origin)
-                        .bind(c.build_sbom_id)
-                        .bind(&c.scanned_version)
-                        .bind(&c.scanned_purl)
-                        .bind(&c.declared_license)
-                        .bind(c.id)
-                        .execute(&mut **conn)
-                        .await?;
-                }
-            }
+    /// What completing a scan with a build SBOM changes of each row; one statement per row, as Hibernate wrote them.
+    pub async fn update_components(tx: &mut Tx, rows: &[ComponentRow]) -> Result<(), StoreError> {
+        for row in rows {
+            let update = Components::update_many()
+                .col_expr(ComponentColumn::Version, Expr::value(row.version.clone()))
+                .col_expr(ComponentColumn::Purl, Expr::value(row.purl.clone()))
+                .col_expr(ComponentColumn::Origin, Expr::value(row.origin.clone()))
+                .col_expr(ComponentColumn::BuildSbomId, Expr::value(row.build_sbom_id))
+                .col_expr(ComponentColumn::ScannedVersion, Expr::value(row.scanned_version.clone()))
+                .col_expr(ComponentColumn::ScannedPurl, Expr::value(row.scanned_purl.clone()))
+                .col_expr(ComponentColumn::DeclaredLicense, Expr::value(row.declared_license.clone()))
+                .filter(ComponentColumn::Id.eq(row.id))
+                .into_query();
+            orm::execute(tx, &update).await?;
         }
         Ok(())
     }
 
     pub async fn find_components_by_scan_id(db: &Db, scan_id: i64) -> Result<Vec<ComponentRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        Self::find_components_by_scan_id_tx(&mut tx, scan_id).await
+        reading(db, async |tx| Self::find_components_by_scan_id_tx(tx, scan_id).await).await
     }
 
     pub async fn find_components_by_scan_id_tx(tx: &mut Tx, scan_id: i64) -> Result<Vec<ComponentRow>, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => {
-                "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license from t_component where scan_id = ? order by id asc"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license from t_component where scan_id = $1 order by id asc"
-            }
-        };
-        match tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(scan_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_component_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(scan_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_component_row!(r)).collect())
-            }
-        }
+        let select = Components::find().filter(ComponentColumn::ScanId.eq(scan_id)).order_by_asc(ComponentColumn::Id);
+        components(tx, select.into_query()).await
     }
 
+    /// Java's `lockScan`: a scan's rows, `for update`, in key order — two imports completing one scan at once would
+    /// otherwise both add the build's components.
     pub async fn lock_scan_components(tx: &mut Tx, scan_id: i64) -> Result<Vec<ComponentRow>, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => {
-                "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license from t_component where scan_id = ? for update"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license from t_component where scan_id = $1 for update"
-            }
-        };
-        match tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(scan_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_component_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(scan_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_component_row!(r)).collect())
-            }
-        }
+        let select = Components::find()
+            .filter(ComponentColumn::ScanId.eq(scan_id))
+            .order_by_asc(ComponentColumn::Id)
+            .lock_exclusive();
+        components(tx, select.into_query()).await
     }
 
+    /// Java's `namesOfScans` and `findByScanIdIn`: `order by c.scanId, c.id` — of two rows naming one component of one
+    /// target, the first decides the purl the licence inventory shows — and each scan read once.
     pub async fn find_components_by_scan_ids(db: &Db, scan_ids: &[i64]) -> Result<Vec<ComponentRow>, StoreError> {
-        if scan_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let mut result = Vec::new();
-        for chunk in scan_ids.chunks(1000) {
-            match &mut tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!(
-                        "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license from t_component where scan_id in ({placeholders})"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    result.extend(rows.into_iter().map(|r| parse_component_row!(r)));
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!(
-                        "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license from t_component where scan_id in ({placeholders})"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    result.extend(rows.into_iter().map(|r| parse_component_row!(r)));
-                }
+        let ids = distinct(scan_ids);
+        reading(db, async |tx| {
+            let mut found = Vec::new();
+            for chunk in ids.chunks(LOOKUP_BATCH) {
+                let select = Components::find()
+                    .filter(ComponentColumn::ScanId.is_in(chunk.iter().copied()))
+                    .order_by_asc(ComponentColumn::ScanId)
+                    .order_by_asc(ComponentColumn::Id);
+                found.extend(components(tx, select.into_query()).await?);
             }
-        }
-        Ok(result)
+            Ok(found)
+        })
+        .await
     }
 
-    /// Which of these scans the inventory holds components of — the backfill keeps the others.
     pub async fn indexed_among(db: &Db, scan_ids: &[i64]) -> Result<Vec<i64>, StoreError> {
-        if scan_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let mut result = Vec::new();
-        for chunk in scan_ids.chunks(1000) {
-            match &mut tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!("select distinct scan_id from t_component where scan_id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    for r in rows {
-                        let scan_id: i64 = r.get("scan_id");
-                        result.push(scan_id);
-                    }
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!("select distinct scan_id from t_component where scan_id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    for r in rows {
-                        let scan_id: i64 = r.get("scan_id");
-                        result.push(scan_id);
-                    }
-                }
+        let ids = distinct(scan_ids);
+        reading(db, async |tx| {
+            let mut found = Vec::new();
+            for chunk in ids.chunks(LOOKUP_BATCH) {
+                let select = select_value(Expr::col(ComponentColumn::ScanId))
+                    .distinct()
+                    .from(Components)
+                    .and_where(Expr::col(ComponentColumn::ScanId).is_in(chunk.iter().copied()))
+                    .to_owned();
+                found.extend(values::<i64>(tx, select).await?);
             }
-        }
-        Ok(result)
+            Ok(found)
+        })
+        .await
     }
 
     pub async fn count_components_by_scan_ids(db: &Db, scan_ids: &[i64]) -> Result<i64, StoreError> {
-        if scan_ids.is_empty() {
-            return Ok(0);
-        }
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let mut total: i64 = 0;
-        for chunk in scan_ids.chunks(1000) {
-            let count: i64 = match &mut tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!("select count(*) from t_component where scan_id in ({placeholders})");
-                    let mut q = sqlx::query_scalar(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.fetch_one(&mut **conn).await?
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!("select count(*) from t_component where scan_id in ({placeholders})");
-                    let mut q = sqlx::query_scalar(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.fetch_one(&mut **conn).await?
-                }
-            };
-            total = total.saturating_add(count);
-        }
-        Ok(total)
+        let ids = distinct(scan_ids);
+        reading(db, async |tx| {
+            let mut total = 0i64;
+            for chunk in ids.chunks(LOOKUP_BATCH) {
+                let select = select_value(Func::count(Expr::col(ComponentColumn::Id)))
+                    .from(Components)
+                    .and_where(Expr::col(ComponentColumn::ScanId).is_in(chunk.iter().copied()))
+                    .to_owned();
+                total = total.saturating_add(orm::fetch_count(tx, &select).await?);
+            }
+            Ok(total)
+        })
+        .await
     }
 
+    /// Java's `search`: by name or purl, the version exactly — `2.14.1` is not `2.14.10`, a different release with a
+    /// different verdict — newest scan first, then by name, bounded; the bound keeping the newest is why the order is
+    /// the scan's instant and not the key, which is the order of writing.
     pub async fn search_components(
         db: &Db,
         name_like: &str,
         version: Option<&str>,
         limit: i64,
     ) -> Result<Vec<ComponentRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = match &tx {
-            Tx::MySql(_) => {
-                "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license \
-                 from t_component \
-                 where lower(name) like ? and (? is null or version = ?) \
-                 order by id desc limit ?"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, scan_id, repo_id, container_id, scan_created_at, name, version, purl, type, is_direct, origin, build_sbom_id, scanned_version, scanned_purl, declared_license \
-                 from t_component \
-                 where lower(name) like $1 and ($2 is null or version = $2) \
-                 order by id desc limit $3"
-            }
-        };
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql))
-                    .bind(name_like)
-                    .bind(version)
-                    .bind(version)
-                    .bind(limit)
-                    .fetch_all(&mut **conn)
-                    .await?;
-                Ok(rows.into_iter().map(|r| parse_component_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql))
-                    .bind(name_like)
-                    .bind(version)
-                    .bind(limit)
-                    .fetch_all(&mut **conn)
-                    .await?;
-                Ok(rows.into_iter().map(|r| parse_component_row!(r)).collect())
-            }
+        let mut select = Components::find().filter(names_or_purl(name_like));
+        if let Some(version) = version {
+            select = select.filter(ComponentColumn::Version.eq(version));
         }
+        let select = select
+            .order_by_desc(ComponentColumn::ScanCreatedAt)
+            .order_by_asc(ComponentColumn::Name)
+            .limit(u64::try_from(limit).unwrap_or(0));
+        reading(db, async |tx| components(tx, select.into_query()).await).await
     }
 
+    /// Java's `versionsOf`: each version and target once, by name or purl, newest version first, bounded — a row
+    /// without a version is left out here rather than after the bound, where it took a place in it.
     pub async fn versions_of(
         db: &Db,
         name_like: &str,
         limit: i64,
     ) -> Result<Vec<(String, Option<i64>, Option<i64>)>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = match &tx {
-            Tx::MySql(_) => {
-                "select distinct version, repo_id, container_id from t_component where lower(name) like ? and version is not null limit ?"
-            }
-            Tx::PostgreSql(_) => {
-                "select distinct version, repo_id, container_id from t_component where lower(name) like $1 and version is not null limit $2"
-            }
-        };
-        let rows = match &mut tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .bind(name_like)
-                .bind(limit)
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| {
-                    let version: String = r.get("version");
-                    let repo_id: Option<i64> = r.get("repo_id");
-                    let container_id: Option<i64> = r.get("container_id");
-                    (version, repo_id, container_id)
-                })
-                .collect(),
-            Tx::PostgreSql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .bind(name_like)
-                .bind(limit)
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| {
-                    let version: String = r.get("version");
-                    let repo_id: Option<i64> = r.get("repo_id");
-                    let container_id: Option<i64> = r.get("container_id");
-                    (version, repo_id, container_id)
-                })
-                .collect(),
-        };
-        Ok(rows)
+        #[derive(Debug, FromQueryResult)]
+        struct Version {
+            version: String,
+            repo_id: Option<i64>,
+            container_id: Option<i64>,
+        }
+        let select = Query::select()
+            .distinct()
+            .columns([ComponentColumn::Version, ComponentColumn::RepoId, ComponentColumn::ContainerId])
+            .from(Components)
+            .cond_where(names_or_purl(name_like))
+            .and_where(Expr::col(ComponentColumn::Version).is_not_null())
+            .order_by(ComponentColumn::Version, Order::Desc)
+            .limit(u64::try_from(limit).unwrap_or(0))
+            .to_owned();
+        let rows: Vec<Version> = reading(db, async |tx| Ok(orm::fetch_all(tx, &select).await?)).await?;
+        Ok(rows.into_iter().map(|row| (row.version, row.repo_id, row.container_id)).collect())
     }
 
     pub async fn distinct_purls(db: &Db) -> Result<Vec<String>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = "select distinct purl from t_component where purl is not null order by purl asc";
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("purl")).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("purl")).collect())
-            }
-        }
+        let select = select_value(Expr::col(ComponentColumn::Purl))
+            .distinct()
+            .from(Components)
+            .and_where(Expr::col(ComponentColumn::Purl).is_not_null())
+            .order_by(ComponentColumn::Purl, Order::Asc)
+            .to_owned();
+        reading(db, async |tx| values::<String>(tx, select).await).await
     }
 
+    /// Java's `distinctPurlsByTarget`: a row naming a repository and an image comes back with both, on both sides.
     pub async fn distinct_purls_by_target(db: &Db) -> Result<Vec<(Option<i64>, Option<i64>, String)>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = "select distinct repo_id, container_id, purl from t_component where purl is not null";
-        let rows = match &mut tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| {
-                    let repo_id: Option<i64> = r.get("repo_id");
-                    let container_id: Option<i64> = r.get("container_id");
-                    let purl: String = r.get("purl");
-                    (repo_id, container_id, purl)
-                })
-                .collect(),
-            Tx::PostgreSql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| {
-                    let repo_id: Option<i64> = r.get("repo_id");
-                    let container_id: Option<i64> = r.get("container_id");
-                    let purl: String = r.get("purl");
-                    (repo_id, container_id, purl)
-                })
-                .collect(),
-        };
-        Ok(rows)
+        #[derive(Debug, FromQueryResult)]
+        struct Purl {
+            repo_id: Option<i64>,
+            container_id: Option<i64>,
+            purl: String,
+        }
+        let select = Query::select()
+            .distinct()
+            .columns([ComponentColumn::RepoId, ComponentColumn::ContainerId, ComponentColumn::Purl])
+            .from(Components)
+            .and_where(Expr::col(ComponentColumn::Purl).is_not_null())
+            .to_owned();
+        let rows: Vec<Purl> = reading(db, async |tx| Ok(orm::fetch_all(tx, &select).await?)).await?;
+        Ok(rows.into_iter().map(|row| (row.repo_id, row.container_id, row.purl)).collect())
     }
 
     pub async fn distinct_repositories_with_components(db: &Db) -> Result<Vec<i64>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = "select distinct repo_id from t_component where repo_id is not null";
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("repo_id")).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("repo_id")).collect())
-            }
-        }
+        Self::distinct_targets(db, ComponentColumn::RepoId).await
     }
 
+    /// Java's `distinctContainersWithComponents`, which does not add `repo_id is null`: a row naming both counts the
+    /// image as inventoried.
     pub async fn distinct_containers_with_components(db: &Db) -> Result<Vec<i64>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = "select distinct container_id from t_component where container_id is not null";
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("container_id")).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("container_id")).collect())
-            }
-        }
+        Self::distinct_targets(db, ComponentColumn::ContainerId).await
     }
 
+    async fn distinct_targets(db: &Db, column: ComponentColumn) -> Result<Vec<i64>, StoreError> {
+        let select = select_value(Expr::col(column))
+            .distinct()
+            .from(Components)
+            .and_where(Expr::col(column).is_not_null())
+            .to_owned();
+        reading(db, async |tx| values::<i64>(tx, select).await).await
+    }
+
+    /// For each of these imports, the newest scan it completed.
     pub async fn newest_scan_completed_by(db: &Db, build_sbom_ids: &[i64]) -> Result<Vec<(i64, i64)>, StoreError> {
-        if build_sbom_ids.is_empty() {
-            return Ok(Vec::new());
+        #[derive(Debug, FromQueryResult)]
+        struct Completed {
+            build_sbom_id: i64,
+            scan_id: i64,
         }
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let mut result = Vec::new();
-        for chunk in build_sbom_ids.chunks(1000) {
-            match &mut tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!(
-                        "select build_sbom_id, max(scan_id) as scan_id from t_component where build_sbom_id in ({placeholders}) group by build_sbom_id"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    for r in rows {
-                        let build_id: i64 = r.get("build_sbom_id");
-                        let scan_id: i64 = r.get("scan_id");
-                        result.push((build_id, scan_id));
-                    }
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!(
-                        "select build_sbom_id, max(scan_id) as scan_id from t_component where build_sbom_id in ({placeholders}) group by build_sbom_id"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    for r in rows {
-                        let build_id: i64 = r.get("build_sbom_id");
-                        let scan_id: i64 = r.get("scan_id");
-                        result.push((build_id, scan_id));
-                    }
-                }
+        let ids = distinct(build_sbom_ids);
+        reading(db, async |tx| {
+            let mut found = Vec::new();
+            for chunk in ids.chunks(LOOKUP_BATCH) {
+                let select = Query::select()
+                    .column(ComponentColumn::BuildSbomId)
+                    .expr_as(Func::max(Expr::col(ComponentColumn::ScanId)), Alias::new("scan_id"))
+                    .from(Components)
+                    .and_where(Expr::col(ComponentColumn::BuildSbomId).is_in(chunk.iter().copied()))
+                    .group_by_col(ComponentColumn::BuildSbomId)
+                    .to_owned();
+                let rows: Vec<Completed> = orm::fetch_all(tx, &select).await?;
+                found.extend(rows.into_iter().map(|row| (row.build_sbom_id, row.scan_id)));
             }
-        }
-        Ok(result)
+            Ok(found)
+        })
+        .await
     }
 
     // -------------------------------------------------------------------------
-    // t_build_sbom & t_build_sbom_component queries
+    // t_build_sbom, t_build_sbom_component
     // -------------------------------------------------------------------------
 
     pub async fn insert_build_sbom(tx: &mut Tx, row: &NewBuildSbom) -> Result<i64, StoreError> {
-        match tx {
-            Tx::MySql(conn) => {
-                let sql = "insert into t_build_sbom (source_id, source_slug, repo_id, spec_version, tool, components_count, commit_sha, branch_name, document_sha256, imported_at, imported_by, api_key_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                let res = sqlx::query(AssertSqlSafe(sql))
-                    .bind(row.source_id)
-                    .bind(&row.source_slug)
-                    .bind(row.repo_id)
-                    .bind(&row.spec_version)
-                    .bind(&row.tool)
-                    .bind(row.components_count)
-                    .bind(&row.commit_sha)
-                    .bind(&row.branch_name)
-                    .bind(&row.document_sha256)
-                    .bind(UtcInstant(row.imported_at))
-                    .bind(&row.imported_by)
-                    .bind(&row.api_key_id)
-                    .execute(&mut **conn)
-                    .await?;
-                Ok(res.last_insert_id() as i64)
-            }
-            Tx::PostgreSql(conn) => {
-                let sql = "insert into t_build_sbom (source_id, source_slug, repo_id, spec_version, tool, components_count, commit_sha, branch_name, document_sha256, imported_at, imported_by, api_key_id) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) returning id";
-                let id: i64 = sqlx::query_scalar(AssertSqlSafe(sql))
-                    .bind(row.source_id)
-                    .bind(&row.source_slug)
-                    .bind(row.repo_id)
-                    .bind(&row.spec_version)
-                    .bind(&row.tool)
-                    .bind(row.components_count)
-                    .bind(&row.commit_sha)
-                    .bind(&row.branch_name)
-                    .bind(&row.document_sha256)
-                    .bind(UtcInstant(row.imported_at))
-                    .bind(&row.imported_by)
-                    .bind(&row.api_key_id)
-                    .fetch_one(&mut **conn)
-                    .await?;
-                Ok(id)
-            }
-        }
+        let active = build_sbom::ActiveModel {
+            id: NotSet,
+            source_id: Set(row.source_id),
+            source_slug: Set(row.source_slug.clone()),
+            repo_id: Set(row.repo_id),
+            spec_version: Set(row.spec_version.clone()),
+            tool: Set(row.tool.clone()),
+            components_count: Set(row.components_count),
+            commit_sha: Set(row.commit_sha.clone()),
+            branch_name: Set(row.branch_name.clone()),
+            document_sha256: Set(row.document_sha256.clone()),
+            imported_at: Set(row.imported_at),
+            imported_by: Set(row.imported_by.clone()),
+            api_key_id: Set(row.api_key_id.clone()),
+        };
+        Ok(orm::insert_returning_id::<BuildSboms>(tx, BuildSboms::insert(active).into_query()).await?)
     }
 
-    pub async fn insert_build_sbom_components(
-        tx: &mut Tx,
-        components: &[NewBuildSbomComponent],
-    ) -> Result<(), StoreError> {
-        if components.is_empty() {
-            return Ok(());
-        }
-        for chunk in components.chunks(500) {
-            match tx {
-                Tx::MySql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_build_sbom_component (import_id, name, version, purl, type, license) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        sql.push_str("(?, ?, ?, ?, ?, ?)");
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for c in chunk {
-                        q = q
-                            .bind(c.import_id)
-                            .bind(&c.name)
-                            .bind(&c.version)
-                            .bind(&c.purl)
-                            .bind(&c.type_)
-                            .bind(&c.license);
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-                Tx::PostgreSql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_build_sbom_component (import_id, name, version, purl, type, license) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        let base = i.saturating_mul(6);
-                        let params = (1..=6)
-                            .map(|offset| format!("${}", base.saturating_add(offset)))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        sql.push_str(&format!("({params})"));
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for c in chunk {
-                        q = q
-                            .bind(c.import_id)
-                            .bind(&c.name)
-                            .bind(&c.version)
-                            .bind(&c.purl)
-                            .bind(&c.type_)
-                            .bind(&c.license);
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-            }
+    /// In document order: the keys are handed out in the order of the `VALUES`, and the import's components are read
+    /// back by key.
+    pub async fn insert_build_sbom_components(tx: &mut Tx, rows: &[NewBuildSbomComponent]) -> Result<(), StoreError> {
+        for chunk in rows.chunks(INSERT_BATCH) {
+            let actives = chunk.iter().map(|row| build_sbom_component::ActiveModel {
+                id: NotSet,
+                import_id: Set(row.import_id),
+                name: Set(row.name.clone()),
+                version: Set(row.version.clone()),
+                purl: Set(row.purl.clone()),
+                type_: Set(row.type_.clone()),
+                license: Set(row.license.clone()),
+            });
+            orm::execute(tx, &BuildSbomComponents::insert_many(actives).into_query()).await?;
         }
         Ok(())
     }
 
+    /// Java's `newestFor`: the newest import of the repository stating the scan's branch, or stating none. A scan with
+    /// no branch is spoken for by an import stating none — `branch = null` is unknown, never "any branch"; the
+    /// hand-written `? is null or …` let another branch's SBOM complete it.
     pub async fn find_newest_build_sbom_for_repo(
         tx: &mut Tx,
         repo_id: i64,
         branch: Option<&str>,
     ) -> Result<Option<BuildSbomRow>, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => {
-                "select id, source_id, source_slug, repo_id, spec_version, tool, components_count, commit_sha, branch_name, document_sha256, imported_at, imported_by, api_key_id \
-                 from t_build_sbom \
-                 where repo_id = ? and (? is null or branch_name = ? or branch_name is null) \
-                 order by id desc limit 1"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, source_id, source_slug, repo_id, spec_version, tool, components_count, commit_sha, branch_name, document_sha256, imported_at, imported_by, api_key_id \
-                 from t_build_sbom \
-                 where repo_id = $1 and ($2 is null or branch_name = $2 or branch_name is null) \
-                 order by id desc limit 1"
-            }
-        };
-        match tx {
-            Tx::MySql(conn) => {
-                let row = sqlx::query(AssertSqlSafe(sql))
-                    .bind(repo_id)
-                    .bind(branch)
-                    .bind(branch)
-                    .fetch_optional(&mut **conn)
-                    .await?;
-                Ok(row.map(|r| parse_build_sbom_row!(r)))
-            }
-            Tx::PostgreSql(conn) => {
-                let row =
-                    sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(branch).fetch_optional(&mut **conn).await?;
-                Ok(row.map(|r| parse_build_sbom_row!(r)))
-            }
+        let mut branches = Condition::any().add(BuildSbomColumn::BranchName.is_null());
+        if let Some(branch) = branch {
+            branches = branches.add(BuildSbomColumn::BranchName.eq(branch));
         }
+        let select = BuildSboms::find()
+            .filter(BuildSbomColumn::RepoId.eq(repo_id))
+            .filter(branches)
+            .order_by_desc(BuildSbomColumn::Id)
+            .limit(1)
+            .into_query();
+        let model: Option<build_sbom::Model> = orm::fetch_optional(tx, &select).await?;
+        Ok(model.map(BuildSbomRow::from))
     }
 
     pub async fn find_build_sbom_components(
         tx: &mut Tx,
         import_id: i64,
     ) -> Result<Vec<BuildSbomComponentRow>, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => {
-                "select id, import_id, name, version, purl, type, license from t_build_sbom_component where import_id = ? order by id asc"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, import_id, name, version, purl, type, license from t_build_sbom_component where import_id = $1 order by id asc"
-            }
-        };
-        match tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(import_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_build_sbom_component_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(import_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_build_sbom_component_row!(r)).collect())
-            }
-        }
+        let select = BuildSbomComponents::find()
+            .filter(BuildSbomComponentColumn::ImportId.eq(import_id))
+            .order_by_asc(BuildSbomComponentColumn::Id)
+            .into_query();
+        let models: Vec<build_sbom_component::Model> = orm::fetch_all(tx, &select).await?;
+        Ok(models
+            .into_iter()
+            .map(|model| BuildSbomComponentRow {
+                id: model.id,
+                import_id: model.import_id,
+                name: model.name,
+                version: model.version,
+                purl: model.purl,
+                type_: model.type_,
+                license: model.license,
+            })
+            .collect())
     }
 
     pub async fn find_build_sboms_by_repo(db: &Db, repo_id: i64, limit: i64) -> Result<Vec<BuildSbomRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = match &tx {
-            Tx::MySql(_) => {
-                "select id, source_id, source_slug, repo_id, spec_version, tool, components_count, commit_sha, branch_name, document_sha256, imported_at, imported_by, api_key_id \
-                 from t_build_sbom where repo_id = ? order by id desc limit ?"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, source_id, source_slug, repo_id, spec_version, tool, components_count, commit_sha, branch_name, document_sha256, imported_at, imported_by, api_key_id \
-                 from t_build_sbom where repo_id = $1 order by id desc limit $2"
-            }
-        };
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(limit).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_build_sbom_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(limit).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_build_sbom_row!(r)).collect())
-            }
-        }
+        let select = BuildSboms::find()
+            .filter(BuildSbomColumn::RepoId.eq(repo_id))
+            .order_by_desc(BuildSbomColumn::Id)
+            .limit(u64::try_from(limit).unwrap_or(0))
+            .into_query();
+        let models: Vec<build_sbom::Model> = reading(db, async |tx| Ok(orm::fetch_all(tx, &select).await?)).await?;
+        Ok(models.into_iter().map(BuildSbomRow::from).collect())
     }
 
     pub async fn find_build_sbom_ids_by_repo(tx: &mut Tx, repo_id: i64) -> Result<Vec<i64>, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "select id from t_build_sbom where repo_id = ? order by id asc",
-            Tx::PostgreSql(_) => "select id from t_build_sbom where repo_id = $1 order by id asc",
-        };
-        match tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("id")).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("id")).collect())
-            }
-        }
+        let select = select_value(Expr::col(BuildSbomColumn::Id))
+            .from(BuildSboms)
+            .and_where(Expr::col(BuildSbomColumn::RepoId).eq(repo_id))
+            .order_by(BuildSbomColumn::Id, Order::Asc)
+            .to_owned();
+        values::<i64>(tx, select).await
     }
 
     pub async fn find_build_sbom_ids_imported_before(
@@ -1103,562 +728,242 @@ impl InventoryRepository {
         cutoff: OffsetDateTime,
         limit: i64,
     ) -> Result<Vec<i64>, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "select id from t_build_sbom where imported_at < ? order by id asc limit ?",
-            Tx::PostgreSql(_) => "select id from t_build_sbom where imported_at < $1 order by id asc limit $2",
-        };
-        match tx {
-            Tx::MySql(conn) => {
-                let rows =
-                    sqlx::query(AssertSqlSafe(sql)).bind(UtcInstant(cutoff)).bind(limit).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("id")).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows =
-                    sqlx::query(AssertSqlSafe(sql)).bind(UtcInstant(cutoff)).bind(limit).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("id")).collect())
-            }
-        }
+        let select = select_value(Expr::col(BuildSbomColumn::Id))
+            .from(BuildSboms)
+            .and_where(Expr::col(BuildSbomColumn::ImportedAt).lt(cutoff))
+            .order_by(BuildSbomColumn::Id, Order::Asc)
+            .limit(u64::try_from(limit).unwrap_or(0))
+            .to_owned();
+        values::<i64>(tx, select).await
     }
 
     pub async fn delete_build_sbom_components_by_import_ids(
         tx: &mut Tx,
         import_ids: &[i64],
     ) -> Result<u64, StoreError> {
-        if import_ids.is_empty() {
-            return Ok(0);
-        }
-        let mut total: u64 = 0;
-        for chunk in import_ids.chunks(1000) {
-            let res = match tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!("delete from t_build_sbom_component where import_id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!("delete from t_build_sbom_component where import_id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-            };
-            total = total.saturating_add(res);
+        let mut total = 0u64;
+        for chunk in distinct(import_ids).chunks(LOOKUP_BATCH) {
+            let delete = BuildSbomComponents::delete_many()
+                .filter(BuildSbomComponentColumn::ImportId.is_in(chunk.iter().copied()))
+                .into_query();
+            total = total.saturating_add(orm::execute(tx, &delete).await?);
         }
         Ok(total)
     }
 
     pub async fn delete_build_sboms_by_ids(tx: &mut Tx, ids: &[i64]) -> Result<u64, StoreError> {
-        if ids.is_empty() {
-            return Ok(0);
-        }
-        let mut total: u64 = 0;
-        for chunk in ids.chunks(1000) {
-            let res = match tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!("delete from t_build_sbom where id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!("delete from t_build_sbom where id in ({placeholders})");
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    q.execute(&mut **conn).await?.rows_affected()
-                }
-            };
-            total = total.saturating_add(res);
+        let mut total = 0u64;
+        for chunk in distinct(ids).chunks(LOOKUP_BATCH) {
+            let delete =
+                BuildSboms::delete_many().filter(BuildSbomColumn::Id.is_in(chunk.iter().copied())).into_query();
+            total = total.saturating_add(orm::execute(tx, &delete).await?);
         }
         Ok(total)
     }
 
     // -------------------------------------------------------------------------
-    // t_license_policy queries
+    // t_license_policy
     // -------------------------------------------------------------------------
 
     pub async fn find_license_policy(db: &Db) -> Result<Option<LicensePolicyRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = match &tx {
-            Tx::MySql(_) => {
-                "select id, disallowed_categories, allowed_licenses, disallowed_licenses, updated_at from t_license_policy where id = 1"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, disallowed_categories, allowed_licenses, disallowed_licenses, updated_at from t_license_policy where id = 1"
-            }
-        };
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let row = sqlx::query(AssertSqlSafe(sql)).fetch_optional(&mut **conn).await?;
-                Ok(row.map(|r| parse_license_policy_row!(r)))
-            }
-            Tx::PostgreSql(conn) => {
-                let row = sqlx::query(AssertSqlSafe(sql)).fetch_optional(&mut **conn).await?;
-                Ok(row.map(|r| parse_license_policy_row!(r)))
-            }
-        }
+        let select = LicensePolicies::find().filter(LicensePolicyColumn::Id.eq(1i64)).into_query();
+        let model: Option<license_policy::Model> =
+            reading(db, async |tx| Ok(orm::fetch_optional(tx, &select).await?)).await?;
+        Ok(model.map(|model| LicensePolicyRow {
+            id: model.id,
+            disallowed_categories: model.disallowed_categories,
+            allowed_licenses: model.allowed_licenses,
+            disallowed_licenses: model.disallowed_licenses,
+            updated_at: model.updated_at,
+        }))
     }
 
+    /// The singleton, replaced in one statement — an insert that updates on the key, so two writers cannot both find
+    /// it missing — and stamped with `at`, the application's instant: Java's `clock.instant()`, where the hand-written
+    /// statement took the database's `now()`, which is the session's time zone on MySQL.
     pub async fn upsert_license_policy(
         tx: &mut Tx,
         disallowed_categories: &str,
         allowed_licenses: Option<&str>,
         disallowed_licenses: Option<&str>,
+        at: OffsetDateTime,
     ) -> Result<(), StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => {
-                "insert into t_license_policy (id, disallowed_categories, allowed_licenses, disallowed_licenses, updated_at) \
-                 values (1, ?, ?, ?, now()) \
-                 on duplicate key update disallowed_categories = values(disallowed_categories), allowed_licenses = values(allowed_licenses), disallowed_licenses = values(disallowed_licenses), updated_at = now()"
-            }
-            Tx::PostgreSql(_) => {
-                "insert into t_license_policy (id, disallowed_categories, allowed_licenses, disallowed_licenses, updated_at) \
-                 values (1, $1, $2, $3, current_timestamp) \
-                 on conflict (id) do update set disallowed_categories = excluded.disallowed_categories, allowed_licenses = excluded.allowed_licenses, disallowed_licenses = excluded.disallowed_licenses, updated_at = current_timestamp"
-            }
+        let active = license_policy::ActiveModel {
+            id: Set(1),
+            disallowed_categories: Set(disallowed_categories.to_owned()),
+            allowed_licenses: Set(allowed_licenses.map(str::to_owned)),
+            disallowed_licenses: Set(disallowed_licenses.map(str::to_owned)),
+            updated_at: Set(at),
         };
-        match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql))
-                    .bind(disallowed_categories)
-                    .bind(allowed_licenses)
-                    .bind(disallowed_licenses)
-                    .execute(&mut **conn)
-                    .await?;
-            }
-            Tx::PostgreSql(conn) => {
-                sqlx::query(AssertSqlSafe(sql))
-                    .bind(disallowed_categories)
-                    .bind(allowed_licenses)
-                    .bind(disallowed_licenses)
-                    .execute(&mut **conn)
-                    .await?;
-            }
-        }
+        let upsert = LicensePolicies::insert(active)
+            .on_conflict(
+                OnConflict::column(LicensePolicyColumn::Id)
+                    .update_columns([
+                        LicensePolicyColumn::DisallowedCategories,
+                        LicensePolicyColumn::AllowedLicenses,
+                        LicensePolicyColumn::DisallowedLicenses,
+                        LicensePolicyColumn::UpdatedAt,
+                    ])
+                    .to_owned(),
+            )
+            .into_query();
+        orm::execute(tx, &upsert).await?;
         Ok(())
     }
 
     // -------------------------------------------------------------------------
-    // t_api_endpoint & t_api_contract queries
+    // t_api_endpoint, t_api_contract
     // -------------------------------------------------------------------------
 
     pub async fn delete_api_endpoints_by_scan_id(tx: &mut Tx, scan_id: i64) -> Result<u64, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "delete from t_api_endpoint where scan_id = ?",
-            Tx::PostgreSql(_) => "delete from t_api_endpoint where scan_id = $1",
-        };
-        let rows = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(scan_id).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(scan_id).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(rows)
+        let delete = ApiEndpoints::delete_many().filter(ApiEndpointColumn::ScanId.eq(scan_id)).into_query();
+        Ok(orm::execute(tx, &delete).await?)
     }
 
     pub async fn delete_api_contracts_by_scan_id(tx: &mut Tx, scan_id: i64) -> Result<u64, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "delete from t_api_contract where scan_id = ?",
-            Tx::PostgreSql(_) => "delete from t_api_contract where scan_id = $1",
-        };
-        let rows = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(scan_id).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(scan_id).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(rows)
+        let delete = ApiContracts::delete_many().filter(ApiContractColumn::ScanId.eq(scan_id)).into_query();
+        Ok(orm::execute(tx, &delete).await?)
     }
 
     pub async fn delete_all_api_endpoints(tx: &mut Tx) -> Result<u64, StoreError> {
-        let sql = "delete from t_api_endpoint";
-        let rows = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql)).execute(&mut **conn).await?.rows_affected(),
-            Tx::PostgreSql(conn) => sqlx::query(AssertSqlSafe(sql)).execute(&mut **conn).await?.rows_affected(),
-        };
-        Ok(rows)
+        Ok(orm::execute(tx, &ApiEndpoints::delete_many().into_query()).await?)
     }
 
     pub async fn delete_all_api_contracts(tx: &mut Tx) -> Result<u64, StoreError> {
-        let sql = "delete from t_api_contract";
-        let rows = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql)).execute(&mut **conn).await?.rows_affected(),
-            Tx::PostgreSql(conn) => sqlx::query(AssertSqlSafe(sql)).execute(&mut **conn).await?.rows_affected(),
-        };
-        Ok(rows)
+        Ok(orm::execute(tx, &ApiContracts::delete_many().into_query()).await?)
     }
 
     pub async fn delete_api_endpoints_by_repo_tx(tx: &mut Tx, repo_id: i64) -> Result<u64, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "delete from t_api_endpoint where repository_id = ?",
-            Tx::PostgreSql(_) => "delete from t_api_endpoint where repository_id = $1",
-        };
-        let rows = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(repo_id).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(repo_id).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(rows)
+        let delete = ApiEndpoints::delete_many().filter(ApiEndpointColumn::RepositoryId.eq(repo_id)).into_query();
+        Ok(orm::execute(tx, &delete).await?)
     }
 
     pub async fn delete_api_endpoints_by_repo(db: &Db, repo_id: i64) -> Result<u64, StoreError> {
-        let mut tx = db.begin(Mode::ReadWrite).await?;
-        let count = Self::delete_api_endpoints_by_repo_tx(&mut tx, repo_id).await?;
-        tx.commit().await?;
-        Ok(count)
+        writing(db, async |tx| Self::delete_api_endpoints_by_repo_tx(tx, repo_id).await).await
     }
 
     pub async fn delete_api_contracts_by_repo_tx(tx: &mut Tx, repo_id: i64) -> Result<u64, StoreError> {
-        let sql = match tx {
-            Tx::MySql(_) => "delete from t_api_contract where repository_id = ?",
-            Tx::PostgreSql(_) => "delete from t_api_contract where repository_id = $1",
-        };
-        let rows = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(repo_id).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(repo_id).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(rows)
+        let delete = ApiContracts::delete_many().filter(ApiContractColumn::RepositoryId.eq(repo_id)).into_query();
+        Ok(orm::execute(tx, &delete).await?)
     }
 
     pub async fn delete_api_contracts_by_repo(db: &Db, repo_id: i64) -> Result<u64, StoreError> {
-        let mut tx = db.begin(Mode::ReadWrite).await?;
-        let count = Self::delete_api_contracts_by_repo_tx(&mut tx, repo_id).await?;
-        tx.commit().await?;
-        Ok(count)
+        writing(db, async |tx| Self::delete_api_contracts_by_repo_tx(tx, repo_id).await).await
     }
 
-    pub async fn insert_api_endpoints(tx: &mut Tx, endpoints: &[NewApiEndpoint]) -> Result<(), StoreError> {
-        if endpoints.is_empty() {
-            return Ok(());
-        }
-        for chunk in endpoints.chunks(500) {
-            match tx {
-                Tx::MySql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_api_endpoint (scan_id, repository_id, http_method, path, auth_required, auth_type, visibility, file_path, line_number, framework, operation_id, summary, tags, created_at) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        sql.push_str("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for ep in chunk {
-                        q = q
-                            .bind(ep.scan_id)
-                            .bind(ep.repository_id)
-                            .bind(&ep.http_method)
-                            .bind(&ep.path)
-                            .bind(ep.auth_required)
-                            .bind(&ep.auth_type)
-                            .bind(&ep.visibility)
-                            .bind(&ep.file_path)
-                            .bind(ep.line_number)
-                            .bind(&ep.framework)
-                            .bind(&ep.operation_id)
-                            .bind(&ep.summary)
-                            .bind(&ep.tags)
-                            .bind(UtcInstant(ep.created_at));
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-                Tx::PostgreSql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_api_endpoint (scan_id, repository_id, http_method, path, auth_required, auth_type, visibility, file_path, line_number, framework, operation_id, summary, tags, created_at) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        let base = i.saturating_mul(14);
-                        let params = (1..=14)
-                            .map(|offset| format!("${}", base.saturating_add(offset)))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        sql.push_str(&format!("({params})"));
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for ep in chunk {
-                        q = q
-                            .bind(ep.scan_id)
-                            .bind(ep.repository_id)
-                            .bind(&ep.http_method)
-                            .bind(&ep.path)
-                            .bind(ep.auth_required)
-                            .bind(&ep.auth_type)
-                            .bind(&ep.visibility)
-                            .bind(&ep.file_path)
-                            .bind(ep.line_number)
-                            .bind(&ep.framework)
-                            .bind(&ep.operation_id)
-                            .bind(&ep.summary)
-                            .bind(&ep.tags)
-                            .bind(UtcInstant(ep.created_at));
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-            }
+    pub async fn insert_api_endpoints(tx: &mut Tx, rows: &[NewApiEndpoint]) -> Result<(), StoreError> {
+        for chunk in rows.chunks(INSERT_BATCH) {
+            let actives = chunk.iter().map(|row| api_endpoint::ActiveModel {
+                id: NotSet,
+                scan_id: Set(row.scan_id),
+                repository_id: Set(row.repository_id),
+                http_method: Set(row.http_method.clone()),
+                path: Set(row.path.clone()),
+                auth_required: Set(row.auth_required),
+                auth_type: Set(row.auth_type.clone()),
+                visibility: Set(row.visibility.clone()),
+                file_path: Set(row.file_path.clone()),
+                line_number: Set(row.line_number),
+                framework: Set(row.framework.clone()),
+                operation_id: Set(row.operation_id.clone()),
+                summary: Set(row.summary.clone()),
+                tags: Set(row.tags.clone()),
+                created_at: Set(row.created_at),
+            });
+            orm::execute(tx, &ApiEndpoints::insert_many(actives).into_query()).await?;
         }
         Ok(())
     }
 
-    pub async fn insert_api_contracts(tx: &mut Tx, contracts: &[NewApiContract]) -> Result<(), StoreError> {
-        if contracts.is_empty() {
-            return Ok(());
-        }
-        for chunk in contracts.chunks(500) {
-            match tx {
-                Tx::MySql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_api_contract (repository_id, scan_id, contract_path, format, title, version, endpoints_count, created_at) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        sql.push_str("(?, ?, ?, ?, ?, ?, ?, ?)");
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for c in chunk {
-                        q = q
-                            .bind(c.repository_id)
-                            .bind(c.scan_id)
-                            .bind(&c.contract_path)
-                            .bind(&c.format)
-                            .bind(&c.title)
-                            .bind(&c.version)
-                            .bind(c.endpoints_count)
-                            .bind(UtcInstant(c.created_at));
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-                Tx::PostgreSql(conn) => {
-                    let mut sql = String::from(
-                        "insert into t_api_contract (repository_id, scan_id, contract_path, format, title, version, endpoints_count, created_at) values ",
-                    );
-                    for i in 0..chunk.len() {
-                        if i > 0 {
-                            sql.push_str(", ");
-                        }
-                        let base = i.saturating_mul(8);
-                        let params = (1..=8)
-                            .map(|offset| format!("${}", base.saturating_add(offset)))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        sql.push_str(&format!("({params})"));
-                    }
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for c in chunk {
-                        q = q
-                            .bind(c.repository_id)
-                            .bind(c.scan_id)
-                            .bind(&c.contract_path)
-                            .bind(&c.format)
-                            .bind(&c.title)
-                            .bind(&c.version)
-                            .bind(c.endpoints_count)
-                            .bind(UtcInstant(c.created_at));
-                    }
-                    q.execute(&mut **conn).await?;
-                }
-            }
+    pub async fn insert_api_contracts(tx: &mut Tx, rows: &[NewApiContract]) -> Result<(), StoreError> {
+        for chunk in rows.chunks(INSERT_BATCH) {
+            let actives = chunk.iter().map(|row| api_contract::ActiveModel {
+                id: NotSet,
+                repository_id: Set(row.repository_id),
+                scan_id: Set(row.scan_id),
+                contract_path: Set(row.contract_path.clone()),
+                format: Set(row.format.clone()),
+                title: Set(row.title.clone()),
+                version: Set(row.version.clone()),
+                endpoints_count: Set(row.endpoints_count),
+                created_at: Set(row.created_at),
+            });
+            orm::execute(tx, &ApiContracts::insert_many(actives).into_query()).await?;
         }
         Ok(())
     }
 
+    /// Java's `findByRepositoryIdOrderByPathAsc`, the key breaking a tie.
     pub async fn find_api_endpoints_by_repo(db: &Db, repo_id: i64) -> Result<Vec<ApiEndpointRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = match &tx {
-            Tx::MySql(_) => {
-                "select id, scan_id, repository_id, http_method, path, auth_required, auth_type, visibility, file_path, line_number, framework, operation_id, summary, tags, created_at \
-                 from t_api_endpoint where repository_id = ? order by path asc, id asc"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, scan_id, repository_id, http_method, path, auth_required, auth_type, visibility, file_path, line_number, framework, operation_id, summary, tags, created_at \
-                 from t_api_endpoint where repository_id = $1 order by path asc, id asc"
-            }
-        };
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_endpoint_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_endpoint_row!(r)).collect())
-            }
-        }
+        let select = ApiEndpoints::find()
+            .filter(ApiEndpointColumn::RepositoryId.eq(repo_id))
+            .order_by_asc(ApiEndpointColumn::Path)
+            .order_by_asc(ApiEndpointColumn::Id)
+            .into_query();
+        reading(db, async |tx| endpoints(tx, select).await).await
     }
 
+    /// Java's `findByRepositoryIdOrderByCreatedAtDesc`: newest first — the hand-written read listed them oldest first.
     pub async fn find_api_contracts_by_repo(db: &Db, repo_id: i64) -> Result<Vec<ApiContractRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = match &tx {
-            Tx::MySql(_) => {
-                "select id, repository_id, scan_id, contract_path, format, title, version, endpoints_count, created_at \
-                 from t_api_contract where repository_id = ? order by id asc"
-            }
-            Tx::PostgreSql(_) => {
-                "select id, repository_id, scan_id, contract_path, format, title, version, endpoints_count, created_at \
-                 from t_api_contract where repository_id = $1 order by id asc"
-            }
-        };
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_contract_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_contract_row!(r)).collect())
-            }
-        }
+        let select = ApiContracts::find()
+            .filter(ApiContractColumn::RepositoryId.eq(repo_id))
+            .order_by_desc(ApiContractColumn::CreatedAt)
+            .order_by_desc(ApiContractColumn::Id)
+            .into_query();
+        reading(db, async |tx| contracts(tx, select).await).await
     }
 
     pub async fn find_api_endpoints_by_repos(db: &Db, repo_ids: &[i64]) -> Result<Vec<ApiEndpointRow>, StoreError> {
-        if repo_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let mut result = Vec::new();
-        for chunk in repo_ids.chunks(1000) {
-            match &mut tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!(
-                        "select id, scan_id, repository_id, http_method, path, auth_required, auth_type, visibility, file_path, line_number, framework, operation_id, summary, tags, created_at \
-                         from t_api_endpoint where repository_id in ({placeholders}) order by id asc"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    result.extend(rows.into_iter().map(|r| parse_api_endpoint_row!(r)));
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!(
-                        "select id, scan_id, repository_id, http_method, path, auth_required, auth_type, visibility, file_path, line_number, framework, operation_id, summary, tags, created_at \
-                         from t_api_endpoint where repository_id in ({placeholders}) order by id asc"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    result.extend(rows.into_iter().map(|r| parse_api_endpoint_row!(r)));
-                }
+        let ids = distinct(repo_ids);
+        reading(db, async |tx| {
+            let mut found = Vec::new();
+            for chunk in ids.chunks(LOOKUP_BATCH) {
+                let select = ApiEndpoints::find()
+                    .filter(ApiEndpointColumn::RepositoryId.is_in(chunk.iter().copied()))
+                    .order_by_asc(ApiEndpointColumn::Id)
+                    .into_query();
+                found.extend(endpoints(tx, select).await?);
             }
-        }
-        Ok(result)
+            Ok(found)
+        })
+        .await
     }
 
     pub async fn find_api_contracts_by_repos(db: &Db, repo_ids: &[i64]) -> Result<Vec<ApiContractRow>, StoreError> {
-        if repo_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let mut result = Vec::new();
-        for chunk in repo_ids.chunks(1000) {
-            match &mut tx {
-                Tx::MySql(conn) => {
-                    let placeholders = vec!["?"; chunk.len()].join(",");
-                    let sql = format!(
-                        "select id, repository_id, scan_id, contract_path, format, title, version, endpoints_count, created_at \
-                         from t_api_contract where repository_id in ({placeholders}) order by id asc"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    result.extend(rows.into_iter().map(|r| parse_api_contract_row!(r)));
-                }
-                Tx::PostgreSql(conn) => {
-                    let placeholders = (1..=chunk.len()).map(|i| format!("${i}")).collect::<Vec<_>>().join(",");
-                    let sql = format!(
-                        "select id, repository_id, scan_id, contract_path, format, title, version, endpoints_count, created_at \
-                         from t_api_contract where repository_id in ({placeholders}) order by id asc"
-                    );
-                    let mut q = sqlx::query(AssertSqlSafe(sql));
-                    for id in chunk {
-                        q = q.bind(id);
-                    }
-                    let rows = q.fetch_all(&mut **conn).await?;
-                    result.extend(rows.into_iter().map(|r| parse_api_contract_row!(r)));
-                }
+        let ids = distinct(repo_ids);
+        reading(db, async |tx| {
+            let mut found = Vec::new();
+            for chunk in ids.chunks(LOOKUP_BATCH) {
+                let select = ApiContracts::find()
+                    .filter(ApiContractColumn::RepositoryId.is_in(chunk.iter().copied()))
+                    .order_by_asc(ApiContractColumn::Id)
+                    .into_query();
+                found.extend(contracts(tx, select).await?);
             }
-        }
-        Ok(result)
+            Ok(found)
+        })
+        .await
     }
 
     pub async fn find_all_api_endpoints(db: &Db) -> Result<Vec<ApiEndpointRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = "select id, scan_id, repository_id, http_method, path, auth_required, auth_type, visibility, file_path, line_number, framework, operation_id, summary, tags, created_at from t_api_endpoint order by id asc";
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_endpoint_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_endpoint_row!(r)).collect())
-            }
-        }
+        let select = ApiEndpoints::find().order_by_asc(ApiEndpointColumn::Id).into_query();
+        reading(db, async |tx| endpoints(tx, select).await).await
     }
 
     pub async fn find_all_api_contracts(db: &Db) -> Result<Vec<ApiContractRow>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = "select id, repository_id, scan_id, contract_path, format, title, version, endpoints_count, created_at from t_api_contract order by id asc";
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_contract_row!(r)).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| parse_api_contract_row!(r)).collect())
-            }
-        }
+        let select = ApiContracts::find().order_by_asc(ApiContractColumn::Id).into_query();
+        reading(db, async |tx| contracts(tx, select).await).await
     }
 
+    /// Every framework once. No visibility, as on the Java side: a restricted reader is told which frameworks the
+    /// estate uses (a filter value, not an endpoint).
     pub async fn find_distinct_frameworks(db: &Db) -> Result<Vec<String>, StoreError> {
-        let mut tx = db.begin(Mode::ReadOnly).await?;
-        let sql = "select distinct framework from t_api_endpoint where framework is not null order by framework asc";
-        match &mut tx {
-            Tx::MySql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("framework")).collect())
-            }
-            Tx::PostgreSql(conn) => {
-                let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut **conn).await?;
-                Ok(rows.into_iter().map(|r| r.get("framework")).collect())
-            }
-        }
+        let select = select_value(Expr::col(ApiEndpointColumn::Framework))
+            .distinct()
+            .from(ApiEndpoints)
+            .and_where(Expr::col(ApiEndpointColumn::Framework).is_not_null())
+            .order_by(ApiEndpointColumn::Framework, Order::Asc)
+            .to_owned();
+        reading(db, async |tx| values::<String>(tx, select).await).await
     }
 }

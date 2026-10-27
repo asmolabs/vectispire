@@ -22,6 +22,7 @@ use crate::persistence::{
     NewApiEndpoint, NewBuildSbom, NewBuildSbomComponent, NewComponent,
 };
 use time::{Duration, OffsetDateTime};
+use vectispire_cp_db::parity;
 use vectispire_cp_db::types::to_microseconds;
 use vectispire_cp_db::{Db, Engine, Mode, Tx};
 
@@ -84,6 +85,9 @@ fn run(engine: Engine) {
             an_api_contract_reads_back_what_was_written_newest_first,
             the_api_inventory_is_deleted_by_scan_by_repository_and_whole,
         );
+        the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
+            failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
+        });
         db.close().await;
         assert!(failures.is_empty(), "{engine}: {} check(s) failed:\n  {}", failures.len(), failures.join("\n  "));
     });
@@ -521,8 +525,8 @@ async fn the_build_sboms_are_found_and_purged(db: &Db) -> Check {
     Ok(())
 }
 
-/// The one place the two versions differ: the port stamps the instant it is given, the hand-written statement the
-/// database's `now()`.
+/// The one place the two versions differ: the port stamps the instant it is given, the hand-written statement stamped
+/// the database's `now()` and took none.
 async fn store_policy(
     tx: &mut Tx,
     categories: &str,
@@ -530,8 +534,7 @@ async fn store_policy(
     disallowed: Option<&str>,
     at: OffsetDateTime,
 ) -> Check {
-    let _ = at;
-    Repo::upsert_license_policy(tx, categories, allowed, disallowed).await.map_err(|e| e.to_string())
+    Repo::upsert_license_policy(tx, categories, allowed, disallowed, at).await.map_err(|e| e.to_string())
 }
 
 /// Java's `updatePolicy`: the singleton row, replaced, stamped with the application's clock (`clock.instant()`) — not
@@ -746,4 +749,23 @@ async fn the_api_inventory_is_deleted_by_scan_by_repository_and_whole(db: &Db) -
     );
     ensure_eq!(Repo::delete_all_api_contracts(&mut tx).await.map_err(|e| e.to_string())?, 0, "of the contracts");
     commit(tx).await
+}
+
+/// The six entities against the migrated schema, and a renamed column refused, so that a check that compared nothing
+/// cannot pass.
+async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
+    let tables = crate::persistence::entities::tables()?;
+    parity::check_entities(db, &tables).await.map_err(|error| error.to_string())?;
+    let mut renamed = tables.clone();
+    let column = renamed[4].columns.iter_mut().find(|column| column.name == "auth_required").unwrap();
+    column.name = "authenticated";
+    match parity::check_entities(db, &renamed).await {
+        Err(parity::ParityError::Mismatches { mismatches, .. }) => ensure_eq!(
+            mismatches,
+            vec![parity::Mismatch::MissingColumn { table: "t_api_endpoint", column: "authenticated" }],
+            "a renamed column"
+        ),
+        other => return Err(format!("a renamed column: {other:?}")),
+    }
+    Ok(())
 }

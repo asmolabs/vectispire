@@ -251,6 +251,11 @@ pub fn entity_table<E: EntityTrait>() -> Result<crate::parity::EntityTable, Stri
             ColumnType::Char(Some(length)) => Declared::Char(*length),
             ColumnType::Text => Declared::Text(MySqlText::Regular),
             ColumnType::Custom(custom) if custom.to_string() == "longtext" => Declared::Text(MySqlText::Long),
+            // MySQL's second-precision `timestamp` of the early tables (`t_license_policy.updated_at`, V13), a
+            // `timestamp with time zone` on PostgreSQL.
+            ColumnType::Custom(custom) if custom.to_string() == "legacy_timestamp_zoned" => {
+                Declared::LegacyTimestamp { postgres_zoned: true }
+            }
             ColumnType::Boolean => Declared::Bool,
             ColumnType::TimestampWithTimeZone => Declared::Timestamp,
             ColumnType::Double => Declared::Double,

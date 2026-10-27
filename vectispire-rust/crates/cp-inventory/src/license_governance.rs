@@ -58,6 +58,8 @@ impl LicenseGovernanceService {
             &disallowed_cats,
             if allowed_lics.is_empty() { None } else { Some(&allowed_lics) },
             if disallowed_lics.is_empty() { None } else { Some(&disallowed_lics) },
+            // The application's instant, as Java's `clock.instant()`: the database's `now()` is the session's zone.
+            time::OffsetDateTime::now_utc(),
         )
         .await?;
         tx.commit().await.map_err(StoreError::from)?;
