@@ -16,6 +16,7 @@ postgres-queries = []
 axum.workspace = true
 http.workspace = true
 regex.workspace = true
+sea-orm = { version = "=2.0.4", default-features = false, features = ["macros", "with-time", "sqlx-mysql", "sqlx-postgres", "runtime-tokio"] }
 serde.workspace = true
 serde_json.workspace = true
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }

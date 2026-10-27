@@ -1,503 +1,203 @@
-//! Persistence repository for gate policies and verdicts.
+//! Persistence operations for gate policies and verdicts: `t_gate_policy` and `t_gate_verdict`.
+//!
+//! **Built with SeaORM, run on the caller's [`Tx`]** (`vectispire_cp_db::orm`): each statement is written once, from
+//! the entities in [`super::entities`], and rendered for the transaction's engine.
 
-use sqlx::{AssertSqlSafe, Row};
+use sea_orm::sea_query::{Condition, Expr, Func, Order};
+use sea_orm::{
+    ActiveValue::NotSet, ActiveValue::Set, ColumnTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
+    QuerySelect, QueryTrait,
+};
 use time::OffsetDateTime;
-use vectispire_cp_db::Tx;
-use vectispire_cp_db::types::UtcInstant;
+use vectispire_cp_db::{Tx, Visibility, orm};
 
+use super::entities::{
+    Policies, PolicyActive, PolicyColumn, PolicyModel, VerdictActive, VerdictColumn, VerdictModel, delete_verdicts,
+    insert_verdict, verdicts, visible_verdicts,
+};
 use super::{GatePolicyRow, GateVerdictRow, NewGatePolicyRow, StoreError};
 
-const POLICY_COLS: &str = "id, target_kind, target_id, version, is_active, fail_on_severity, fail_on_kev, fixable_only, include_triaged, include_ai_review, fail_on_uncovered_languages, include_plugins, note, created_by, created_at";
-
-const VERDICT_COLS: &str = "id, repo_id, container_id, passed, evaluated, violations, critical_count, high_count, medium_count, low_count, fail_on_severity, policy_source, policy_version, relaxations_ignored, decided_at, decided_by, ip_address";
-
-macro_rules! parse_policy_row {
-    ($r:ident) => {{
-        let created_at: UtcInstant = $r.get("created_at");
-        let parse_bool = |col: &str| -> bool {
-            match $r.try_get::<bool, _>(col) {
-                Ok(v) => v,
-                Err(_) => match $r.try_get::<i8, _>(col) {
-                    Ok(i) => i != 0,
-                    _ => false,
-                },
-            }
-        };
-        let is_active = match $r.try_get::<Option<bool>, _>("is_active") {
-            Ok(v) => v,
-            Err(_) => match $r.try_get::<Option<i8>, _>("is_active") {
-                Ok(Some(i)) => Some(i != 0),
-                _ => None,
-            },
-        };
+impl From<PolicyModel> for GatePolicyRow {
+    fn from(model: PolicyModel) -> GatePolicyRow {
         GatePolicyRow {
-            id: $r.get("id"),
-            target_kind: $r.get("target_kind"),
-            target_id: $r.get("target_id"),
-            version: $r.get("version"),
-            is_active,
-            fail_on_severity: $r.get("fail_on_severity"),
-            fail_on_kev: parse_bool("fail_on_kev"),
-            fixable_only: parse_bool("fixable_only"),
-            include_triaged: parse_bool("include_triaged"),
-            include_ai_review: parse_bool("include_ai_review"),
-            fail_on_uncovered_languages: parse_bool("fail_on_uncovered_languages"),
-            include_plugins: parse_bool("include_plugins"),
-            note: $r.get("note"),
-            created_by: $r.get("created_by"),
-            created_at: created_at.0,
-        }
-    }};
-}
-
-macro_rules! parse_verdict_row {
-    ($r:ident) => {{
-        let decided_at: UtcInstant = $r.get("decided_at");
-        let passed = match $r.try_get::<bool, _>("passed") {
-            Ok(v) => v,
-            Err(_) => match $r.try_get::<i8, _>("passed") {
-                Ok(i) => i != 0,
-                _ => false,
-            },
-        };
-        let relaxations_ignored = match $r.try_get::<bool, _>("relaxations_ignored") {
-            Ok(v) => v,
-            Err(_) => match $r.try_get::<i8, _>("relaxations_ignored") {
-                Ok(i) => i != 0,
-                _ => false,
-            },
-        };
-        GateVerdictRow {
-            id: $r.get("id"),
-            repo_id: $r.get("repo_id"),
-            container_id: $r.get("container_id"),
-            passed,
-            evaluated: $r.get("evaluated"),
-            violations: $r.get("violations"),
-            critical_count: $r.get("critical_count"),
-            high_count: $r.get("high_count"),
-            medium_count: $r.get("medium_count"),
-            low_count: $r.get("low_count"),
-            fail_on_severity: $r.get("fail_on_severity"),
-            policy_source: $r.get("policy_source"),
-            policy_version: $r.get("policy_version"),
-            relaxations_ignored,
-            decided_at: decided_at.0,
-            decided_by: $r.get("decided_by"),
-            ip_address: $r.get("ip_address"),
-        }
-    }};
-}
-
-fn to_pg_sql(sql: &str) -> String {
-    let mut out = String::with_capacity(sql.len().saturating_add(32));
-    let mut param_idx = 1usize;
-    for c in sql.chars() {
-        if c == '?' {
-            out.push('$');
-            out.push_str(&param_idx.to_string());
-            param_idx = param_idx.saturating_add(1);
-        } else {
-            out.push(c);
+            id: model.id,
+            target_kind: model.target_kind,
+            target_id: model.target_id,
+            version: model.version,
+            is_active: model.is_active,
+            fail_on_severity: model.fail_on_severity,
+            fail_on_kev: model.fail_on_kev,
+            fixable_only: model.fixable_only,
+            include_triaged: model.include_triaged,
+            include_ai_review: model.include_ai_review,
+            fail_on_uncovered_languages: model.fail_on_uncovered_languages,
+            include_plugins: model.include_plugins,
+            note: model.note,
+            created_by: model.created_by,
+            created_at: model.created_at,
         }
     }
-    out
 }
 
+impl From<VerdictModel> for GateVerdictRow {
+    fn from(model: VerdictModel) -> GateVerdictRow {
+        GateVerdictRow {
+            id: model.id,
+            repo_id: model.repo_id,
+            container_id: model.container_id,
+            passed: model.passed,
+            evaluated: model.evaluated,
+            violations: model.violations,
+            critical_count: model.critical_count,
+            high_count: model.high_count,
+            medium_count: model.medium_count,
+            low_count: model.low_count,
+            fail_on_severity: model.fail_on_severity,
+            policy_source: model.policy_source,
+            policy_version: model.policy_version,
+            relaxations_ignored: model.relaxations_ignored,
+            decided_at: model.decided_at,
+            decided_by: model.decided_by,
+            ip_address: model.ip_address,
+        }
+    }
+}
+
+/// A negative limit reads nothing, as an empty page — never an error from the engine.
+fn bounded(limit: i32) -> u64 {
+    u64::try_from(limit).unwrap_or(0)
+}
+
+fn scope(kind: &str, id: i64) -> Condition {
+    Condition::all().add(PolicyColumn::TargetKind.eq(kind)).add(PolicyColumn::TargetId.eq(id))
+}
+
+#[derive(Debug, FromQueryResult)]
+struct Highest {
+    /// `max(version)` and not `coalesce(max(version), 0)`: the column is an `int`, and so is the coalesce on
+    /// PostgreSQL, so the absent maximum is read as `None` rather than cast.
+    max_v: Option<i32>,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct GatePolicyRepository;
 
 impl GatePolicyRepository {
     pub async fn find_active(tx: &mut Tx) -> Result<Vec<GatePolicyRow>, StoreError> {
-        let sql = format!("select {POLICY_COLS} from t_gate_policy where is_active is not null and is_active = true");
-        let rows = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| parse_policy_row!(r))
-                .collect(),
-            Tx::PostgreSql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| parse_policy_row!(r))
-                .collect(),
-        };
-        Ok(rows)
-    }
-
-    #[allow(dead_code)]
-    pub async fn find_active_by_target(tx: &mut Tx, kind: &str, id: i64) -> Result<Option<GatePolicyRow>, StoreError> {
-        let sql = format!(
-            "select {POLICY_COLS} from t_gate_policy where target_kind = ? and target_id = ? and is_active is not null and is_active = true limit 1"
-        );
-        let row = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .bind(kind)
-                .bind(id)
-                .fetch_optional(&mut **conn)
-                .await?
-                .map(|r| parse_policy_row!(r)),
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                sqlx::query(AssertSqlSafe(pg_sql))
-                    .bind(kind)
-                    .bind(id)
-                    .fetch_optional(&mut **conn)
-                    .await?
-                    .map(|r| parse_policy_row!(r))
-            }
-        };
-        Ok(row)
+        let select = Policies::find().filter(PolicyColumn::IsActive.eq(true)).into_query();
+        let models: Vec<PolicyModel> = orm::fetch_all(tx, &select).await?;
+        Ok(models.into_iter().map(GatePolicyRow::from).collect())
     }
 
     pub async fn highest_version(tx: &mut Tx, kind: &str, id: i64) -> Result<i32, StoreError> {
-        let sql =
-            "select coalesce(max(version), 0) as max_v from t_gate_policy where target_kind = ? and target_id = ?";
-        let max_v: i32 = match tx {
-            Tx::MySql(conn) => {
-                let r = sqlx::query(AssertSqlSafe(sql)).bind(kind).bind(id).fetch_one(&mut **conn).await?;
-                r.get("max_v")
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(sql);
-                let r = sqlx::query(AssertSqlSafe(pg_sql)).bind(kind).bind(id).fetch_one(&mut **conn).await?;
-                r.get("max_v")
-            }
-        };
-        Ok(max_v)
+        let select = Policies::find()
+            .select_only()
+            .expr_as(Func::max(Expr::col(PolicyColumn::Version)), "max_v")
+            .filter(scope(kind, id))
+            .into_query();
+        let highest: Option<Highest> = orm::fetch_optional(tx, &select).await?;
+        Ok(highest.and_then(|row| row.max_v).unwrap_or(0))
     }
 
+    /// Supersedes the active policy of one scope: `is_active` becomes null, never false, because the unique index
+    /// holding "at most one active per scope" counts nulls as distinct (`GatePolicyRepository.java`).
     pub async fn supersede(tx: &mut Tx, kind: &str, id: i64) -> Result<u64, StoreError> {
-        let sql = "update t_gate_policy set is_active = null where target_kind = ? and target_id = ? and is_active is not null and is_active = true";
-        let affected = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(kind).bind(id).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(sql);
-                sqlx::query(AssertSqlSafe(pg_sql)).bind(kind).bind(id).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(affected)
+        let update = Policies::update_many()
+            .col_expr(PolicyColumn::IsActive, Expr::value(Option::<bool>::None))
+            .filter(scope(kind, id))
+            .filter(PolicyColumn::IsActive.eq(true))
+            .into_query();
+        Ok(orm::execute(tx, &update).await?)
     }
 
     pub async fn insert(tx: &mut Tx, row: &NewGatePolicyRow) -> Result<i64, StoreError> {
-        let sql = "insert into t_gate_policy (target_kind, target_id, version, is_active, fail_on_severity, fail_on_kev, fixable_only, include_triaged, include_ai_review, fail_on_uncovered_languages, include_plugins, note, created_by, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        match tx {
-            Tx::MySql(conn) => {
-                let res = sqlx::query(AssertSqlSafe(sql))
-                    .bind(&row.target_kind)
-                    .bind(row.target_id)
-                    .bind(row.version)
-                    .bind(row.is_active)
-                    .bind(&row.fail_on_severity)
-                    .bind(row.fail_on_kev)
-                    .bind(row.fixable_only)
-                    .bind(row.include_triaged)
-                    .bind(row.include_ai_review)
-                    .bind(row.fail_on_uncovered_languages)
-                    .bind(row.include_plugins)
-                    .bind(&row.note)
-                    .bind(&row.created_by)
-                    .bind(UtcInstant(row.created_at))
-                    .execute(&mut **conn)
-                    .await?;
-                Ok(i64::try_from(res.last_insert_id()).unwrap_or(0))
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = format!("{} returning id", to_pg_sql(sql));
-                let r = sqlx::query(AssertSqlSafe(pg_sql))
-                    .bind(&row.target_kind)
-                    .bind(row.target_id)
-                    .bind(row.version)
-                    .bind(row.is_active)
-                    .bind(&row.fail_on_severity)
-                    .bind(row.fail_on_kev)
-                    .bind(row.fixable_only)
-                    .bind(row.include_triaged)
-                    .bind(row.include_ai_review)
-                    .bind(row.fail_on_uncovered_languages)
-                    .bind(row.include_plugins)
-                    .bind(&row.note)
-                    .bind(&row.created_by)
-                    .bind(UtcInstant(row.created_at))
-                    .fetch_one(&mut **conn)
-                    .await?;
-                Ok(r.get("id"))
-            }
-        }
+        let active = PolicyActive {
+            id: NotSet,
+            target_kind: Set(row.target_kind.clone()),
+            target_id: Set(row.target_id),
+            version: Set(row.version),
+            is_active: Set(row.is_active),
+            fail_on_severity: Set(row.fail_on_severity.clone()),
+            fail_on_kev: Set(row.fail_on_kev),
+            fixable_only: Set(row.fixable_only),
+            include_triaged: Set(row.include_triaged),
+            include_ai_review: Set(row.include_ai_review),
+            fail_on_uncovered_languages: Set(row.fail_on_uncovered_languages),
+            include_plugins: Set(row.include_plugins),
+            note: Set(row.note.clone()),
+            created_by: Set(row.created_by.clone()),
+            created_at: Set(row.created_at),
+        };
+        Ok(orm::insert_returning_id::<Policies>(tx, Policies::insert(active).into_query()).await?)
     }
 
     pub async fn delete_by_target(tx: &mut Tx, kind: &str, id: i64) -> Result<u64, StoreError> {
-        let sql = "delete from t_gate_policy where target_kind = ? and target_id = ?";
-        let affected = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(kind).bind(id).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(sql);
-                sqlx::query(AssertSqlSafe(pg_sql)).bind(kind).bind(id).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(affected)
+        let delete = Policies::delete_many().filter(scope(kind, id)).into_query();
+        Ok(orm::execute(tx, &delete).await?)
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct GateVerdictRepository;
 
 impl GateVerdictRepository {
     pub async fn insert(tx: &mut Tx, row: &GateVerdictRow) -> Result<(), StoreError> {
-        let sql = "insert into t_gate_verdict (id, repo_id, container_id, passed, evaluated, violations, critical_count, high_count, medium_count, low_count, fail_on_severity, policy_source, policy_version, relaxations_ignored, decided_at, decided_by, ip_address) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql))
-                    .bind(&row.id)
-                    .bind(row.repo_id)
-                    .bind(row.container_id)
-                    .bind(row.passed)
-                    .bind(row.evaluated)
-                    .bind(row.violations)
-                    .bind(row.critical_count)
-                    .bind(row.high_count)
-                    .bind(row.medium_count)
-                    .bind(row.low_count)
-                    .bind(&row.fail_on_severity)
-                    .bind(&row.policy_source)
-                    .bind(row.policy_version)
-                    .bind(row.relaxations_ignored)
-                    .bind(UtcInstant(row.decided_at))
-                    .bind(&row.decided_by)
-                    .bind(&row.ip_address)
-                    .execute(&mut **conn)
-                    .await?;
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(sql);
-                sqlx::query(AssertSqlSafe(pg_sql))
-                    .bind(&row.id)
-                    .bind(row.repo_id)
-                    .bind(row.container_id)
-                    .bind(row.passed)
-                    .bind(row.evaluated)
-                    .bind(row.violations)
-                    .bind(row.critical_count)
-                    .bind(row.high_count)
-                    .bind(row.medium_count)
-                    .bind(row.low_count)
-                    .bind(&row.fail_on_severity)
-                    .bind(&row.policy_source)
-                    .bind(row.policy_version)
-                    .bind(row.relaxations_ignored)
-                    .bind(UtcInstant(row.decided_at))
-                    .bind(&row.decided_by)
-                    .bind(&row.ip_address)
-                    .execute(&mut **conn)
-                    .await?;
-            }
-        }
+        let active = VerdictActive {
+            id: Set(row.id.clone()),
+            repo_id: Set(row.repo_id),
+            container_id: Set(row.container_id),
+            passed: Set(row.passed),
+            evaluated: Set(row.evaluated),
+            violations: Set(row.violations),
+            critical_count: Set(row.critical_count),
+            high_count: Set(row.high_count),
+            medium_count: Set(row.medium_count),
+            low_count: Set(row.low_count),
+            fail_on_severity: Set(row.fail_on_severity.clone()),
+            policy_source: Set(row.policy_source.clone()),
+            policy_version: Set(row.policy_version),
+            relaxations_ignored: Set(row.relaxations_ignored),
+            decided_at: Set(row.decided_at),
+            decided_by: Set(row.decided_by.clone()),
+            ip_address: Set(row.ip_address.clone()),
+        };
+        orm::execute(tx, &insert_verdict(active)).await?;
         Ok(())
     }
 
-    pub async fn first_page(tx: &mut Tx, limit: i32) -> Result<Vec<GateVerdictRow>, StoreError> {
-        let sql = format!("select {VERDICT_COLS} from t_gate_verdict order by decided_at desc, id desc limit ?");
-        let rows = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .bind(i64::from(limit))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| parse_verdict_row!(r))
-                .collect(),
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                sqlx::query(AssertSqlSafe(pg_sql))
-                    .bind(i64::from(limit))
-                    .fetch_all(&mut **conn)
-                    .await?
-                    .into_iter()
-                    .map(|r| parse_verdict_row!(r))
-                    .collect()
-            }
-        };
-        Ok(rows)
-    }
-
-    pub async fn page_after(
+    /// One page of the register for `allowed`, after a cursor or from the newest: Java's `firstPage`, `pageAfter`
+    /// and their `…Within`, in one statement.
+    ///
+    /// **Ordered by instant and id**, so that verdicts written in the same millisecond fall on one side of a cursor
+    /// and none is skipped; and **read within the reader's targets**, so that every row read — and the cursor taken
+    /// from the last of them — is one the reader may see (the audit of 10 October 2026).
+    pub async fn page(
         tx: &mut Tx,
-        decided_at: OffsetDateTime,
-        id: &str,
+        allowed: &Visibility,
+        after: Option<(OffsetDateTime, &str)>,
         limit: i32,
     ) -> Result<Vec<GateVerdictRow>, StoreError> {
-        let sql = format!(
-            "select {VERDICT_COLS} from t_gate_verdict where decided_at < ? or (decided_at = ? and id < ?) order by decided_at desc, id desc limit ?"
-        );
-        let rows = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .bind(UtcInstant(decided_at))
-                .bind(UtcInstant(decided_at))
-                .bind(id)
-                .bind(i64::from(limit))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| parse_verdict_row!(r))
-                .collect(),
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                sqlx::query(AssertSqlSafe(pg_sql))
-                    .bind(UtcInstant(decided_at))
-                    .bind(UtcInstant(decided_at))
-                    .bind(id)
-                    .bind(i64::from(limit))
-                    .fetch_all(&mut **conn)
-                    .await?
-                    .into_iter()
-                    .map(|r| parse_verdict_row!(r))
-                    .collect()
-            }
-        };
-        Ok(rows)
-    }
-
-    pub async fn first_page_within(
-        tx: &mut Tx,
-        repo_ids: &[i64],
-        container_ids: &[i64],
-        limit: i32,
-    ) -> Result<Vec<GateVerdictRow>, StoreError> {
-        let repo_q = if repo_ids.is_empty() { "?".to_owned() } else { vec!["?"; repo_ids.len()].join(",") };
-        let cont_q = if container_ids.is_empty() { "?".to_owned() } else { vec!["?"; container_ids.len()].join(",") };
-        let sql = format!(
-            "select {VERDICT_COLS} from t_gate_verdict where (repo_id in ({repo_q}) or (repo_id is null and container_id in ({cont_q}))) order by decided_at desc, id desc limit ?"
-        );
-
-        match tx {
-            Tx::MySql(conn) => {
-                let mut q = sqlx::query(AssertSqlSafe(sql));
-                if repo_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &id in repo_ids {
-                        q = q.bind(id);
-                    }
-                }
-                if container_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &id in container_ids {
-                        q = q.bind(id);
-                    }
-                }
-                q = q.bind(i64::from(limit));
-                let rows = q.fetch_all(&mut **conn).await?.into_iter().map(|r| parse_verdict_row!(r)).collect();
-                Ok(rows)
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                let mut q = sqlx::query(AssertSqlSafe(pg_sql));
-                if repo_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &id in repo_ids {
-                        q = q.bind(id);
-                    }
-                }
-                if container_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &id in container_ids {
-                        q = q.bind(id);
-                    }
-                }
-                q = q.bind(i64::from(limit));
-                let rows = q.fetch_all(&mut **conn).await?.into_iter().map(|r| parse_verdict_row!(r)).collect();
-                Ok(rows)
-            }
+        let mut page = visible_verdicts(allowed);
+        if let Some((at, id)) = after {
+            page = page.filter(
+                Condition::any()
+                    .add(VerdictColumn::DecidedAt.lt(at))
+                    .add(Condition::all().add(VerdictColumn::DecidedAt.eq(at)).add(VerdictColumn::Id.lt(id))),
+            );
         }
+        let page = page
+            .order_by(VerdictColumn::DecidedAt, Order::Desc)
+            .order_by(VerdictColumn::Id, Order::Desc)
+            .limit(bounded(limit));
+        let models: Vec<VerdictModel> = orm::fetch_all(tx, page.statement()).await?;
+        Ok(models.into_iter().map(GateVerdictRow::from).collect())
     }
 
-    pub async fn page_after_within(
-        tx: &mut Tx,
-        repo_ids: &[i64],
-        container_ids: &[i64],
-        decided_at: OffsetDateTime,
-        id: &str,
-        limit: i32,
-    ) -> Result<Vec<GateVerdictRow>, StoreError> {
-        let repo_q = if repo_ids.is_empty() { "?".to_owned() } else { vec!["?"; repo_ids.len()].join(",") };
-        let cont_q = if container_ids.is_empty() { "?".to_owned() } else { vec!["?"; container_ids.len()].join(",") };
-        let sql = format!(
-            "select {VERDICT_COLS} from t_gate_verdict where (repo_id in ({repo_q}) or (repo_id is null and container_id in ({cont_q}))) and (decided_at < ? or (decided_at = ? and id < ?)) order by decided_at desc, id desc limit ?"
-        );
-
-        match tx {
-            Tx::MySql(conn) => {
-                let mut q = sqlx::query(AssertSqlSafe(sql));
-                if repo_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &r_id in repo_ids {
-                        q = q.bind(r_id);
-                    }
-                }
-                if container_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &c_id in container_ids {
-                        q = q.bind(c_id);
-                    }
-                }
-                q = q.bind(UtcInstant(decided_at)).bind(UtcInstant(decided_at)).bind(id).bind(i64::from(limit));
-                let rows = q.fetch_all(&mut **conn).await?.into_iter().map(|r| parse_verdict_row!(r)).collect();
-                Ok(rows)
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                let mut q = sqlx::query(AssertSqlSafe(pg_sql));
-                if repo_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &r_id in repo_ids {
-                        q = q.bind(r_id);
-                    }
-                }
-                if container_ids.is_empty() {
-                    q = q.bind(-1i64);
-                } else {
-                    for &c_id in container_ids {
-                        q = q.bind(c_id);
-                    }
-                }
-                q = q.bind(UtcInstant(decided_at)).bind(UtcInstant(decided_at)).bind(id).bind(i64::from(limit));
-                let rows = q.fetch_all(&mut **conn).await?.into_iter().map(|r| parse_verdict_row!(r)).collect();
-                Ok(rows)
-            }
-        }
-    }
-
+    /// The newest verdicts, every target's — for the indicator, which answers no single reader's page.
     pub async fn newest(tx: &mut Tx, limit: i32) -> Result<Vec<GateVerdictRow>, StoreError> {
-        let sql = format!("select {VERDICT_COLS} from t_gate_verdict order by decided_at desc limit ?");
-        let rows = match tx {
-            Tx::MySql(conn) => sqlx::query(AssertSqlSafe(sql))
-                .bind(i64::from(limit))
-                .fetch_all(&mut **conn)
-                .await?
-                .into_iter()
-                .map(|r| parse_verdict_row!(r))
-                .collect(),
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                sqlx::query(AssertSqlSafe(pg_sql))
-                    .bind(i64::from(limit))
-                    .fetch_all(&mut **conn)
-                    .await?
-                    .into_iter()
-                    .map(|r| parse_verdict_row!(r))
-                    .collect()
-            }
-        };
-        Ok(rows)
+        let select = verdicts().order_by_desc(VerdictColumn::DecidedAt).limit(bounded(limit)).into_query();
+        let models: Vec<VerdictModel> = orm::fetch_all(tx, &select).await?;
+        Ok(models.into_iter().map(GateVerdictRow::from).collect())
     }
 
     pub async fn last_for_repository(
@@ -506,40 +206,7 @@ impl GateVerdictRepository {
         from: OffsetDateTime,
         until: Option<OffsetDateTime>,
     ) -> Result<Option<GateVerdictRow>, StoreError> {
-        let (sql, binds_until) = match until {
-            Some(_) => (
-                format!(
-                    "select {VERDICT_COLS} from t_gate_verdict where repo_id = ? and decided_at >= ? and decided_at < ? order by decided_at desc limit 1"
-                ),
-                true,
-            ),
-            None => (
-                format!(
-                    "select {VERDICT_COLS} from t_gate_verdict where repo_id = ? and decided_at >= ? order by decided_at desc limit 1"
-                ),
-                false,
-            ),
-        };
-
-        match tx {
-            Tx::MySql(conn) => {
-                let mut q = sqlx::query(AssertSqlSafe(sql)).bind(repo_id).bind(UtcInstant(from));
-                if binds_until {
-                    q = q.bind(UtcInstant(until.unwrap_or(from)));
-                }
-                let row = q.fetch_optional(&mut **conn).await?.map(|r| parse_verdict_row!(r));
-                Ok(row)
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                let mut q = sqlx::query(AssertSqlSafe(pg_sql)).bind(repo_id).bind(UtcInstant(from));
-                if binds_until {
-                    q = q.bind(UtcInstant(until.unwrap_or(from)));
-                }
-                let row = q.fetch_optional(&mut **conn).await?.map(|r| parse_verdict_row!(r));
-                Ok(row)
-            }
-        }
+        Self::last_within(tx, VerdictColumn::RepoId.eq(repo_id), from, until).await
     }
 
     pub async fn last_for_container(
@@ -548,53 +215,28 @@ impl GateVerdictRepository {
         from: OffsetDateTime,
         until: Option<OffsetDateTime>,
     ) -> Result<Option<GateVerdictRow>, StoreError> {
-        let (sql, binds_until) = match until {
-            Some(_) => (
-                format!(
-                    "select {VERDICT_COLS} from t_gate_verdict where container_id = ? and decided_at >= ? and decided_at < ? order by decided_at desc limit 1"
-                ),
-                true,
-            ),
-            None => (
-                format!(
-                    "select {VERDICT_COLS} from t_gate_verdict where container_id = ? and decided_at >= ? order by decided_at desc limit 1"
-                ),
-                false,
-            ),
-        };
+        Self::last_within(tx, VerdictColumn::ContainerId.eq(container_id), from, until).await
+    }
 
-        match tx {
-            Tx::MySql(conn) => {
-                let mut q = sqlx::query(AssertSqlSafe(sql)).bind(container_id).bind(UtcInstant(from));
-                if binds_until {
-                    q = q.bind(UtcInstant(until.unwrap_or(from)));
-                }
-                let row = q.fetch_optional(&mut **conn).await?.map(|r| parse_verdict_row!(r));
-                Ok(row)
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(&sql);
-                let mut q = sqlx::query(AssertSqlSafe(pg_sql)).bind(container_id).bind(UtcInstant(from));
-                if binds_until {
-                    q = q.bind(UtcInstant(until.unwrap_or(from)));
-                }
-                let row = q.fetch_optional(&mut **conn).await?.map(|r| parse_verdict_row!(r));
-                Ok(row)
-            }
+    /// The last verdict of one target from `from` on, before `until` when a later scan closes the window — no
+    /// far-future bound for the open one, since `Instant.MAX` fits neither engine's timestamp.
+    async fn last_within(
+        tx: &mut Tx,
+        target: impl sea_orm::sea_query::IntoCondition,
+        from: OffsetDateTime,
+        until: Option<OffsetDateTime>,
+    ) -> Result<Option<GateVerdictRow>, StoreError> {
+        let mut select = verdicts().filter(target).filter(VerdictColumn::DecidedAt.gte(from));
+        if let Some(until) = until {
+            select = select.filter(VerdictColumn::DecidedAt.lt(until));
         }
+        let select = select.order_by_desc(VerdictColumn::DecidedAt).limit(1).into_query();
+        let model: Option<VerdictModel> = orm::fetch_optional(tx, &select).await?;
+        Ok(model.map(GateVerdictRow::from))
     }
 
     pub async fn delete_before(tx: &mut Tx, cutoff: OffsetDateTime) -> Result<u64, StoreError> {
-        let sql = "delete from t_gate_verdict where decided_at < ?";
-        let affected = match tx {
-            Tx::MySql(conn) => {
-                sqlx::query(AssertSqlSafe(sql)).bind(UtcInstant(cutoff)).execute(&mut **conn).await?.rows_affected()
-            }
-            Tx::PostgreSql(conn) => {
-                let pg_sql = to_pg_sql(sql);
-                sqlx::query(AssertSqlSafe(pg_sql)).bind(UtcInstant(cutoff)).execute(&mut **conn).await?.rows_affected()
-            }
-        };
-        Ok(affected)
+        let delete = delete_verdicts().filter(VerdictColumn::DecidedAt.lt(cutoff)).into_query();
+        Ok(orm::execute(tx, &delete).await?)
     }
 }

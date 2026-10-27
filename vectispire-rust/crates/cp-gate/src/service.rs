@@ -810,31 +810,8 @@ impl GateRegisterService {
             .and_then(|from| Uuid::parse_str(&from.id).ok().map(|uuid| (from.at, uuid.to_string())));
 
         let mut tx = crate::persistence::read(&self.db).await?;
-        let read = match allowed {
-            Visibility::Everything => match parsed_cursor {
-                Some((at, id)) => GateVerdictRepository::page_after(&mut tx, at, &id, capped).await?,
-                None => GateVerdictRepository::first_page(&mut tx, capped).await?,
-            },
-            Visibility::Only(targets) => {
-                let mut repo_ids = vec![-1i64];
-                let mut container_ids = vec![-1i64];
-                for t in targets {
-                    match t {
-                        ScanTarget::Repository(id) => repo_ids.push(*id),
-                        ScanTarget::Container(id) => container_ids.push(*id),
-                    }
-                }
-                match parsed_cursor {
-                    Some((at, id)) => {
-                        GateVerdictRepository::page_after_within(&mut tx, &repo_ids, &container_ids, at, &id, capped)
-                            .await?
-                    }
-                    None => {
-                        GateVerdictRepository::first_page_within(&mut tx, &repo_ids, &container_ids, capped).await?
-                    }
-                }
-            }
-        };
+        let after = parsed_cursor.as_ref().map(|(at, id)| (*at, id.as_str()));
+        let read = GateVerdictRepository::page(&mut tx, allowed, after, capped).await?;
         crate::persistence::commit(tx).await?;
 
         let visible: Vec<GateVerdictView> = read

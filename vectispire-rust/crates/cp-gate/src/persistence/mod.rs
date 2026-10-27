@@ -1,5 +1,6 @@
 //! The tables `gate` owns: `t_gate_policy` and `t_gate_verdict`.
 
+pub(crate) mod entities;
 pub mod repository;
 #[cfg(test)]
 mod tests;

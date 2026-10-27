@@ -4234,6 +4234,7 @@ dependencies = [
  "http",
  "http-body-util",
  "regex",
+ "sea-orm",
  "serde",
  "serde_json",
  "sqlx",

@@ -93,7 +93,7 @@ deny = [
     { crate = "rusqlite", reason = "decision 0003: the agent holds no database connection" },
     # SeaORM describes the repositories' tables (the hybrid adopted after the cp-issues spike, 2026-10-26): cp-db
     # runs its statements, and a module crate is listed here when its repository is ported to it — never the agent.
-    { crate = "sea-orm", wrappers = ["vectispire-cp-db", "vectispire-cp-issues"], reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sea-orm", wrappers = ["vectispire-cp-db", "vectispire-cp-issues", "vectispire-cp-gate"], reason = "decision 0003: the agent holds no database connection" },
     # The agent opens no port: the server stack is linkable by the control plane's crates only. A wrapper is a
     # crate allowed to depend on it directly; any other dependent — the agent above all — fails the check, and
     # crates/agent/tests/isolation.rs forbids it in the agent's graph whatever this says.

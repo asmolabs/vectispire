@@ -19,8 +19,9 @@ use self::support::Migrated;
 use crate::persistence::repository::{GatePolicyRepository, GateVerdictRepository};
 use crate::persistence::{GatePolicyRow, GateVerdictRow, NewGatePolicyRow};
 use time::{Duration, OffsetDateTime};
+use vectispire_cp_db::parity;
 use vectispire_cp_db::types::to_microseconds;
-use vectispire_cp_db::{Engine, Mode, ScanTarget, Tx, Visibility};
+use vectispire_cp_db::{Db, Engine, Mode, ScanTarget, Tx, Visibility};
 
 const REPO_A: i64 = 101;
 const REPO_B: i64 = 102;
@@ -75,6 +76,9 @@ fn run(engine: Engine) {
             a_target_s_last_verdict_is_found_inside_its_window,
             the_purge_drops_only_what_is_older_than_the_cutoff,
         );
+        the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
+            failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
+        });
         db.close().await;
         assert!(failures.is_empty(), "{engine}: {} check(s) failed:\n  {}", failures.len(), failures.join("\n  "));
     });
@@ -112,28 +116,7 @@ async fn register(
     after: Option<(OffsetDateTime, &str)>,
     limit: i32,
 ) -> Result<Vec<GateVerdictRow>, String> {
-    let read = match visibility {
-        Visibility::Everything => match after {
-            Some((at, id)) => GateVerdictRepository::page_after(tx, at, id, limit).await,
-            None => GateVerdictRepository::first_page(tx, limit).await,
-        },
-        Visibility::Only(targets) => {
-            let mut repo_ids = vec![-1i64];
-            let mut container_ids = vec![-1i64];
-            for target in targets {
-                match target {
-                    ScanTarget::Repository(id) => repo_ids.push(*id),
-                    ScanTarget::Container(id) => container_ids.push(*id),
-                }
-            }
-            match after {
-                Some((at, id)) => {
-                    GateVerdictRepository::page_after_within(tx, &repo_ids, &container_ids, at, id, limit).await
-                }
-                None => GateVerdictRepository::first_page_within(tx, &repo_ids, &container_ids, limit).await,
-            }
-        }
-    };
+    let read = GateVerdictRepository::page(tx, visibility, after, limit).await;
     read.map_err(|error| error.to_string())
 }
 
@@ -201,11 +184,20 @@ async fn active(tx: &mut Tx) -> Result<Vec<GatePolicyRow>, String> {
     Ok(rows)
 }
 
-/// MySQL keeps four of these flags as `bit(1)` and three as `tinyint(1)`: every one read back true, and every one
-/// false, so that a flag decoded as "false whatever it holds" cannot pass — that is a gate relaxed in silence.
+/// MySQL keeps four of these flags as `bit(1)` and three as `tinyint(1)`. Six policies, one per pattern of the
+/// six flags — each flag's bit of its index, and the complement — so that no two flags hold the same value in
+/// all of them: a flag read from another column, or read "false whatever it holds" (a gate relaxed in silence),
+/// fails one of them.
 async fn a_policy_reads_back_every_flag_it_was_written_with(tx: &mut Tx) -> Check {
-    for (target_id, flags) in [(REPO_A, true), (REPO_B, false)] {
-        let new = policy("repository", target_id, 1, flags);
+    for pattern in 0..6u32 {
+        let flag = |index: u32| ((index >> (pattern % 3)) & 1 == 1) != (pattern >= 3);
+        let mut new = policy("repository", 1_000 + i64::from(pattern), 1, flag(0));
+        new.fail_on_kev = flag(0);
+        new.fixable_only = flag(1);
+        new.include_triaged = flag(2);
+        new.include_ai_review = flag(3);
+        new.fail_on_uncovered_languages = flag(4);
+        new.include_plugins = flag(5);
         let id = GatePolicyRepository::insert(tx, &new).await.map_err(|e| e.to_string())?;
         if id <= 0 {
             return Err(format!("a generated key: {id}"));
@@ -229,19 +221,32 @@ async fn a_policy_reads_back_every_flag_it_was_written_with(tx: &mut Tx) -> Chec
             created_by: new.created_by.clone(),
             created_at: new.created_at,
         };
-        ensure_eq!(*row, expected, "the policy written with every flag {flags}");
+        ensure_eq!(*row, expected, "the policy written with pattern {pattern}");
     }
     Ok(())
+}
+
+/// `is_active` of one policy, whatever it holds — the repository reads only the active ones.
+async fn is_active(tx: &mut Tx, id: i64) -> Result<Option<Option<bool>>, String> {
+    use crate::persistence::entities::{Policies, PolicyColumn, PolicyModel};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryTrait};
+    let select = Policies::find().filter(PolicyColumn::Id.eq(id)).into_query();
+    let row: Option<PolicyModel> =
+        vectispire_cp_db::orm::fetch_optional(tx, &select).await.map_err(|e| e.to_string())?;
+    Ok(row.map(|row| row.is_active))
 }
 
 async fn a_new_version_supersedes_the_active_one_and_keeps_the_old(tx: &mut Tx) -> Check {
     let highest = GatePolicyRepository::highest_version(tx, "repository", REPO_A).await.map_err(|e| e.to_string())?;
     ensure_eq!(highest, 0, "the highest version of a scope that has none");
 
-    GatePolicyRepository::insert(tx, &policy("repository", REPO_A, 1, true)).await.map_err(|e| e.to_string())?;
+    let first =
+        GatePolicyRepository::insert(tx, &policy("repository", REPO_A, 1, true)).await.map_err(|e| e.to_string())?;
     GatePolicyRepository::insert(tx, &policy("container", REPO_A, 1, false)).await.map_err(|e| e.to_string())?;
     let superseded = GatePolicyRepository::supersede(tx, "repository", REPO_A).await.map_err(|e| e.to_string())?;
     ensure_eq!(superseded, 1, "the rows supersede touched");
+    // Null and not false: "superseded" is not "switched off", and Java reads the two apart.
+    ensure_eq!(is_active(tx, first).await?, Some(None), "the superseded policy's is_active");
     let again = GatePolicyRepository::supersede(tx, "repository", REPO_A).await.map_err(|e| e.to_string())?;
     ensure_eq!(again, 0, "a scope with nothing active supersedes nothing");
     let second =
@@ -298,9 +303,12 @@ async fn a_verdict_reads_back_what_was_written(tx: &mut Tx) -> Check {
 async fn the_register_pages_by_instant_then_id_and_loses_no_tie(tx: &mut Tx) -> Check {
     let rows = vec![
         verdict(&uuid(1), Some(REPO_A), None, 10),
-        verdict(&uuid(2), Some(REPO_A), None, 20),
+        // Inserted out of order: an engine that leaves ties as it found them — PostgreSQL's small sorts do —
+        // answers 3, 4, 2 and not 4, 3, 2, so the order on the id is what this proves. (MySQL's index on the
+        // instant carries the key, and orders ties by it either way.)
         verdict(&uuid(3), None, Some(IMAGE_A), 20),
         verdict(&uuid(4), Some(REPO_B), None, 20),
+        verdict(&uuid(2), Some(REPO_A), None, 20),
         verdict(&uuid(5), Some(REPO_B), None, 30),
         verdict(&uuid(6), None, Some(IMAGE_B), 5),
         verdict(&uuid(7), None, None, 40),
@@ -435,5 +443,24 @@ async fn the_purge_drops_only_what_is_older_than_the_cutoff(tx: &mut Tx) -> Chec
     ensure_eq!(deleted, 1, "strictly older than the cutoff");
     let read = register(tx, &Visibility::Everything, None, 10).await?;
     ensure_eq!(ids(&read), vec![uuid(3), uuid(2)], "what the purge kept");
+    Ok(())
+}
+
+/// The two entities against the migrated schema — the declarations the statements are built from — and a renamed
+/// column refused, so that a check that compared nothing cannot pass.
+async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
+    let tables = crate::persistence::entities::tables()?;
+    parity::check_entities(db, &tables).await.map_err(|error| error.to_string())?;
+    let mut renamed = tables.clone();
+    let flag = renamed[0].columns.iter_mut().find(|column| column.name == "fail_on_kev").unwrap();
+    flag.name = "fail_on_known_exploited";
+    match parity::check_entities(db, &renamed).await {
+        Err(parity::ParityError::Mismatches { mismatches, .. }) => ensure_eq!(
+            mismatches,
+            vec![parity::Mismatch::MissingColumn { table: "t_gate_policy", column: "fail_on_known_exploited" }],
+            "a renamed column"
+        ),
+        other => return Err(format!("a renamed column: {other:?}")),
+    }
     Ok(())
 }
