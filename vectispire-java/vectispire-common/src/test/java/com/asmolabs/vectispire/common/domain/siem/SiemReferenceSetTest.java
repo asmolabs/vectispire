@@ -22,7 +22,9 @@ import org.junit.jupiter.api.Test;
  * <p>Everything here leaves the system: the CEF line a SOC's parser splits, the syslog header a collector routes
  * on, the wire names a queued message stores, the refusal an operator reads. The inputs sit where a port would
  * drift: the escapes and the control characters, a key given twice to a {@code LinkedHashMap}, Java's
- * {@code isBlank} and {@code trim}, an IPv4-mapped address in brackets, a full-width digit in a port.
+ * {@code isBlank} and {@code trim}, an IPv4-mapped address in brackets, a full-width digit in a port; and for the
+ * collector CA, BouncyCastle's reading of the PEM text and of the certificates in {@code siem/collector-ca/}
+ * ({@code generate.jsh}), the subject as {@code X500Name} renders it, and every refusal's sentence.
  */
 class SiemReferenceSetTest {
 
@@ -130,7 +132,65 @@ class SiemReferenceSetTest {
                     .map(Enum::name).orElse(null));
         }
 
+        JsonNode ca = inputs.path("collectorCa");
+        Instant now = Instant.ofEpochSecond(ca.path("now").get(0).asLong(), ca.path("now").get(1).asLong());
+        ArrayNode collectorCa = answers.putArray("collectorCa");
+        for (JsonNode input : ca.path("cases")) {
+            String pem = bundle(input);
+            ObjectNode answer = collectorCa.addObject().put("name", input.path("name").asText());
+            try {
+                CollectorCa read = CollectorCa.read(pem);
+                ObjectNode described = answer.putObject("read")
+                        .put("pemSha256", sha256(read.pem().getBytes(StandardCharsets.UTF_8)))
+                        .put("subject", read.subject())
+                        .put("notAfter", read.notAfter().toString());
+                ArrayNode anchors = described.putArray("anchors");
+                for (CollectorCa.Anchor anchor : read.anchors()) {
+                    anchors.addObject()
+                            .put("subject", anchor.subject())
+                            .put("notBefore", anchor.notBefore().toString())
+                            .put("notAfter", anchor.notAfter().toString())
+                            .put("derSha256", sha256(anchor.der()));
+                }
+            } catch (IllegalArgumentException refused) {
+                answer.put("readRefused", refused.getMessage());
+            }
+            try {
+                CollectorCa.parse(pem, now);
+                answer.put("parse", "accepted");
+            } catch (IllegalArgumentException refused) {
+                answer.put("parse", refused.getMessage());
+            }
+        }
+
         ReferenceSet.expect("siem/java-answers.json", JSON.writeValueAsString(answers) + "\n");
+    }
+
+    /**
+     * A case's text: its parts joined — a fixture of {@code siem/collector-ca/}, repeated and with every
+     * occurrence of one string replaced when the case says so, or a text as written — or {@code null}.
+     */
+    private static String bundle(JsonNode input) {
+        if (input.path("absent").asBoolean()) {
+            return null;
+        }
+        StringBuilder text = new StringBuilder();
+        for (JsonNode part : input.path("parts")) {
+            if (part.has("text")) {
+                text.append(part.path("text").asText());
+                continue;
+            }
+            String fixture = ReferenceSet.read("siem/collector-ca/" + part.path("file").asText());
+            if (part.has("replace")) {
+                fixture = fixture.replace(part.path("replace").get(0).asText(), part.path("replace").get(1).asText());
+            }
+            text.append(fixture.repeat(part.path("repeat").asInt(1)));
+        }
+        return text.toString();
+    }
+
+    private static String sha256(byte[] bytes) throws Exception {
+        return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
     }
 
     /** The event a case describes: built with its calls in order, or through the canonical constructor. */

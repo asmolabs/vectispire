@@ -2,6 +2,8 @@
 //! `SyslogMessageTest`, `SiemEndpointTest`, `SecurityEventTypeTest`, `SiemSeverityFilterTest`,
 //! `TriageSignalsTest` and `SecurityEventCatalogueDocsTest`. `CollectorCaTest`'s are in `collector_ca.rs`.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::HashSet;
 
 use vectispire_domain::instant::Instant;

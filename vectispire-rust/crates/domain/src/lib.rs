@@ -22,6 +22,7 @@ pub mod java;
 pub mod list_window;
 pub mod net;
 pub mod owasp_tag;
+pub mod pinned_ca;
 pub mod repository_identity;
 pub mod repository_url;
 pub mod retention;
@@ -37,6 +38,7 @@ pub mod sub_path;
 pub mod tool_keys;
 pub mod triage_status;
 pub mod wire;
+mod x509;
 
 pub use failure::FailureKind;
 pub use finding_type::FindingType;

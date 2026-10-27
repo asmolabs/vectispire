@@ -64,6 +64,7 @@ seed https_location ../reference/repository-url/inputs.json
 seed result_body ../reference/artifacts/*.json
 seed siem_cef ../reference/siem/inputs.json
 seed siem_endpoint ../reference/siem/inputs.json
+seed collector_ca ../reference/siem/collector-ca/*.pem
 
 failed=""
 for target in $targets; do

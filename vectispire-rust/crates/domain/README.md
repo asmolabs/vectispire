@@ -39,7 +39,8 @@ reads as `URI.getRawPath`. `schedules` holds only what the listings need; the sc
 `siem` is `common.domain.siem`: the event catalogue (`SecurityEventType`, wire names, signature ids, CEF
 severities and outcomes), `signalled_by` and the placement of every audit operation, `CefEvent` and its builder,
 the RFC 5424 frame and octet counting (`syslog`), the endpoint an operator types (`endpoint`), the protocol, the
-severity minimum and the triage signals. It sits here, not in the export's crate, so that the modules raising an
+severity minimum and the triage signals, and the collector CA (`siem::collector_ca`) over `pinned_ca`, the X.509
+reading of a pinned CA that the forge connections will share as Java shares it. It sits here, not in the export's crate, so that the modules raising an
 event (issues, gate, the threat feed) build one without depending on the export — as the Java types sit in
 `vectispire-common`. `TriageStatus` moved here from `cp-issues` with it (re-exported there), so that the gate and
 the SOC's signals ask one `is_settled`.
@@ -78,3 +79,12 @@ Decided 2026-10-17 by the 2.4 port; each is outside what any stored value or wir
 - **`TriageStatus::from_wire_name`** now trims and lowers as Java does (`String.trim`, `toLowerCase(ROOT)`);
   `cp-issues`' copy used `str::trim` and ASCII lowering, which disagreed on a leading control character and a
   trailing no-break space.
+- **A pinned CA is read by `x509`, a DER reader of this crate's own** (no new dependency; `der`'s tags stop short of
+  UniversalString, GraphicString and GeneralString, which BouncyCastle renders). It is stricter than BouncyCastle
+  and never looser: a BER length (indefinite, or not in its shortest form), a constructed string, a tag number
+  above 30, a time outside `YYMMDDHHMMSSZ`/`YYYYMMDDHHMMSSZ` or naming a date that does not exist (BouncyCastle's
+  `SimpleDateFormat` rolls one over), an arc beyond 128 bits, a version tagged other than `[0]` — each a certificate
+  Java pins and this refuses as unreadable. Two answers differ otherwise: a PEM object of a known non-certificate
+  type is "something other than certificates" when its body is one well-formed DER element, where BouncyCastle
+  first parses it as that type and says "not readable" if it is not one (both refuse); and a BMPString holding a
+  lone surrogate renders it `?`, where Java keeps the unpaired unit.

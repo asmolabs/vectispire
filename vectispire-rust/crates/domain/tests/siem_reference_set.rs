@@ -2,6 +2,8 @@
 //! audit operation's signal, the CEF lines, the syslog frames, the endpoints and their refusals, the protocols,
 //! the severity minimums and the triage signals — byte for byte, since each of them leaves the system.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::{Value, json};
 use vectispire_domain::instant::Instant;
 use vectispire_domain::severity::Severity;

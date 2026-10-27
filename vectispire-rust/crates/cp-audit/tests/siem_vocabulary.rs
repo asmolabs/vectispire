@@ -8,6 +8,8 @@
 //!   and dropped there, or worse, read as nothing: every signal written in the workspace with a literal name is
 //!   held to the catalogue.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::{Path, PathBuf};
 
 use vectispire_cp_audit::AuditOperation;

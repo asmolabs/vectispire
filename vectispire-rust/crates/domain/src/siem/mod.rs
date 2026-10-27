@@ -10,6 +10,7 @@
 //! names, the refusals — and held to `reference/siem/` (`SiemReferenceSetTest`).
 
 pub mod cef;
+pub mod collector_ca;
 pub mod endpoint;
 pub mod event_type;
 pub mod protocol;
@@ -18,6 +19,7 @@ pub mod syslog;
 pub mod triage_signals;
 
 pub use cef::{CefEvent, CefEventBuilder, InvalidEvent};
+pub use collector_ca::CollectorCa;
 pub use endpoint::SiemEndpoint;
 pub use event_type::{Outcome, Placement, SecurityEventType, signalled_by};
 pub use protocol::SiemProtocol;

@@ -4600,6 +4600,7 @@ dependencies = [
 name = "vectispire-domain"
 version = "0.12.0-dev"
 dependencies = [
+ "base64 0.22.1",
  "regex",
  "serde",
  "serde_json",
