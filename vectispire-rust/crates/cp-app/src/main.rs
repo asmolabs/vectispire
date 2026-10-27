@@ -579,8 +579,16 @@ async fn serve() -> ExitCode {
         time: None,
     };
     let app = App::new(settings, "vectispire", build);
+    // Before the "Started" line: a stop sent as soon as it is read must find the handlers in place.
+    let stop = match vectispire_cp_runtime::shutdown::termination_handlers() {
+        Ok(stop) => stop,
+        Err(error) => {
+            tracing::error!("The termination signals could not be installed: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
     tracing::info!("Started vectispire {} on port {}", env!("CARGO_PKG_VERSION"), app.settings.server_port);
-    match app.serve(service).await {
+    match app.serve_until(service, vectispire_cp_runtime::shutdown::TIMEOUT_PER_SHUTDOWN_PHASE, stop).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(problem) => {
             tracing::error!("{problem}");

@@ -48,12 +48,23 @@ impl ShutdownSignal {
 
 /// Resolves on `SIGTERM` or `SIGINT`.
 pub async fn termination() -> std::io::Result<()> {
+    termination_handlers()?.await;
+    Ok(())
+}
+
+/// The handlers for `SIGTERM` and `SIGINT`, **installed when this is called**, and the future that resolves on either.
+///
+/// Installed only once `termination` was first awaited, they came after the "Started" line: a stop sent as soon as
+/// that line was read — a container platform's, or the binary's own test on a fast runner — met the default action
+/// and killed the process outright, with nothing of the graceful stop.
+pub fn termination_handlers() -> std::io::Result<impl std::future::Future<Output = ()> + Send> {
     use tokio::signal::unix::{SignalKind, signal};
     let mut terminate = signal(SignalKind::terminate())?;
     let mut interrupt = signal(SignalKind::interrupt())?;
-    tokio::select! {
-        _ = terminate.recv() => {}
-        _ = interrupt.recv() => {}
-    }
-    Ok(())
+    Ok(async move {
+        tokio::select! {
+            _ = terminate.recv() => {}
+            _ = interrupt.recv() => {}
+        }
+    })
 }
