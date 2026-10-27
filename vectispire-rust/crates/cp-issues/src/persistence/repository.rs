@@ -12,7 +12,7 @@ use sea_orm::{
 use time::OffsetDateTime;
 use vectispire_cp_db::orm;
 use vectispire_cp_db::query::{Issues, rows_of};
-use vectispire_cp_db::{Engine, Tx, Visibility};
+use vectispire_cp_db::{Engine, ScanTarget, Tx, Visibility};
 
 use super::entities::{
     IssueActive, IssueColumn, IssueModel, TriageEventColumn, TriageEventModel, TriageEvents, delete_issues,
@@ -360,6 +360,25 @@ impl IssueRepository {
         let select = issues().filter(IssueColumn::Id.eq(id)).into_query();
         let model: Option<IssueModel> = orm::fetch_optional(tx, &select).await?;
         Ok(model.map(IssueRow::from))
+    }
+
+    /// The issues in `state` — of one target, or of all — in key order and whole, as the gate weighs them: Java's
+    /// `findByStateAndRepoId`, `findByStateAndRepoIdIsNullAndContainerId` and `findByState`.
+    ///
+    /// **Not the backlog's page**, which these were read through: its order is the screen's (most severe first),
+    /// it stops at a page's size, and its image filter is `container_id` alone — a row naming a repository and the
+    /// image, which belongs to the repository, weighed on the image's gate and was listed, identifier and all, to a
+    /// pipeline that may see only the image. A target here is [`rows_of`]'s, the rule every reader's query keeps.
+    pub async fn find_by_state(
+        tx: &mut Tx,
+        state: &str,
+        target: Option<ScanTarget>,
+    ) -> Result<Vec<IssueRow>, StoreError> {
+        let mut select = issues().filter(IssueColumn::State.eq(state));
+        if let Some(target) = target {
+            select = select.filter(rows_of::<Issues>(&std::collections::BTreeSet::from([target])));
+        }
+        issue_rows(tx, select.order_by_asc(IssueColumn::Id)).await
     }
 
     pub async fn find_by_ids(tx: &mut Tx, ids: &[i64]) -> Result<Vec<IssueRow>, StoreError> {

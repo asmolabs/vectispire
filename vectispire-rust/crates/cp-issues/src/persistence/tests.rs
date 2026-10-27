@@ -80,6 +80,7 @@ fn run(engine: Engine) {
             the_backlog_page_is_most_severe_first_and_filtered,
             the_backlog_shows_a_reader_only_what_it_was_granted,
             the_exceptions_register_pages_by_cursor_and_visibility,
+            the_gate_weighs_a_state_whole_in_key_order_under_the_dual_target_rule,
         );
         the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
@@ -777,5 +778,31 @@ async fn one_transaction_runs_a_checked_query_and_the_repository(db: &Db) -> Che
     let after = IssueRepository::find_by_fingerprints(&mut tx, &["tx-1".into()]).await.map_err(|e| e.to_string())?;
     tx.rollback().await.map_err(|e| e.to_string())?;
     ensure_eq!(after.len(), 0, "rolled back together");
+    Ok(())
+}
+
+/// What the gate weighs: one state, of one target or all, in key order — Java's `findByStateAndRepoId`,
+/// `findByStateAndRepoIdIsNullAndContainerId` and `findByState`. A row naming the repository and the image is the
+/// repository's: never weighed — nor listed — on the image's gate.
+async fn the_gate_weighs_a_state_whole_in_key_order_under_the_dual_target_rule(tx: &mut Tx) -> Check {
+    let image = insert(tx, issue("gate-image", None, Some(IMAGE_A))).await?;
+    let both = insert(tx, issue("gate-both", Some(REPO_B), Some(IMAGE_A))).await?;
+    let repo = insert(tx, issue("gate-repo", Some(REPO_A), None)).await?;
+    let image_again = insert(tx, issue("gate-image-2", None, Some(IMAGE_A))).await?;
+    let mut resolved = issue("gate-resolved", None, Some(IMAGE_A));
+    resolved.state = "resolved".to_owned();
+    insert(tx, resolved).await?;
+
+    let read = |rows: Vec<IssueRow>| rows.into_iter().map(|row| row.id).collect::<Vec<_>>();
+    let of = IssueRepository::find_by_state(tx, "open", Some(ScanTarget::Container(IMAGE_A)))
+        .await
+        .map_err(|e| e.to_string())?;
+    ensure_eq!(read(of), vec![image.id, image_again.id], "the image's open issues, not the repository's row");
+    let of = IssueRepository::find_by_state(tx, "open", Some(ScanTarget::Repository(REPO_B)))
+        .await
+        .map_err(|e| e.to_string())?;
+    ensure_eq!(read(of), vec![both.id], "the row naming both is the repository's");
+    let all = IssueRepository::find_by_state(tx, "open", None).await.map_err(|e| e.to_string())?;
+    ensure_eq!(read(all), vec![image.id, both.id, repo.id, image_again.id], "every open issue, in key order");
     Ok(())
 }

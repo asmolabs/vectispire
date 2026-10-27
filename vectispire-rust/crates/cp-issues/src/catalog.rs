@@ -45,26 +45,29 @@ impl IssueCatalog {
         Ok(rows.into_iter().map(|r| r.to_view()).collect())
     }
 
-    /// The open issues of one target, as the gate weighs them.
+    /// The issues in `state` of one target, as the gate weighs them — see `IssueRepository::find_by_state`.
     pub async fn gate_issues_of(
         &self,
         target: vectispire_cp_db::ScanTarget,
         state: &str,
     ) -> Result<Vec<IssueView>, IssueError> {
-        let mut filters = IssueFilters::new(vectispire_cp_db::Visibility::Everything);
-        filters.state = Some(state.to_owned());
-        match target {
-            vectispire_cp_db::ScanTarget::Repository(id) => filters.repo_id = Some(id),
-            vectispire_cp_db::ScanTarget::Container(id) => filters.container_id = Some(id),
-        }
-        self.issues(&filters).await
+        self.in_state_of(state, Some(target)).await
     }
 
     /// Every issue in a state, across all targets.
     pub async fn in_state(&self, state: &str) -> Result<Vec<IssueView>, IssueError> {
-        let mut filters = IssueFilters::new(vectispire_cp_db::Visibility::Everything);
-        filters.state = Some(state.to_owned());
-        self.issues(&filters).await
+        self.in_state_of(state, None).await
+    }
+
+    async fn in_state_of(
+        &self,
+        state: &str,
+        target: Option<vectispire_cp_db::ScanTarget>,
+    ) -> Result<Vec<IssueView>, IssueError> {
+        let mut tx = crate::persistence::read(&self.db).await?;
+        let rows = IssueRepository::find_by_state(&mut tx, state, target).await.map_err(IssueError::from)?;
+        crate::persistence::commit(tx).await?;
+        Ok(rows.into_iter().map(|r| r.to_view()).collect())
     }
 }
 
