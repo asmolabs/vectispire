@@ -1,0 +1,94 @@
+diff --git a/vectispire-rust/crates/cp-agents/tests/golden.rs b/vectispire-rust/crates/cp-agents/tests/golden.rs
+index 2e46707be..5900b2e00 100644
+--- a/vectispire-rust/crates/cp-agents/tests/golden.rs
++++ b/vectispire-rust/crates/cp-agents/tests/golden.rs
+@@ -290,6 +290,22 @@ fn phase_three_replayed() -> BTreeSet<(String, String)> {
+         .collect()
+ }
+ 
++/// MEASUREMENT ONLY (local, never pushed): every route of the three Phase 3 modules owed, and the outcomes written to
++/// `VECTISPIRE_GOLDEN_OUT`, while their routes are brought to green.
++fn measuring() -> bool {
++    std::env::var("VECTISPIRE_GOLDEN_MEASURE").is_ok()
++}
++
++fn all_phase_three() -> BTreeSet<(String, String)> {
++    let db = support::unreachable();
++    let composed = support::compose(&db, support::system_clock());
++    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
++    phase_three(&db, composed.targets, audit)
++        .into_iter()
++        .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
++        .collect()
++}
++
+ fn served() -> BTreeSet<(String, String)> {
+     let db = support::unreachable();
+     let composed = support::compose(&db, support::system_clock());
+@@ -298,7 +314,7 @@ fn served() -> BTreeSet<(String, String)> {
+         .chain(vectispire_cp_scanning::routes(composed.scanning))
+         .chain(vectispire_cp_agents::routes(composed.agents))
+         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
+-        .chain(phase_three_replayed())
++        .chain(if measuring() { all_phase_three() } else { phase_three_replayed() })
+         .collect()
+ }
+ 
+@@ -345,17 +361,28 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
+         Some("postgresql") => vec![Engine::PostgreSql],
+         _ => vec![Engine::MySql, Engine::PostgreSql],
+     };
+-    let narrowed = only.is_some() || engines.len() < 2;
++    let narrowed = only.is_some() || engines.len() < 2 || measuring();
++    let measured = if measuring() { all_phase_three() } else { BTreeSet::new() };
+ 
+     let recording = Recording::open(&dir).unwrap();
+     let document = Document::embedded();
+     let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
+     let served = served();
+-    assert_eq!(served.len(), 49 + PHASE_THREE_REPLAYED.len(), "the three modules' routes and Phase 3's replayed ones");
++    if !measuring() {
++        assert_eq!(
++            served.len(),
++            49 + PHASE_THREE_REPLAYED.len(),
++            "the three modules' routes and Phase 3's replayed ones"
++        );
++    }
+     let deferred = Deferred::embedded();
+     let all = listed(&recording, &document, &served).unwrap();
+-    let owing: BTreeSet<&str> =
+-        all.iter().filter(|listed| listed.served).filter_map(|listed| listed.name.split('/').next()).collect();
++    let owing: BTreeSet<&str> = all
++        .iter()
++        .filter(|listed| listed.served)
++        .filter(|listed| !measuring() || listed.route.as_ref().is_some_and(|route| measured.contains(route)))
++        .filter_map(|listed| listed.name.split('/').next())
++        .collect();
+     let tests: Vec<_> = recording
+         .tests
+         .iter()
+@@ -399,6 +426,24 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
+         let listed = deferred.goldens.get(&replayed.name).map_or("", |_| " [listed]");
+         println!("{}{listed}: {}", replayed.name, describe(&replayed.outcome));
+     }
++    if let Ok(out) = std::env::var("VECTISPIRE_GOLDEN_OUT") {
++        let lines: Vec<String> = outcomes
++            .iter()
++            .filter(|replayed| replayed.served)
++            .filter(|replayed| replayed.route.as_ref().is_some_and(|route| measured.contains(route)))
++            .map(|replayed| {
++                let route = replayed.route.as_ref().map(|(m, p)| format!("{m} {p}")).unwrap_or_default();
++                let (kind, detail) = match &replayed.outcome {
++                    Outcome::Green => ("green", String::new()),
++                    Outcome::Differs(lines) => ("differs", lines.join(" ¶ ")),
++                    Outcome::Unreplayable(reason) => ("unreplayable", reason.clone()),
++                    other => ("other", format!("{other:?}")),
++                };
++                format!("{}\t{route}\t{kind}\t{}", replayed.name, detail.replace(['\t', '\n'], " "))
++            })
++            .collect();
++        std::fs::write(out, lines.join("\n") + "\n").unwrap();
++    }
+     if narrowed {
+         panic!("a narrowed replay (VECTISPIRE_GOLDEN_ONLY or _ENGINES) checks nothing it left out: run it whole");
+     }

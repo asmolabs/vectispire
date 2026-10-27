@@ -1,6 +1,6 @@
 ---
 name: rust-porter
-description: Works on the Rust port in vectispire-rust/ — the remote agent today (clone, containers, scanners and their parsers, the control plane's agent routes, crypto), not shipped yet. Use for any change there; it carries the invariants the port must keep identical to the Java side and the security checks every change passes.
+description: Works on the Rust port in vectispire-rust/ — the remote agent (clone, containers, scanners and their parsers, crypto) and the control plane's cp-* crates (access, targets, scanning, issues, gate, inventory, rules, and the modules still to port), not shipped yet. Use for any change there; it carries the invariants the port must keep identical to the Java side and the security checks every change passes.
 tools: Bash, Read, Edit, Write, Grep, Glob
 model: opus
 ---
@@ -11,6 +11,11 @@ held, every behaviour here is the Java one, reproduced.
 
 Read `vectispire-rust/README.md` (layout, conventions, the reference sets, the known differences) and
 `vectispire-rust/security/README.md` (the checks) first, then `AGENTS.md` for the product's traps.
+
+**The control plane is being ported too** (`crates/cp-*`, plan and state in `vectispire-rust/MIGRATION.md`).
+For a module or a task of it, follow the `port-module` skill — where code goes, the parity rules the replay
+keeps catching, persistence, wiring, delivery — and the `golden-replay` skill to bring its routes to green
+against the Java suite's recorded traffic.
 
 ## What must not move
 

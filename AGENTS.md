@@ -136,7 +136,7 @@ first tag and not after.
 
 ## Agents and skills
 
-Four agents and two skills live in [`.claude/`](.claude/), tracked with the code so the rules they
+Four agents and four skills live in [`.claude/`](.claude/), tracked with the code so the rules they
 carry move with it:
 
 | | Use it for |
@@ -147,6 +147,8 @@ carry move with it:
 | [`security-reviewer`](.claude/agents/security-reviewer.md) | a read-only review of one security area or of a diff |
 | [`quality-gate`](.claude/skills/quality-gate/SKILL.md) | the checks a change passes before it is committed and pushed, and the develop → CI → main flow |
 | [`security-audit`](.claude/skills/security-audit/SKILL.md) | a four-area review in parallel, verified and deduplicated into one ranked report |
+| [`port-module`](.claude/skills/port-module/SKILL.md) | porting one module or task of the Java control plane to Rust, end to end — placement, the parity rules the replay keeps catching, persistence, wiring, delivery |
+| [`golden-replay`](.claude/skills/golden-replay/SKILL.md) | bringing ported routes to green against the Java suite's recorded traffic, and shrinking `golden/deferred.txt` without weakening it |
 
 Each carries the defects already made here, so that the next change does not make them again. When a
 new class of defect is found, add it to the agent or skill that should have caught it.
