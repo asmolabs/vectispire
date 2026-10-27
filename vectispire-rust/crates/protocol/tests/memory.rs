@@ -118,7 +118,9 @@ fn peak(scenario: &str) -> u64 {
     let stderr = String::from_utf8_lossy(&output.stderr);
     stdout
         .lines()
-        .find_map(|line| line.strip_prefix("PEAK_BYTES="))
+        // Anywhere in the line: with `--nocapture`, libtest writes `test child ... ` before the child's own output, on the
+        // same line — the measurement was there and the parse, which wanted the line to start with it, found nothing.
+        .find_map(|line| line.split_once("PEAK_BYTES=").and_then(|(_, rest)| rest.split_whitespace().next()))
         .or_else(|| {
             stderr
                 .lines()
