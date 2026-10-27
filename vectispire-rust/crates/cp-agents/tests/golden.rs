@@ -157,6 +157,7 @@ fn router(db: &Db) -> axum::Router {
         runner: None,
         scanned: Vec::new(),
     }));
+    let extra = if measuring() { measured(db, targets.clone(), audit.clone()) } else { Vec::new() };
     let credentials = Arc::new(CredentialService::new(
         db.clone(),
         Arc::new(AccessClock),
@@ -197,12 +198,65 @@ fn router(db: &Db) -> axum::Router {
         .into_iter()
         .chain(vectispire_cp_scanning::routes(scanning))
         .chain(vectispire_cp_agents::routes(agents))
+        .chain(extra)
     {
         routes = routes.route(entry);
     }
     let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
     let chain = Arc::new(Chain::new(ChainConfig::default(), credentials, Arc::new(entries)));
     routes.build(&chain, None).unwrap()
+}
+
+/// MEASUREMENT ONLY (2026-10-26, rebuilt 2026-10-27; a local branch, never pushed): the issues, gate and inventory
+/// modules served beside the three this test owes, to replay their recordings while their ports are measured.
+fn measuring() -> bool {
+    std::env::var("VECTISPIRE_GOLDEN_MEASURE").is_ok()
+}
+
+fn measured(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+    let scans = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)));
+    let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
+        db: db.clone(),
+        targets: targets.clone(),
+        scans: (*scans).clone(),
+        settings: Arc::new(Settings::new(db.clone())),
+        audit: audit.clone(),
+    }));
+    let rules = vectispire_cp_rules::RulesModule::new(
+        db.clone(),
+        Arc::new(vectispire_cp_rules::StandInInventory),
+        Arc::new(vectispire_cp_rules::StandInIssues),
+        audit.clone(),
+    );
+    let inventory = Arc::new(vectispire_cp_inventory::Inventory::new(vectispire_cp_inventory::InventoryConfig {
+        db: db.clone(),
+        scans: scans.clone(),
+        targets: targets.clone(),
+        audit: audit.clone(),
+    }));
+    let gate = vectispire_cp_gate::GateModule::new(
+        db.clone(),
+        issues.catalog().clone(),
+        scans,
+        targets.clone(),
+        rules.coverage.clone(),
+        audit,
+        Arc::new(SystemClock),
+    );
+    let mut routes = vectispire_cp_issues::routes(issues);
+    routes.extend(gate.routes());
+    routes.extend(vectispire_cp_inventory::routes(inventory, targets));
+    routes
+}
+
+fn measured_routes() -> BTreeSet<(String, String)> {
+    let db = support::unreachable();
+    let composed = support::compose(&db, support::system_clock());
+    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
+    measured(&db, composed.targets, audit)
+        .into_iter()
+        .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
+        .collect()
 }
 
 fn served() -> BTreeSet<(String, String)> {
@@ -213,6 +267,7 @@ fn served() -> BTreeSet<(String, String)> {
         .chain(vectispire_cp_scanning::routes(composed.scanning))
         .chain(vectispire_cp_agents::routes(composed.agents))
         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
+        .chain(if measuring() { measured_routes() } else { BTreeSet::new() })
         .collect()
 }
 
@@ -259,17 +314,22 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
         Some("postgresql") => vec![Engine::PostgreSql],
         _ => vec![Engine::MySql, Engine::PostgreSql],
     };
-    let narrowed = only.is_some() || engines.len() < 2;
+    let narrowed = only.is_some() || engines.len() < 2 || measuring();
 
     let recording = Recording::open(&dir).unwrap();
     let document = Document::embedded();
     let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
     let served = served();
-    assert_eq!(served.len(), 49, "the three modules' routes");
+    let measured = if measuring() { measured_routes() } else { BTreeSet::new() };
+    assert_eq!(served.len(), 49 + measured.len(), "the modules' routes");
     let deferred = Deferred::embedded();
     let all = listed(&recording, &document, &served).unwrap();
-    let owing: BTreeSet<&str> =
-        all.iter().filter(|listed| listed.served).filter_map(|listed| listed.name.split('/').next()).collect();
+    let owing: BTreeSet<&str> = all
+        .iter()
+        .filter(|listed| listed.served)
+        .filter(|listed| !measuring() || listed.route.as_ref().is_some_and(|route| measured.contains(route)))
+        .filter_map(|listed| listed.name.split('/').next())
+        .collect();
     let tests: Vec<_> = recording
         .tests
         .iter()
@@ -312,6 +372,24 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
     for replayed in outcomes.iter().filter(|replayed| replayed.served && replayed.outcome != Outcome::Green) {
         let listed = deferred.goldens.get(&replayed.name).map_or("", |_| " [listed]");
         println!("{}{listed}: {}", replayed.name, describe(&replayed.outcome));
+    }
+    if let Ok(out) = std::env::var("VECTISPIRE_GOLDEN_OUT") {
+        let lines: Vec<String> = outcomes
+            .iter()
+            .filter(|replayed| replayed.served)
+            .filter(|replayed| replayed.route.as_ref().is_some_and(|route| measured.contains(route)))
+            .map(|replayed| {
+                let route = replayed.route.as_ref().map(|(m, p)| format!("{m} {p}")).unwrap_or_default();
+                let (kind, detail) = match &replayed.outcome {
+                    Outcome::Green => ("green", String::new()),
+                    Outcome::Differs(lines) => ("differs", lines.join(" ¶ ")),
+                    Outcome::Unreplayable(reason) => ("unreplayable", reason.clone()),
+                    other => ("other", format!("{other:?}")),
+                };
+                format!("{}\t{route}\t{kind}\t{}", replayed.name, detail.replace(['\t', '\n'], " "))
+            })
+            .collect();
+        std::fs::write(out, lines.join("\n") + "\n").unwrap();
     }
     if narrowed {
         panic!("a narrowed replay (VECTISPIRE_GOLDEN_ONLY or _ENGINES) checks nothing it left out: run it whole");

@@ -31,6 +31,19 @@ class ScanTaskTest {
         }
 
         @Test
+        @DisplayName("the steps go out in the enum's order, whatever order they came in")
+        void stepsKeepTheEnumsOrder() {
+            // Set.copyOf's order is salted per JVM run: written as it came, the wire order changed from one start to
+            // the next, and the recordings the Rust control plane is replayed against with it.
+            ScanTask task = new ScanTask(
+                    new ScanTask.Target.Repository("https://h.example/p.git", null, null, null),
+                    null,
+                    new java.util.LinkedHashSet<>(List.of(ScanTask.Step.SAST, ScanTask.Step.IAC, ScanTask.Step.DEPENDENCIES)));
+            assertThat(List.copyOf(task.steps()))
+                    .containsExactly(ScanTask.Step.DEPENDENCIES, ScanTask.Step.IAC, ScanTask.Step.SAST);
+        }
+
+        @Test
         @DisplayName("a step nobody asked for does not run")
         void stepsAreOptIn() {
             ScanTask task = new ScanTask(

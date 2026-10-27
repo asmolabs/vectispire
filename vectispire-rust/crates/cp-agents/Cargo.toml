@@ -40,6 +40,10 @@ vectispire-domain.workspace = true
 vectispire-protocol.workspace = true
 
 [dev-dependencies]
+vectispire-cp-issues = { path = "../cp-issues" }
+vectispire-cp-gate = { path = "../cp-gate" }
+vectispire-cp-rules = { path = "../cp-rules" }
+vectispire-cp-inventory = { path = "../cp-inventory" }
 http-body-util.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true
