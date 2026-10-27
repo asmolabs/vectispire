@@ -1,0 +1,1230 @@
+{
+  "catalogue" : [ {
+    "name" : "CRITICAL_KEV_DETECTED",
+    "signatureId" : "VECTI-SEC-002",
+    "description" : "Actively exploited vulnerability (KEV) detected",
+    "cefSeverity" : 10,
+    "outcome" : "detected",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SECURITY_GATE_FAILED",
+    "signatureId" : "VECTI-SEC-003",
+    "description" : "Security gate refused a build",
+    "cefSeverity" : 7,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "TRIAGE_SETTLED",
+    "signatureId" : "VECTI-SEC-005",
+    "description" : "Finding settled by triage",
+    "cefSeverity" : 5,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "MFA_BACKUP_CODE_USED",
+    "signatureId" : "VECTI-SEC-006",
+    "description" : "MFA backup code consumed",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SIGN_IN_THROTTLED",
+    "signatureId" : "VECTI-SEC-007",
+    "description" : "Sign-in failure ceiling reached",
+    "cefSeverity" : 7,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "MFA_FAILURE_CEILING",
+    "signatureId" : "VECTI-SEC-008",
+    "description" : "MFA failure ceiling reached",
+    "cefSeverity" : 7,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "BEARER_TOKEN_THROTTLED",
+    "signatureId" : "VECTI-SEC-009",
+    "description" : "Bearer token failure ceiling reached",
+    "cefSeverity" : 7,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "ACCOUNT_CHANGED",
+    "signatureId" : "VECTI-SEC-010",
+    "description" : "Account privileges or credentials changed",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "ACCESS_GRANT_CHANGED",
+    "signatureId" : "VECTI-SEC-011",
+    "description" : "Team access grant changed",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "API_KEY_ISSUED",
+    "signatureId" : "VECTI-SEC-012",
+    "description" : "API key issued",
+    "cefSeverity" : 5,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "API_KEY_REVOKED",
+    "signatureId" : "VECTI-SEC-013",
+    "description" : "API key revoked",
+    "cefSeverity" : 4,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "AGENT_CHANGED",
+    "signatureId" : "VECTI-SEC-014",
+    "description" : "Agent declared or its credentials changed",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "AGENT_RESULT_REFUSED",
+    "signatureId" : "VECTI-SEC-015",
+    "description" : "Agent result refused: attestation did not verify",
+    "cefSeverity" : 8,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "TRIAGE_APPROVED",
+    "signatureId" : "VECTI-SEC-016",
+    "description" : "Four-eyes triage request approved",
+    "cefSeverity" : 5,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "TRIAGE_REFUSED",
+    "signatureId" : "VECTI-SEC-017",
+    "description" : "Four-eyes triage request refused",
+    "cefSeverity" : 4,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "AUDIT_CHAIN_BROKEN",
+    "signatureId" : "VECTI-SEC-018",
+    "description" : "Audit log integrity verification failed",
+    "cefSeverity" : 10,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SECURITY_SETTING_CHANGED",
+    "signatureId" : "VECTI-SEC-019",
+    "description" : "Security-relevant setting changed",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "AGENT_SEALING_KEY_REFUSED",
+    "signatureId" : "VECTI-SEC-020",
+    "description" : "Agent sealing key refused: signature or generation did not verify",
+    "cefSeverity" : 8,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "PLUGIN_CHANGED",
+    "signatureId" : "VECTI-SEC-021",
+    "description" : "Analysis plugin registered, changed or activated",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SARIF_SOURCE_CHANGED",
+    "signatureId" : "VECTI-SEC-022",
+    "description" : "SARIF import source declared or changed",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SARIF_IMPORT_REFUSED",
+    "signatureId" : "VECTI-SEC-023",
+    "description" : "SARIF import refused: undeclared source, scope or tool",
+    "cefSeverity" : 5,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "CHECKLIST_TEMPLATE_CHANGED",
+    "signatureId" : "VECTI-SEC-024",
+    "description" : "Checklist template version published or retired",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "CHECKLIST_SIGNED_OFF",
+    "signatureId" : "VECTI-SEC-025",
+    "description" : "Checklist signed off",
+    "cefSeverity" : 5,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "CHECKLIST_SIGN_OFF_REFUSED",
+    "signatureId" : "VECTI-SEC-026",
+    "description" : "Checklist sign-off refused or returned",
+    "cefSeverity" : 5,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "REPORT_IMPORT_REFUSED",
+    "signatureId" : "VECTI-SEC-027",
+    "description" : "Report import refused: undeclared source, kind or scope",
+    "cefSeverity" : 5,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SIEM_EXPORT_STOPPED",
+    "signatureId" : "VECTI-SEC-028",
+    "description" : "SIEM export switched off or redirected",
+    "cefSeverity" : 7,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SECRET_LEAK_DETECTED",
+    "signatureId" : "VECTI-SEC-029",
+    "description" : "Secret leaked in source code",
+    "cefSeverity" : 8,
+    "outcome" : "detected",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "SLA_BREACHED",
+    "signatureId" : "VECTI-SEC-030",
+    "description" : "Remediation deadline passed",
+    "cefSeverity" : 6,
+    "outcome" : "detected",
+    "followsIssueSeverity" : true
+  }, {
+    "name" : "REPORT_PLUGIN_CHANGED",
+    "signatureId" : "VECTI-SEC-031",
+    "description" : "Report plugin registered, changed, approved, activated or withdrawn",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "PROJECT_EXPORTED",
+    "signatureId" : "VECTI-SEC-032",
+    "description" : "Project export left the platform",
+    "cefSeverity" : 4,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "REPORT_PLUGIN_REFUSED",
+    "signatureId" : "VECTI-SEC-033",
+    "description" : "Report plugin refused, or its output refused",
+    "cefSeverity" : 6,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "FORGE_CONNECTION_CHANGED",
+    "signatureId" : "VECTI-SEC-034",
+    "description" : "Forge connection created, its token or trust replaced, or deleted",
+    "cefSeverity" : 6,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "FORGE_IMPORT_APPLIED",
+    "signatureId" : "VECTI-SEC-035",
+    "description" : "Repositories imported from a forge",
+    "cefSeverity" : 5,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "FORGE_CONNECTION_REFUSED",
+    "signatureId" : "VECTI-SEC-036",
+    "description" : "Forge connection refused: blocked destination, write scope, or a credential presented to another host",
+    "cefSeverity" : 5,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "TRACKER_CONTRADICTS_TRIAGE",
+    "signatureId" : "VECTI-SEC-037",
+    "description" : "A tracker contradicts a settled triage decision",
+    "cefSeverity" : 4,
+    "outcome" : "detected",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "INTEGRATION_TOKEN_EXPIRING",
+    "signatureId" : "VECTI-SEC-038",
+    "description" : "Integration token expires soon",
+    "cefSeverity" : 4,
+    "outcome" : "detected",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "INTEGRATION_TOKEN_STOPPED",
+    "signatureId" : "VECTI-SEC-039",
+    "description" : "Integration token stopped working: expired or refused",
+    "cefSeverity" : 7,
+    "outcome" : "failure",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "INTEGRATION_TOKEN_RESTORED",
+    "signatureId" : "VECTI-SEC-040",
+    "description" : "Integration token working again",
+    "cefSeverity" : 2,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  }, {
+    "name" : "PING_TEST",
+    "signatureId" : "VECTI-SEC-999",
+    "description" : "SIEM connector health check",
+    "cefSeverity" : 1,
+    "outcome" : "success",
+    "followsIssueSeverity" : false
+  } ],
+  "signalledBy" : [ {
+    "operation" : "LOGIN_SUCCESS",
+    "event" : null
+  }, {
+    "operation" : "LOGIN_FAILURE",
+    "event" : null
+  }, {
+    "operation" : "LOGIN_BLOCKED",
+    "event" : null
+  }, {
+    "operation" : "PASSWORD_CHANGED",
+    "event" : "ACCOUNT_CHANGED"
+  }, {
+    "operation" : "USER_CREATED",
+    "event" : "ACCOUNT_CHANGED"
+  }, {
+    "operation" : "USER_UPDATED",
+    "event" : "ACCOUNT_CHANGED"
+  }, {
+    "operation" : "USER_PASSWORD_RESET",
+    "event" : "ACCOUNT_CHANGED"
+  }, {
+    "operation" : "USER_DELETED",
+    "event" : "ACCOUNT_CHANGED"
+  }, {
+    "operation" : "API_KEY_CREATED",
+    "event" : "API_KEY_ISSUED"
+  }, {
+    "operation" : "API_KEY_DELETED",
+    "event" : "API_KEY_REVOKED"
+  }, {
+    "operation" : "SETTING_UPDATED",
+    "event" : null
+  }, {
+    "operation" : "ISSUE_TRIAGED",
+    "event" : null
+  }, {
+    "operation" : "SCAN_TRIGGERED",
+    "event" : null
+  }, {
+    "operation" : "AI_REVIEW_REQUESTED",
+    "event" : null
+  }, {
+    "operation" : "REPORT_EXPORTED",
+    "event" : null
+  }, {
+    "operation" : "TICKET_CREATED",
+    "event" : null
+  }, {
+    "operation" : "TICKET_LINKED",
+    "event" : null
+  }, {
+    "operation" : "TICKET_CLOSED",
+    "event" : null
+  }, {
+    "operation" : "TICKET_SYNCED",
+    "event" : null
+  }, {
+    "operation" : "TRIAGE_CONTRADICTED_BY_TRACKER",
+    "event" : "TRACKER_CONTRADICTS_TRIAGE"
+  }, {
+    "operation" : "GATE_POLICY_UPDATED",
+    "event" : "SECURITY_SETTING_CHANGED"
+  }, {
+    "operation" : "CONTROL_DECLARED",
+    "event" : null
+  }, {
+    "operation" : "CERTIFIED_SCOPE_CHANGED",
+    "event" : null
+  }, {
+    "operation" : "THREAT_INTEL_SYNCED",
+    "event" : null
+  }, {
+    "operation" : "TEAM_UPDATED",
+    "event" : null
+  }, {
+    "operation" : "TEAM_ACCESS_CHANGED",
+    "event" : "ACCESS_GRANT_CHANGED"
+  }, {
+    "operation" : "SOLUTION_UPDATED",
+    "event" : null
+  }, {
+    "operation" : "PROJECT_UPDATED",
+    "event" : null
+  }, {
+    "operation" : "PROJECT_REPOSITORIES_CHANGED",
+    "event" : "ACCESS_GRANT_CHANGED"
+  }, {
+    "operation" : "PROJECT_CONTAINERS_CHANGED",
+    "event" : "ACCESS_GRANT_CHANGED"
+  }, {
+    "operation" : "ACCESS_DENIED",
+    "event" : null
+  }, {
+    "operation" : "AGENT_CREDENTIAL_SENT",
+    "event" : null
+  }, {
+    "operation" : "SCAN_ATTEMPTS_REPAIRED",
+    "event" : null
+  }, {
+    "operation" : "AGENT_RESULT_SUBMITTED",
+    "event" : null
+  }, {
+    "operation" : "AGENT_SCAN_FAILED",
+    "event" : null
+  }, {
+    "operation" : "AGENT_RESULT_REFUSED",
+    "event" : "AGENT_RESULT_REFUSED"
+  }, {
+    "operation" : "AGENT_SIGNING_KEY_PINNED",
+    "event" : "AGENT_CHANGED"
+  }, {
+    "operation" : "AGENT_SEALING_KEY_ACCEPTED",
+    "event" : null
+  }, {
+    "operation" : "AGENT_SEALING_KEY_REFUSED",
+    "event" : "AGENT_SEALING_KEY_REFUSED"
+  }, {
+    "operation" : "AGENT_SEALING_KEY_RESET",
+    "event" : "AGENT_CHANGED"
+  }, {
+    "operation" : "BADGE_PUBLISHED",
+    "event" : null
+  }, {
+    "operation" : "RULE_SET_UPLOADED",
+    "event" : null
+  }, {
+    "operation" : "RULE_SET_ACTIVATED",
+    "event" : null
+  }, {
+    "operation" : "RULE_SET_DEACTIVATED",
+    "event" : null
+  }, {
+    "operation" : "AGENT_CREATED",
+    "event" : "AGENT_CHANGED"
+  }, {
+    "operation" : "AGENT_UPDATED",
+    "event" : "AGENT_CHANGED"
+  }, {
+    "operation" : "AGENT_DELETED",
+    "event" : "AGENT_CHANGED"
+  }, {
+    "operation" : "POSTURE_DIGEST_SENT",
+    "event" : null
+  }, {
+    "operation" : "PLUGIN_REGISTERED",
+    "event" : "PLUGIN_CHANGED"
+  }, {
+    "operation" : "PLUGIN_UPDATED",
+    "event" : "PLUGIN_CHANGED"
+  }, {
+    "operation" : "PLUGIN_ENABLED_CHANGED",
+    "event" : "PLUGIN_CHANGED"
+  }, {
+    "operation" : "PLUGIN_ACTIVATED",
+    "event" : "PLUGIN_CHANGED"
+  }, {
+    "operation" : "PLUGIN_DEACTIVATED",
+    "event" : "PLUGIN_CHANGED"
+  }, {
+    "operation" : "PLUGIN_SIGNATURE_WAIVED",
+    "event" : "PLUGIN_CHANGED"
+  }, {
+    "operation" : "PLUGIN_SIGNATURE_WAIVER_REVOKED",
+    "event" : "PLUGIN_CHANGED"
+  }, {
+    "operation" : "SARIF_SOURCE_CHANGED",
+    "event" : "SARIF_SOURCE_CHANGED"
+  }, {
+    "operation" : "SARIF_IMPORTED",
+    "event" : null
+  }, {
+    "operation" : "SARIF_IMPORT_REFUSED",
+    "event" : "SARIF_IMPORT_REFUSED"
+  }, {
+    "operation" : "COVERAGE_IMPORTED",
+    "event" : null
+  }, {
+    "operation" : "TEST_REPORT_IMPORTED",
+    "event" : null
+  }, {
+    "operation" : "BUILD_SBOM_IMPORTED",
+    "event" : null
+  }, {
+    "operation" : "REPORT_IMPORT_REFUSED",
+    "event" : "REPORT_IMPORT_REFUSED"
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_IMPORTED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_ITEMS_PAIRED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_EVIDENCE_SET",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_RULES_BOUND",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_DERIVED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_PUBLISHED",
+    "event" : "CHECKLIST_TEMPLATE_CHANGED"
+  }, {
+    "operation" : "CHECKLIST_TEMPLATE_RETIRED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_OPENED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_MOVED_TO_VERSION",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_ANSWERED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_EVIDENCE_ADDED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_EVIDENCE_WITHDRAWN",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_SUBMITTED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_RETURNED",
+    "event" : "CHECKLIST_SIGN_OFF_REFUSED"
+  }, {
+    "operation" : "CHECKLIST_SIGNED_OFF",
+    "event" : "CHECKLIST_SIGNED_OFF"
+  }, {
+    "operation" : "CHECKLIST_SIGN_OFF_REFUSED",
+    "event" : "CHECKLIST_SIGN_OFF_REFUSED"
+  }, {
+    "operation" : "CHECKLIST_REOPENED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_EXPORTED",
+    "event" : null
+  }, {
+    "operation" : "PROJECT_EXPORTED",
+    "event" : "PROJECT_EXPORTED"
+  }, {
+    "operation" : "REPORT_PLUGIN_REGISTERED",
+    "event" : "REPORT_PLUGIN_CHANGED"
+  }, {
+    "operation" : "REPORT_PLUGIN_UPDATED",
+    "event" : "REPORT_PLUGIN_CHANGED"
+  }, {
+    "operation" : "REPORT_PLUGIN_APPROVED",
+    "event" : "REPORT_PLUGIN_CHANGED"
+  }, {
+    "operation" : "REPORT_PLUGIN_ENABLED_CHANGED",
+    "event" : "REPORT_PLUGIN_CHANGED"
+  }, {
+    "operation" : "REPORT_PLUGIN_ACTIVATED",
+    "event" : "REPORT_PLUGIN_CHANGED"
+  }, {
+    "operation" : "REPORT_PLUGIN_DEACTIVATED",
+    "event" : "REPORT_PLUGIN_CHANGED"
+  }, {
+    "operation" : "REPORT_PLUGIN_WITHDRAWN",
+    "event" : "REPORT_PLUGIN_CHANGED"
+  }, {
+    "operation" : "FORGE_CONNECTION_CHANGED",
+    "event" : null
+  }, {
+    "operation" : "FORGE_CONNECTION_REFUSED",
+    "event" : "FORGE_CONNECTION_REFUSED"
+  }, {
+    "operation" : "FORGE_DISCOVERY_REQUESTED",
+    "event" : null
+  }, {
+    "operation" : "FORGE_IMPORT_APPLIED",
+    "event" : null
+  }, {
+    "operation" : "REPORT_REQUESTED",
+    "event" : null
+  }, {
+    "operation" : "REPORT_PRODUCED",
+    "event" : null
+  }, {
+    "operation" : "REPORT_FAILED",
+    "event" : null
+  }, {
+    "operation" : "REPORT_REFUSED",
+    "event" : "REPORT_PLUGIN_REFUSED"
+  }, {
+    "operation" : "REPORT_DOWNLOADED",
+    "event" : null
+  }, {
+    "operation" : "INTEGRATION_TOKEN_EXPIRING",
+    "event" : "INTEGRATION_TOKEN_EXPIRING"
+  }, {
+    "operation" : "INTEGRATION_TOKEN_STOPPED",
+    "event" : "INTEGRATION_TOKEN_STOPPED"
+  }, {
+    "operation" : "INTEGRATION_TOKEN_RESTORED",
+    "event" : "INTEGRATION_TOKEN_RESTORED"
+  }, {
+    "operation" : "CHECKLIST_CONTACT_CHANGED",
+    "event" : null
+  }, {
+    "operation" : "CHECKLIST_REMINDER_SENT",
+    "event" : null
+  } ],
+  "cef" : [ {
+    "name" : "header and fields",
+    "line" : "CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790416800000 outcome=success suser=alice src=203.0.113.7 act=API_KEY_CREATED cs1Label=Target cs1=42 msg=API key issued: ci-pipeline"
+  }, {
+    "name" : "breach CRITICAL",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|8|rt=1790416800000 outcome=detected"
+  }, {
+    "name" : "breach HIGH",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|7|rt=1790416800000 outcome=detected"
+  }, {
+    "name" : "breach MEDIUM",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|5|rt=1790416800000 outcome=detected"
+  }, {
+    "name" : "breach LOW",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|3|rt=1790416800000 outcome=detected"
+  }, {
+    "name" : "breach NEGLIGIBLE",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|3|rt=1790416800000 outcome=detected"
+  }, {
+    "name" : "breach UNKNOWN",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|3|rt=1790416800000 outcome=detected"
+  }, {
+    "name" : "breach without severity",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|6|rt=1790416800000 outcome=detected"
+  }, {
+    "name" : "fixed severity refused",
+    "refused" : "SECRET_LEAK_DETECTED has a fixed CEF severity"
+  }, {
+    "name" : "no version",
+    "line" : "CEF:0|Vectispire|ASPM||VECTI-SEC-999|SIEM connector health check|1|rt=1790416800000 outcome=success"
+  }, {
+    "name" : "version with pipe and newline",
+    "line" : "CEF:0|Vectispire|ASPM|1.0\\|evil\\\\x y  z|VECTI-SEC-999|SIEM connector health check|1|rt=1790416800000 outcome=success"
+  }, {
+    "name" : "escaped message",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-003|Security gate refused a build|7|rt=1790416800000 outcome=failure msg=Policy failed: Rule|A\\=B \\\\ end"
+  }, {
+    "name" : "forged username",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-007|Sign-in failure ceiling reached|7|rt=1790416800000 outcome=failure suser=mallory\\nCEF:0|Vectispire|ASPM|1|VECTI-SEC-018|forged|10|suser\\=admin\\r\\nsrc\\=1.2.3.4 act\\=x"
+  }, {
+    "name" : "controls",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-007|Sign-in failure ceiling reached|7|rt=1790416800000 outcome=failure suser=a b [31mc d e      f"
+  }, {
+    "name" : "astral and accents",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-007|Sign-in failure ceiling reached|7|rt=1790416800000 outcome=failure suser=café 😀 中 cs1Label=Target cs1=🔒\\=lock"
+  }, {
+    "name" : "every setter",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-005|Finding settled by triage|5|rt=1790416800000 outcome=success suser=u src=::1 act=ISSUE_TRIAGED externalId=42-7 cs1Label=Target cs1=issue 9 cs2Label=UserAgent cs2=curl/8 cs3Label=Identifier cs3=CVE-2026-1 cs4Label=Component cs4=pkg:npm/x@1 msg=m"
+  }, {
+    "name" : "duplicate keys keep their place",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-999|SIEM connector health check|1|rt=overridden outcome=o cs1=second suser=alice cs1Label=Target msg=late"
+  }, {
+    "name" : "blank values",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-999|SIEM connector health check|1|rt=1790416800000 outcome=success cn1= cs3Label=Identifier cs3=  cs4Label=Component cs4= "
+  }, {
+    "name" : "blank message with no-break space",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-999|SIEM connector health check|1|rt=1790416800000 outcome=success msg= "
+  }, {
+    "name" : "bad key",
+    "refused" : "Not a CEF extension key: with space"
+  }, {
+    "name" : "non-ascii key",
+    "refused" : "Not a CEF extension key: é"
+  }, {
+    "name" : "empty key",
+    "refused" : "Not a CEF extension key: "
+  }, {
+    "name" : "absent value skips its key",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-999|SIEM connector health check|1|rt=1790416800000 outcome=success"
+  }, {
+    "name" : "kev",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-002|Actively exploited vulnerability (KEV) detected|10|rt=1790416800000 outcome=detected cs3Label=Identifier cs3=CVE-2024-3094 cs4Label=Component cs4=xz-utils"
+  }, {
+    "name" : "before the epoch",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-999|SIEM connector health check|1|rt=-500 outcome=success"
+  }, {
+    "name" : "constructor severity 11",
+    "refused" : "A CEF severity is 0 to 10, not 11"
+  }, {
+    "name" : "constructor severity -1",
+    "refused" : "A CEF severity is 0 to 10, not -1"
+  }, {
+    "name" : "constructor severity 0",
+    "line" : "CEF:0|Vectispire|ASPM|1|VECTI-SEC-018|Audit log integrity verification failed|0|rt=1790416800000 outcome=failure"
+  } ],
+  "syslog" : [ {
+    "name" : "header",
+    "message" : "<83>1 2026-09-26T10:00:00.123Z vectispire-1 vectispire - VECTI-SEC-007 - CEF:0|x"
+  }, {
+    "name" : "breach critical",
+    "message" : "<83>1 2026-09-26T10:00:00.123Z h vectispire - VECTI-SEC-030 - CEF"
+  }, {
+    "name" : "hostname with space and newline",
+    "message" : "<85>1 2026-09-26T10:00:00.123Z myhost vectispire - VECTI-SEC-999 - CEF"
+  }, {
+    "name" : "blank hostname",
+    "message" : "<85>1 2026-09-26T10:00:00.123Z - vectispire - VECTI-SEC-999 - CEF"
+  }, {
+    "name" : "absent hostname",
+    "message" : "<85>1 2026-09-26T10:00:00.123Z - vectispire - VECTI-SEC-999 - CEF"
+  }, {
+    "name" : "accented hostname",
+    "message" : "<85>1 2026-09-26T10:00:00.123Z hte- vectispire - VECTI-SEC-999 - CEF"
+  }, {
+    "name" : "long hostname",
+    "message" : "<85>1 2026-09-26T10:00:00.123Z hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh vectispire - VECTI-SEC-999 - CEF"
+  }, {
+    "name" : "epoch",
+    "message" : "<85>1 1970-01-01T00:00:00.999Z h vectispire - VECTI-SEC-999 - CEF"
+  }, {
+    "name" : "before the epoch",
+    "message" : "<82>1 1969-12-31T23:59:59.001Z h vectispire - VECTI-SEC-018 - CEF"
+  }, {
+    "name" : "leap day",
+    "message" : "<82>1 2000-02-29T00:00:00.000Z h vectispire - VECTI-SEC-002 - CEF"
+  }, {
+    "name" : "far future",
+    "message" : "<85>1 9999-12-31T23:59:59.000Z h vectispire - VECTI-SEC-999 - CEF"
+  }, {
+    "name" : "priority AUDIT_CHAIN_BROKEN",
+    "message" : "<82>1 2026-09-26T10:00:00.123Z h vectispire - VECTI-SEC-018 - CEF"
+  }, {
+    "name" : "priority SECRET_LEAK_DETECTED",
+    "message" : "<83>1 2026-09-26T10:00:00.123Z h vectispire - VECTI-SEC-029 - CEF"
+  }, {
+    "name" : "priority ACCOUNT_CHANGED",
+    "message" : "<84>1 2026-09-26T10:00:00.123Z h vectispire - VECTI-SEC-010 - CEF"
+  }, {
+    "name" : "priority API_KEY_REVOKED",
+    "message" : "<84>1 2026-09-26T10:00:00.123Z h vectispire - VECTI-SEC-013 - CEF"
+  }, {
+    "name" : "priority INTEGRATION_TOKEN_RESTORED",
+    "message" : "<85>1 2026-09-26T10:00:00.123Z h vectispire - VECTI-SEC-040 - CEF"
+  } ],
+  "frames" : [ {
+    "bytes" : 7,
+    "frame" : "5 café"
+  }, {
+    "bytes" : 5,
+    "frame" : "3 a\nb"
+  }, {
+    "bytes" : 2,
+    "frame" : "0 "
+  }, {
+    "bytes" : 6,
+    "frame" : "4 😀"
+  }, {
+    "bytes" : 1005,
+    "frame" : "1000 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  } ],
+  "endpoints" : [ {
+    "protocol" : "WEBHOOK",
+    "endpoint" : " https://siem.example.com/cef ",
+    "webhook" : "https://siem.example.com/cef"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "collector.example.com:514",
+    "refused" : "A webhook endpoint is an http(s) URL, for example https://collector.example.com/cef."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "ftp://x/",
+    "refused" : "A webhook endpoint is an http(s) URL, for example https://collector.example.com/cef."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "HTTPS://siem.example.com/",
+    "webhook" : "HTTPS://siem.example.com/"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://exa mple.com/",
+    "refused" : "The webhook endpoint is not a readable URL."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://exa_mple.com/",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https:///path",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "http://[::1]:8080/x",
+    "webhook" : "http://[::1]:8080/x"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://user@host/",
+    "webhook" : "https://user@host/"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "mailto:a@b",
+    "refused" : "A webhook endpoint is an http(s) URL, for example https://collector.example.com/cef."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https:opaque",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "//host/path",
+    "refused" : "A webhook endpoint is an http(s) URL, for example https://collector.example.com/cef."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://hé.example/",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "http://10.0.0.1",
+    "webhook" : "http://10.0.0.1"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://host:99999/",
+    "webhook" : "https://host:99999/"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : null,
+    "refused" : "The endpoint is required."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "",
+    "refused" : "The endpoint is required."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : " https://siem.example.com/",
+    "refused" : "The webhook endpoint is not a readable URL."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com:6514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TLS",
+      "host" : "collector.example.com",
+      "port" : 6514
+    }
+  }, {
+    "protocol" : "SYSLOG_UDP",
+    "endpoint" : "10.0.0.5:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_UDP",
+      "host" : "10.0.0.5",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[2001:db8::1]:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "2001:db8::1",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "2001:db8::1:514",
+    "refused" : "An IPv6 syslog endpoint is written [address]:port."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[not-v6]:514",
+    "refused" : "\"not-v6\" is not an IPv6 address."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "syslog+tls://collector.example.com:6514",
+    "refused" : "A syslog endpoint is host:port, for example collector.example.com:6514 — no scheme and no path: the protocol field already says how events travel."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "tcp://collector:514",
+    "refused" : "A syslog endpoint is host:port, for example collector.example.com:6514 — no scheme and no path: the protocol field already says how events travel."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com",
+    "refused" : "A syslog endpoint needs its port, for example collector.example.com:6514."
+  }, {
+    "protocol" : "SYSLOG_UDP",
+    "endpoint" : "collector.example.com",
+    "refused" : "A syslog endpoint needs its port, for example collector.example.com:514."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com:",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com:0",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com:65536",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com:65535",
+    "syslog" : {
+      "protocol" : "SYSLOG_TLS",
+      "host" : "collector.example.com",
+      "port" : 65535
+    }
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com:５１４",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "collector.example.com:514/path",
+    "refused" : "A syslog endpoint is host:port, for example collector.example.com:6514 — no scheme and no path: the protocol field already says how events travel."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : ":514",
+    "refused" : "\"\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "bad_host!:514",
+    "refused" : "\"bad_host!\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "host name:514",
+    "refused" : "\"host name\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "collector.:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "collector.",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "collector:1",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "collector",
+      "port" : 1
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com:514",
+    "refused" : "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example.com\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "collector-.example.com:514",
+    "refused" : "\"collector-.example.com\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "-collector:514",
+    "refused" : "\"-collector\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "a..b:514",
+    "refused" : "\"a..b\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : ".:514",
+    "refused" : "\".\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "Kollector:514",
+    "refused" : "\"Kollector\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "COLLECTOR.Example.COM:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "COLLECTOR.Example.COM",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "999.999.999.999:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "999.999.999.999",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::ffff:10.0.0.1]:514",
+    "refused" : "\"::ffff:10.0.0.1\" is not an IPv6 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::10.0.0.1]:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "::10.0.0.1",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[fe80::1%2]:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "fe80::1%2",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[fe80::1%99999999999]:514",
+    "refused" : "\"fe80::1%99999999999\" is not an IPv6 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[fe80::1%]:514",
+    "refused" : "\"fe80::1%\" is not an IPv6 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::1]",
+    "refused" : "An IPv6 syslog endpoint is written [address]:port."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::1]x:514",
+    "refused" : "An IPv6 syslog endpoint is written [address]:port."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::1",
+    "refused" : "An IPv6 syslog endpoint is written [address]:port."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[]:514",
+    "refused" : "\"\" is not an IPv6 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::1]:",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::1]:0514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "::1",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[[::1]]:514",
+    "refused" : "An IPv6 syslog endpoint is written [address]:port."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[1.2.3.4]:514",
+    "refused" : "\"1.2.3.4\" is not an IPv6 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[2001:DB8::1]:6514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "2001:DB8::1",
+      "port" : 6514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[1:2:3:4:5:6:7:8]:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1:2:3:4:5:6:7:8",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[1:2:3:4:5:6:7:8:9]:514",
+    "refused" : "\"1:2:3:4:5:6:7:8:9\" is not an IPv6 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "[::]:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "::",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "host:+514",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "host:-1",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "host:00514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "host",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "host:000514",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "\u0001host:514\u0001",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "host",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_UDP",
+    "endpoint" : "  ",
+    "refused" : "The endpoint is required."
+  }, {
+    "protocol" : "SYSLOG_UDP",
+    "endpoint" : null,
+    "refused" : "The endpoint is required."
+  } ],
+  "protocols" : [ {
+    "value" : null,
+    "protocol" : null,
+    "carriesHeaders" : null
+  }, {
+    "value" : "",
+    "protocol" : null,
+    "carriesHeaders" : null
+  }, {
+    "value" : "WEBHOOK",
+    "protocol" : "WEBHOOK",
+    "carriesHeaders" : true
+  }, {
+    "value" : "webhook",
+    "protocol" : "WEBHOOK",
+    "carriesHeaders" : true
+  }, {
+    "value" : " syslog_tls ",
+    "protocol" : "SYSLOG_TLS",
+    "carriesHeaders" : false
+  }, {
+    "value" : "Syslog_Udp",
+    "protocol" : "SYSLOG_UDP",
+    "carriesHeaders" : false
+  }, {
+    "value" : "ſyslog_udp",
+    "protocol" : "SYSLOG_UDP",
+    "carriesHeaders" : false
+  }, {
+    "value" : "syslog",
+    "protocol" : null,
+    "carriesHeaders" : null
+  }, {
+    "value" : "SYSLOG-TCP",
+    "protocol" : null,
+    "carriesHeaders" : null
+  }, {
+    "value" : " SYSLOG_TCP",
+    "protocol" : null,
+    "carriesHeaders" : null
+  }, {
+    "value" : "\u0001SYSLOG_TCP",
+    "protocol" : "SYSLOG_TCP",
+    "carriesHeaders" : false
+  } ],
+  "minimums" : [ {
+    "value" : null,
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "",
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "   ",
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "CRITICAL",
+    "floor" : 9,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "AUDIT_CHAIN_BROKEN", "PING_TEST" ]
+  }, {
+    "value" : "critical",
+    "floor" : 9,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "AUDIT_CHAIN_BROKEN", "PING_TEST" ]
+  }, {
+    "value" : "HIGH",
+    "floor" : 7,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "AGENT_RESULT_REFUSED", "AUDIT_CHAIN_BROKEN", "AGENT_SEALING_KEY_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "INTEGRATION_TOKEN_STOPPED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH" ]
+  }, {
+    "value" : "high",
+    "floor" : 7,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "AGENT_RESULT_REFUSED", "AUDIT_CHAIN_BROKEN", "AGENT_SEALING_KEY_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "INTEGRATION_TOKEN_STOPPED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH" ]
+  }, {
+    "value" : " Medium\t",
+    "floor" : 4,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM" ]
+  }, {
+    "value" : "LOW",
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "NEGLIGIBLE",
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "UNKNOWN",
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "SEVERE",
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "crıtıcal",
+    "floor" : 9,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "AUDIT_CHAIN_BROKEN", "PING_TEST" ]
+  }, {
+    "value" : " HIGH",
+    "floor" : null,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "TRIAGE_SETTLED", "MFA_BACKUP_CODE_USED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "ACCOUNT_CHANGED", "ACCESS_GRANT_CHANGED", "API_KEY_ISSUED", "API_KEY_REVOKED", "AGENT_CHANGED", "AGENT_RESULT_REFUSED", "TRIAGE_APPROVED", "TRIAGE_REFUSED", "AUDIT_CHAIN_BROKEN", "SECURITY_SETTING_CHANGED", "AGENT_SEALING_KEY_REFUSED", "PLUGIN_CHANGED", "SARIF_SOURCE_CHANGED", "SARIF_IMPORT_REFUSED", "CHECKLIST_TEMPLATE_CHANGED", "CHECKLIST_SIGNED_OFF", "CHECKLIST_SIGN_OFF_REFUSED", "REPORT_IMPORT_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "SLA_BREACHED", "REPORT_PLUGIN_CHANGED", "PROJECT_EXPORTED", "REPORT_PLUGIN_REFUSED", "FORGE_CONNECTION_CHANGED", "FORGE_IMPORT_APPLIED", "FORGE_CONNECTION_REFUSED", "TRACKER_CONTRADICTS_TRIAGE", "INTEGRATION_TOKEN_EXPIRING", "INTEGRATION_TOKEN_STOPPED", "INTEGRATION_TOKEN_RESTORED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH", "SLA_BREACHED/MEDIUM", "SLA_BREACHED/LOW", "SLA_BREACHED/NEGLIGIBLE", "SLA_BREACHED/UNKNOWN" ]
+  }, {
+    "value" : "\u0001HIGH",
+    "floor" : 7,
+    "admits" : [ "CRITICAL_KEV_DETECTED", "SECURITY_GATE_FAILED", "SIGN_IN_THROTTLED", "MFA_FAILURE_CEILING", "BEARER_TOKEN_THROTTLED", "AGENT_RESULT_REFUSED", "AUDIT_CHAIN_BROKEN", "AGENT_SEALING_KEY_REFUSED", "SIEM_EXPORT_STOPPED", "SECRET_LEAK_DETECTED", "INTEGRATION_TOKEN_STOPPED", "PING_TEST", "SLA_BREACHED/CRITICAL", "SLA_BREACHED/HIGH" ]
+  } ],
+  "triage" : [ {
+    "event" : "TRIAGE_SETTLED"
+  }, {
+    "event" : "TRIAGE_SETTLED"
+  }, {
+    "event" : "TRIAGE_SETTLED"
+  }, {
+    "event" : "TRIAGE_APPROVED"
+  }, {
+    "event" : "TRIAGE_APPROVED"
+  }, {
+    "event" : "TRIAGE_REFUSED"
+  }, {
+    "event" : "TRIAGE_REFUSED"
+  }, {
+    "event" : null
+  }, {
+    "event" : null
+  }, {
+    "event" : null
+  }, {
+    "event" : null
+  }, {
+    "event" : null
+  }, {
+    "event" : "TRIAGE_APPROVED"
+  }, {
+    "event" : "TRIAGE_SETTLED"
+  }, {
+    "event" : null
+  }, {
+    "event" : null
+  }, {
+    "event" : "TRIAGE_REFUSED"
+  } ]
+}

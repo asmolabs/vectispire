@@ -7,49 +7,8 @@ use vectispire_domain::bounded_text;
 use crate::error::IssueError;
 use crate::persistence::{IssueRepository, IssueRow, NewTriageEvent};
 
-/// Where an issue stands with humans.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TriageStatus {
-    UnderReview,
-    Affected,
-    PendingApproval,
-    NotAffected,
-    WillNotFix,
-    Fixed,
-}
-
-impl TriageStatus {
-    pub fn is_settled(&self) -> bool {
-        matches!(self, TriageStatus::NotAffected | TriageStatus::WillNotFix | TriageStatus::Fixed)
-    }
-
-    pub fn wire_name(&self) -> &'static str {
-        match self {
-            TriageStatus::UnderReview => "under_review",
-            TriageStatus::Affected => "affected",
-            TriageStatus::PendingApproval => "pending_approval",
-            TriageStatus::NotAffected => "not_affected",
-            TriageStatus::WillNotFix => "will_not_fix",
-            TriageStatus::Fixed => "fixed",
-        }
-    }
-
-    pub fn from_wire_name(value: &str) -> Option<Self> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "under_review" => Some(TriageStatus::UnderReview),
-            "affected" => Some(TriageStatus::Affected),
-            "pending_approval" => Some(TriageStatus::PendingApproval),
-            "not_affected" => Some(TriageStatus::NotAffected),
-            "will_not_fix" => Some(TriageStatus::WillNotFix),
-            "fixed" => Some(TriageStatus::Fixed),
-            _ => None,
-        }
-    }
-
-    pub fn settled_wire_names() -> &'static [&'static str] {
-        &["not_affected", "will_not_fix", "fixed"]
-    }
-}
+/// Where an issue stands with humans — the domain crate's, which the SIEM's triage signals read too.
+pub use vectispire_domain::triage_status::TriageStatus;
 
 /// The justifications a `not_affected` statement may carry (OpenVEX / CSAF).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

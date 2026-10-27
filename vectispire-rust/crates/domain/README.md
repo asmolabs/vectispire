@@ -34,6 +34,25 @@ display_name, is_masked_form_of}`, `repository_identity`, `image_reference`, `as
 (`TargetRulesReferenceSetTest`, written before the port). `java_uri::Parsed` gained `raw_path`, which `identity`
 reads as `URI.getRawPath`. `schedules` holds only what the listings need; the scheduler's `isDue` is task 2.7's.
 
+## The SIEM's domain (task 4.2, first stage)
+
+`siem` is `common.domain.siem`: the event catalogue (`SecurityEventType`, wire names, signature ids, CEF
+severities and outcomes), `signalled_by` and the placement of every audit operation, `CefEvent` and its builder,
+the RFC 5424 frame and octet counting (`syslog`), the endpoint an operator types (`endpoint`), the protocol, the
+severity minimum and the triage signals. It sits here, not in the export's crate, so that the modules raising an
+event (issues, gate, the threat feed) build one without depending on the export — as the Java types sit in
+`vectispire-common`. `TriageStatus` moved here from `cp-issues` with it (re-exported there), so that the gate and
+the SOC's signals ask one `is_settled`.
+
+Everything that leaves the system — the CEF line, the syslog header, the wire names, the refusals — is held to
+`reference/siem/` (`SiemReferenceSetTest`). `cp-audit`'s `tests/siem_vocabulary.rs` holds the operations and the
+placements to each other in both directions (Java's switch has no default; here the two lists live in different
+crates), and every `Signal` written with a literal name in the workspace to a `SecurityEventType`.
+
+Ported, but shaped for Rust: an issue's severity given to a type whose severity is fixed is refused by `build()`,
+where Java throws at the call — either way no event exists. `SecurityEventRaised` and `SecurityEventRaisedApart`
+are Spring events and are not here: the export's crate replaces them with a trait.
+
 ## Differences from Java, known
 
 Decided 2026-10-17 by the 2.4 port; each is outside what any stored value or wire message can reach today.
@@ -52,3 +71,10 @@ Decided 2026-10-17 by the 2.4 port; each is outside what any stored value or wir
 - **`as_text` of an integer beyond `u64`**: `serde_json` reads it as a double, Jackson as a `BigInteger`;
   only an SBOM id or parent of that size would notice.
 - **`cron`, past year 999,999,999**: the search stops (`None`) where Java throws a `DateTimeException`.
+- **A syslog endpoint's IPv6 literal** is read by the standard library, plus the two JDK answers that matter: an
+  IPv4-mapped address is not IPv6, a numeric scope is accepted. An interface-name scope (`%eth0`), which the JDK
+  accepts only on a machine that has the interface, is refused everywhere; a group of more than four digits whose
+  value fits (`01234::1`), which the JDK reads, is refused. Both refuse a spelling Java accepts — the safe side.
+- **`TriageStatus::from_wire_name`** now trims and lowers as Java does (`String.trim`, `toLowerCase(ROOT)`);
+  `cp-issues`' copy used `str::trim` and ASCII lowering, which disagreed on a leading control character and a
+  trailing no-break space.

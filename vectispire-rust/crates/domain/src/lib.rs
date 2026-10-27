@@ -32,8 +32,10 @@ pub mod scan_target;
 pub mod schedules;
 pub mod secret;
 pub mod severity;
+pub mod siem;
 pub mod sub_path;
 pub mod tool_keys;
+pub mod triage_status;
 pub mod wire;
 
 pub use failure::FailureKind;

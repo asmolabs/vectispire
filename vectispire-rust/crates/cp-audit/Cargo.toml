@@ -30,6 +30,7 @@ vectispire-cp-db = { path = "../cp-db" }
 vectispire-domain.workspace = true
 
 [dev-dependencies]
+regex.workspace = true
 serde_json.workspace = true
 time = { version = "0.3", features = ["std", "parsing", "formatting"] }
 tokio = { workspace = true, features = ["test-util"] }
