@@ -125,7 +125,7 @@ impl Audit for ChainEntries {
     }
 }
 
-/// The three modules as the binary composes them, behind the real chain: a fresh set per test. Ingestion is the
+/// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
 /// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
 fn router(db: &Db) -> axum::Router {
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
@@ -157,7 +157,7 @@ fn router(db: &Db) -> axum::Router {
         runner: None,
         scanned: Vec::new(),
     }));
-    let extra = if measuring() { measured(db, targets.clone(), audit.clone()) } else { Vec::new() };
+    let modules = phase_three(db, targets.clone(), audit.clone());
     let credentials = Arc::new(CredentialService::new(
         db.clone(),
         Arc::new(AccessClock),
@@ -198,7 +198,7 @@ fn router(db: &Db) -> axum::Router {
         .into_iter()
         .chain(vectispire_cp_scanning::routes(scanning))
         .chain(vectispire_cp_agents::routes(agents))
-        .chain(extra)
+        .chain(modules)
     {
         routes = routes.route(entry);
     }
@@ -207,13 +207,34 @@ fn router(db: &Db) -> axum::Router {
     routes.build(&chain, None).unwrap()
 }
 
-/// MEASUREMENT ONLY (2026-10-26, rebuilt 2026-10-27; a local branch, never pushed): the issues, gate and inventory
-/// modules served beside the three this test owes, to replay their recordings while their ports are measured.
-fn measuring() -> bool {
-    std::env::var("VECTISPIRE_GOLDEN_MEASURE").is_ok()
-}
+/// The routes of the issues, gate and inventory modules (Phase 3) this test owes a replay: those whose every recording
+/// replays green on both engines (2026-10-27). The modules are composed whole — a request of an owed test to another of
+/// their routes is answered by Java's recorded effect, as for any route not served — and each route leaves
+/// `golden/deferred.txt` as it joins this list, which only grows. What keeps the others there is in the list.
+const PHASE_THREE_REPLAYED: [(&str, &str); 19] = [
+    ("DELETE", "/api/v1/attack-surface"),
+    ("DELETE", "/api/v1/gate/policies/{kind}/{id}"),
+    ("DELETE", "/api/v1/repositories/{id}/apis"),
+    ("GET", "/api/v1/attack-surface"),
+    ("GET", "/api/v1/blast-radius/top-impact"),
+    ("GET", "/api/v1/gate/policies"),
+    ("GET", "/api/v1/gate/verdicts"),
+    ("GET", "/api/v1/inventory/versions"),
+    ("GET", "/api/v1/licenses/matrix"),
+    ("GET", "/api/v1/licenses/policy"),
+    ("GET", "/api/v1/licenses/summary"),
+    ("GET", "/api/v1/projects/{id}/components"),
+    ("GET", "/api/v1/repositories/{id}/apis"),
+    ("GET", "/api/v1/sbom/diff"),
+    ("GET", "/api/v1/sbom/diff/latest"),
+    ("GET", "/api/v1/security/overview"),
+    ("PUT", "/api/v1/gate/policies/global"),
+    ("PUT", "/api/v1/gate/policies/{kind}/{id}"),
+    ("PUT", "/api/v1/licenses/policy"),
+];
 
-fn measured(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+/// The issues, gate and inventory modules as the binary composes them, on the scan catalog and the targets above.
+fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vectispire_cp_http::routes::RouteEntry> {
     let scans = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)));
     let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
         db: db.clone(),
@@ -249,13 +270,23 @@ fn measured(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vectisp
     routes
 }
 
-fn measured_routes() -> BTreeSet<(String, String)> {
+/// The owed routes, each checked to be one the three modules route: a name in the list that no module serves would be
+/// a recording owed by nothing.
+fn phase_three_replayed() -> BTreeSet<(String, String)> {
     let db = support::unreachable();
     let composed = support::compose(&db, support::system_clock());
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
-    measured(&db, composed.targets, audit)
+    let routed: BTreeSet<(String, String)> = phase_three(&db, composed.targets, audit)
         .into_iter()
         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
+        .collect();
+    PHASE_THREE_REPLAYED
+        .iter()
+        .map(|(method, path)| {
+            let route = ((*method).to_owned(), (*path).to_owned());
+            assert!(routed.contains(&route), "{method} {path} is listed and no module routes it");
+            route
+        })
         .collect()
 }
 
@@ -267,7 +298,7 @@ fn served() -> BTreeSet<(String, String)> {
         .chain(vectispire_cp_scanning::routes(composed.scanning))
         .chain(vectispire_cp_agents::routes(composed.agents))
         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
-        .chain(if measuring() { measured_routes() } else { BTreeSet::new() })
+        .chain(phase_three_replayed())
         .collect()
 }
 
@@ -314,22 +345,17 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
         Some("postgresql") => vec![Engine::PostgreSql],
         _ => vec![Engine::MySql, Engine::PostgreSql],
     };
-    let narrowed = only.is_some() || engines.len() < 2 || measuring();
+    let narrowed = only.is_some() || engines.len() < 2;
 
     let recording = Recording::open(&dir).unwrap();
     let document = Document::embedded();
     let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
     let served = served();
-    let measured = if measuring() { measured_routes() } else { BTreeSet::new() };
-    assert_eq!(served.len(), 49 + measured.len(), "the modules' routes");
+    assert_eq!(served.len(), 49 + PHASE_THREE_REPLAYED.len(), "the three modules' routes and Phase 3's replayed ones");
     let deferred = Deferred::embedded();
     let all = listed(&recording, &document, &served).unwrap();
-    let owing: BTreeSet<&str> = all
-        .iter()
-        .filter(|listed| listed.served)
-        .filter(|listed| !measuring() || listed.route.as_ref().is_some_and(|route| measured.contains(route)))
-        .filter_map(|listed| listed.name.split('/').next())
-        .collect();
+    let owing: BTreeSet<&str> =
+        all.iter().filter(|listed| listed.served).filter_map(|listed| listed.name.split('/').next()).collect();
     let tests: Vec<_> = recording
         .tests
         .iter()
@@ -372,24 +398,6 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
     for replayed in outcomes.iter().filter(|replayed| replayed.served && replayed.outcome != Outcome::Green) {
         let listed = deferred.goldens.get(&replayed.name).map_or("", |_| " [listed]");
         println!("{}{listed}: {}", replayed.name, describe(&replayed.outcome));
-    }
-    if let Ok(out) = std::env::var("VECTISPIRE_GOLDEN_OUT") {
-        let lines: Vec<String> = outcomes
-            .iter()
-            .filter(|replayed| replayed.served)
-            .filter(|replayed| replayed.route.as_ref().is_some_and(|route| measured.contains(route)))
-            .map(|replayed| {
-                let route = replayed.route.as_ref().map(|(m, p)| format!("{m} {p}")).unwrap_or_default();
-                let (kind, detail) = match &replayed.outcome {
-                    Outcome::Green => ("green", String::new()),
-                    Outcome::Differs(lines) => ("differs", lines.join(" ¶ ")),
-                    Outcome::Unreplayable(reason) => ("unreplayable", reason.clone()),
-                    other => ("other", format!("{other:?}")),
-                };
-                format!("{}\t{route}\t{kind}\t{}", replayed.name, detail.replace(['\t', '\n'], " "))
-            })
-            .collect();
-        std::fs::write(out, lines.join("\n") + "\n").unwrap();
     }
     if narrowed {
         panic!("a narrowed replay (VECTISPIRE_GOLDEN_ONLY or _ENGINES) checks nothing it left out: run it whole");

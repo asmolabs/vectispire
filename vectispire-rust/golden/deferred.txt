@@ -10,15 +10,12 @@
 
 # ── Routes not ported: the module, and the phase and task that ports it ──
 route DELETE /api/v1/api-keys/{id} | access — Phase 1, task 1.7
-route DELETE /api/v1/attack-surface | inventory — Phase 3
 route DELETE /api/v1/auth/session | access — Phase 1, task 1.7
 route DELETE /api/v1/forge-connections/{id} | forges — Phase 4
-route DELETE /api/v1/gate/policies/{kind}/{id} | gate — Phase 3
 route DELETE /api/v1/plugins/{id}/unsigned-waiver | plugins — Phase 4
 route DELETE /api/v1/projects/{projectId}/checklists/contacts/{profile} | checklists — Phase 5
 route DELETE /api/v1/projects/{projectId}/plugins/{pluginId} | plugins — Phase 4
 route DELETE /api/v1/projects/{projectId}/report-plugins/{pluginId} | reportplugins — Phase 5
-route DELETE /api/v1/repositories/{id}/apis | inventory — Phase 3
 route DELETE /api/v1/sarif-sources/{id} | plugins — Phase 4
 route DELETE /api/v1/scorecards/repositories/{repoId}/badge | posture — Phase 5
 route DELETE /api/v1/teams/{id} | access — Phase 1, task 1.7
@@ -30,7 +27,6 @@ route GET /api/v1/api-keys | access — Phase 1, task 1.7
 route GET /api/v1/api-keys/targets | access — Phase 1, task 1.7
 route GET /api/v1/attack-paths/overview | posture — Phase 5
 route GET /api/v1/attack-paths/repositories/{repoId} | posture — Phase 5
-route GET /api/v1/attack-surface | inventory — Phase 3
 route GET /api/v1/attestations/scans/{scanId} | exports — Phase 5
 route GET /api/v1/audit-log | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
 route GET /api/v1/audit-log/operation-types | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
@@ -38,7 +34,6 @@ route GET /api/v1/audit-log/verify | platform (settings, audit log, crypto) — 
 route GET /api/v1/auth/me | access — Phase 1, task 1.7
 route GET /api/v1/auth/methods | access — Phase 1, task 1.7
 route GET /api/v1/blast-radius/explore | inventory — Phase 3
-route GET /api/v1/blast-radius/top-impact | inventory — Phase 3
 route GET /api/v1/checklist-templates | checklists — Phase 5
 route GET /api/v1/checklist-templates/{slug} | checklists — Phase 5
 route GET /api/v1/checklist-templates/{slug}/versions/{ordinal} | checklists — Phase 5
@@ -71,22 +66,16 @@ route GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId} | f
 route GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/repositories | forges — Phase 4
 route GET /api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection | forges — Phase 4
 route GET /api/v1/forge-connections/{id} | forges — Phase 4
-route GET /api/v1/gate/policies | gate — Phase 3
-route GET /api/v1/gate/verdicts | gate — Phase 3
 route GET /api/v1/history/repositories | issues — Phase 3
 route GET /api/v1/history/repositories/{id} | issues — Phase 3
 route GET /api/v1/history/repositories/{id}/export.csv | issues — Phase 3
 route GET /api/v1/history/repositories/{id}/export.pdf | issues — Phase 3
 route GET /api/v1/inventory/search | inventory — Phase 3
-route GET /api/v1/inventory/versions | inventory — Phase 3
 route GET /api/v1/issues | issues — Phase 3
 route GET /api/v1/issues/{id} | issues — Phase 3
 route GET /api/v1/issues/{issueId}/tickets | tickets — Phase 4
 route GET /api/v1/licenses/conflicts | inventory — Phase 3
 route GET /api/v1/licenses/inventory | inventory — Phase 3
-route GET /api/v1/licenses/matrix | inventory — Phase 3
-route GET /api/v1/licenses/policy | inventory — Phase 3
-route GET /api/v1/licenses/summary | inventory — Phase 3
 route GET /api/v1/notifications/channels | notifications — Phase 4
 route GET /api/v1/owasp/coverage | compliance — Phase 5
 route GET /api/v1/owasp/coverage/weekly | compliance — Phase 5
@@ -94,7 +83,6 @@ route GET /api/v1/plugins | plugins — Phase 4
 route GET /api/v1/plugins/{id} | plugins — Phase 4
 route GET /api/v1/plugins/{id}/projects | plugins — Phase 4
 route GET /api/v1/projects/{id}/compliance | compliance — Phase 5
-route GET /api/v1/projects/{id}/components | inventory — Phase 3
 route GET /api/v1/projects/{projectId}/checklists | checklists — Phase 5
 route GET /api/v1/projects/{projectId}/checklists/contacts | checklists — Phase 5
 route GET /api/v1/projects/{projectId}/checklists/contacts/candidates | checklists — Phase 5
@@ -119,7 +107,6 @@ route GET /api/v1/remediation/high-impact-fixes | posture — Phase 5
 route GET /api/v1/report-documents/{sha256} | reportplugins — Phase 5
 route GET /api/v1/report-plugins | reportplugins — Phase 5
 route GET /api/v1/report-plugins/{id} | reportplugins — Phase 5
-route GET /api/v1/repositories/{id}/apis | inventory — Phase 3
 route GET /api/v1/repositories/{id}/apis/export/openapi | inventory — Phase 3
 route GET /api/v1/repositories/{id}/owasp-review | compliance — Phase 5
 route GET /api/v1/repositories/{id}/owasp-review/export.pdf | compliance — Phase 5
@@ -133,8 +120,6 @@ route GET /api/v1/rule-sets/coverage | rules — Phase 3
 route GET /api/v1/rule-sets/deactivate/impact | rules — Phase 3
 route GET /api/v1/rule-sets/{id}/impact | rules — Phase 3
 route GET /api/v1/sarif-sources | plugins — Phase 4
-route GET /api/v1/sbom/diff | inventory — Phase 3
-route GET /api/v1/sbom/diff/latest | inventory — Phase 3
 route GET /api/v1/schemas/project-export/{major} | reportplugins — Phase 5
 route GET /api/v1/scorecards/badges/{token}.svg | posture — Phase 5
 route GET /api/v1/scorecards/containers/{containerId} | posture — Phase 5
@@ -142,7 +127,6 @@ route GET /api/v1/scorecards/global | posture — Phase 5
 route GET /api/v1/scorecards/repositories/{repoId} | posture — Phase 5
 route GET /api/v1/scorecards/repositories/{repoId}/badge | posture — Phase 5
 route GET /api/v1/scorecards/simulation | posture — Phase 5
-route GET /api/v1/security/overview | gate — Phase 3
 route GET /api/v1/settings | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
 route GET /api/v1/settings/ai-openai-key | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
 route GET /api/v1/settings/ticket-ca | platform (settings, audit log, crypto) — the follow-ups of 1.7, Phase 1
@@ -242,10 +226,7 @@ route PUT /api/v1/compliance/scope/containers/{id} | compliance — Phase 5
 route PUT /api/v1/compliance/scope/repositories/{id} | compliance — Phase 5
 route PUT /api/v1/compliance/soa/{framework}/{controlId} | compliance — Phase 5
 route PUT /api/v1/forge-connections/{id}/token | forges — Phase 4
-route PUT /api/v1/gate/policies/global | gate — Phase 3
-route PUT /api/v1/gate/policies/{kind}/{id} | gate — Phase 3
 route PUT /api/v1/issues/{id}/ticket | issues — Phase 3
-route PUT /api/v1/licenses/policy | inventory — Phase 3
 route PUT /api/v1/plugins/{id} | plugins — Phase 4
 route PUT /api/v1/plugins/{id}/enabled | plugins — Phase 4
 route PUT /api/v1/plugins/{id}/unsigned-waiver | plugins — Phase 4
