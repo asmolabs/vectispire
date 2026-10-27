@@ -263,6 +263,11 @@ impl Replayer<'_> {
             out.push(format!("status {}, recorded {}", answer.status, recorded.status));
         }
         compare_headers(&recorded.headers, &answer.headers, bindings, out);
+        if let Some(length) = answer.header("content-length")
+            && length.parse::<usize>().ok() != Some(answer.body.len())
+        {
+            out.push(format!("header content-length: {length:?} for a body of {} bytes", answer.body.len()));
+        }
         let content_type = answer.header("content-type");
         let parsed = parse_body(content_type, &answer.body);
         match (&recorded.body, &parsed) {
@@ -543,13 +548,19 @@ async fn send(router: &Router, request: Outgoing) -> Result<Answer, String> {
 
 /// Every recorded header must be sent, with the recorded value (a template); a header the recording does not have is
 /// a difference unless it is one of the transport's.
+///
+/// A recorded `Content-Length` is not one of them. It counts the bytes Java sent, the values the recorder hid
+/// included: a CSV whose three instants were whole seconds there and carry microseconds here differs by 21 bytes with
+/// every cell matching its template. The body is compared to the recording on its own; what the header still owes is
+/// to count the bytes this server sent, which `Replayer` checks against the body.
 pub fn compare_headers(
     recorded: &[(String, String)],
     actual: &[(String, String)],
     bindings: &mut Bindings<'_>,
     out: &mut Vec<String>,
 ) {
-    let mut names: Vec<String> = recorded.iter().map(|(name, _)| name.to_ascii_lowercase()).collect();
+    let mut names: Vec<String> =
+        recorded.iter().map(|(name, _)| name.to_ascii_lowercase()).filter(|name| name != "content-length").collect();
     names.dedup();
     for name in &names {
         let wanted: Vec<&String> =

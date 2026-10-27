@@ -378,6 +378,9 @@ fn headers_are_the_recorded_ones() {
         1,
         "a header Java did not send"
     );
+    // Java's length counts the values the recorder hid, which the replay chooses: it is not held to it.
+    let csv = [("Content-Type", "text/csv"), ("Content-Length", "770")];
+    assert!(check(&csv, &[("content-type", "text/csv"), ("content-length", "791")]).is_empty());
 }
 
 #[test]
