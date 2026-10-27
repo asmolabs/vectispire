@@ -241,7 +241,7 @@ pub struct EndpointView {
     pub tags: Option<String>,
     #[serde(rename = "shadowStatus")]
     pub shadow_status: String,
-    #[serde(rename = "createdAt", with = "time::serde::iso8601")]
+    #[serde(rename = "createdAt", with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
 
@@ -259,7 +259,7 @@ pub struct ApiContractView {
     pub version: Option<String>,
     #[serde(rename = "endpointsCount")]
     pub endpoints_count: i32,
-    #[serde(rename = "createdAt", with = "time::serde::iso8601")]
+    #[serde(rename = "createdAt", with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
 

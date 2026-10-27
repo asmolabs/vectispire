@@ -38,6 +38,24 @@ fn an_instant_with_the_default_format_fails() {
     }
 }
 
+/// `time::serde::iso8601` names a format, and the wrong one: `+002026-10-27T…`, which Java never writes.
+#[test]
+fn an_instant_with_the_extended_year_fails() {
+    for module in ["time::serde::iso8601", "time::serde::iso8601::option"] {
+        let fixture = Fixture::clean();
+        fixture.append(
+            "vectispire-cp-issues",
+            "src/lib.rs",
+            &format!("#[derive(Serialize)]\npub struct Entry {{ #[serde(rename = \"at\", with = \"{module}\")] pub at: OffsetDateTime }}\n"),
+        );
+        let found = violations(&fixture);
+        assert!(
+            found.iter().any(|violation| violation.contains("`Entry.at` is serialised with `time::serde::iso8601`")),
+            "{module}\n{found:#?}"
+        );
+    }
+}
+
 #[test]
 fn an_instant_with_a_named_format_passes() {
     let named = [

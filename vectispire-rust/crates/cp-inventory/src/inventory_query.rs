@@ -31,7 +31,7 @@ pub struct Occurrence {
     pub project_version: Option<String>,
     #[serde(rename = "scanId")]
     pub scan_id: i64,
-    #[serde(rename = "scannedAt", with = "time::serde::iso8601::option")]
+    #[serde(rename = "scannedAt", with = "time::serde::rfc3339::option")]
     pub scanned_at: Option<OffsetDateTime>,
     pub source: String,
     #[serde(rename = "scannerVersion")]

@@ -237,7 +237,7 @@ pub struct BuildSbomView {
     pub branch: Option<String>,
     #[serde(rename = "documentSha256")]
     pub document_sha256: String,
-    #[serde(rename = "importedAt", with = "time::serde::iso8601")]
+    #[serde(rename = "importedAt", with = "time::serde::rfc3339")]
     pub imported_at: OffsetDateTime,
     #[serde(rename = "importedBy")]
     pub imported_by: String,

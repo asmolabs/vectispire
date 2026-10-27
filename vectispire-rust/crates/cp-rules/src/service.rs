@@ -29,7 +29,7 @@ pub struct RuleSetView {
     #[serde(rename = "isActive")]
     pub is_active: Option<bool>,
     pub uploaded_by: Option<String>,
-    #[serde(with = "time::serde::iso8601")]
+    #[serde(with = "time::serde::rfc3339")]
     pub uploaded_at: OffsetDateTime,
     pub activation_note: Option<String>,
 }
@@ -64,7 +64,7 @@ pub struct RuleSetSummary {
     #[serde(rename = "isActive")]
     pub active: Option<bool>,
     pub uploaded_by: Option<String>,
-    #[serde(with = "time::serde::iso8601")]
+    #[serde(with = "time::serde::rfc3339")]
     pub uploaded_at: OffsetDateTime,
     pub activation_note: Option<String>,
 }
