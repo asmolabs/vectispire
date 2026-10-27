@@ -77,6 +77,9 @@ cleanup() {
   if [ -z "${KEEP:-}" ]; then
     docker rm -f "$NAME" "$AGENTS_NODE" > /dev/null 2>&1 || true
     docker network rm "$NAME" > /dev/null 2>&1 || true
+    # The matcher's database is written as uid 1000, the agent's, which the runner's user cannot delete on Linux:
+    # removed by a container first, the rest by the runner.
+    docker run --rm --network none -v "$work:/w" "$BASE_IMAGE" rm -rf /w/db > /dev/null 2>&1 || true
     rm -rf "$work"
   else
     echo "── kept: docker exec -it $NAME kubectl get pods -A ; work files in $work"
@@ -136,7 +139,9 @@ printf 'subjectAltName=DNS:%s\nextendedKeyUsage=serverAuth\n' "$HOST" > "$work/t
 openssl x509 -req -in "$work/tls.csr" -CA "$work/ca.crt" -CAkey "$work/ca.key" -CAcreateserial -days 2 \
   -extfile "$work/tls.ext" -out "$work/tls.crt" 2> /dev/null
 truststore_password="$(openssl rand -hex 12)"
-docker run --rm --network none -v "$work:/w" "$JDK_IMAGE" keytool -importcert -noprompt -alias check-ca \
+# As the runner's user: run as the image's root, keytool left a file the runner could not chmod on Linux, where a
+# container's files keep their owner (Docker Desktop hands them back, which is why the run passed on a laptop).
+docker run --rm --network none -u "$(id -u):$(id -g)" -v "$work:/w" "$JDK_IMAGE" keytool -importcert -noprompt -alias check-ca \
   -file /w/ca.crt -keystore /w/truststore.p12 -storetype PKCS12 -storepass "$truststore_password" > /dev/null 2>&1
 chmod 644 "$work"/*.crt "$work"/*.key "$work/truststore.p12"
 
