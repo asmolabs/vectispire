@@ -1,11 +1,107 @@
 # Notes de version
 
-## 0.11.1 — en préparation
+## 0.11.2 — 27 octobre 2026
 
-À la suite de la 0.11.0 ; pas encore publiée. Ce qui suit est ce que contiendra la 0.11.1, par rapport à la 0.11.0.
+La 0.11.2 exécute les scans sur un cluster Kubernetes sans Docker. Avec `agents.executor: kubernetes`,
+l'agent du cluster exécute chaque scanner dans un pod à lui, dans un espace de noms sous Pod Security
+`restricted` ([décision 0045](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md)).
+C'est un **aperçu** : il ne scanne pas encore les cibles image. Rien ne change pour une installation qui garde
+Docker. Ce qui suit est par rapport à la 0.11.1.
+
+### Avant la mise à jour {#avant-la-mise-a-jour-0112}
+
+- **Aucune migration, aucun changement d'API.** Revenir à la 0.11.1 est une affaire d'images.
+- **La chart monte les identifiants de l'agent du cluster sous `/etc/vectispire/secrets`**, et non plus
+  `/run/secrets`, dans les deux formes. Rien à faire avec la chart. Un déploiement écrit à la main d'après
+  l'agent de la chart demande le même changement avant d'utiliser l'exécuteur Kubernetes : un volume en
+  lecture seule à `/run/secrets` ne laisse au kubelet aucune place pour monter le jeton du compte de service,
+  et l'agent ne démarre jamais.
+- **Avec `agents.executor: kubernetes`** :
+  - `agents.kubernetes.apiServer.cidrs` est requis tant que la politique réseau est active. Listez les
+    adresses du Service `kubernetes` (`kubectl get endpoints kubernetes -n default`).
+  - L'espace de noms des scans est `<release>-scans` par défaut. En utiliser un que la chart n'a pas créé
+    demande `agents.kubernetes.acknowledgeExistingNamespace`.
+  - **L'agent refuse de démarrer** si l'espace de noms des scans ne refuse pas un pod privilégié (Pod Security
+    `restricted`, vérifié par un essai à blanc), et si un pod de sonde, hors ligne ou en ligne, atteint le
+    serveur d'API. Un CNI qui ignore les NetworkPolicies fait échouer la seconde vérification.
+    `scripts/k8s-executor-spike.sh` mesure les deux sur votre cluster au préalable.
+  - La base de l'appariement est conservée sur une revendication de l'espace de noms des scans
+    (`agents.kubernetes.matcherCache`, 10Gi). La revendication est conservée quand la release est supprimée.
+  - **Kubernetes 1.30 ou plus**, et le droit de créer une `ValidatingAdmissionPolicy` à l'échelle du cluster :
+    la chart en rend une qui tient les pods de scan sur le pool des agents. La désactiver demande
+    `agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods`.
+
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-0112}
+
+- Aucun dans l'API REST, le protocole des agents ou les exports. Un agent qui utilise l'exécuteur Kubernetes
+  annonce `kubernetes` comme moteur de scan.
+
+### Nouveautés {#nouveautes-0112}
+
+- **L'exécuteur de scans Kubernetes (aperçu).** Chaque exécution d'un scanner est un pod : un busybox
+  statique reçoit l'espace de travail par `exec`, le scanner tourne dans la forme fermée, et un holder garde
+  le pod pour que sa sortie soit relue par `exec` :
+  - la forme fermée : aucune capacité, aucune élévation, racine en lecture seule, l'uid du propriétaire de
+    l'espace de travail, seccomp, limites égales aux demandes, aucun jeton de compte de service ;
+  - la sortie standard du scanner va dans un fichier, jamais par le journal que le kubelet fait tourner ;
+  - chaque pod est supprimé après son exécution, et l'agent retire au démarrage ce qu'un arrêt brutal a
+    laissé ;
+  - chaque issue côté Kubernetes est un échec nommé, jamais un résultat vide.
+
+  La chart rend l'espace de noms, le Role de l'agent (pods, `pods/exec`, `pods/log` dans cet espace de noms
+  seulement), une politique qui coupe tout trafic aux pods de scan, les règles de sortie des agents pour les
+  étapes qui ont besoin du réseau, et le cache de la base. Voir
+  [Des agents dans le cluster sans Docker](../getting-started/installation.md#agents-without-docker).
+- **`scripts/kubernetes-scan-check.sh`** installe cette forme dans k3s, avec un serveur et un nœud d'agents,
+  et y fait passer un scan de bout en bout : chaque scanner doit trouver ce qui lui était destiné. La CI de nuit
+  l'exécute.
+
+### Sécurité {#securite-0112}
+
+Une revue de l'exécuteur n'a rien trouvé de critique ni d'élevé. Ce qu'elle a trouvé est corrigé :
+
+- **L'espace de noms des scans est vérifié, pas supposé.** L'agent prouve à chaque démarrage, par un essai à
+  blanc d'un pod privilégié, root, montant l'hôte, que Pod Security l'y refuse. Cette vérification ne peut pas
+  être désactivée.
+- **Un espace de noms de scans par release par défaut.** La politique en ligne de chaque release ne choisit
+  que les pods de son propre agent : deux releases ne partagent jamais de politique ni la portée du Role.
+- **Les pods de scan n'atteignent jamais le serveur d'API**, quoi que couvre `excludeCidrs` ; seule la
+  politique de l'agent l'autorise.
+- **La sonde réseau a un témoin positif** : un `nc` absent ou cassé arrête le démarrage au lieu de se lire
+  comme « bloqué ».
+- **Ce qu'un scanner écrit revient en fichiers ordinaires dans son montage, et rien d'autre.** Un lien, un nom
+  hors du montage, un chemin traversant un lien, un nom contenant un saut de ligne ou une entrée creuse est
+  refusé, et le total est plafonné.
+- **Le volume de travail a une taille**, et une sortie illisible fait échouer l'étape au lieu de se lire
+  comme vide.
+- Le plan de contrôle est tenu hors des nœuds des pods de scan et de celui du pod de l'agent de l'exécuteur.
+- **Les pods de scan restent sur le pool des agents même si l'agent est compromis.** Une politique d'admission
+  refuse tout pod de l'espace de noms des scans sans le sélecteur de nœuds du pool, avec un `nodeName` ou avec un
+  jeton de compte de service.
+
+### Corrigé {#corrige-0112}
+
+- Les identifiants de l'agent du cluster, montés en lecture seule à `/run/secrets`, masquaient le point de
+  montage du jeton du compte de service : un agent qui avait besoin du jeton ne pouvait pas démarrer.
+
+## 0.11.1 — 25 octobre 2026
+
+La 0.11.1 lie les profils de contact d'une checklist à des comptes et leur rappelle chaque semaine leurs
+lignes ouvertes, pagine sur demande les listes de l'inventaire et de l'historique, dit dans le document
+OpenAPI quels champs de réponse le serveur envoie à `null`, et corrige les défauts de sécurité et de
+fonctionnement trouvés après la 0.11.0. Ce qui suit est par rapport à la 0.11.0.
 
 ### Avant la mise à jour {#avant-la-mise-a-jour-0111}
 
+- **Sauvegardez la base.** La migration V91 s'exécute au démarrage et n'a pas de retour arrière : revenir
+  à 0.11.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
+  ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
+- **Les rappels hebdomadaires des checklists restent coupés tant que personne ne les active**
+  (`checklist_reminders_enabled`, [paramètres](../administration/settings.fr.md#notifications)). Avant de les
+  activer, configurez le relais de messagerie, renseignez `VECTISPIRE_PUBLIC_URL` pour les liens, et donnez
+  une adresse e-mail à chaque compte lié à un profil : un compte qui se connecte par SSO n'en reçoit pas du
+  fournisseur d'identité — seuls l'écran Utilisateurs et SCIM en écrivent une — et les lignes de ses profils
+  vont alors aux CISO ([contacts et rappels hebdomadaires](../guide/security-checklists.fr.md#contacts-et-rappels-hebdomadaires)).
 - **Une valeur de configuration manifestement erronée arrête désormais le démarrage avec un message qui la
   nomme :** `VECTISPIRE_SCAN_MAX_CONCURRENT` inférieur à 1 (lu en silence comme 2 ; pour couper le worker,
   `VECTISPIRE_EMBEDDED_WORKER=false`), et une durée de session, de bail du leader ou de file inférieure à une
@@ -235,10 +331,14 @@
   ce que le serveur envoie depuis que le champ ne porte plus « latest-patch » ; la réponse elle-même ne
   change pas.
 
-## 0.11.0 — en préparation
+## 0.11.0 — 25 octobre 2026
 
-Les versions candidates `v0.11.0-rc.1`, `v0.11.0-rc.2` et `v0.11.0-rc.3` ont été étiquetées le 6, le 12 et le
-13 octobre 2026 ; la 0.11.0 elle-même n'est pas encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 0.10.0.
+La 0.11.0 note une cible sur ce qui est ouvert plutôt que sur son pire constat, analyse chaque cible chaque
+semaine, refuse à la barrière une cible que rien n'a examinée, découvre et importe les dépôts d'une forge,
+produit des rapports par des plugins signés, et s'installe sur Kubernetes avec une chart Helm. Trois versions
+candidates l'ont précédée — `v0.11.0-rc.1`, `rc.2` et `rc.3`, étiquetées le 6, le 12 et le 13 octobre 2026.
+Ce qui suit est par rapport à la 0.10.0 ; la 0.10.x n'est plus suivie
+([politique de sécurité](https://github.com/asmolabs/vectispire/blob/main/SECURITY.md#versions-suivies)).
 
 ### Avant la mise à jour
 
@@ -320,7 +420,8 @@ aussi, puis la seconde.
 Depuis `v0.11.0-rc.1`, en plus :
 
 - **Les migrations V84 à V90 s'exécutent** — V83 et V85 ne sont pas utilisées ; la sauvegarde ci-dessus
-  vaut. Depuis `v0.11.0-rc.2`, V89 et V90 s'exécutent.
+  vaut. Depuis `v0.11.0-rc.2`, V89 et V90 s'exécutent. Depuis `v0.11.0-rc.3`, aucune migration ne
+  s'exécute.
 - **Chart Helm avec des agents dans le cluster : complétez les valeurs, sinon `helm upgrade` refuse de la
   rendre.** Ajoutez `ports` à chaque entrée de `agents.networkPolicy.allowTo` — `[{port: 443}]` pour le
   contrôleur d'ingress ; donnez aux agents un sélecteur de nœud (ou une affinité de nœud obligatoire) et
@@ -331,6 +432,20 @@ Depuis `v0.11.0-rc.1`, en plus :
   avec la clé de la plateforme sur des octets écrits par un plugin (*Le fichier d'un plugin de rapport
   n'est plus signé brut*, plus bas). Et les documents de rapport produits avant cette version n'ont
   enregistré aucune cible : seul les lit qui voit tout.
+
+Depuis `v0.11.0-rc.3`, deux changements peuvent refuser ce que rc.3 acceptait :
+
+- **Un import depuis une forge refuse un dépôt dont l'URL de clonage n'est pas sur l'hôte de la
+  connexion.** Si les clones SSH de la forge passent par un autre hôte que son adresse web, importez en
+  HTTPS, sinon l'aperçu liste ces dépôts comme refusés (*Un import depuis une forge ne clone que depuis
+  l'hôte de sa connexion*, plus bas).
+- **Dans un pod, une destination qu'un administrateur règle se voit refuser les ports 6443 et 10250 sur
+  toute adresse.** Une forge, un webhook, un serveur d'IA ou un collecteur SIEM joint sur l'un d'eux ne
+  répond plus (*Kubernetes : dans un pod…*, plus bas).
+
+Et la composition nomme désormais MySQL et Keycloak par empreinte — les serveurs que désignaient `mysql:8` et
+`26.0`, tirés une fois ; lisez l'entrée avant de la démarrer sur un hôte qui gardait un `mysql:8` plus ancien
+(*La composition nomme son MySQL et son Keycloak par empreinte*, plus bas).
 
 ### Changements visibles d'une intégration
 
@@ -1076,6 +1191,14 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   arguments, que `ps` montre à tout utilisateur du conteneur et de l'hôte. Il le lit désormais dans un fichier
   d'options lisible par son seul propriétaire, écrit par une commande interne du shell et supprimé après
   chaque ping. Concerne `docker-compose.yml` ; la chart Helm ne fait tourner aucune base.
+- **La composition nomme son MySQL et son Keycloak par empreinte.** `mysql:8` et
+  `quay.io/keycloak/keycloak:26.0` étaient des étiquettes qu'un registre peut republier, et les données de la
+  base sont entre les mains de la première image ; ce sont désormais `mysql:8.4.11@sha256:…` et
+  `keycloak:26.0.8@sha256:…`, ce que les deux étiquettes désignaient le 15 octobre 2026, et
+  `docker compose up` les tire une fois. Un volume créé par un serveur 8.4 — ce que `mysql:8` désigne depuis
+  2024 — passe à 8.4.11 sans rien à faire. Un volume créé par un `mysql:8` plus ancien que l'hôte gardait
+  d'ailleurs, de 8.0 à 8.3, est mis à niveau sur place au premier démarrage et ne s'ouvre plus avec ce
+  serveur : sauvegardez-le d'abord. Le Keycloak d'évaluation ne garde rien d'un redémarrage à l'autre.
 - **Les identifiants de l'agent et le Keycloak d'évaluation ne sont plus à portée de `docker inspect` ni
   d'une valeur par défaut publiée.** Le profil `with-agent` de la composition passait `VECTISPIRE_AGENT_TOKEN`
   et `VECTISPIRE_AGENT_SIGNING_KEY` dans l'environnement, que tout client du démon — les deux proxys de socket

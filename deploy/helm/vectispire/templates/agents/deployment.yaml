@@ -4,6 +4,7 @@
 {{- $work := .Values.agents.workDir.path -}}
 {{- $socketDir := "/var/lib/vectispire/dind" -}}
 {{- $rootless := eq .Values.agents.dind.variant "rootless" -}}
+{{- $pods := eq .Values.agents.executor "kubernetes" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,9 +28,20 @@ spec:
     metadata:
       labels:
         {{- include "vectispire.agentSelector" . | nindent 8 }}
+        {{- if $pods }}
+        vectispire.dev/executor: kubernetes
+        {{- else }}
         vectispire.dev/dind: {{ .Values.agents.dind.variant }}
+        {{- end }}
     spec:
+      {{- if $pods }}
+      # The token of the Role in the scans' namespace (decision 0045): the one thing this pod reaches of the
+      # API. The scan pods it starts mount none.
+      serviceAccountName: {{ $fullname }}-agent
+      automountServiceAccountToken: true
+      {{- else }}
       automountServiceAccountToken: false
+      {{- end }}
       enableServiceLinks: false
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -74,14 +86,50 @@ spec:
           env:
             - name: VECTISPIRE_URL
               value: {{ .Values.agents.controlPlaneUrl | quote }}
+            {{- if $pods }}
+            # A pod per scanner run, in the scans' namespace (decision 0045).
+            - name: VECTISPIRE_AGENT_EXECUTOR
+              value: kubernetes
+            - name: VECTISPIRE_SCANS_NAMESPACE
+              value: {{ include "vectispire.scansNamespace" . | quote }}
+            # Stable across restarts, unlike the pod's name: what the agent sweeps at start.
+            - name: VECTISPIRE_AGENT_NAME
+              value: {{ printf "%s-agent" $fullname | quote }}
+            - name: VECTISPIRE_KUBERNETES_START_TIMEOUT
+              value: {{ .Values.agents.kubernetes.startTimeout | quote }}
+            - name: VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS
+              value: {{ .Values.agents.kubernetes.scanCpuMillis | quote }}
+            - name: VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB
+              value: {{ .Values.agents.kubernetes.scanMemoryMiB | quote }}
+            # The agent refuses to start unless a probe pod proves scan pods are cut off (decision 0045 §5) —
+            # except where the operator turned the policy off and acknowledged it: there is nothing to prove.
+            - name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION
+              value: {{ .Values.agents.networkPolicy.enabled | quote }}
+            {{- if .Values.agents.kubernetes.matcherCache.enabled }}
+            # The matcher's database, served to scan pods from a claim in their namespace, on this agent's node.
+            - name: VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM
+              value: {{ printf "%s-matcher-cache" $fullname | quote }}
+            - name: VECTISPIRE_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            {{- end }}
+            # The scan pods go where the agents go: the pool of their own the chart requires.
+            - name: VECTISPIRE_KUBERNETES_PLACEMENT
+              value: {{ include "vectispire.scanPlacement" . | quote }}
+            {{- else }}
             # The daemon beside it, on a socket file both containers mount — never TCP: the dind
             # image's entrypoint would open 2375 to the whole cluster, without TLS or authentication.
             - name: DOCKER_HOST
               value: unix://{{ $socketDir }}/docker.sock
-            # The token and the signing key as files, read through the same config tree the control
-            # plane imports, rather than as variables any reader of the pod sees.
+            {{- end }}
+            # The token and the signing key as files, read through a config tree, rather than as variables
+            # any reader of the pod sees. **Not under /run/secrets**: /var/run is /run in the agent's image,
+            # and a read-only volume there leaves the kubelet no place for the service account's token
+            # (/var/run/secrets/kubernetes.io/serviceaccount) — the Kubernetes executor's agent never
+            # started, "mkdirat …/run/secrets/kubernetes.io: read-only file system" (measured, k3s 1.34).
             - name: SPRING_CONFIG_IMPORT
-              value: optional:configtree:/run/secrets/
+              value: optional:configtree:/etc/vectispire/secrets/
             # The work directory is where scans live, at the path the daemon sees too; the home under it,
             # where a keyed clone records the forges' host keys.
             - name: JDK_JAVA_OPTIONS
@@ -112,10 +160,12 @@ spec:
           volumeMounts:
             - name: work
               mountPath: {{ $work }}
+            {{- if not $pods }}
             - name: dind-socket
               mountPath: {{ $socketDir }}
+            {{- end }}
             - name: secrets
-              mountPath: /run/secrets
+              mountPath: /etc/vectispire/secrets
               readOnly: true
             {{- if .Values.agents.trustStore.secretName }}
             - name: trust
@@ -126,6 +176,7 @@ spec:
             # name rather than through java.io.tmpdir.
             - name: tmp
               mountPath: /tmp
+        {{- if not $pods }}
         - name: dind
           {{- if $rootless }}
           image: {{ .Values.agents.dind.rootless.image }}
@@ -164,16 +215,18 @@ spec:
               {{- else }}
               mountPath: /var/lib/docker
               {{- end }}
+        {{- end }}
       volumes:
         - name: work
           emptyDir:
             sizeLimit: {{ .Values.agents.workDir.sizeLimit }}
-        - name: dind-socket
-          emptyDir:
-            sizeLimit: 1Mi
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
+        {{- if not $pods }}
+        - name: dind-socket
+          emptyDir:
+            sizeLimit: 1Mi
         - name: docker-data
           {{- if .Values.agents.dind.imageCache.enabled }}
           persistentVolumeClaim:
@@ -182,6 +235,7 @@ spec:
           emptyDir:
             sizeLimit: {{ .Values.agents.dind.dataSizeLimit }}
           {{- end }}
+        {{- end }}
         - name: secrets
           projected:
             defaultMode: 0440

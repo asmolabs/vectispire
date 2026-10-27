@@ -31,7 +31,7 @@ import java.util.Optional;
  */
 public final class ScanRunner {
 
-    private final ContainerRunner containers;
+    private final ContainerExecutor containers;
     private final DependencyScanner dependencies;
     private final SecretsScanner secrets;
     private final IacScanner iac;
@@ -61,7 +61,7 @@ public final class ScanRunner {
      *     sides
      */
     public ScanRunner(
-            ContainerRunner containers,
+            ContainerExecutor containers,
             ScannerImages images,
             Path bundledRules,
             RulePlacement.RuleSetProvider ruleSets,
@@ -81,7 +81,7 @@ public final class ScanRunner {
      *     every scan of this executor — see {@link VulnerabilityDatabase}
      */
     public ScanRunner(
-            ContainerRunner containers,
+            ContainerExecutor containers,
             ScannerImages images,
             Path bundledRules,
             RulePlacement.RuleSetProvider ruleSets,

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.plugins.ImageDigest;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunReason;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.PluginRefusedException;
@@ -113,7 +114,7 @@ public final class ReportPluginRenderer {
         }
     }
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final String registryMirror;
     private final ImageSignatureVerifier verifier;
     private final Function<Path, Optional<String>> owners;
@@ -122,12 +123,12 @@ public final class ReportPluginRenderer {
      * @param registryMirror the internal registry plugin images are pulled from, or blank for their own — the
      *     scanner plugins' setting ({@code VECTISPIRE_PLUGIN_REGISTRY}), which must then carry the signatures too
      */
-    public ReportPluginRenderer(ContainerRunner runner, String registryMirror) {
+    public ReportPluginRenderer(ContainerExecutor runner, String registryMirror) {
         this(runner, registryMirror, ContainerRun::ownerOf);
     }
 
     /** @param owners how a directory's {@code uid:gid} is read — replaceable for the reason {@link PluginScanner}'s is */
-    public ReportPluginRenderer(ContainerRunner runner, String registryMirror, Function<Path, Optional<String>> owners) {
+    public ReportPluginRenderer(ContainerExecutor runner, String registryMirror, Function<Path, Optional<String>> owners) {
         this.runner = runner;
         this.registryMirror = registryMirror == null || registryMirror.isBlank()
                 ? null

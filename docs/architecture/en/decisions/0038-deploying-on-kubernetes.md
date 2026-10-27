@@ -9,6 +9,10 @@ the cluster as pods with a Docker-in-Docker sidecar, opt-in. The answers are at 
 found is fixed in the same lot, so a remote daemon over TLS is no longer one of option A's three
 blockers.*
 
+*Amended on 2026-10-25 by [0045](0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md): on a
+cluster without Docker, agents run each scanner as a pod in a namespace of their own, under a
+namespace-scoped Role — a third place for an agent, beside the two below.*
+
 ## Context
 
 The first production installation is due by the end of October 2026, **on Kubernetes**, a cluster

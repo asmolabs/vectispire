@@ -9,6 +9,10 @@ Docker-in-Docker, sur option. Les réponses sont à la fin, sous « Tranché le 
 tiennent tels qu'écrits, §2 y est élargi. Le défaut TLS de docker-java trouvé au §3 est corrigé dans
 le même lot : un démon distant en TLS n'est plus l'un des trois obstacles de l'option A.*
 
+*Amendée le 2026-10-25 par [0045](0045-on-a-cluster-without-docker-agents-run-each-scanner-as-a-pod.md) : sur
+un cluster sans Docker, les agents lancent chaque scanner dans un pod, dans un espace de noms à eux, sous
+un Role limité à cet espace de noms — une troisième place pour un agent, à côté des deux ci-dessous.*
+
 ## Contexte
 
 La première installation de production est attendue pour fin octobre 2026, **sur Kubernetes**, un

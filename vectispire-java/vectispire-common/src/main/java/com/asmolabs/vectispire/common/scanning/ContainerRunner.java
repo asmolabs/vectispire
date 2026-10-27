@@ -51,7 +51,7 @@ import javax.net.ssl.SSLContext;
  * the error an operator reads. So each is collected separately: stdout stays parseable
  * <em>and</em> the reason for the failure survives.
  */
-public final class ContainerRunner {
+public final class ContainerRunner implements ContainerExecutor {
 
     /** The mark placed on every container Vectispire launches. */
     public static final String SCANNER_LABEL = "dev.vectispire.scanner";
@@ -66,7 +66,7 @@ public final class ContainerRunner {
      * down with it. It is counted against the container's memory limit by the kernel, which is
      * the behaviour wanted — one budget, not two.
      */
-    private static final int SCRATCH_MEGABYTES = 512;
+    public static final int SCRATCH_MEGABYTES = 512;
 
     /**
      * A writable {@code HOME}, because several scanner images do not set one.
@@ -75,7 +75,7 @@ public final class ContainerRunner {
      * against a read-only root fails outright rather than being skipped. Pointed at a tmpfs and
      * exported below, so the failure never arises.
      */
-    private static final String SCRATCH_HOME = "/home/scanner";
+    public static final String SCRATCH_HOME = "/home/scanner";
 
     /**
      * Where the vulnerability database goes, for the one scanner that has one.
@@ -92,6 +92,30 @@ public final class ContainerRunner {
      * configuration reads, cosign's included.
      */
     public static final String REGISTRY_LOGIN_MOUNT = "/trust/registry";
+
+    /**
+     * The environment every scanner container starts with, whatever runs it — {@link #run} here, the pod
+     * the Kubernetes executor creates there (decision 0045): one list, so the two backends cannot drift.
+     */
+    public static final List<String> SCANNER_ENVIRONMENT = List.of(
+            "HOME=" + SCRATCH_HOME,
+            "TMPDIR=/tmp",
+            "XDG_CACHE_HOME=" + SCRATCH_HOME + "/.cache",
+            // Set for every container although only the matcher reads it: the
+            // alternative is per-run environment plumbing for one variable, and a
+            // scanner that does not know the name ignores it. The matcher is also
+            // the only one that mounts anything at this path — without the mount
+            // the variable names a directory on a read-only filesystem, which is
+            // the loud failure rather than the quiet one.
+            "GRYPE_DB_CACHE_DIR=" + DATABASE_CACHE_MOUNT,
+            // **The matcher never fetches its database while it matches.** It reads the
+            // generation `VulnerabilityDatabase` downloaded once for the host, mounted
+            // read-only and with no network; left on, it would try to update it on every
+            // scan and fail against the read-only mount. `db update` and `db check`,
+            // which are asked explicitly, are not affected.
+            "GRYPE_DB_AUTO_UPDATE=false",
+            // Nor its own version, which is pinned by digest and asked of nobody.
+            "GRYPE_CHECK_FOR_APP_UPDATE=false");
 
     private final DockerClient docker;
     private final ScannerLimits limits;
@@ -234,16 +258,19 @@ public final class ContainerRunner {
      * The ceiling on what a scanner may hand back, in bytes — its standard output here, and the
      * report file a plugin writes, which is the same output by another route and gets the same bound.
      */
+    @Override
     public long outputBytes() {
         return limits.outputBytes();
     }
 
     /** How long a scanner may run before it is stopped — what a scan that started can still take. */
+    @Override
     public Duration scannerTimeout() {
         return limits.timeout();
     }
 
     /** Is the daemon reachable? Checked before claiming a scan rather than in the middle of one. */
+    @Override
     public boolean isAvailable() {
         try {
             docker.pingCmd().exec();
@@ -267,6 +294,7 @@ public final class ContainerRunner {
      * to audit. The resulting archive already carries the right one, so nothing downstream has
      * to specify it again.
      */
+    @Override
     public void exportImage(String reference, String platform, Path destination) {
         try {
             docker.pullImageCmd(reference)
@@ -381,25 +409,7 @@ public final class ContainerRunner {
                 // ones known to need it: the next image added is not going to announce that it
                 // caches under `$HOME`, it is going to fail a scan on a read-only filesystem
                 // and report having found nothing.
-                .withEnv(Stream.concat(Stream.of(
-                        "HOME=" + SCRATCH_HOME,
-                        "TMPDIR=/tmp",
-                        "XDG_CACHE_HOME=" + SCRATCH_HOME + "/.cache",
-                        // Set for every container although only the matcher reads it: the
-                        // alternative is per-run environment plumbing for one variable, and a
-                        // scanner that does not know the name ignores it. The matcher is also
-                        // the only one that mounts anything at this path — without the mount
-                        // the variable names a directory on a read-only filesystem, which is
-                        // the loud failure rather than the quiet one.
-                        "GRYPE_DB_CACHE_DIR=" + DATABASE_CACHE_MOUNT,
-                        // **The matcher never fetches its database while it matches.** It reads the
-                        // generation `VulnerabilityDatabase` downloaded once for the host, mounted
-                        // read-only and with no network; left on, it would try to update it on every
-                        // scan and fail against the read-only mount. `db update` and `db check`,
-                        // which are asked explicitly, are not affected.
-                        "GRYPE_DB_AUTO_UPDATE=false",
-                        // Nor its own version, which is pinned by digest and asked of nobody.
-                        "GRYPE_CHECK_FOR_APP_UPDATE=false"), environment.stream()).toList())
+                .withEnv(Stream.concat(SCANNER_ENVIRONMENT.stream(), environment.stream()).toList())
                 .withHostConfig(hostConfig);
         if (user != null) {
             create = create.withUser(user);
@@ -410,6 +420,7 @@ public final class ContainerRunner {
         return created.getId();
     }
 
+    @Override
     public ContainerResult run(ContainerRun request) {
         Duration timeout = request.timeout() == null ? limits.timeout() : request.timeout();
         ContainerRun.BoundedOutput bounded = request.output();
@@ -508,8 +519,14 @@ public final class ContainerRunner {
      * and whether its Docker configuration carries credentials for it — never the credentials. For a
      * tool's refusal to say which of "none held" and "the ones held were refused" it was.
      */
+    @Override
     public RegistryAccess registryAccessFor(String reference) {
         return new RegistryAccess(PullCredentials.registryOf(reference), PullCredentials.of(docker, reference).isPresent());
+    }
+
+    /** The registry {@code reference} is pulled from, as this executor's pulls key it — for another executor's answer. */
+    public static String registryOf(String reference) {
+        return PullCredentials.registryOf(reference);
     }
 
     /** @param credentialsHeld whether the pulls of the registry are authenticated */
@@ -712,7 +729,7 @@ public final class ContainerRunner {
          * The holder's {@code df -P -k} and {@code df -P -i} lines for the directory, or empty when
          * either is missing — a holder that died printed nothing, and a guess would be believed.
          */
-        static Optional<CollectedOutput> measured(ContainerRun.BoundedOutput bounded, String printed, OutputFile file) {
+        public static Optional<CollectedOutput> measured(ContainerRun.BoundedOutput bounded, String printed, OutputFile file) {
             // `Filesystem Size Used Available Capacity Mounted-on`: the fourth column, of the two lines
             // naming the directory — the first in KiB, the second in inodes.
             List<Long> available = printed.lines()
@@ -731,7 +748,7 @@ public final class ContainerRunner {
     }
 
     /** How much of a scanner's error stream is kept: failures quote its first 2,000 characters. */
-    static final long STDERR_BYTES = 1024 * 1024;
+    public static final long STDERR_BYTES = 1024 * 1024;
 
     /**
      * Reads a scanner's JSON output, or explains why it is unusable.

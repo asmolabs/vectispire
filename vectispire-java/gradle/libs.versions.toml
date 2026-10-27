@@ -8,6 +8,9 @@ postgresql = "42.7.13"
 mysql = "26.7.0"
 bouncycastle = "1.86"
 dockerJava = "3.7.1"
+# The version docker-java already brings in; the agent compiles against it for the Kubernetes executor's
+# tar archives (decision 0045 §4), so it is named rather than inherited.
+commonsCompress = "1.28.0"
 # **Raised above what the Spring Boot BOM and docker-java ask for, for named advisories.**
 # The BOM manages 5.6.1/5.4.2, and Vectispire's own SBOM scan reports fixable High findings
 # against both — GHSA-v3jc-474w-2wm6 and GHSA-hf6x-8p5f-cgmf on httpcore5, GHSA-hjcp-jmpx-g3qm
@@ -66,6 +69,7 @@ postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" 
 mysql = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
 bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "dockerJava" }
 docker-java-transport = { module = "com.github.docker-java:docker-java-transport-httpclient5", version.ref = "dockerJava" }
 jackson2-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson2" }

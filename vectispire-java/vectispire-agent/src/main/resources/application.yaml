@@ -53,3 +53,29 @@ vectispire:
     # workspaces; a disk that survives a restart spares the first scan after one the download. The
     # daemon mounts it, so it is a path on the daemon's host, like the workspaces.
     vulnerability-db-dir: ${VECTISPIRE_VULNERABILITY_DB_DIR:}
+
+    # **What runs the scanners** (decision 0045). `docker`: the daemon this agent reaches, as every
+    # release before. `kubernetes`: one pod per scanner run in a namespace of its own, for a cluster with
+    # no Docker — the agent then runs in a pod whose service account holds the Role the chart renders.
+    executor:
+      kind: ${VECTISPIRE_AGENT_EXECUTOR:docker}
+      kubernetes:
+        namespace: ${VECTISPIRE_SCANS_NAMESPACE:}
+        # This agent's name on its scan pods, stable across restarts: what its start sweeps.
+        name: ${VECTISPIRE_AGENT_NAME:vectispire-agent}
+        helper-image: ${VECTISPIRE_KUBERNETES_HELPER_IMAGE:}
+        user: ${VECTISPIRE_KUBERNETES_SCAN_USER:}
+        start-timeout: ${VECTISPIRE_KUBERNETES_START_TIMEOUT:5m}
+        # nodeSelector, tolerations and affinity as JSON: the agents' own pool.
+        placement: ${VECTISPIRE_KUBERNETES_PLACEMENT:}
+        # Refuse to start unless a probe pod, offline and online, cannot reach the API server: a CNI that
+        # ignores NetworkPolicy is otherwise invisible. False only where no policy is rendered on purpose.
+        require-isolation: ${VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION:true}
+        # Each scan pod's scanner, request and limit alike. Set rather than derived from this JVM's cores,
+        # which are the agent pod's view of its node.
+        cpu-millis: ${VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS:2000}
+        memory-mib: ${VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB:2048}
+        # The claim in the scans' namespace that keeps the matcher's database generations for scan pods, and
+        # the node this agent runs on, where the pods mounting it go. Blank copies the database into each pod.
+        matcher-cache-claim: ${VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM:}
+        node-name: ${VECTISPIRE_KUBERNETES_NODE_NAME:}

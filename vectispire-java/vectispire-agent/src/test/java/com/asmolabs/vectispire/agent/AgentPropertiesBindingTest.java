@@ -161,4 +161,39 @@ class AgentPropertiesBindingTest {
                 .as("the operator's explicit false is still honoured")
                 .isFalse();
     }
+
+    @Test
+    @DisplayName("the executor is Docker unless the chart's variables say Kubernetes")
+    void theExecutorBindsFromTheShippedConfiguration() throws Exception {
+        var sources = new YamlPropertySourceLoader().load("agent", new ClassPathResource("application.yaml"));
+        var environment = new StandardEnvironment();
+        sources.forEach(environment.getPropertySources()::addLast);
+        AgentProperties plain = Binder.get(environment).bind("vectispire.agent", AgentProperties.class).get();
+        assertThat(plain.executor().kind()).isEqualTo("docker");
+
+        // The variables the chart's Kubernetes shape sets on the agent's container.
+        environment.getPropertySources().addFirst(new MapPropertySource("chart", Map.of(
+                "VECTISPIRE_AGENT_EXECUTOR", "kubernetes",
+                "VECTISPIRE_SCANS_NAMESPACE", "vectispire-scans",
+                "VECTISPIRE_AGENT_NAME", "vs-vectispire",
+                "VECTISPIRE_KUBERNETES_START_TIMEOUT", "7m",
+                "VECTISPIRE_KUBERNETES_PLACEMENT", "{\"nodeSelector\":{\"pool\":\"scans\"}}",
+                "VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION", "false",
+                "VECTISPIRE_KUBERNETES_SCAN_CPU_MILLIS", "500",
+                "VECTISPIRE_KUBERNETES_SCAN_MEMORY_MIB", "1024",
+                "VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM", "vs-vectispire-matcher-cache",
+                "VECTISPIRE_KUBERNETES_NODE_NAME", "node-a")));
+        AgentProperties.Executor executor = Binder.get(environment).bind("vectispire.agent", AgentProperties.class).get().executor();
+        assertThat(executor.kind()).isEqualTo("kubernetes");
+        assertThat(executor.kubernetes().namespace()).isEqualTo("vectispire-scans");
+        assertThat(executor.kubernetes().name()).isEqualTo("vs-vectispire");
+        assertThat(executor.kubernetes().startTimeout()).isEqualTo(Duration.ofMinutes(7));
+        assertThat(executor.kubernetes().placement()).isEqualTo("{\"nodeSelector\":{\"pool\":\"scans\"}}");
+        assertThat(executor.kubernetes().requireIsolation()).isFalse();
+        assertThat(executor.kubernetes().cpuMillis()).isEqualTo(500);
+        assertThat(executor.kubernetes().memoryMiB()).isEqualTo(1024);
+        assertThat(executor.kubernetes().matcherCacheClaim()).isEqualTo("vs-vectispire-matcher-cache");
+        assertThat(executor.kubernetes().nodeName()).isEqualTo("node-a");
+        assertThat(plain.executor().kubernetes().requireIsolation()).as("required unless said otherwise").isTrue();
+    }
 }

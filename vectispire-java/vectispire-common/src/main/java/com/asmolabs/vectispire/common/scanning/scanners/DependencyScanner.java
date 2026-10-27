@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.sbom.Sbom;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
@@ -53,11 +54,11 @@ public final class DependencyScanner {
      */
     public static final String DEFAULT_PLATFORM = "linux/amd64";
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final ScannerImages images;
     private final VulnerabilityDatabase database;
 
-    public DependencyScanner(ContainerRunner runner, ScannerImages images, VulnerabilityDatabase database) {
+    public DependencyScanner(ContainerExecutor runner, ScannerImages images, VulnerabilityDatabase database) {
         this.runner = runner;
         this.images = images;
         this.database = database;
@@ -96,7 +97,8 @@ public final class DependencyScanner {
                         List.of("dir:" + ContainerPaths.source(subPath), "-o", "json"),
                         List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
                         label)
-                .runningAsOwnerOf(workspace.root()));
+                .runningAsOwnerOf(workspace.root())
+                .withEntrypoint(ScannerImages.SYFT_ENTRYPOINT));
 
         return catalogue(ContainerRunner.parseJson(result, label, List.of(0)), label);
     }
@@ -125,7 +127,8 @@ public final class DependencyScanner {
                             label)
                     // **Neither network nor socket.** The image is already here as an archive,
                     // so there is nothing left for it to reach.
-                    .runningAsOwnerOf(workspace.root()));
+                    .runningAsOwnerOf(workspace.root())
+                    .withEntrypoint(ScannerImages.SYFT_ENTRYPOINT));
 
             return catalogue(ContainerRunner.parseJson(result, label, List.of(0)), label);
         } finally {
@@ -217,7 +220,8 @@ public final class DependencyScanner {
         // fetch — `GRYPE_DB_AUTO_UPDATE=false` stops it trying — so the one scanner that ran online no
         // longer does. As the workspace's owner rather than root: it reads the 0700 workspace and the
         // 0700 generation, both this process's.
-        ContainerRunner.ContainerResult result = runner.run(run.runningAsOwnerOf(mounted));
+        ContainerRunner.ContainerResult result = runner.run(run.runningAsOwnerOf(mounted)
+                .withEntrypoint(ScannerImages.GRYPE_ENTRYPOINT));
 
         return ContainerRunner.parseJson(result, label, List.of(0)).map(DependencyScanner::findings);
     }

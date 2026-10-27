@@ -5,8 +5,14 @@ metadata:
   name: {{ include "vectispire.agentNamespace" . }}
   labels:
     {{- include "vectispire.labels" . | nindent 4 }}
+    {{- if eq .Values.agents.executor "kubernetes" }}
+    # No daemon here: the agent itself passes `restricted`, so nothing wider is admitted beside it.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    {{- else }}
     # The daemon's container is privileged, which Pod Security Admission admits at this level only. This
     # namespace holds the agents and nothing else, so the exception covers them alone.
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/warn: privileged
+    {{- end }}
 {{- end }}

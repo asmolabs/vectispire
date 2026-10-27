@@ -117,12 +117,12 @@ docker compose --profile with-agent up -d
 La composition tire deux images publiées : rien ici ne demande de JDK ni de cache Gradle.
 
 ```
-ghcr.io/asmolabs/vectispire:0.10.0
-ghcr.io/asmolabs/vectispire-agent:0.10.0
+ghcr.io/asmolabs/vectispire:0.11.2
+ghcr.io/asmolabs/vectispire-agent:0.11.2
 ```
 
 Elles sont publiques — ni identifiant, ni jeton. Pour en tirer une seule,
-`docker pull ghcr.io/asmolabs/vectispire:0.10.0` ; et lisez
+`docker pull ghcr.io/asmolabs/vectispire:0.11.2` ; et lisez
 [Vérifier une release](#verifier-une-release) avant de l'exécuter.
 
 ## Avant le premier démarrage
@@ -280,8 +280,8 @@ chaque jeton que Vectispire détient ; un cluster reconstruit sans elle détient
 personne ne peut lire.
 
 Fixez aussi une **clé de signature** (`secrets.signingKey`, PEM PKCS#8 P-256) : en 0.10.0, une
-installation qui n'en a pas répond 500 à son premier dossier de preuves (corrigé dans la version
-suivante). Gardez-la : la remplacer rend invérifiable chaque document déjà signé.
+installation qui n'en a pas répond 500 à son premier dossier de preuves (corrigé dans la
+0.11.0). Gardez-la : la remplacer rend invérifiable chaque document déjà signé.
 
 La chart refuse de se rendre sans ses valeurs obligatoires, et dit laquelle manque. La liste complète
 est dans le [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md)
@@ -496,6 +496,59 @@ La chart ne la rend qu'avec `agents.dind.rootless.acknowledgeUnreadableWorkspace
 Chaque redémarrage du pod télécharge de nouveau les images des scanners et la base de
 vulnérabilités — environ 3 Go. `agents.dind.imageCache` garde les images sur un volume.
 
+### Des agents dans le cluster sans Docker (aperçu) {#agents-without-docker}
+
+`agents.executor: kubernetes` exécute chaque scanner **dans un pod à lui**, dans un espace de noms que
+le Role de l'agent atteint, et rien d'autre (décision 0045). Ni démon Docker ni pod privilégié nulle
+part, pour un cluster qui n'admet ni l'un ni l'autre. La chart rend :
+
+- l'agent seul dans son pod, sous Pod Security `restricted`, avec un compte de service ;
+- l'espace de noms des scans, `agents.kubernetes.scansNamespace` (`<release>-scans`, un par release), qui impose
+  `restricted` : le serveur d'API refuse lui-même un pod privilégié, un `hostPath` ou un utilisateur root.
+  Ce doit être un espace de noms à part : la chart refuse celui des agents et celui de la release, et un
+  espace de noms qu'elle n'a pas créé sans `agents.kubernetes.acknowledgeExistingNamespace`. L'agent vérifie
+  à chaque démarrage, par un essai à blanc, que l'espace de noms refuse un pod privilégié, et ne démarre pas
+  sinon ;
+- un **Role dans cet espace de noms seulement** : créer, lire, lister, surveiller et supprimer des pods,
+  y faire `exec` (`create` et `get` sur `pods/exec`), lire leurs journaux. Rien à l'échelle du cluster,
+  aucun secret ;
+- une politique d'admission (Kubernetes 1.30 ou plus) : le serveur d'API refuse tout pod créé là qui ne porte
+  pas le `nodeSelector` des agents, qui nomme son nœud ou qui monte un jeton de compte de service — même si
+  l'agent le demande. La désactiver demande `agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods` ;
+- deux NetworkPolicies : tout trafic refusé à chaque pod de scan, et les étapes qui ont besoin du réseau
+  (`vectispire.dev/network: egress`) reçoivent les règles de sortie des agents — jamais le serveur d'API.
+
+Chaque pod de scan reçoit l'espace de travail et rend le rapport par `exec`, tourne sous le propriétaire
+de l'espace de travail avec une racine en lecture seule et aucune capacité, et est supprimé après son
+exécution. Il va sur les nœuds des agents (`agents.nodeSelector`, `agents.tolerations`, requis comme avec
+DinD), et le plan de contrôle est tenu à l'écart de ces nœuds.
+
+**Requis : les adresses du serveur d'API** dans `agents.kubernetes.apiServer.cidrs` (`kubectl get
+endpoints kubernetes -n default`). Elles tombent d'ordinaire dans une plage que couvre `excludeCidrs` ;
+listées, l'agent les atteint et chaque pod de scan en est exclu.
+
+**L'agent prouve l'isolation avant de scanner.** Au démarrage, il lance deux pods de sonde, hors ligne et
+en ligne, qui tentent de joindre le serveur d'API ; si l'un y parvient — un CNI qui ignore les
+NetworkPolicies, ou des politiques absentes —, l'agent ne démarre pas et dit pourquoi dans son journal.
+Une sonde qui ne peut pas tourner arrête aussi le démarrage. Seulement là où `agents.networkPolicy.enabled`
+vaut false, avec son acquittement, la chart dit à l'agent de ne pas vérifier.
+
+La base de vulnérabilités, quelque 3 Go, est conservée pour les pods de scan sur une revendication de
+l'espace de noms des scans, `agents.kubernetes.matcherCache` (10Gi, la classe de stockage par défaut du cluster
+sauf si elle est nommée) : chaque version que l'agent télécharge y est copiée une fois et montée en lecture
+seule par chaque pod de rapprochement, qui tourne sur le nœud de l'agent puisque le volume s'y attache. La
+revendication est conservée quand la release est supprimée.
+
+Le scanner de chaque pod de scan reçoit `agents.kubernetes.scanCpuMillis` (2000) et `scanMemoryMiB` (2048),
+en demande comme en limite : dimensionnez le pool de nœuds des agents pour la concurrence de l'agent fois ces
+valeurs.
+
+`scripts/kubernetes-scan-check.sh` installe cette forme dans k3s — un serveur et un nœud d'agents — et y
+fait passer un scan de bout en bout ; la CI de nuit l'exécute sur les images de chaque nuit.
+
+!!! warning "Un aperçu : tous les scans ne tournent pas encore"
+    - **Les cibles image** voient leur étape image échouer : l'étape de copie n'est pas construite.
+
 ## Exécuter depuis les sources
 
 ```bash
@@ -513,16 +566,16 @@ npm --workspace @vectispire/frontend start    # interface sur :4280, /api relay�
 ## Vérifier une release
 
 Chaque release porte le jar, son SBOM, le [script de barrière CI](../integrations/ci-gate.md) et —
-à partir de la version qui suit la 0.10.0 — la CLI `vectispire-cli.sh`, chacun avec un paquet Sigstore
+à partir de la 0.11.0 — la CLI `vectispire-cli.sh`, chacun avec un paquet Sigstore
 vérifié comme le jar ci-dessous. Vérifiez avant d'exécuter quoi que ce soit — un outil de sécurité que vous avez pris sur
 parole est une contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.10.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --bundle vectispire-0.11.2.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.10.0.jar
+  vectispire-0.11.2.jar
 ```
 
 Chaque option épingle quelque chose, et en retirer une seule rend l'essentiel de ce pour quoi
@@ -542,11 +595,11 @@ empreinte : vérifier le tag puis le tirer de nouveau vérifie une image que vou
 pas tourner. Résolvez le tag une fois, avec la commande qu'utilise le workflow de release lui-même :
 
 ```bash
-DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 --format '{{.Manifest.Digest}}')"
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.11.2 --format '{{.Manifest.Digest}}')"
 echo "$DIGEST"   # sha256:…
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -559,7 +612,7 @@ fichier posé à côté d'une image est un fichier que n'importe qui peut rempla
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -597,7 +650,7 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<empreinte> \
 L'image est désignée **par empreinte** — celle qu'indiquent les notes de release, ou celle que
 renvoie `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 — pour la même raison que la signature. L'image de l'agent se vérifie de la même façon sous
-`ghcr.io/asmolabs/vectispire-agent`. À partir de la version qui suit la 0.10.0, une troisième image
+`ghcr.io/asmolabs/vectispire-agent`. À partir de la 0.11.0, une troisième image
 est publiée, `ghcr.io/asmolabs/vectispire-report-demo` — le [plugin de rapport](../administration/report-plugins.fr.md)
 de démonstration, que la composition ne tire pas — et elle se vérifie de la même façon sous son propre nom.
 

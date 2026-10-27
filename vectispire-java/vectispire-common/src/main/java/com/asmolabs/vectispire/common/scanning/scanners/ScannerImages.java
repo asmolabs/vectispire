@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
+import java.util.List;
+
 /**
  * The scanner images, <b>pinned by digest</b>.
  *
@@ -62,4 +64,20 @@ public record ScannerImages(String syft, String grype, String gitleaks, String c
             "zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f",
             "bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144",
             "semgrep/semgrep@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8");
+
+    /*
+     * **Each tool's entrypoint, declared beside its image** — what Docker prepends to the arguments the
+     * scanners pass (`ContainerRun#entrypoint`). Docker applies the image's own and never reads these; the
+     * Kubernetes executor wraps the program to capture its standard output into a file, and has to name it
+     * (decision 0045). Declared per tool rather than read from the image, so a mirror or an override of the
+     * same tool keeps working, and held to the pinned images' configuration by `ScannerEntrypointsTest`:
+     * a digest refreshed with a moved binary fails the build, not a scan on a cluster.
+     */
+
+    public static final List<String> SYFT_ENTRYPOINT = List.of("/syft");
+    public static final List<String> GRYPE_ENTRYPOINT = List.of("/grype");
+    public static final List<String> GITLEAKS_ENTRYPOINT = List.of("gitleaks");
+    public static final List<String> CHECKOV_ENTRYPOINT = List.of("/entrypoint.sh");
+    /** None: the scanner's command starts with {@code semgrep} itself. */
+    public static final List<String> SEMGREP_ENTRYPOINT = List.of();
 }

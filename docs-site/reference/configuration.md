@@ -28,7 +28,7 @@ The engine is read from the URL. There is no separate dialect setting.
 |---|---|
 | `ENCRYPTION_KEY` | Saving any secret is refused until this or the file form is set. |
 | `ENCRYPTION_KEY_FILE` | A path to a file holding the key. **Prefer this in production.** Setting both is refused; an unresolvable path stops the application. |
-| `VECTISPIRE_SIGNING_KEY` | The ECDSA P-256 private key (PEM, PKCS#8) that signs evidence bundles, VEX, CSAF, CycloneDX and in-toto envelopes; its public half is published at `/api/v1/crypto/public-key.pub`. Unset, a key is generated on first use and stored encrypted under `ENCRYPTION_KEY`, so it survives restarts — and nothing can be signed without `ENCRYPTION_KEY`. **On 0.10.0 that first use fails**: an installation without this key answers 500 on its first evidence bundle, because the key was created inside a read-only transaction (fixed in the release after 0.10.0, see the [release notes](release-notes.md)). On 0.10.0, set it. **Set it when more than one instance runs**, so they all sign with one key. A stored key that no configured `ENCRYPTION_KEY` can decrypt is refused, never replaced: replacing it would make every document already signed unverifiable. The shipped compose hands it over as the file `/run/secrets/vectispire.signing.key`, never as environment, and needs the variable declared in `.env` even when empty. |
+| `VECTISPIRE_SIGNING_KEY` | The ECDSA P-256 private key (PEM, PKCS#8) that signs evidence bundles, VEX, CSAF, CycloneDX and in-toto envelopes; its public half is published at `/api/v1/crypto/public-key.pub`. Unset, a key is generated on first use and stored encrypted under `ENCRYPTION_KEY`, so it survives restarts — and nothing can be signed without `ENCRYPTION_KEY`. **On 0.10.0 that first use fails**: an installation without this key answers 500 on its first evidence bundle, because the key was created inside a read-only transaction (fixed in 0.11.0, see the [release notes](release-notes.md)). On 0.10.0, set it. **Set it when more than one instance runs**, so they all sign with one key. A stored key that no configured `ENCRYPTION_KEY` can decrypt is refused, never replaced: replacing it would make every document already signed unverifiable. The shipped compose hands it over as the file `/run/secrets/vectispire.signing.key`, never as environment, and needs the variable declared in `.env` even when empty. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | Comma-separated older keys, tried **for decryption only**. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | The same list from a file, comma- or newline-separated. |
 
@@ -239,8 +239,11 @@ Then `http://localhost:3180/swagger-ui.html`.
 
 `VECTISPIRE_AGENT_TOKEN` and `VECTISPIRE_AGENT_SIGNING_KEY` are credentials: hand them to the agent as
 files named after them under `/run/secrets/`, read with `SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/`
-— as the composition's `with-agent` profile and the Helm chart do — rather than as variables, which every
-client of the daemon reads back with `docker inspect`.
+— as the composition's `with-agent` profile does — rather than as variables, which every client of the
+daemon reads back with `docker inspect`. The Helm chart mounts them under `/etc/vectispire/secrets/` and
+imports that directory instead: in a pod whose service account token the agent needs (the Kubernetes
+executor), a read-only volume at `/run/secrets` leaves the kubelet nowhere to mount the token, and the agent
+never starts.
 
 | Variable | Notes |
 |---|---|

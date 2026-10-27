@@ -63,7 +63,8 @@ and the job services' hand-pinned database images against `Engine.java`'s tags),
 `openapi.json` against the last `v*` tag, failing on a change that breaks a client unless
 `ci/openapi/accepted-breaks.txt` lists it with its reason), `dockerfile-policy` (checkov, and every
 image of a compose file pinned as `name:tag@sha256:…`), `jvm`
-(`./gradlew build`), `frontend` (`npm ci && npm run build && npm test`), `sbom`,
+(`./gradlew build`), `kubernetes` (the agent's Kubernetes executor against k3s, decision 0045 — on the
+runner, since `jvm`'s container has no Docker), `frontend` (`npm ci && npm run build && npm test`), `sbom`,
 `vulnerabilities` and `npm-audit`; `images` then builds the three images with Jib — the control plane, the agent and the demonstration
 report plugin — **starts the control plane against a real MySQL** before believing them, and renders an
 export twice with the plugin's image to the same bytes. Syft and Grype are digest-pinned to

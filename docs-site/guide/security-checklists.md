@@ -165,8 +165,8 @@ another template carries nothing**: the same words in another checklist are anot
 The revision it leaves becomes *superseded* if it was a draft or submitted; a signed-off one stays
 signed off. Either way it stays readable.
 
-The version moved to is tried first, as a sign-off would fill it in: one published before 0.10.0's
-successor whose workbook no sign-off could fill in is refused, its cells named
+The version moved to is tried first, as a sign-off would fill it in: one published before
+0.11.0 whose workbook no sign-off could fill in is refused, its cells named
 ([when the server refuses](#when-the-server-refuses)). The version moved from is never tried, so a
 checklist stuck on such a version always moves away from it.
 
@@ -485,7 +485,7 @@ Each refusal is named by its cause, and the screen says it in one sentence:
 
 A sign-off refused because **a cell of the template's workbook carries a formula other cells depend
 on** — the sentence names the cells — cannot succeed on that version: the workbook is the template's,
-and a published version never changes. Since the release after 0.10.0, a version is checked for it before
+and a published version never changes. Since 0.11.0, a version is checked for it before
 it is published, and a checklist is no longer **opened on, or moved to**, a version published earlier
 that fails the same check: the screen names its cells, and nothing is opened, moved or recorded — a
 checklist that could never be signed is not started. Ask whoever manages the templates for a

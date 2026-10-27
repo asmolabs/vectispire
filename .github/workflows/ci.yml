@@ -465,13 +465,15 @@ jobs:
         working-directory: deploy/helm/vectispire
         run: |
           for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml ci/dind-rootless-values.yaml \
-              ci/single-namespace-values.yaml values.example.yaml; do
+              ci/single-namespace-values.yaml ci/kubernetes-executor-values.yaml values.example.yaml; do
             echo "::group::$values"
             helm lint . --strict -f "$values"
             helm template vs . -n vectispire -f "$values" > rendered.yaml
             # The floor the chart declares (`kubeVersion`), not the newest schema: a field that exists
-            # only in a later release must not pass here.
-            kubeconform -strict -summary -kubernetes-version 1.27.0 rendered.yaml
+            # only in a later release must not pass here. The Kubernetes executor's shape has its own, 1.30,
+            # for its ValidatingAdmissionPolicy — the chart refuses an older cluster for it.
+            floor=1.27.0; [ "$values" = ci/kubernetes-executor-values.yaml ] && floor=1.30.0
+            kubeconform -strict -summary -kubernetes-version "$floor" rendered.yaml
             echo "::endgroup::"
           done
       # **One namespace and nothing outside it.** An installation in a namespace somebody else owns
@@ -532,6 +534,20 @@ jobs:
             --set mail.username=vectispire
           refused -f ci/no-agents-values.yaml --set mail.username=vectispire
           refused -f ci/no-agents-values.yaml --set publicUrl=vectispire.example.org
+          # The Kubernetes executor (decision 0045): a namespace of its own for its scan pods — the Role reaches
+          # every pod there — and the API server named rather than guessed, since excludeCidrs covers it.
+          refused -f ci/kubernetes-executor-values.yaml --set agents.executor=podman
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire-agents
+          # `-n`: this helper renders in `default` otherwise, and the release's namespace would not be the one named.
+          refused -n vectispire -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.scansNamespace=vectispire
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.apiServer.cidrs=null
+          refused -f ci/kubernetes-executor-values.yaml --set agents.tolerations=null
+          # A namespace the chart did not create: its Pod Security level is unseen, so it is acknowledged (M1).
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.createNamespace=false
+          # Scan pods pinned to their pool by an admission policy (review L2): off only when acknowledged, and
+          # only on a cluster that has the API.
+          refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.admissionPolicy.enabled=false
+          refused -f ci/kubernetes-executor-values.yaml --kube-version 1.29.0
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |
@@ -562,6 +578,64 @@ jobs:
               grep -A8 'podAntiAffinity' rendered.yaml | grep -q 'namespaceSelector: {}' ||
               { echo "::error::$values: the control plane may share a node with a privileged agent"; exit 1; }
           done
+      # **The Kubernetes executor's isolation, as rendered** (decision 0045): no privileged pod and no daemon
+      # anywhere, the scans' namespace enforcing `restricted`, the Role exactly the measured one and nothing
+      # cluster-wide, scan pods with no route unless they ask for one — and never to the API server, which
+      # the agent alone reaches — and the control plane kept off the scan pods' nodes.
+      - name: the Kubernetes executor renders the isolation decision 0045 describes
+        working-directory: deploy/helm/vectispire
+        run: |
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml > rendered.yaml
+          fail() { echo "::error::$1"; exit 1; }
+          ! grep -nE 'privileged: true|name: dind$|DOCKER_HOST' rendered.yaml || fail "a privileged pod or a daemon in the Kubernetes shape"
+          ! grep -nE '^kind: Cluster' rendered.yaml || fail "something cluster-wide in the Kubernetes shape"
+          [ "$(grep -c '^kind: Role$' rendered.yaml)" = 1 ] || fail "not exactly one Role"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-role.yaml |
+            awk '/^kind: Role$/{r=1} r&&/^rules:/{p=1;next} p&&/^---/{exit} p' > rules.yaml
+          printf '%s\n' '  - apiGroups: [""]' '    resources: [pods]' \
+              '    verbs: [create, get, list, watch, delete, deletecollection]' '  - apiGroups: [""]' \
+              '    resources: [pods/exec]' '    verbs: [create, get]' '  - apiGroups: [""]' '    resources: [pods/log]' \
+              '    verbs: [get]' | diff - rules.yaml || fail "the Role's rules are not the measured ones"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-namespace.yaml |
+            grep -q 'pod-security.kubernetes.io/enforce: restricted' || fail "the scans' namespace does not enforce restricted"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-networkpolicy.yaml > scans.yaml
+          awk '/name: vs-vectispire-scans-offline/,/^---/' scans.yaml | grep -q 'podSelector: {}' &&
+            ! awk '/name: vs-vectispire-scans-offline/,/^---/' scans.yaml | grep -q '^  egress:' ||
+            fail "the scans' default is not deny-all"
+          for cidr in 169.254.0.0/16 10.0.0.10/32; do
+            awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q -- "- $cidr" ||
+              fail "$cidr is not excluded from the online scan pods' egress"
+          done
+          ! awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q 'port: 6443' || fail "scan pods reach the API server"
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/networkpolicy.yaml |
+            grep -A3 'cidr: 10.0.0.10/32' | grep -q 'port: 443' || fail "the agent cannot reach the API server"
+          grep -A12 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/agent$' ||
+            fail "the control plane may share a node with a scan pod"
+          grep -A20 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/executor$' ||
+            fail "the control plane may share a node with the Kubernetes executor's agent"
+          # One release's online policy selects its own agent's scan pods only (review of 2026-10-26, M2).
+          awk '/name: vs-vectispire-scans-online/,0' scans.yaml | grep -q 'vectispire.dev/agent: vs-vectispire-agent' ||
+            fail "the online policy would select another release's scan pods"
+          # The agent's own secrets are not mounted at /run/secrets: /var/run is /run in its image, and the
+          # service account's token could not be mounted beside them — the agent never started (measured).
+          ! helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/deployment.yaml |
+            grep -q 'mountPath: /run/secrets' || fail "the agent's secrets hide the service account token's mountpoint"
+          # The matcher's database is kept for scan pods in their own namespace (0045 §7), and the agent is told
+          # the claim and its node.
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-matcher-cache.yaml |
+            grep -q '^  namespace: vs-vectispire-scans$' || fail "the matcher's cache is not in the scans' namespace"
+          grep -q 'name: VECTISPIRE_KUBERNETES_NODE_NAME' rendered.yaml || fail "the agent is not told its node"
+          # The admission policy pins every pod of the scans' namespace to the pool's selector, refuses nodeName
+          # and a mounted token, and its binding names that namespace alone (review of 2026-10-26, L2).
+          helm template vs . -n vectispire -f ci/kubernetes-executor-values.yaml -s templates/agents/scans-admission-policy.yaml > vap.yaml
+          grep -q 'object.spec.nodeSelector\[\\"vectispire.dev/agents\\"\] == \\"true\\"' vap.yaml &&
+            grep -q 'object.spec.nodeName' vap.yaml && grep -q 'automountServiceAccountToken == false' vap.yaml &&
+            grep -q 'kubernetes.io/metadata.name: vs-vectispire-scans' vap.yaml &&
+            grep -q 'validationActions: \[Deny\]' vap.yaml ||
+            fail "the admission policy does not hold scan pods to their pool"
+          # The agent proves the policies are enforced before it scans, unless the operator turned them off.
+          grep -A1 'name: VECTISPIRE_KUBERNETES_REQUIRE_ISOLATION' rendered.yaml | grep -q 'value: "true"' ||
+            fail "the agent is not asked to prove its scan pods are cut off"
       # **The relay and the public address reach the pod, and nothing does without them.** The chart passed
       # neither before 0.11.1, so no alert, digest or checklist reminder could leave a Kubernetes install.
       # No host must render no mail variable: the application builds a sender as soon as the host exists.
@@ -1129,6 +1203,33 @@ jobs:
   # front-end file, and that case is not to be paid for here: thirty minutes on every backend push
   # is precisely the cost that teaches people to route around CI. It is the OpenAPI contract that
   # must catch it, as a diff rather than in a browser.
+  # **The Kubernetes executor against a real cluster** (decision 0045): `kubernetesCoverageVerification` runs
+  # `kubernetesTest` — the agent's client, its executor and its start-up choice against k3s in a privileged
+  # container, as the agent's service account under the chart's own Role — and holds those classes to their
+  # floor. On the runner, not in `jvm`: that job runs in a JDK container with no Docker, where k3s cannot
+  # start (the first push put it there, and it could not have run). Every push, because a client tested by
+  # nothing is the wiring nobody exercised.
+  kubernetes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - run: |
+          cd vectispire-java
+          test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
+          ./gradlew :vectispire-agent:kubernetesCoverageVerification --dependency-verification=strict
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: kubernetes-test-reports
+          path: vectispire-java/vectispire-agent/build/reports/tests/kubernetesTest/
+          retention-days: 7
+
   frontend-changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5

@@ -113,12 +113,12 @@ docker compose --profile with-agent up -d
 The composition pulls two published images, so nothing here needs a JDK or a Gradle cache:
 
 ```
-ghcr.io/asmolabs/vectispire:0.10.0
-ghcr.io/asmolabs/vectispire-agent:0.10.0
+ghcr.io/asmolabs/vectispire:0.11.2
+ghcr.io/asmolabs/vectispire-agent:0.11.2
 ```
 
 They are public — no login, no token. Pull one on its own with
-`docker pull ghcr.io/asmolabs/vectispire:0.10.0`, and see
+`docker pull ghcr.io/asmolabs/vectispire:0.11.2`, and see
 [Verifying a release](#verifying-a-release) before you run it.
 
 ## Before the first start
@@ -269,7 +269,7 @@ below.
 Vectispire holds; a cluster rebuilt without it holds secrets nobody can read.
 
 Also set a **signing key** (`secrets.signingKey`, a P-256 PKCS#8 PEM): on 0.10.0, an installation
-without one answers 500 on its first evidence bundle (fixed in the next release). Keep it: replacing
+without one answers 500 on its first evidence bundle (fixed in 0.11.0). Keep it: replacing
 it makes every document already signed unverifiable.
 
 The chart refuses to render without its required values, and says which is missing. The full list is
@@ -475,6 +475,55 @@ The chart renders it only with `agents.dind.rootless.acknowledgeUnreadableWorksp
 Each restart of the pod downloads the scanner images and the vulnerability database again — about
 3 GB. `agents.dind.imageCache` keeps the images on a volume.
 
+### Agents in the cluster without Docker (preview) {#agents-without-docker}
+
+`agents.executor: kubernetes` runs every scanner as **a pod of its own**, in a namespace the agent's
+Role reaches and nothing else (decision 0045). No Docker daemon and no privileged pod anywhere, for a
+cluster that allows neither. The chart renders:
+
+- the agent alone in its pod, under Pod Security `restricted`, with a service account;
+- the scans' namespace, `agents.kubernetes.scansNamespace` (`<release>-scans`, one per release), enforcing `restricted`:
+  the API server itself refuses a privileged pod, a `hostPath` or a root user there. It must be a
+  namespace of its own: the chart refuses the agents' or the release's, and one it did not create unless
+  `agents.kubernetes.acknowledgeExistingNamespace` is set. The agent checks at every start, with a dry run,
+  that the namespace refuses a privileged pod, and does not start otherwise;
+- a **Role in that namespace only**: create, read, list, watch and delete pods, `exec` into them (`create`
+  and `get` on `pods/exec`), read their logs. Nothing cluster-wide, no secret;
+- an admission policy (Kubernetes 1.30 or later): the API server refuses any pod created there that lacks
+  the agents' `nodeSelector`, names its node, or mounts a service account token — even if the agent asks.
+  Turning it off needs `agents.kubernetes.admissionPolicy.acknowledgeUnpinnedScanPods`;
+- two NetworkPolicies there: every scan pod denied all traffic, and the steps that need the network
+  (`vectispire.dev/network: egress`) given the agents' own egress rules — never the API server.
+
+Each scan pod copies the workspace in and the report out over `exec`, runs as the workspace's owner with a
+read-only root and no capability, and is deleted after its run. It goes on the agents' nodes
+(`agents.nodeSelector`, `agents.tolerations`, required as with DinD), and the control plane is kept off
+them.
+
+**Required: the API server's addresses** in `agents.kubernetes.apiServer.cidrs` (`kubectl get endpoints
+kubernetes -n default`). They usually lie in a range `excludeCidrs` covers; listed, they are reachable by
+the agent and excluded for every scan pod.
+
+**The agent proves the isolation before it scans.** At start it runs two probe pods, offline and online,
+that try to reach the API server; if either can — a CNI that ignores NetworkPolicy, or the policies
+missing — the agent does not start, and says why in its log. A probe that cannot run stops the start
+too. Only where `agents.networkPolicy.enabled` is false, with its acknowledgement, does the chart tell the
+agent not to check.
+
+The vulnerability database, some 3 GB, is kept for scan pods on a claim in the scans' namespace,
+`agents.kubernetes.matcherCache` (10Gi, the cluster's default storage class unless named): each version the
+agent downloads is copied onto it once and mounted read-only by every matching pod, which runs on the agent's
+node since the volume attaches there. The claim is kept when the release is removed.
+
+Each scan pod's scanner gets `agents.kubernetes.scanCpuMillis` (2000) and `scanMemoryMiB` (2048), as request
+and limit: size the agents' node pool for the agent's concurrency times these.
+
+`scripts/kubernetes-scan-check.sh` installs this shape in k3s — a server and an agents' node — and runs a
+scan through it end to end; the nightly runs it on every night's images.
+
+!!! warning "A preview: not every scan runs yet"
+    - **Image targets** fail their image step: the copy step is not built.
+
 ## Running from source
 
 ```bash
@@ -492,15 +541,15 @@ and shares nothing with it but the HTTP contract.
 ## Verifying a release
 
 Each release carries the jar, its SBOM, the [CI gate script](../integrations/ci-gate.md) and —
-from the release after 0.10.0 on — the CLI `vectispire-cli.sh`, each with a Sigstore bundle verified
+from 0.11.0 on — the CLI `vectispire-cli.sh`, each with a Sigstore bundle verified
 as the jar is below. Verify before running anything — a security tool you took on trust is a contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.10.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --bundle vectispire-0.11.2.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.10.0.jar
+  vectispire-0.11.2.jar
 ```
 
 Each flag pins something, and dropping any one of them gives back most of what signing was
@@ -519,11 +568,11 @@ the tag and then pulling it again checks an image you may not be running. Resolv
 with the command the release workflow uses itself:
 
 ```bash
-DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 --format '{{.Manifest.Digest}}')"
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.11.2 --format '{{.Manifest.Digest}}')"
 echo "$DIGEST"   # sha256:…
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -536,7 +585,7 @@ file beside an image is one anybody can swap:
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -574,7 +623,7 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<digest> \
 The image is named **by digest** — the one printed in the release notes, or the one
 `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 returns — for the same reason the signature is. The agent image verifies the same way under
-`ghcr.io/asmolabs/vectispire-agent`. From the release after 0.10.0 on, a third image is published,
+`ghcr.io/asmolabs/vectispire-agent`. From 0.11.0 on, a third image is published,
 `ghcr.io/asmolabs/vectispire-report-demo` — the demonstration [report plugin](../administration/report-plugins.md),
 which the composition does not pull — and it verifies the same way under its own name.
 

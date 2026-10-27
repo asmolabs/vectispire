@@ -57,7 +57,8 @@ jobs:
   # Jib can only set a mode — so it is built here even though `images` already built with Jib.
   dockerfiles:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # The composition check and the Kubernetes one, each pulling the scanner images: 30 was the first's.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker build -f Dockerfile -t vectispire:nightly .
@@ -82,6 +83,16 @@ jobs:
           CONTROL_PLANE_IMAGE: vectispire:nightly
           AGENT_IMAGE: vectispire-agent:nightly
         run: ./scripts/composition-scan-check.sh
+      # **The same scan through the chart's Kubernetes shape** (decision 0045), on the same images: a k3s
+      # server and an agents' node in containers, the chart installed with `agents.executor: kubernetes`,
+      # the agent proving its scan pods cut off before it scans, every scanner run as a pod and each
+      # finding what was planted for it. The only run that starts the agent's image from the chart: on
+      # its first one it found the agent's secrets mounted where the service account's token had to go.
+      - name: the chart's Kubernetes shape scans, every scanner as a pod
+        env:
+          CONTROL_PLANE_IMAGE: vectispire:nightly
+          AGENT_IMAGE: vectispire-agent:nightly
+        run: ./scripts/kubernetes-scan-check.sh
 
   # The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
   # the settings audit trail, and VEX triage.

@@ -177,18 +177,18 @@ a run without Docker fails loudly rather than reporting green having verified no
 
 ## 8. Verifying a release
 
-Each release carries the jar and its SBOM, the CI gate script `vectispire-gate.sh` and — from the
-release after 0.10.0 on — the CLI `vectispire-cli.sh` ([CI/CD integration](CI_CD_INTEGRATION.md#-getting-the-cli)),
+Each release carries the jar and its SBOM, the CI gate script `vectispire-gate.sh` and — from
+0.11.0 on — the CLI `vectispire-cli.sh` ([CI/CD integration](CI_CD_INTEGRATION.md#-getting-the-cli)),
 each with a Sigstore bundle verified the same way, and signed container images — two up to 0.10.0,
-three from the release after it (see below). Verify before running anything: a security tool you took
+three from 0.11.0 (see below). Verify before running anything: a security tool you took
 on trust is a contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.10.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --bundle vectispire-0.11.2.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.10.0.jar
+  vectispire-0.11.2.jar
 ```
 
 **Each part of that command pins something, and dropping any of them gives back most of what
@@ -211,10 +211,10 @@ anybody can rewrite:
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.10.0.cdx.json.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --bundle vectispire-0.11.2.cdx.json.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.10.0.cdx.json
+  vectispire-0.11.2.cdx.json
 ```
 
 ### Running it from the published images
@@ -223,24 +223,24 @@ A release also publishes its container images, so nothing has to be compiled to 
 control plane and the agent:
 
 ```bash
-docker pull ghcr.io/asmolabs/vectispire:0.10.0
-docker pull ghcr.io/asmolabs/vectispire-agent:0.10.0
+docker pull ghcr.io/asmolabs/vectispire:0.11.2
+docker pull ghcr.io/asmolabs/vectispire-agent:0.11.2
 ```
 
-From the release after 0.10.0 on, a third is published beside them,
+From 0.11.0 on, a third is published beside them,
 `ghcr.io/asmolabs/vectispire-report-demo` — the demonstration [report plugin](../../docs-site/administration/report-plugins.md),
 signed, attested and verified the same way. 0.10.0 does not carry it.
 
 **Verify them before running them, and verify by digest.** A tag is a mutable pointer — signing
-`:0.10.0` says nothing about what `:0.10.0` resolves to next week, which is the same reason every
+`:0.11.2` says nothing about what `:0.11.2` resolves to next week, which is the same reason every
 action in this repository is pinned by SHA:
 
 ```bash
-DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 \
+DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.11.2 \
            --format '{{.Manifest.Digest}}')
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -250,7 +250,7 @@ a component list anybody can swap is not evidence of anything:
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.11.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}" | jq -r '.payload' | base64 -d | jq '.predicate.components | length'
 ```

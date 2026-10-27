@@ -174,7 +174,7 @@ La révision quittée devient *remplacée* si elle était un brouillon ou soumis
 reste approuvée. Dans les deux cas elle reste lisible.
 
 La version d'arrivée est d'abord essayée, comme l'approbation la remplirait : une version publiée avant
-la version qui suit la 0.10.0 dont aucune approbation ne pourrait remplir le classeur est refusée, ses
+la 0.11.0 dont aucune approbation ne pourrait remplir le classeur est refusée, ses
 cellules nommées ([quand le serveur refuse](#quand-le-serveur-refuse)). La version quittée n'est jamais
 essayée : une checklist bloquée sur une telle version peut toujours la quitter.
 
@@ -510,7 +510,7 @@ Chaque refus est nommé par sa cause, et l'écran le dit en une phrase :
 
 Une approbation refusée parce qu'**une cellule du classeur du modèle porte une formule dont d'autres
 cellules dépendent** — la phrase nomme les cellules — ne peut pas réussir sur cette version : le
-classeur est celui du modèle, et une version publiée ne change jamais. Depuis la version qui suit la 0.10.0,
+classeur est celui du modèle, et une version publiée ne change jamais. Depuis la 0.11.0,
 une version est contrôlée avant sa publication, et une checklist n'est plus **ouverte sur une version
 publiée plus tôt qui échoue au même contrôle, ni passée à celle-ci** : l'écran en nomme les cellules, et
 rien n'est ouvert, changé de version ni consigné — une checklist qui ne pourrait jamais être approuvée

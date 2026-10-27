@@ -11,10 +11,10 @@
 
 image:
   repository: ghcr.io/asmolabs/vectispire
-  tag: "0.10.0"
+  tag: "0.11.1"
   # **By digest.** A tag can be moved; what was reviewed and what runs are then two images. The chart
   # refuses to render without one. `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<tag>`.
-  digest: "sha256:c10b45e5a06c31674feffffaf49940179c2e8db27780996ce2eb06870c9133b8"
+  digest: "sha256:089974b81a297ed140e4f25d0f118d3c98dc183c600c12f1a6fc99a0a131f73e"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -220,8 +220,8 @@ agents:
 
   image:
     repository: ghcr.io/asmolabs/vectispire-agent
-    tag: "0.10.0"
-    digest: "sha256:121ec47d0db949946b55ec034b72fdaff909470c92353efda434bbbbb428d72e"
+    tag: "0.11.1"
+    digest: "sha256:735c5c5f712de817b30af1a2c1ff6888552c371f5560f089a356424001270f76"
     pullPolicy: IfNotPresent
 
   # **Required, and https://.** The control plane as the agent reaches it — through the Ingress. The agent
@@ -254,6 +254,55 @@ agents:
       memory: 512Mi
     limits:
       memory: 1Gi
+
+  # **What runs the scanners.** `dind`: a Docker daemon beside the agent, configured under `dind` below —
+  # privileged, or rootless. `kubernetes`: one pod per scanner run in a namespace of its own, under Pod
+  # Security `restricted` (decision 0045): no Docker and no privileged pod anywhere. The agent's service
+  # account then holds a Role in that namespace only — create, read, list and delete pods, exec into them,
+  # read their logs — and `dind` is not read.
+  executor: dind
+  kubernetes:
+    # **One per release, and never the agents' namespace nor the release's**: the Role reaches every pod in
+    # it. Empty is `<release fullname>-scans`, so two releases never share one — their policies and Roles would
+    # reach each other's scan pods (security review of 2026-10-26, M2). The chart refuses the agents' or the
+    # release's.
+    scansNamespace: ""
+    createNamespace: true
+    # Using a namespace the chart did not create — GitOps, a namespace given to you — needs this: the chart
+    # cannot see its labels, and it must enforce Pod Security `restricted` and hold nothing else. The agent
+    # checks the first at every start and refuses to scan without it; the second is yours.
+    acknowledgeExistingNamespace: false
+    # How long a scan pod may take to be scheduled, pull its images and receive its workspace.
+    startTimeout: 5m
+    # Each scan pod's scanner, request and limit alike — the closed shape's bound. The pods go on the agents'
+    # nodes: size the pool for the agent's concurrency times these.
+    scanCpuMillis: 2000
+    scanMemoryMiB: 2048
+    # **The matcher's database, kept for scan pods** (decision 0045 §7): a ReadWriteOnce claim in the scans'
+    # namespace, onto which each generation the agent downloads — some 3 GB — is copied once, then mounted
+    # read-only by every matcher pod, on the agent's node. It keeps the generations the agent still holds — the
+    # current one and, for a while, the one before. Off, the database is copied into each matcher pod, at every
+    # scan.
+    matcherCache:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    # **An admission policy keeping scan pods on the agents' pool** (security review of 2026-10-26, L2): every
+    # pod created in the scans' namespace must carry `agents.nodeSelector`, must not name its node and must not
+    # mount a token — refused by the API server even if the agent asks. Cluster-scoped, so installing it needs
+    # the right to create a ValidatingAdmissionPolicy; Kubernetes 1.30 or later. Turning it off needs the
+    # acknowledgement: a compromised agent could then place a scan pod on any node, the control plane's included.
+    admissionPolicy:
+      enabled: true
+      acknowledgeUnpinnedScanPods: false
+    # **Required with the network policy.** The agent calls the API server, whose real address — the
+    # endpoints of the `kubernetes` Service, `kubectl get endpoints kubernetes -n default` — usually lies in
+    # a range excludeCidrs keeps scanners out of. Listed here, it is reachable by the agent alone, on these
+    # ports; scan pods never are.
+    apiServer:
+      cidrs: []
+      #  - 10.0.0.10/32
+      ports: [443, 6443]
 
   # The work directory: each scan's clone and the vulnerability matcher's database (some 3 GB). Mounted
   # at the same path in the agent and in the daemon, because the daemon resolves a scanner's bind.

@@ -1,7 +1,9 @@
-# The operationIds 0.11.0 publishes, one per line: method, path, operationId.
+# The operationIds 0.11.0 and 0.11.1 publish, one per line: method, path, operationId.
 #
 # Read by PublishedOperationIdsTest. Taken from the document the application serves on develop at
-# 75c23643, which equals the committed vectispire-angular/openapi.json there and v0.11.0-rc.3's.
+# 75c23643, which equals the committed vectispire-angular/openapi.json there and v0.11.0-rc.3's;
+# 0.11.1's release commit added the five operations it publishes (the password-change lift and
+# the checklist contacts), each with an id of its own.
 # It is a copy and not the committed openapi.json on purpose: that file is rewritten by the same
 # flag that regenerates it, so a shifted id would be "fixed" by the regeneration that published
 # it. This one moves only by hand.
@@ -21,6 +23,7 @@ DELETE /api/v1/plugins/{id}/unsigned-waiver revokeSignatureWaiver
 DELETE /api/v1/projects/{id} remove_4
 DELETE /api/v1/projects/{id}/containers/{containerId} unfileContainer
 DELETE /api/v1/projects/{id}/repositories/{repositoryId} unfile
+DELETE /api/v1/projects/{projectId}/checklists/contacts/{profile} unlinkChecklistContact
 DELETE /api/v1/projects/{projectId}/plugins/{pluginId} deactivate_1
 DELETE /api/v1/projects/{projectId}/report-plugins/{pluginId} deactivate
 DELETE /api/v1/repositories/{id} remove_3
@@ -31,6 +34,7 @@ DELETE /api/v1/solutions/{id} remove_2
 DELETE /api/v1/ssh-keys/{id} remove_7
 DELETE /api/v1/teams/{id} remove_1
 DELETE /api/v1/users/{id} remove
+DELETE /api/v1/users/{id}/password-change-requirement clearPasswordChangeRequirement
 DELETE /scim/v2/Groups/{id} deleteGroup
 DELETE /scim/v2/Users/{id} deleteUser
 GET /api/v1/admin/agents list_16
@@ -114,6 +118,8 @@ GET /api/v1/projects/{id} get_2
 GET /api/v1/projects/{id}/compliance project
 GET /api/v1/projects/{id}/components components
 GET /api/v1/projects/{projectId}/checklists list_10
+GET /api/v1/projects/{projectId}/checklists/contacts checklistContacts
+GET /api/v1/projects/{projectId}/checklists/contacts/candidates checklistContactCandidates
 GET /api/v1/projects/{projectId}/checklists/context context
 GET /api/v1/projects/{projectId}/checklists/offered offered
 GET /api/v1/projects/{projectId}/checklists/{revision} read
@@ -297,6 +303,7 @@ PUT /api/v1/plugins/{id}/enabled setEnabled_2
 PUT /api/v1/plugins/{id}/unsigned-waiver waiveSignature
 PUT /api/v1/projects/{id}/containers/{containerId} fileContainer
 PUT /api/v1/projects/{id}/repositories/{repositoryId} file
+PUT /api/v1/projects/{projectId}/checklists/contacts/{profile} linkChecklistContact
 PUT /api/v1/projects/{projectId}/plugins/{pluginId} activate_1
 PUT /api/v1/projects/{projectId}/report-plugins/{pluginId} activate
 PUT /api/v1/report-plugins/{id} update_1

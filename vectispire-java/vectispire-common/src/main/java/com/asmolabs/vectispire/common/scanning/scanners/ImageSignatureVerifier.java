@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.PluginRefusedException;
@@ -77,9 +78,9 @@ public final class ImageSignatureVerifier {
     private static final Pattern REGISTRY_REFUSED =
             Pattern.compile("\\b(?:UNAUTHORIZED|DENIED)\\b|\\b401 Unauthorized\\b|\\b403 Forbidden\\b");
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
 
-    public ImageSignatureVerifier(ContainerRunner runner) {
+    public ImageSignatureVerifier(ContainerExecutor runner) {
         this.runner = runner;
     }
 

@@ -28,6 +28,11 @@ import java.util.Optional;
  * @param output a writable directory with a ceiling, or {@code null} — see {@link BoundedOutput}
  * @param login the pull credentials handed to the tool for one registry, or {@code null} — see
  *     {@link RegistryLogin}
+ * @param entrypoint the image's own entrypoint, declared by the scanner that knows the tool — empty for an
+ *     image that has none — or {@code null} when nobody declared it. {@link ContainerRunner} lets Docker
+ *     apply the image's and ignores this; the Kubernetes executor needs it, because it captures standard
+ *     output into a file through a wrapper that has to name the program it runs (decision 0045), and an
+ *     undeclared entrypoint there means a standard output that is not captured
  */
 public record ContainerRun(
         String image,
@@ -39,7 +44,12 @@ public record ContainerRun(
         Duration timeout,
         String user,
         BoundedOutput output,
-        RegistryLogin login) {
+        RegistryLogin login,
+        List<String> entrypoint) {
+
+    public ContainerRun {
+        entrypoint = entrypoint == null ? null : List.copyOf(entrypoint);
+    }
 
     /** @param readOnly explicit, and true wherever it can be */
     public record Mount(String source, String target, boolean readOnly) {
@@ -127,16 +137,16 @@ public record ContainerRun(
 
     /** The closed shape: no network, not root, default timeout. */
     public static ContainerRun of(String image, List<String> command, List<Mount> mounts, String label) {
-        return new ContainerRun(image, List.copyOf(command), List.copyOf(mounts), label, false, false, null, null, null, null);
+        return new ContainerRun(image, List.copyOf(command), List.copyOf(mounts), label, false, false, null, null, null, null, null);
     }
 
     public ContainerRun withNetwork() {
-        return new ContainerRun(image, command, mounts, label, true, asRoot, timeout, user, output, login);
+        return new ContainerRun(image, command, mounts, label, true, asRoot, timeout, user, output, login, entrypoint);
     }
 
     /** Named `runningAsRoot` rather than `asRoot`: the latter is the component's accessor. */
     public ContainerRun runningAsRoot() {
-        return new ContainerRun(image, command, mounts, label, network, true, timeout, user, output, login);
+        return new ContainerRun(image, command, mounts, label, network, true, timeout, user, output, login, entrypoint);
     }
 
     /**
@@ -144,7 +154,7 @@ public record ContainerRun(
      * see {@link BoundedOutput}. Needs {@link #runningAs}: the directory belongs to that user.
      */
     public ContainerRun withBoundedOutput(BoundedOutput value) {
-        return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, value, login);
+        return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, value, login, entrypoint);
     }
 
     /**
@@ -152,7 +162,7 @@ public record ContainerRun(
      * writes stays deletable by the process that created the directory.
      */
     public ContainerRun runningAs(String uidGid) {
-        return new ContainerRun(image, command, mounts, label, network, false, timeout, uidGid, output, login);
+        return new ContainerRun(image, command, mounts, label, network, false, timeout, uidGid, output, login, entrypoint);
     }
 
     /**
@@ -174,11 +184,20 @@ public record ContainerRun(
     /** Hands the tool the pull credentials for {@code reference}'s registry — see {@link RegistryLogin}. */
     public ContainerRun withRegistryLoginFor(String reference, Path directory) {
         return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, output,
-                new RegistryLogin(reference, directory));
+                new RegistryLogin(reference, directory), entrypoint);
+    }
+
+    /**
+     * Declares the image's own entrypoint — what Docker prepends to {@link #command} — for a backend that
+     * has to name it: see {@link #entrypoint}. {@code ScannerEntrypointsTest} holds every declaration to the
+     * pinned image's configuration.
+     */
+    public ContainerRun withEntrypoint(List<String> value) {
+        return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, output, login, value);
     }
 
     public ContainerRun withTimeout(Duration value) {
-        return new ContainerRun(image, command, mounts, label, network, asRoot, value, user, output, login);
+        return new ContainerRun(image, command, mounts, label, network, asRoot, value, user, output, login, entrypoint);
     }
 
     /**

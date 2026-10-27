@@ -182,8 +182,8 @@ volume ; un miroir que personne ne collecte ne fait qu'augmenter le coût d'une 
 
 ## Les images
 
-Trois images sont publiées — le plan de contrôle, l'agent et, à partir de la version qui suit la
-0.10.0, le plugin de rapport de démonstration ; la 0.10.0 publiait les deux premières. **La release
+Trois images sont publiées — le plan de contrôle, l'agent et, à partir de la
+0.11.0, le plugin de rapport de démonstration ; la 0.10.0 publiait les deux premières. **La release
 livre les images de Jib** : `release.yml` lance `jibBuildTar`, comme le job `images` de chaque
 poussée, parce que Jib n'a besoin d'aucun démon et qu'il est rapide. Les `Dockerfile` sont la seconde
 voie, celle qui peut faire un `chown` du répertoire du miroir d'audit là où Jib ne peut poser qu'un

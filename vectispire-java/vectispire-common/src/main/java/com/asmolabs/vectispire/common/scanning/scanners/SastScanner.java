@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
@@ -48,10 +49,10 @@ public final class SastScanner {
 
     private static final String LABEL = "semgrep (source code analysis)";
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final String image;
 
-    public SastScanner(ContainerRunner runner, String image) {
+    public SastScanner(ContainerExecutor runner, String image) {
         this.runner = runner;
         this.image = image;
     }
@@ -109,7 +110,8 @@ public final class SastScanner {
                                 ContainerPaths.source(subPath)),
                         List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
                         LABEL)
-                .runningAsOwnerOf(workspace.root()));
+                .runningAsOwnerOf(workspace.root())
+                .withEntrypoint(ScannerImages.SEMGREP_ENTRYPOINT));
 
         // **The refusal is read before the exit code is judged.** Semgrep reports a bad
         // configuration on *stdout*, inside the JSON, and leaves stderr empty — so the generic

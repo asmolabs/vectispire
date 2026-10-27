@@ -1,0 +1,50 @@
+{{- if and .Values.agents.enabled (eq .Values.agents.executor "kubernetes") .Values.agents.kubernetes.admissionPolicy.enabled }}
+{{- $fullname := include "vectispire.fullname" . -}}
+# **Scan pods stay on their pool, even if the agent is compromised** (decision 0045 §6; security review of
+# 2026-10-26, L2). Pod Security `restricted` says nothing of where a pod runs: an agent turned against the
+# cluster could create a scan pod with `nodeName` set to the control plane's node — past the scheduler, the
+# taints, the anti-affinity and the pool's PID limit. The API server refuses here, whatever the agent asks,
+# every pod created in the scans' namespace that does not carry the pool's node selector, that names its node,
+# or that mounts a service account token. Cluster-scoped, like the policy API itself; Kubernetes 1.30 or later.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ $fullname }}-scan-pods
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scans
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  validations:
+    - expression: "!has(object.spec.nodeName) || object.spec.nodeName == ''"
+      message: "A scan pod is placed by the scheduler: it never names its node."
+    - expression: "has(object.spec.automountServiceAccountToken) && object.spec.automountServiceAccountToken == false"
+      message: "A scan pod mounts no service account token."
+    {{- range $key, $value := .Values.agents.nodeSelector }}
+    # The pool's node selector, entry by entry: CEL string literals written as JSON strings, so no value can
+    # escape its quotes.
+    - expression: {{ printf "has(object.spec.nodeSelector) && %s in object.spec.nodeSelector && object.spec.nodeSelector[%s] == %s" (toJson $key) (toJson $key) (toJson (toString $value)) | quote }}
+      message: {{ printf "A scan pod runs on the agents' pool: nodeSelector %s=%s." $key (toString $value) | quote }}
+    {{- end }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ $fullname }}-scan-pods
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scans
+spec:
+  policyName: {{ $fullname }}-scan-pods
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: {{ include "vectispire.scansNamespace" . }}
+{{- end }}

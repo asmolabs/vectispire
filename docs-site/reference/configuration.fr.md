@@ -28,7 +28,7 @@ Le moteur est lu depuis l'URL. Il n'y a pas de réglage de dialecte séparé.
 |---|---|
 | `ENCRYPTION_KEY` | L'enregistrement de tout secret est refusé tant que celle-ci ou la forme fichier n'est pas posée. |
 | `ENCRYPTION_KEY_FILE` | Un chemin vers un fichier contenant la clé. **À préférer en production.** Poser les deux est refusé ; un chemin qui ne résout pas arrête l'application. |
-| `VECTISPIRE_SIGNING_KEY` | La clé privée ECDSA P-256 (PEM, PKCS#8) qui signe les paquets de preuves, VEX, CSAF, CycloneDX et enveloppes in-toto ; sa moitié publique est publiée sur `/api/v1/crypto/public-key.pub`. Non posée, une clé est générée au premier usage et conservée chiffrée sous `ENCRYPTION_KEY` : elle survit aux redémarrages — et rien ne peut être signé sans `ENCRYPTION_KEY`. **En 0.10.0, ce premier usage échoue** : une installation sans cette clé répond 500 à son premier paquet de preuves, parce que la clé était créée dans une transaction en lecture seule (corrigé dans la version qui suit la 0.10.0, voir les [notes de version](release-notes.md)). En 0.10.0, posez-la. **À poser dès que plus d'une instance tourne**, pour qu'elles signent toutes avec la même clé. Une clé conservée qu'aucune `ENCRYPTION_KEY` configurée ne sait déchiffrer est refusée, jamais remplacée : la remplacer rendrait invérifiable tout document déjà signé. La composition livrée la remet en fichier, `/run/secrets/vectispire.signing.key`, jamais en environnement, et demande la variable déclarée dans `.env`, même vide. |
+| `VECTISPIRE_SIGNING_KEY` | La clé privée ECDSA P-256 (PEM, PKCS#8) qui signe les paquets de preuves, VEX, CSAF, CycloneDX et enveloppes in-toto ; sa moitié publique est publiée sur `/api/v1/crypto/public-key.pub`. Non posée, une clé est générée au premier usage et conservée chiffrée sous `ENCRYPTION_KEY` : elle survit aux redémarrages — et rien ne peut être signé sans `ENCRYPTION_KEY`. **En 0.10.0, ce premier usage échoue** : une installation sans cette clé répond 500 à son premier paquet de preuves, parce que la clé était créée dans une transaction en lecture seule (corrigé dans la 0.11.0, voir les [notes de version](release-notes.md)). En 0.10.0, posez-la. **À poser dès que plus d'une instance tourne**, pour qu'elles signent toutes avec la même clé. Une clé conservée qu'aucune `ENCRYPTION_KEY` configurée ne sait déchiffrer est refusée, jamais remplacée : la remplacer rendrait invérifiable tout document déjà signé. La composition livrée la remet en fichier, `/run/secrets/vectispire.signing.key`, jamais en environnement, et demande la variable déclarée dans `.env`, même vide. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | Anciennes clés séparées par des virgules, essayées **au déchiffrement seulement**. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | La même liste depuis un fichier, séparée par des virgules ou des sauts de ligne. |
 
@@ -244,9 +244,11 @@ Puis `http://localhost:3180/swagger-ui.html`.
 
 `VECTISPIRE_AGENT_TOKEN` et `VECTISPIRE_AGENT_SIGNING_KEY` sont des identifiants : remettez-les à l'agent
 comme des fichiers portant leur nom sous `/run/secrets/`, lus avec
-`SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/` — comme le font le profil `with-agent` de la
-composition et le chart Helm — plutôt que comme des variables, que tout client du démon relit avec
-`docker inspect`.
+`SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/` — comme le fait le profil `with-agent` de la
+composition — plutôt que comme des variables, que tout client du démon relit avec `docker inspect`. La
+chart Helm les monte sous `/etc/vectispire/secrets/` et importe ce répertoire-là : dans un pod dont l'agent
+a besoin du jeton de compte de service (l'exécuteur Kubernetes), un volume en lecture seule à
+`/run/secrets` ne laisse au kubelet aucune place pour monter ce jeton, et l'agent ne démarre jamais.
 
 | Variable | Notes |
 |---|---|

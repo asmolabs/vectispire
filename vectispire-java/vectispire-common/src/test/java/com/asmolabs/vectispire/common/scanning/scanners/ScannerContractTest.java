@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.common.scanning.scanners;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -37,7 +37,8 @@ class ScannerContractTest {
     /**
      * The classes this rule governs: the ones that run a container.
      *
-     * <p>Identified by holding a {@link ContainerRunner}, not by name. A scanner that only walks
+     * <p>Identified by holding a {@link ContainerExecutor}, not by name — the seam of decision 0045, whatever
+     * backend runs it. A scanner that only walks
      * files — {@code ApiDiscoveryScanner} does — has nothing that can fail to run in the sense
      * decision 0007 means, and is deliberately out of scope.
      */
@@ -56,13 +57,13 @@ class ScannerContractTest {
         for (Class<?> scanner : CONTAINER_SCANNERS) {
             boolean holdsRunner = false;
             for (Field field : scanner.getDeclaredFields()) {
-                if (ContainerRunner.class.equals(field.getType())) {
+                if (ContainerExecutor.class.equals(field.getType())) {
                     holdsRunner = true;
                     break;
                 }
             }
             assertThat(holdsRunner)
-                    .as("%s is listed as a container-running scanner but holds no ContainerRunner",
+                    .as("%s is listed as a container-running scanner but holds no ContainerExecutor",
                             scanner.getSimpleName())
                     .isTrue();
         }

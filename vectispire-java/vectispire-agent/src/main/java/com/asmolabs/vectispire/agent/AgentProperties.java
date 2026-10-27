@@ -40,6 +40,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     operator's explicit choice, for its own host
  * @param vulnerabilityDbDir where the matcher's database is downloaded once and shared, read-only, by
  *     every scan this agent runs; blank is a directory beside the workspaces
+ * @param executor what runs the scanners: {@code docker}, a daemon this agent reaches, or {@code
+ *     kubernetes}, a pod per run in a namespace of its own (decision 0045) — see {@link Executor}
  */
 @ConfigurationProperties("vectispire.agent")
 public record AgentProperties(
@@ -51,7 +53,8 @@ public record AgentProperties(
         @DefaultValue("docker") String scannerEngine,
         @DefaultValue("") String signingKey,
         @DefaultValue Images images,
-        @DefaultValue("") String vulnerabilityDbDir) {
+        @DefaultValue("") String vulnerabilityDbDir,
+        @DefaultValue Executor executor) {
 
     private static final Logger log = LoggerFactory.getLogger(AgentProperties.class);
 
@@ -65,6 +68,80 @@ public record AgentProperties(
             @DefaultValue("") String pluginRegistry,
             @DefaultValue("true") boolean pluginSignatureRequired) {}
 
+    /**
+     * @param kind {@code docker} or {@code kubernetes}; anything else stops the start
+     * @param kubernetes read only when {@code kind} is {@code kubernetes}
+     */
+    public record Executor(@DefaultValue("docker") String kind, @DefaultValue Kubernetes kubernetes) {
+
+        public Executor {
+            kind = kind == null || kind.isBlank() ? "docker" : kind.trim().toLowerCase(java.util.Locale.ROOT);
+            kubernetes = kubernetes == null ? new Kubernetes("", "vectispire-agent", "", "", Duration.ofMinutes(5), "") : kubernetes;
+        }
+    }
+
+    /**
+     * @param namespace the scans' namespace, required: the one the chart labels {@code restricted} and
+     *     binds this agent's Role in
+     * @param name this agent's name on every scan pod, so its start can sweep what a crash left — the
+     *     release's name, stable across restarts, never the pod's
+     * @param helperImage the static busybox the wrapper runs; blank keeps the pinned one
+     * @param user {@code uid:gid} for a run that names none; blank is this process's own
+     * @param startTimeout how long a pod may take to be scheduled, pull and receive its workspace
+     * @param placement the scan pods' {@code nodeSelector}, {@code tolerations} and {@code affinity}, as
+     *     JSON — the agents' own pool, which the chart passes through
+     * @param requireIsolation refuse the start unless scan pods are proved cut off from the API server — on,
+     *     except where the chart renders no policy at the operator's explicit acknowledgement
+     * @param probeTarget the {@code address:port} the probe tries; blank is the API server as this pod sees
+     *     it ({@code KUBERNETES_SERVICE_HOST} and {@code KUBERNETES_SERVICE_PORT})
+     * @param cpuMillis what each scan pod's scanner is given and limited to, in thousandths of a CPU. <b>Set,
+     *     never derived from this JVM's cores</b>: those are the agent pod's view of its node, and scan pods
+     *     asking for all but one of them could not be scheduled beside anything — measured, on k3s
+     * @param memoryMiB the scanner's memory, request and limit alike
+     * @param matcherCacheClaim the claim in the scans' namespace that keeps the matcher's database for scan pods
+     *     (decision 0045 §7); blank copies the database into each matcher pod
+     * @param nodeName the node this agent runs on — the downward API's {@code spec.nodeName} — where every pod
+     *     mounting the matcher's cache goes, since the claim attaches to one node
+     */
+    public record Kubernetes(
+            @DefaultValue("") String namespace,
+            @DefaultValue("vectispire-agent") String name,
+            @DefaultValue("") String helperImage,
+            @DefaultValue("") String user,
+            @DefaultValue("5m") Duration startTimeout,
+            @DefaultValue("") String placement,
+            @DefaultValue("true") boolean requireIsolation,
+            @DefaultValue("") String probeTarget,
+            @DefaultValue("2000") int cpuMillis,
+            @DefaultValue("2048") int memoryMiB,
+            @DefaultValue("") String matcherCacheClaim,
+            @DefaultValue("") String nodeName) {
+
+        /** The one the binder uses — marked, because the convenience constructor below makes two (see the outer record's). */
+        @ConstructorBinding
+        public Kubernetes {
+            namespace = namespace == null ? "" : namespace.trim();
+            name = name == null || name.isBlank() ? "vectispire-agent" : name.trim();
+            helperImage = helperImage == null ? "" : helperImage.trim();
+            user = user == null ? "" : user.trim();
+            startTimeout = startTimeout == null ? Duration.ofMinutes(5) : startTimeout;
+            placement = placement == null ? "" : placement.trim();
+            probeTarget = probeTarget == null ? "" : probeTarget.trim();
+            matcherCacheClaim = matcherCacheClaim == null ? "" : matcherCacheClaim.trim();
+            nodeName = nodeName == null ? "" : nodeName.trim();
+            if (cpuMillis <= 0 || memoryMiB <= 0) {
+                throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are "
+                        + "positive: a scan pod with no limit is not in the closed shape. The agent does not start.");
+            }
+        }
+
+        /** Without the two probe settings: isolation required, against the API server. */
+        public Kubernetes(String namespace, String name, String helperImage, String user, Duration startTimeout,
+                String placement) {
+            this(namespace, name, helperImage, user, startTimeout, placement, true, "", 2000, 2048, "", "");
+        }
+    }
+
     /** The pinned scanner digests, for a caller with no opinion about the registry. */
     public AgentProperties(
             String url,
@@ -74,7 +151,7 @@ public record AgentProperties(
             Duration heartbeat,
             String scannerEngine) {
         this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, "",
-                new Images("", "", "", "", "", "", false), "");
+                new Images("", "", "", "", "", "", false), "", null);
     }
 
     /**
@@ -95,6 +172,7 @@ public record AgentProperties(
         // Absent means "no override", which is the same thing every blank field means.
         images = images == null ? new Images("", "", "", "", "", "", false) : images;
         vulnerabilityDbDir = vulnerabilityDbDir == null ? "" : vulnerabilityDbDir.trim();
+        executor = executor == null ? new Executor("docker", null) : executor;
     }
 
     /**

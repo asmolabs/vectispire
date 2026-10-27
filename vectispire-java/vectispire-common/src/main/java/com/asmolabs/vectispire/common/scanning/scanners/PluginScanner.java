@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.sarif.InvalidSarifException;
 import com.asmolabs.vectispire.common.domain.sarif.SarifFinding;
 import com.asmolabs.vectispire.common.domain.sarif.SarifReport;
+import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.PluginRefusedException;
@@ -101,12 +102,12 @@ public final class PluginScanner {
         }
     }
 
-    private final ContainerRunner runner;
+    private final ContainerExecutor runner;
     private final Settings settings;
     private final ImageSignatureVerifier verifier;
     private final Function<Path, Optional<String>> owners;
 
-    public PluginScanner(ContainerRunner runner, Settings settings) {
+    public PluginScanner(ContainerExecutor runner, Settings settings) {
         this(runner, settings, ContainerRun::ownerOf);
     }
 
@@ -115,7 +116,7 @@ public final class PluginScanner {
      *     whoever runs the build: the CI's job container is root, a developer is not, and a test of
      *     either rule must not depend on which of the two ran it
      */
-    public PluginScanner(ContainerRunner runner, Settings settings, Function<Path, Optional<String>> owners) {
+    public PluginScanner(ContainerExecutor runner, Settings settings, Function<Path, Optional<String>> owners) {
         this.runner = runner;
         this.settings = settings == null ? Settings.DEFAULT : settings;
         this.verifier = new ImageSignatureVerifier(runner);

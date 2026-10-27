@@ -1,0 +1,16 @@
+{{- if and .Values.agents.enabled (eq .Values.agents.executor "kubernetes") .Values.agents.kubernetes.createNamespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "vectispire.scansNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scans
+    # **The API server refuses a privileged pod here, whatever the agent asks** (decision 0045 §3): no
+    # hostPath, no host network, no root, no capability. The agent's Role creates pods in this namespace
+    # and nowhere else, so this is the ceiling on what a compromised agent can start.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+{{- end }}
