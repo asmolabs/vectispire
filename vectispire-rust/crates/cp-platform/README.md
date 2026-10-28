@@ -19,6 +19,27 @@ composes are ported. In progress, not shipped: the Java control plane is the pro
 | Every change validated before any is written; then written together; the acknowledgement stamped or erased on the switch's transition only | |
 | One audit entry per save — the keys as its resource, each change described without a secret's value — signalled `SECURITY_SETTING_CHANGED` when a security-governing setting is among them | |
 
+The routes served so far are `AuditLogController`'s and `CryptoController`'s (`src/web/`), over services other crates
+own:
+
+| Route | Marker | Service |
+|---|---|---|
+| `GET /api/v1/audit-log` | governance read | `cp-audit`'s `AuditLogQuery::page` — `limit`/`offset` clamped by the service, `search` bounded |
+| `GET /api/v1/audit-log/operation-types` | governance read | `AuditLogQuery::operation_types` |
+| `GET /api/v1/audit-log/verify` | governance read | `AuditLogQuery::verify` — a break told to the SIEM's listener |
+| `GET /api/v1/crypto/public-key.pub` | anonymous | `cp-crypto`'s `SigningKeys::public_key_pem`, as a named download |
+| `POST /api/v1/crypto/verify` | account | `SigningKeys::verify_with` — a request without a payload or a signature answered `valid: false`, not checked |
+| `GET /api/v1/crypto/cosign-cli-helper` | account | `SigningKeys::key_id`, and the commands, `--insecure-ignore-tlog=true` on each cosign one |
+
+The query parameters are read as Spring binds `@RequestParam` (`src/web/read.rs`): an `int`'s default for an absent or
+empty value only, its first value when sent twice, a `String`'s values joined by commas.
+
+**Replayed** (`crates/cp-agents/tests/golden.rs`) with the signing key configured, as `vectispire.signing.key` sets it:
+the Java suite's context made its key before the recorded tests ran, so a key generated into `t_setting` here would be
+an insertion no recording holds. Three recordings stay listed — two in `golden/deferred/_recording.txt` (a signature
+and a forger's key the test made at run time, hidden by the recorder) and one in `compliance.txt` (a verification over
+entries the compliance exports write, played in Java's place with invented hashes).
+
 **Seams for the modules not ported yet.** `platform` may use any module in Java (decision 0029); it stays open in `cp-arch-tests`'
 `edges.toml`, and the crate uses `audit` and `settings`; the rest is asked through traits the binary fills: `Approvers`
 (`access`' `TriageApprovers`), `Tracker` (`tickets`' CA pinning), `AiDestination` (`ai`'s guard and acceptance record).
@@ -36,11 +57,12 @@ The writer's two role properties come as a `Caller`, resolved by `access`.
 
 ## Not here yet
 
-- The routes: `SettingsController`, `AuditLogController`, `CryptoController` — with the access routes' goldens.
+- `SettingsController`'s twelve routes. The catalog and its save need `access`' approvers (`TriageApprovers`) filled
+  in the binary; the token, CA and secret states and doors need `tickets`, `notifications` and `ai`.
 - The four credential doors (tracker token, webhook signing secret, OpenAI key, inbound webhook secret), which encrypt
   before storing and ask the tracker about its token: `crypto`, `tickets`, `notifications`, `ai`.
 - The AI endpoint check (`checkAiEndpoint`): `ai`.
 
 ```sh
-cargo test -p vectispire-cp-platform     # the forms' unit tests, and the service on both engines (Docker)
+cargo test -p vectispire-cp-platform     # the forms' and routes' unit tests, the contract, the service on both engines (Docker)
 ```

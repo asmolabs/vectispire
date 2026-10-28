@@ -78,6 +78,7 @@ type StandIns = (
     Arc<vectispire_cp_issues::Issues>,
     Arc<vectispire_cp_gate::GateModule>,
     Arc<vectispire_cp_siem::SiemExporterService>,
+    registry::Platform,
 );
 
 fn stand_ins() -> StandIns {
@@ -221,6 +222,21 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_targets::SystemClock),
         siem.security_events(),
     ));
+    let platform = registry::Platform {
+        trail: Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+            (*audit).clone(),
+            Arc::new(vectispire_cp_audit::SystemClock),
+            vectispire_cp_app::siem::chain_broken_listeners(&siem),
+        )),
+        signing: Arc::new(
+            vectispire_cp_crypto::SigningKeys::new(
+                "",
+                vectispire_cp_settings::Settings::new(db.clone()),
+                encryption.clone(),
+            )
+            .unwrap(),
+        ),
+    };
     let siem = vectispire_cp_app::siem::service(
         &siem,
         db,
@@ -229,15 +245,16 @@ fn stand_ins() -> StandIns {
         Arc::new(vectispire_cp_audit::SystemClock),
     );
 
-    (targets, scanning, agents, rules, inventory, issues, gate, siem)
+    (targets, scanning, agents, rules, inventory, issues, gate, siem, platform)
 }
 
 /// The real registry, against the rules. The anonymous list is exact about what is registered; a path on it
 /// that no route registers yet is excused only while the contract still lists that route as not ported.
 #[tokio::test]
 async fn the_registry_holds_to_the_authorization_rules() {
-    let (targets, scanning, agents, rules, inventory, issues, gate, siem) = stand_ins();
-    let routes = descriptors(&registry::routes(targets, scanning, agents, rules, inventory, issues, gate, siem));
+    let (targets, scanning, agents, rules, inventory, issues, gate, siem, platform) = stand_ins();
+    let routes =
+        descriptors(&registry::routes(targets, scanning, agents, rules, inventory, issues, gate, siem, platform));
     let not_ported: BTreeSet<String> = Allowlist::committed().entries().iter().map(|(_, path)| path.clone()).collect();
     let registered: BTreeSet<&str> = routes.iter().map(|route| route.path.as_str()).collect();
 
@@ -264,8 +281,8 @@ async fn the_registry_holds_to_the_authorization_rules() {
 /// ceiling. It replaces the count of routes per module this test used to pin, which every port had to edit.
 #[tokio::test]
 async fn the_registry_serves_exactly_what_has_left_the_list_of_routes_not_ported() {
-    let (targets, scanning, agents, rules, inventory, issues, gate, siem) = stand_ins();
-    let registry = registry::routes(targets, scanning, agents, rules, inventory, issues, gate, siem);
+    let (targets, scanning, agents, rules, inventory, issues, gate, siem, platform) = stand_ins();
+    let registry = registry::routes(targets, scanning, agents, rules, inventory, issues, gate, siem, platform);
     let served: BTreeSet<(String, String)> =
         registry.table().iter().map(|decl| (decl.method.clone(), decl.path.clone())).collect();
     assert_eq!(served.len(), registry.table().len(), "a route registered twice");

@@ -1,4 +1,5 @@
-//! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues (10), gate (7), siem (3).
+//! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues
+//! (10), gate (7), siem (3), platform (6 so far: the audit trail's and the signing key's).
 
 use std::sync::Arc;
 
@@ -11,6 +12,13 @@ use vectispire_cp_scanning::Scanning;
 use vectispire_cp_siem::SiemExporterService;
 use vectispire_cp_targets::Targets;
 
+/// The platform routes' services: the audit trail's reader and the document signing key.
+#[derive(Clone, Debug)]
+pub struct Platform {
+    pub trail: Arc<vectispire_cp_audit::AuditLogQuery>,
+    pub signing: Arc<vectispire_cp_crypto::SigningKeys>,
+}
+
 /// All route entries from the composed modules.
 #[allow(clippy::too_many_arguments)]
 pub fn entries(
@@ -22,6 +30,7 @@ pub fn entries(
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
     siem: Arc<SiemExporterService>,
+    platform: Platform,
 ) -> Vec<RouteEntry> {
     let mut list = Vec::new();
     list.extend(vectispire_cp_targets::routes(targets.clone()));
@@ -32,6 +41,7 @@ pub fn entries(
     list.extend(vectispire_cp_issues::routes(issues));
     list.extend(gate.routes());
     list.extend(vectispire_cp_siem::routes(siem));
+    list.extend(vectispire_cp_platform::routes(platform.trail, platform.signing));
     list
 }
 
@@ -47,9 +57,10 @@ pub fn routes(
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
     siem: Arc<SiemExporterService>,
+    platform: Platform,
 ) -> Routes<()> {
     let mut routes = Routes::new(NoVisibility);
-    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, siem) {
+    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, siem, platform) {
         routes = routes.route(entry);
     }
     routes

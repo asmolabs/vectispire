@@ -281,14 +281,17 @@ async fn serve() -> ExitCode {
     };
 
     let configured_signing_key = settings.signing_key.as_ref().map(|s| s.expose()).unwrap_or("");
-    if let Err(error) = vectispire_cp_crypto::SigningKeys::new(
+    let signing = match vectispire_cp_crypto::SigningKeys::new(
         configured_signing_key,
         vectispire_cp_settings::Settings::new(db.clone()),
         encryption.clone(),
     ) {
-        tracing::error!("Invalid signing key: {error}");
-        return ExitCode::FAILURE;
-    }
+        Ok(signing) => Arc::new(signing),
+        Err(error) => {
+            tracing::error!("Invalid signing key: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
 
     let clock: Arc<dyn vectispire_cp_targets::Clock> = Arc::new(vectispire_cp_targets::SystemClock);
 
@@ -518,6 +521,14 @@ async fn serve() -> ExitCode {
         initial_delay: Duration::from_secs(30),
     };
 
+    // One reader of the trail, for the audit-log routes and the withheld-claim repair: a break it finds is told to the
+    // SIEM as Java's `AuditChainBroken` event is.
+    let trail = Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+        (*audit).clone(),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        vectispire_cp_app::siem::chain_broken_listeners(&siem),
+    ));
+
     let access_settings = Arc::new(SettingsForAccess(vectispire_cp_settings::Settings::new(db.clone())));
     let visibility = vectispire_cp_access::VisibilityService::new(
         db.clone(),
@@ -537,6 +548,7 @@ async fn serve() -> ExitCode {
         issues.clone(),
         gate.clone(),
         siem_service,
+        vectispire_cp_app::registry::Platform { trail: trail.clone(), signing },
     ) {
         routes = routes.route(entry);
     }
@@ -586,11 +598,7 @@ async fn serve() -> ExitCode {
         db.clone(),
         scanning.catalog().clone(),
         targets.clone(),
-        Arc::new(vectispire_cp_audit::AuditLogQuery::new(
-            (*audit).clone(),
-            Arc::new(vectispire_cp_audit::SystemClock),
-            vectispire_cp_app::siem::chain_broken_listeners(&siem),
-        )),
+        trail,
         audit.clone(),
         Arc::new(vectispire_cp_maintenance::OneShotJobs::new(
             db.clone(),

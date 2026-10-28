@@ -284,7 +284,14 @@ impl Siem {
     }
 }
 
-/// The issues, gate, inventory and SIEM modules as the binary composes them, on the scan catalog and the targets above.
+/// A P-256 key in PKCS#8 PEM, fresh for each composition: what a deployment writes into `vectispire.signing.key`.
+fn signing_key_pem() -> String {
+    use p256::pkcs8::{EncodePrivateKey, LineEnding};
+    p256::SecretKey::random(&mut rand_core::OsRng).to_pkcs8_pem(LineEnding::LF).unwrap().to_string()
+}
+
+/// The issues, gate, inventory, SIEM and platform modules as the binary composes them, on the scan catalog and the
+/// targets above.
 fn phase_three(
     db: &Db,
     targets: Arc<Targets>,
@@ -319,6 +326,21 @@ fn phase_three(
         (*audit).clone(),
         Arc::new(AuditClock),
     ));
+    // The platform routes served so far, as `cp-app`'s registry composes them: the trail's reader tells a break to the
+    // SIEM's listener.
+    let trail = Arc::new(vectispire_cp_audit::AuditLogQuery::new(
+        (*audit).clone(),
+        Arc::new(AuditClock),
+        vec![siem.events.clone() as Arc<dyn vectispire_cp_audit::ChainBrokenListener>],
+    ));
+    // **The signing key as `vectispire.signing.key` configures it**, not generated into `t_setting` on first use: the
+    // Java suite's context made its key before the recorded tests ran, so no recording holds the row or its insertion,
+    // and a key generated here would be an insertion Java never made — or, over a row a test seeded under Java's
+    // `ENCRYPTION_KEY`, a key this replay cannot read. The stored-key path is `cp-crypto`'s tests'.
+    let signing = Arc::new(
+        vectispire_cp_crypto::SigningKeys::new(&signing_key_pem(), Settings::new(db.clone()), support::encryption())
+            .unwrap(),
+    );
     let gate = vectispire_cp_gate::GateModule::new(
         db.clone(),
         issues.catalog().clone(),
@@ -333,6 +355,7 @@ fn phase_three(
     routes.extend(gate.routes());
     routes.extend(vectispire_cp_inventory::routes(inventory, targets));
     routes.extend(vectispire_cp_siem::routes(exporter));
+    routes.extend(vectispire_cp_platform::routes(trail, signing));
     routes
 }
 
