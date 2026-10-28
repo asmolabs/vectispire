@@ -127,6 +127,19 @@ In Java lines of `vectispire-core`: about 35,000 of 66,000 are ported or in prog
 
 ## 5. What is left
 
+**The order, decided on 2026-10-28: three waves by risk, and nothing dropped.** A module stays out of the port only
+when the product drops the feature; otherwise Java keeps running beside Rust for it, which costs more than porting
+it. At most three ports run in parallel, each staged (domain → services → routes → replay) with one pull request per
+stage, and each in a module of the current wave.
+
+| Wave | Modules | Why in this place |
+|---|---|---|
+| 1 — the core | access, checklists, compliance, posture, platform; the end of siem | what the rest depends on, and most of the deferred recordings |
+| 2 — integrations | forges, tickets, notifications, threatintel, ai | small, but each meets an outside service that is harder to test |
+| 3 — the plugin system | plugins, reportplugins, exports | it runs third-party code, signed and verified: the most risk, and it reuses what the waves before settled |
+
+The phases below keep their numbering and task breakdown; the waves decide which of them is taken next.
+
 ### 5.1 Phase 1 — Access (finish)
 
 | # | Task | Owns | Notes |
@@ -450,6 +463,8 @@ From the workspace [`README.md`](README.md), "Remaining work, as independent str
 | The scan runner moves to a crate shared with the agent (task 2.10) | 2026-10-17 | this file |
 | One MySQL statement per crate may stay unchecked when its `in (…)` list varies in length; the reason is beside it | 2026-10-17 | `cp-access`, `cp-audit` READMEs |
 | Agent-key fall-through is an equivalent mutant, removed from the list | 2026-10-17 | `p1c-mutate.py` |
+| Port order in three waves by risk; nothing dropped unless the product drops the feature | 2026-10-28 | this file, §5 |
+| The switch-over starts with a comparison on a staging copy (Java answers, Rust's answers are compared), never on production | 2026-10-28 | the internal deployment repository |
 | A module raises a SIEM event through `cp_outbox::SecurityEvents` (Java's `SecurityEventRaised`/`Apart`), not through `domain` (no `Tx` there) nor `cp-siem` (an edge Java does not have) | 2026-10-28 | `crates/cp-siem/README.md` |
 
 ---
