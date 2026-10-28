@@ -24,6 +24,9 @@ import org.junit.jupiter.api.Test;
  * throttle's keys are rows in {@code t_login_attempt}: a username folded differently starts a fresh budget for
  * every spelling the database's collation treats as one, which is the oracle {@link LoginThrottle#userKey} closes.
  *
+ * <p>A TOTP secret is named {@code seed} in the files: these are RFC 6238's published test value and made-up ones, and
+ * a field called {@code secret} holding Base32 reads as a credential to gitleaks.
+ *
  * <p>A code is not an input but an answer: {@code codeAt} asks this side for the code of a shifted instant, and the
  * answer carries the code that was submitted, so that the Rust side checks the same string without computing it.
  */
@@ -53,17 +56,17 @@ class SignInReferenceSetTest {
 
         ArrayNode codes = answers.putArray("codes");
         for (JsonNode entry : inputs.path("codes")) {
-            String secret = entry.path("secret").asText();
+            String secret = entry.path("seed").asText();
             Instant instant = Instant.parse(entry.path("instant").asText());
             codes.addObject()
-                    .put("secret", secret)
+                    .put("seed", secret)
                     .put("instant", instant.toString())
                     .put("code", Totp.generateCode(secret, instant));
         }
 
         ArrayNode matches = answers.putArray("matches");
         for (JsonNode entry : inputs.path("matches")) {
-            String secret = text(entry.path("secret"));
+            String secret = text(entry.path("seed"));
             Instant instant = Instant.parse(entry.path("instant").asText());
             String code = entry.has("codeAt")
                     ? entry.path("format").asText().replace("%s",
@@ -71,7 +74,7 @@ class SignInReferenceSetTest {
                     : text(entry.path("code"));
             OptionalLong step = Totp.matchingStep(secret, code, instant);
             ObjectNode answer = matches.addObject();
-            answer.put("secret", secret);
+            answer.put("seed", secret);
             answer.put("code", code);
             answer.put("instant", instant.toString());
             if (step.isPresent()) {

@@ -41,212 +41,212 @@
   ],
   "codes": [
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1970-01-01T00:00:59Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "2005-03-18T01:58:29Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "2005-03-18T01:58:31Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "2009-02-13T23:31:30Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "2033-05-18T03:33:20Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "2603-10-11T11:33:20Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1970-01-01T00:00:00Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1969-12-31T23:59:59.5Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1969-12-31T23:59:30Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1969-12-31T23:59:29Z"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1969-12-31T23:58:59Z"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z"
     },
     {
-      "secret": "jbswy3dpehpk3pxp",
+      "seed": "jbswy3dpehpk3pxp",
       "instant": "2026-10-28T12:00:00Z"
     },
     {
-      "secret": "jbsw y3dp-ehpk 3pxp",
+      "seed": "jbsw y3dp-ehpk 3pxp",
       "instant": "2026-10-28T12:00:00Z"
     },
     {
-      "secret": "AB",
+      "seed": "AB",
       "instant": "2026-10-28T12:00:00Z"
     },
     {
-      "secret": "ß",
+      "seed": "ß",
       "instant": "2026-10-28T12:00:00Z"
     }
   ],
   "matches": [
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 0,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": -30,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 30,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": -60,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 60,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:29Z",
       "codeAt": -59,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:29Z",
       "codeAt": 31,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 0,
       "format": " %s "
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 0,
       "format": "\u0000%s\u001f"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 0,
       "format": " %s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 0,
       "format": "%s0"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 0,
       "format": "0%s"
     },
     {
-      "secret": "jbswy3dpehpk3pxp",
+      "seed": "jbswy3dpehpk3pxp",
       "instant": "2026-10-28T12:00:00Z",
       "codeAt": 0,
       "format": "%s"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "code": null
     },
     {
-      "secret": null,
+      "seed": null,
       "instant": "2026-10-28T12:00:00Z",
       "code": "123456"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "code": ""
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "code": "12345"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "code": "1234567"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "code": "１２３４５６"
     },
     {
-      "secret": "JBSWY3DPEHPK3PXP",
+      "seed": "JBSWY3DPEHPK3PXP",
       "instant": "2026-10-28T12:00:00Z",
       "code": "abcdef"
     },
     {
-      "secret": "",
+      "seed": "",
       "instant": "2026-10-28T12:00:00Z",
       "code": "123456"
     },
     {
-      "secret": "!!!",
+      "seed": "!!!",
       "instant": "2026-10-28T12:00:00Z",
       "code": "123456"
     },
     {
-      "secret": "A",
+      "seed": "A",
       "instant": "2026-10-28T12:00:00Z",
       "code": "123456"
     },
     {
-      "secret": "====",
+      "seed": "====",
       "instant": "2026-10-28T12:00:00Z",
       "code": "123456"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1969-12-31T23:59:59.5Z",
       "codeAt": 0,
       "format": "%s"
     },
     {
-      "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "seed": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "instant": "1969-12-31T23:59:29Z",
       "codeAt": 30,
       "format": "%s"

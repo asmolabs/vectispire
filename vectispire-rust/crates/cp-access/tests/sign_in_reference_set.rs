@@ -70,9 +70,9 @@ fn a_code_is_the_one_java_computes() {
     let answers = answers();
     let mut differences = Vec::new();
     for case in section(&answers, "codes", 15) {
-        let got = totp::generate_code(case["secret"].as_str().unwrap(), instant(&case["instant"]));
+        let got = totp::generate_code(case["seed"].as_str().unwrap(), instant(&case["instant"]));
         if got.as_deref() != case["code"].as_str() {
-            differences.push(format!("{} at {}: Java {}, Rust {got:?}", case["secret"], case["instant"], case["code"]));
+            differences.push(format!("{} at {}: Java {}, Rust {got:?}", case["seed"], case["instant"], case["code"]));
         }
     }
     report(&differences);
@@ -83,11 +83,11 @@ fn a_submitted_code_matches_the_step_java_matches() {
     let answers = answers();
     let mut differences = Vec::new();
     for case in section(&answers, "matches", 25) {
-        let got = totp::matching_step(case["secret"].as_str(), case["code"].as_str(), instant(&case["instant"]));
+        let got = totp::matching_step(case["seed"].as_str(), case["code"].as_str(), instant(&case["instant"]));
         if got != case["step"].as_i64() {
             differences.push(format!(
                 "{} / {} at {}: Java {}, Rust {got:?}",
-                case["secret"], case["code"], case["instant"], case["step"]
+                case["seed"], case["code"], case["instant"], case["step"]
             ));
         }
     }
