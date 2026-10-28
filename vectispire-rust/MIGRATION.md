@@ -42,7 +42,7 @@ From the plan, §2. A task that breaks one of these is not finished, whatever it
    `flyway_schema_history` (`crates/migrate`), so an installation can go from Java to Rust and back.
 3. **MySQL and PostgreSQL, both**, in every engine test, from the first commit.
 4. **The boundaries, at compile time.** One crate per Java module; its allowed dependencies are the
-   lines of `crates/cp-arch-tests/data/edges.toml`; layering inside a crate is root / `internal` /
+   lines of its file in `crates/cp-arch-tests/data/edges/` (`<module>.toml`); layering inside a crate is root / `internal` /
    `persistence` / `web`, checked by `cp-arch-tests`. A directory that is not a layer is refused.
 5. **The security invariants of `AGENTS.md`.** Visibility is applied in the query and a refusal is a
    404; fingerprints are a data contract; absent is never empty; the outbound door is the only HTTP
@@ -62,8 +62,8 @@ which check was not run, if any:
 | Held to Java by a reference set | a Java test (`*ReferenceSetTest`) writes `vectispire-rust/reference/<area>/`, a Rust test reads it. Run the Java test in **check mode** (it fails when Java's answers differ from the committed files); regenerate only on purpose, never to make a test pass. Write the reference **before** the code: one written after tends to agree with the code. |
 | On both engines | an engine test on MySQL 9.4 and PostgreSQL 17, migrated by `vectispire-migrate`. A test against a mocked database does not count for concurrency, dialect or schema behaviour. |
 | Across the switch, where state is shared | a test against the published Java control plane on the same database: what Java writes, Rust reads, and back (see `cp-access/tests/across_the_switch.rs`, `cp-audit/oracle/`). |
-| Replayed against Java's traffic | **any task that serves routes.** `crates/cp-contract/scripts/replay-goldens.sh <dir>` records the Java suite at the commit into `<dir>` (Docker and a JDK 25; about ten minutes), or reuses a recording already there, then runs `cp-contract replay-plan <dir>` and each served module's `tests/golden.rs` (`#[ignore]`d by a plain `cargo test`, which says so) on MySQL 9.4 and PostgreSQL 17. Every recording of a served route replays green on both engines — answer, headers, every row it changed — or `golden/deferred.txt` names it with its reason; a line that has become green fails, so the task removes it and lowers `golden/deferred.ceiling`. A module that ports routes copies `cp-agents/tests/golden.rs` and adds its line to the script — or, when its routes answer through another module's ports, joins that replay, as `targets`, `scanning` and `agents` are replayed together. A difference is fixed, or named as a stand-in with the task that ends it — never normalised away (`crates/cp-contract/README.md`, "The recorder's goldens"). |
-| Checked queries | `sqlx::query!` / `query_as!` with offline caches; `crates/cp-db/scripts/sqlx-prepare.sh prepare <crate>` then `check`. Add a new crate to its `crates_with_queries` list. A statement left unchecked says why in a comment. |
+| Replayed against Java's traffic | **any task that serves routes.** `crates/cp-contract/scripts/replay-goldens.sh <dir>` records the Java suite at the commit into `<dir>` (Docker and a JDK 25; about ten minutes), or reuses a recording already there, then runs `cp-contract replay-plan <dir>` and each served module's `tests/golden.rs` (`#[ignore]`d by a plain `cargo test`, which says so) on MySQL 9.4 and PostgreSQL 17. Every recording of a served route replays green on both engines — answer, headers, every row it changed — or its module's file in `golden/deferred/` names it with its reason; a line that has become green fails, so the task removes it and lowers that file's `ceiling`. A module that ports routes joins the replay in `cp-agents/tests/golden.rs` by being composed there (its routes are owed except those a `route` line still covers), or has a `tests/golden.rs` of its own that reads `VECTISPIRE_GOLDEN_DIR`, which the script finds — no line to add anywhere. A difference is fixed, or named as a stand-in with the task that ends it — never normalised away (`crates/cp-contract/README.md`, "The recorder's goldens"). |
+| Checked queries | `sqlx::query!` / `query_as!` with offline caches; `crates/cp-db/scripts/sqlx-prepare.sh prepare <crate>` then `check`. The script checks every crate with a committed `.sqlx/`, so the first `prepare` is what enrols a new crate. A statement left unchecked says why in a comment. |
 | No secret | gitleaks on a **fresh single-branch clone** of the branch, with CI's pinned image and `.gitleaks.toml`. A test fixture is allowed by `gitleaks:allow` or pinned in `.gitleaksignore`, never by widening the config. |
 | The tests bite | a mutation check of the new logic: each guard broken, the suite goes red, sources restored identical. Every mutant killed; one that cannot be told apart is removed from the list with the reason, not counted as killed. |
 | Wired, not just written | anything meant to run at start-up or on a schedule is proven on a **started** binary or by a composition test (the `MaintenanceJobsTest` lesson in `AGENTS.md`). |
@@ -80,12 +80,19 @@ Comments say why, not what. A deliberate difference from Java goes in the crate 
 - **A task owns its files.** The tables below say which. Touching another task's files is a
   conversation, not a commit. Shared agent crates (`protocol`, `crypto`, the runner) change only
   **additively**, and the agent stream reviews.
-- **Only Phase 2 task 2.1 edits `edges.toml`.** A task that needs a new dependency asks for a line,
-  with its reason.
+- **A port edits only its own module's file in `crates/cp-arch-tests/data/edges/`** — its `status`, and a new edge
+  with its reason, which is a review decision like any line there; `_workspace.toml` (settings, infrastructure) is
+  nobody's task to edit in passing.
+- **Two or three ports can run at once.** The lists every port used to edit — the routes not ported, the deferred
+  recordings, the edges, each with its ceiling — are one file per module, and the crate lists (workspace members, the
+  replay tests, the checked-query crates, the mutation scripts) are found rather than written. What is still shared,
+  and why, is in `.claude/skills/port-module/SKILL.md` §5b: `deny.toml`'s wrappers, the composition in `cp-app` and
+  in the replay's router, `Cargo.lock`, and this file.
 - **Publish interfaces first** when other tasks wait on them (types and trait signatures in a first
   commit, behaviour after).
 - **Merging** is done by one person per phase, in a dedicated branch, rerunning the whole of §2 on the
-  merged result. Expect conflicts in the crate manifests, `lib.rs`, `deny.toml` and `Cargo.lock`.
+  merged result. Expect conflicts in the composition (`cp-app`, the replay's router), `deny.toml`'s wrappers and
+  `Cargo.lock` — not in the lists that shrink.
 
 ## 4. Where it stands (2026-10-21)
 

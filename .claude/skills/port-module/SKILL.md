@@ -7,7 +7,7 @@ description: Porting one module or task of the Java control plane to Rust (vecti
 
 The port is held to the Java side by **what runs**, not by reading: the reference sets, the Flyway
 oracle, the checked queries, the contract and the replay of the Java suite's recorded traffic. A module
-is ported when its routes leave `crates/cp-contract/reference/not-yet-ported.txt` and their recordings
+is ported when its routes leave `crates/cp-contract/reference/not-yet-ported/<module>.txt` and their recordings
 replay green on MySQL and PostgreSQL — not when it compiles. The `rust-porter` agent carries the
 invariants; this is the sequence. Replaying and shrinking the deferred list is the `golden-replay` skill.
 
@@ -19,12 +19,12 @@ invariants; this is the sequence. Replaying and shrinking the deferred list is t
 - The Java module: `package-info.java` (its `allowedDependencies` and why), every class of `core/<module>/`,
   **and its tests** — the tests are the behaviour to reproduce, case by case. Types in
   `vectispire-common/.../domain/<module>/` too.
-- `crates/cp-arch-tests/data/edges.toml` (`[module.<module>]`: status, allowed edges, reason) and
+- `crates/cp-arch-tests/data/edges/<module>.toml` (status, allowed edges, reason) and
   `tables.toml` (which tables it owns). The edges are Java's; a new one is a decision for review, with
   its reason, never the edit that makes the build pass.
 - What the Rust side already prepared: grep the module's name across `crates/` — hooks are often waiting
   (cp-audit's `Listener` and `Signal` for the SIEM, cp-outbox's `OutboxHandler`/`NotificationChannel`,
-  stand-ins named in `golden/deferred.txt` with the task that ends them).
+  stand-ins named in `golden/deferred/<module>.txt` with the task that ends them).
 
 ## 2. Where the code goes
 
@@ -89,9 +89,42 @@ Each of these was a real divergence from Java, found by replaying recorded traff
   (`maintenance` composition, route authorization coverage) — `IssueTriageService.expireStale` was called
   by nothing for months with every unit test green.
 - Routes: the type-state builder (`Route::get(..).requires(..).scoped()|.names_no_target()`), and the
-  routes leave `not-yet-ported.txt` **in the same commit**, lowering `not-yet-ported.ceiling`.
-- Add the routes to the replay (`crates/cp-agents/tests/golden.rs`, the phase's replayed list) only once
-  they replay green — see `golden-replay`.
+  routes leave `crates/cp-contract/reference/not-yet-ported/<module>.txt` **in the same commit**, lowering that
+  file's `ceiling` (the file is deleted when its last route leaves). The crate's `tests/contract.rs` holds them with
+  `check_module` and names no other module's route; `cp-app`'s `route_authorization.rs` holds the whole registry
+  and the list to the document (`check_partition`), so a route that left the list unregistered fails there.
+- Compose the module in the replay's router (`crates/cp-agents/tests/golden.rs`, beside `phase_three`): its routes
+  are owed as soon as they are composed, except those a `route` line of `golden/deferred/<module>.txt` still
+  covers; remove a line once its recordings replay green — see `golden-replay`.
+
+## 5b. The files a port touches
+
+The lists that every port used to edit are per module or derived, so that two or three ports can run at once
+without conflicting:
+
+| What | The port's own file, or how it is found |
+|---|---|
+| the crate | `crates/cp-<module>/` — a workspace member by being there (`members = ["crates/*"]`) |
+| its edges and status | `crates/cp-arch-tests/data/edges/<module>.toml` (exists for every Java module; flip `status`, ask for an edge with its reason) |
+| its routes not served | `crates/cp-contract/reference/not-yet-ported/<module>.txt` and its `ceiling` |
+| its recordings not replayed | `golden/deferred/<module>.txt` and its `ceiling` (and `_recording.txt` only for a recorder limit met on its routes) |
+| its contract test | `crates/cp-<module>/tests/contract.rs`, `check_module` + `probe` with `Allowlist::all_but` — no other module's route |
+| its checked queries | `crates/cp-<module>/.sqlx/`, written by `sqlx-prepare.sh prepare cp-<module>`; checked from then on because it exists |
+| its replay | found by `replay-goldens.sh` if the crate has its own `tests/golden.rs` reading `VECTISPIRE_GOLDEN_DIR` |
+| its mutants | `security/mutants/p<phase>-<task>-<module>.py`, its first line saying what it checks (`check.sh` globs them) |
+| its reference sets | `reference/<module>/` |
+| a dependency on another cp crate | `{ path = "../cp-<other>" }` in its own `Cargo.toml`, not a new line in `[workspace.dependencies]` |
+
+What is still shared, on purpose:
+
+- **`deny.toml`'s `wrappers`** (`sqlx`, `sea-orm`, `axum`): who may link a database driver or a server is a review
+  decision, so the lists stay written by hand — one crate per line, sorted, so two ports insert at different lines.
+- **The composition**: `crates/cp-app/Cargo.toml`, `src/main.rs`, `src/registry.rs` (and `src/maintenance.rs` with
+  `crates/cp-maintenance/data/deferred.txt` for a module that fills maintenance slots), `tests/route_authorization.rs`'
+  `stand_ins()`, and the replay's router in `crates/cp-agents/tests/golden.rs`. The binary composes every module in
+  one place by design; a conflict there is a few lines of wiring, resolved by keeping both sides.
+- **`Cargo.lock`** for a new crate or dependency: on a conflict, take either side and let `cargo` rewrite it.
+- **`MIGRATION.md`**: the task's row of the plan.
 
 ## 6. Verify
 
