@@ -45,7 +45,7 @@ pub enum Outcome {
 /// One recording and what became of it.
 #[derive(Clone, Debug)]
 pub struct Replayed {
-    /// `class/test--NNN-METHOD-slug`, as `deferred.txt` names it.
+    /// `class/test--NNN-METHOD-slug`, as `golden/deferred/` names it.
     pub name: String,
     /// `(METHOD, /template)` of the contract's operation, `None` for a request no operation answers.
     pub route: Option<(String, String)>,

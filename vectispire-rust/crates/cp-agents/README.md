@@ -42,7 +42,7 @@ the Rust port (plan, §7).
   `targets`' and `scanning`'s (it moved here from `cp-scanning`). It found three differences, fixed: hello's descriptors
   were stored untrimmed, the protocol's audit entries named no actor where Java names the agent, and a failure
   report's entry spelt its kind `PERMANENT` where Java writes `permanent`. What does not replay is named in
-  `golden/deferred.txt`, one recording a line: the secrets the recorder hides (sealing keys, attestations), timestamps a
+  `golden/deferred/` (one file per module whose port ends the line), one recording a line: the secrets the recorder hides (sealing keys, attestations), timestamps a
   test rewinds behind the recorder's back, and the stand-ins of later phases (plugins, SIEM, ingestion's backlog,
   checklists).
 

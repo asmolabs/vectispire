@@ -1,0 +1,20 @@
+# The routes of `platform` the Rust control plane does not serve yet — README.md beside this file says the rules.
+ceiling 18
+GET /api/v1/audit-log
+GET /api/v1/audit-log/operation-types
+GET /api/v1/audit-log/verify
+GET /api/v1/crypto/cosign-cli-helper
+GET /api/v1/crypto/public-key.pub
+GET /api/v1/settings
+GET /api/v1/settings/ai-openai-key
+GET /api/v1/settings/ticket-ca
+GET /api/v1/settings/ticket-token
+GET /api/v1/settings/ticket-webhook-secret
+GET /api/v1/settings/webhook-secret
+POST /api/v1/crypto/verify
+POST /api/v1/settings/ollama-test
+PUT /api/v1/settings
+PUT /api/v1/settings/ai-openai-key
+PUT /api/v1/settings/ticket-token
+PUT /api/v1/settings/ticket-webhook-secret
+PUT /api/v1/settings/webhook-secret

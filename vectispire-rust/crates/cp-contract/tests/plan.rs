@@ -8,6 +8,7 @@ mod common;
 use std::path::Path;
 
 use common::toy_document;
+use vectispire_cp_contract::shrinking::ListFile;
 use vectispire_cp_contract::{Allowlist, Golden, load_dir, plan};
 
 fn fixtures() -> &'static Path {
@@ -26,7 +27,11 @@ fn golden(method: &str, path: &str) -> Golden {
 
 #[test]
 fn a_recording_of_a_route_not_yet_ported_is_skipped_and_owes_nothing() {
-    let list = Allowlist::parse("GET /api/v1/things/{id}\nGET /api/v1/things\n", "2");
+    let list = Allowlist::parse(&[ListFile::new(
+        "not-yet-ported",
+        "toy",
+        "ceiling 2\nGET /api/v1/things/{id}\nGET /api/v1/things\n",
+    )]);
     let found = plan(&[golden("GET", "/api/v1/things/7"), golden("GET", "/api/v1/things")], &toy_document(), &list);
     assert_eq!((found.total, found.not_ported, found.operations_recorded), (2, 2, 2));
     assert!(found.owes_nothing());
@@ -36,7 +41,7 @@ fn a_recording_of_a_route_not_yet_ported_is_skipped_and_owes_nothing() {
 #[test]
 fn the_day_a_route_leaves_the_list_its_recordings_are_owed_a_replay() {
     // `getThing` is ported (not on the list); `listThings` is not.
-    let list = Allowlist::parse("GET /api/v1/things\n", "1");
+    let list = Allowlist::parse(&[ListFile::new("not-yet-ported", "toy", "ceiling 1\nGET /api/v1/things\n")]);
     let found = plan(&[golden("GET", "/api/v1/things/7"), golden("GET", "/api/v1/things")], &toy_document(), &list);
     assert!(!found.owes_nothing());
     assert_eq!(found.to_replay.len(), 1, "{:?}", found.to_replay);
@@ -46,7 +51,7 @@ fn the_day_a_route_leaves_the_list_its_recordings_are_owed_a_replay() {
 
 #[test]
 fn a_request_no_operation_answers_is_outside_the_contract_and_named_once() {
-    let list = Allowlist::parse("", "0");
+    let list = Allowlist::parse(&[ListFile::new("not-yet-ported", "toy", "ceiling 0\n")]);
     let found = plan(
         &[golden("GET", "/actuator/health"), golden("GET", "/actuator/health"), golden("PATCH", "/api/v1/things/1")],
         &toy_document(),

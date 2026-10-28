@@ -1,17 +1,19 @@
 //! The module's routes against the contract they must not change (`openapi.json` of the 0.11.1 line): every route of
 //! its table documented under the same method and path, with the operation id and query parameters Java publishes,
-//! and every documented route that has left the list of routes not yet ported served by it — then the router itself
-//! probed, so a route declared and not registered is caught too.
+//! and none of them still on the list of routes not yet ported — then the router itself probed, so a route declared
+//! and not registered is caught too.
 //!
-//! The twenty-nine left `cp-contract`'s `not-yet-ported.txt` in the commit that ported them; until the binary's
-//! registry carries every module's routes (task 2.11), this is where they are held to the document.
+//! The twenty-nine left `cp-contract`'s `not-yet-ported/` in the commit that ported them. That every route which has
+//! left the list is served by some module is the binary's registry's check (`cp-app`'s `tests/route_authorization.rs`).
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 mod support;
 
+use std::collections::BTreeSet;
+
 use vectispire_cp_contract::{
-    Allowlist, Document, Published, RouteDecl, assert_none, check_published, check_routes, probe,
+    Allowlist, Document, Published, RouteDecl, assert_none, check_module, check_published, probe,
 };
 use vectispire_cp_http::credentials::StaticCredentials;
 use vectispire_cp_targets::deletion::PurgeRegistry;
@@ -69,79 +71,12 @@ async fn the_routes_are_the_documented_ones() {
         })
         .collect();
     let document = Document::embedded();
-    // The scan (3) and agent (17) routes are ported in modules above, which this crate cannot compose (the dependency
-    // runs the other way): here they are read as not served by this module.
-    let others_s = "\
-GET /api/v1/scans\n\
-GET /api/v1/scans/{id}\n\
-GET /api/v1/scans/{id}/sbom\n\
-GET /api/v1/admin/agents\n\
-POST /api/v1/admin/agents\n\
-GET /api/v1/admin/agents/activity\n\
-GET /api/v1/admin/agents/credentialed-backlog\n\
-GET /api/v1/admin/agents/non-routables\n\
-DELETE /api/v1/admin/agents/{id}\n\
-PATCH /api/v1/admin/agents/{id}\n\
-DELETE /api/v1/admin/agents/{id}/sealing-key\n\
-PUT /api/v1/admin/agents/{id}/signing-key\n\
-POST /api/v1/agent/hello\n\
-GET /api/v1/agent/jobs\n\
-POST /api/v1/agent/jobs/{scanId}/failure\n\
-POST /api/v1/agent/jobs/{scanId}/heartbeat\n\
-POST /api/v1/agent/jobs/{scanId}/result\n\
-GET /api/v1/agent/plugins/{id}/{digest}\n\
-GET /api/v1/agent/rules/{hash}\n\
-POST /api/v1/agent/sealing-key\n\
-GET /api/v1/rule-sets\n\
-POST /api/v1/rule-sets\n\
-GET /api/v1/rule-sets/catalogue\n\
-POST /api/v1/rule-sets/catalogue\n\
-GET /api/v1/rule-sets/coverage\n\
-POST /api/v1/rule-sets/deactivate\n\
-GET /api/v1/rule-sets/deactivate/impact\n\
-POST /api/v1/rule-sets/{id}/activate\n\
-GET /api/v1/rule-sets/{id}/impact\n\
-DELETE /api/v1/attack-surface\n\
-GET /api/v1/attack-surface\n\
-GET /api/v1/blast-radius/explore\n\
-GET /api/v1/blast-radius/top-impact\n\
-GET /api/v1/inventory/search\n\
-GET /api/v1/inventory/versions\n\
-GET /api/v1/licenses/conflicts\n\
-GET /api/v1/licenses/inventory\n\
-GET /api/v1/licenses/matrix\n\
-GET /api/v1/licenses/policy\n\
-PUT /api/v1/licenses/policy\n\
-GET /api/v1/licenses/summary\n\
-GET /api/v1/projects/{id}/components\n\
-DELETE /api/v1/repositories/{id}/apis\n\
-GET /api/v1/repositories/{id}/apis\n\
-GET /api/v1/repositories/{id}/apis/export/openapi\n\
-GET /api/v1/sbom/diff\n\
-GET /api/v1/sbom/diff/latest\n\
-GET /api/v1/exceptions\n\
-POST /api/v1/exceptions/{issueId}/reviews\n\
-GET /api/v1/history/repositories\n\
-GET /api/v1/history/repositories/{id}\n\
-GET /api/v1/history/repositories/{id}/export.csv\n\
-GET /api/v1/issues\n\
-POST /api/v1/issues/triage\n\
-GET /api/v1/issues/{id}\n\
-PUT /api/v1/issues/{id}/ticket\n\
-POST /api/v1/issues/{id}/triage\n\
-POST /api/v1/gate\n\
-GET /api/v1/gate/verdicts\n\
-GET /api/v1/security/overview\n\
-GET /api/v1/gate/policies\n\
-PUT /api/v1/gate/policies/global\n\
-PUT /api/v1/gate/policies/{kind}/{id}\n\
-DELETE /api/v1/gate/policies/{kind}/{id}\n";
-    let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
-    let allowlist = Allowlist::parse(
-        &format!("{}{others_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 3 + 17 + 9 + 18 + 10 + 7).to_string(),
-    );
-    assert_none(&check_routes(&document, &declared, &allowlist));
+    // Every documented route this module does not declare is another's, ported or not: the test names none of them,
+    // and `cp-app`'s registry test holds the whole partition — what is served and what is listed — to the document.
+    let ours: BTreeSet<(String, String)> =
+        declared.iter().map(|route| (route.method.clone(), route.path.clone())).collect();
+    let allowlist = Allowlist::all_but(&document, &ours);
+    assert_none(&check_module(&document, &declared, &Allowlist::committed()));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
     // The router as built, behind the chain: an unauthenticated probe is answered 401 by a registered route, and by
     // the sentinel only where nothing is registered.

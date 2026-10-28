@@ -7,9 +7,9 @@
 //!
 //! **This registry is the composed control plane.** `stand-ins()` reassembles every module in production order,
 //! and `registry::routes` over them is the same surface the binary serves (`cp-app/src/main.rs` reads `registry::routes`).
-//! The route-count assertion pins each module's contribution, so a route disappearing from one module surfaces on
-//! the total rather than unnoticed; the two `cp-http`-agnostic checks read that registry against what the rules and
-//! the contract's own authorization list require.
+//! The registry is held to the contract's list of routes not ported — together they are the document, exactly — so a
+//! route disappearing from one module surfaces rather than unnoticed; the two `cp-http`-agnostic checks read that
+//! registry against what the rules and the contract's own authorization list require.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use vectispire_cp_app::registry;
 use vectispire_cp_arch_tests::routes::{ANONYMOUS, Requirement, RouteDescriptor, Scope, check, parse_anonymous};
-use vectispire_cp_contract::Allowlist;
+use vectispire_cp_contract::{Allowlist, Document, check_partition, render};
 use vectispire_cp_http::access::Access;
 use vectispire_cp_http::routes::{NoVisibility, Route, RouteDecl, Routes, Visibility};
 
@@ -217,12 +217,7 @@ fn stand_ins() -> StandIns {
 async fn the_registry_holds_to_the_authorization_rules() {
     let (targets, scanning, agents, rules, inventory, issues, gate) = stand_ins();
     let routes = descriptors(&registry::routes(targets, scanning, agents, rules, inventory, issues, gate));
-    assert_eq!(
-        routes.len(),
-        93,
-        "the registry composes targets (29), scanning (3), agents (17), rules (9), inventory (18), issues (10), and gate (7)"
-    );
-    let not_ported: BTreeSet<String> = Allowlist::embedded().entries().iter().map(|(_, path)| path.clone()).collect();
+    let not_ported: BTreeSet<String> = Allowlist::committed().entries().iter().map(|(_, path)| path.clone()).collect();
     let registered: BTreeSet<&str> = routes.iter().map(|route| route.path.as_str()).collect();
 
     let mut owed = anonymous();
@@ -239,6 +234,22 @@ async fn the_registry_holds_to_the_authorization_rules() {
 
     let violations = check(&routes, &owed, 83);
     assert!(violations.is_empty(), "the registry breaks the authorization rules:\n{}", violations.join("\n"));
+}
+
+/// **The registry and the list of routes not ported are the document, exactly** — no gap, no overlap, nothing more.
+/// Each module's own contract test holds its routes to the document and off the list without naming another
+/// module's; this is where a route that has left `cp-contract`'s `reference/not-yet-ported/` and that no module
+/// registers is caught, and so is a route registered and still listed, and every file of the list held to its
+/// ceiling. It replaces the count of routes per module this test used to pin, which every port had to edit.
+#[tokio::test]
+async fn the_registry_serves_exactly_what_has_left_the_list_of_routes_not_ported() {
+    let (targets, scanning, agents, rules, inventory, issues, gate) = stand_ins();
+    let registry = registry::routes(targets, scanning, agents, rules, inventory, issues, gate);
+    let served: BTreeSet<(String, String)> =
+        registry.table().iter().map(|decl| (decl.method.clone(), decl.path.clone())).collect();
+    assert_eq!(served.len(), registry.table().len(), "a route registered twice");
+    let findings = check_partition(&Document::embedded(), &served, &Allowlist::committed());
+    assert!(findings.is_empty(), "the registry against the list of routes not ported:\n{}", render(&findings));
 }
 
 /// The wiring, shown on registries with a route of each kind: what the builder declares is what the rules read.

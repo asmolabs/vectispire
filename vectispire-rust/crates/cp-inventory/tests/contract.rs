@@ -1,14 +1,15 @@
 //! The eighteen inventory routes against the contract they must not change (`openapi.json` of the 0.11.1 line):
 //! documented under the same method and path, with Java's operation ids and query parameters, out of `cp-contract`'s
-//! `not-yet-ported.txt` since the commit that ported them — then the router probed, so a route declared and not
+//! `not-yet-ported/` since the commit that ported them — then the router probed, so a route declared and not
 //! registered is caught too.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use vectispire_cp_contract::{
-    Allowlist, Document, Published, RouteDecl, assert_none, check_published, check_routes, probe,
+    Allowlist, Document, Published, RouteDecl, assert_none, check_module, check_published, probe,
 };
 use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
 use vectispire_cp_http::chain::{Chain, ChainConfig};
@@ -117,91 +118,12 @@ async fn the_routes_are_the_documented_ones() {
         .collect();
 
     let document = Document::embedded();
-
-    // The other ported modules: targets (29), scanning (3), agents (17), rules (9) = 58.
-    let others_s = "\
-GET /api/v1/repositories\n\
-POST /api/v1/repositories\n\
-GET /api/v1/repositories/duplicates\n\
-PATCH /api/v1/repositories/{id}\n\
-POST /api/v1/repositories/{id}/scan\n\
-DELETE /api/v1/repositories/{id}\n\
-GET /api/v1/containers\n\
-POST /api/v1/containers\n\
-PATCH /api/v1/containers/{id}\n\
-POST /api/v1/containers/{id}/scan\n\
-DELETE /api/v1/containers/{id}\n\
-GET /api/v1/solutions\n\
-POST /api/v1/solutions\n\
-PATCH /api/v1/solutions/{id}\n\
-DELETE /api/v1/solutions/{id}\n\
-POST /api/v1/solutions/{id}/projects\n\
-GET /api/v1/projects/{id}\n\
-PATCH /api/v1/projects/{id}\n\
-DELETE /api/v1/projects/{id}\n\
-PUT /api/v1/projects/{id}/repositories/{repositoryId}\n\
-DELETE /api/v1/projects/{id}/repositories/{repositoryId}\n\
-PUT /api/v1/projects/{id}/containers/{containerId}\n\
-DELETE /api/v1/projects/{id}/containers/{containerId}\n\
-GET /api/v1/git-tokens\n\
-POST /api/v1/git-tokens\n\
-DELETE /api/v1/git-tokens/{id}\n\
-GET /api/v1/ssh-keys\n\
-POST /api/v1/ssh-keys\n\
-DELETE /api/v1/ssh-keys/{id}\n\
-GET /api/v1/scans\n\
-GET /api/v1/scans/{id}\n\
-GET /api/v1/scans/{id}/sbom\n\
-GET /api/v1/admin/agents\n\
-POST /api/v1/admin/agents\n\
-GET /api/v1/admin/agents/activity\n\
-GET /api/v1/admin/agents/credentialed-backlog\n\
-GET /api/v1/admin/agents/non-routables\n\
-DELETE /api/v1/admin/agents/{id}\n\
-PATCH /api/v1/admin/agents/{id}\n\
-DELETE /api/v1/admin/agents/{id}/sealing-key\n\
-PUT /api/v1/admin/agents/{id}/signing-key\n\
-POST /api/v1/agent/hello\n\
-GET /api/v1/agent/jobs\n\
-POST /api/v1/agent/jobs/{scanId}/failure\n\
-POST /api/v1/agent/jobs/{scanId}/heartbeat\n\
-POST /api/v1/agent/jobs/{scanId}/result\n\
-GET /api/v1/agent/plugins/{id}/{digest}\n\
-GET /api/v1/agent/rules/{hash}\n\
-POST /api/v1/agent/sealing-key\n\
-GET /api/v1/rule-sets\n\
-POST /api/v1/rule-sets\n\
-GET /api/v1/rule-sets/catalogue\n\
-POST /api/v1/rule-sets/catalogue\n\
-GET /api/v1/rule-sets/coverage\n\
-POST /api/v1/rule-sets/deactivate\n\
-GET /api/v1/rule-sets/deactivate/impact\n\
-POST /api/v1/rule-sets/{id}/activate\n\
-GET /api/v1/rule-sets/{id}/impact\n\
-GET /api/v1/exceptions\n\
-POST /api/v1/exceptions/{issueId}/reviews\n\
-GET /api/v1/history/repositories\n\
-GET /api/v1/history/repositories/{id}\n\
-GET /api/v1/history/repositories/{id}/export.csv\n\
-GET /api/v1/issues\n\
-POST /api/v1/issues/triage\n\
-GET /api/v1/issues/{id}\n\
-PUT /api/v1/issues/{id}/ticket\n\
-POST /api/v1/issues/{id}/triage\n\
-POST /api/v1/gate\n\
-GET /api/v1/gate/verdicts\n\
-GET /api/v1/security/overview\n\
-GET /api/v1/gate/policies\n\
-PUT /api/v1/gate/policies/global\n\
-PUT /api/v1/gate/policies/{kind}/{id}\n\
-DELETE /api/v1/gate/policies/{kind}/{id}\n";
-
-    let ceiling: usize = include_str!("../../cp-contract/reference/not-yet-ported.ceiling").trim().parse().unwrap();
-    let not_ours = Allowlist::parse(
-        &format!("{}{others_s}", include_str!("../../cp-contract/reference/not-yet-ported.txt")),
-        &(ceiling + 29 + 3 + 17 + 9 + 10 + 7).to_string(),
-    );
-    assert_none(&check_routes(&document, &declared, &not_ours));
+    // Every documented route this module does not declare is another's, ported or not: the test names none of them,
+    // and `cp-app`'s registry test holds the whole partition — what is served and what is listed — to the document.
+    let ours: BTreeSet<(String, String)> =
+        declared.iter().map(|route| (route.method.clone(), route.path.clone())).collect();
+    let not_ours = Allowlist::all_but(&document, &ours);
+    assert_none(&check_module(&document, &declared, &Allowlist::committed()));
     assert_none(&check_published(&document, &Published::embedded(), Some(&declared)));
 
     let mut routes = Routes::new(NoVisibility);

@@ -27,12 +27,15 @@ pub enum Finding {
     AllowlistedButServed { method: String, path: String },
     /// An allowlist entry for a route the document does not list.
     AllowlistUnknownRoute { method: String, path: String },
-    /// More entries than the ceiling: the allowlist only shrinks.
-    AllowlistGrew { entries: usize, ceiling: usize },
-    /// Fewer entries than the ceiling: lower the ceiling to what was earned.
-    CeilingNotLowered { entries: usize, ceiling: usize },
+    /// More entries in a file of the list than its ceiling: the list only shrinks.
+    AllowlistGrew { file: String, entries: usize, ceiling: usize },
+    /// Fewer entries in a file of the list than its ceiling: lower the ceiling to what was earned.
+    CeilingNotLowered { file: String, entries: usize, ceiling: usize },
     /// A line of the allowlist or of the published list that is not `METHOD /path`.
-    Malformed { file: &'static str, line: usize, text: String },
+    Malformed { file: String, line: usize, text: String },
+    /// The list itself is wrong: a file without its ceiling, a route twice, a file that lists nothing, a directory
+    /// that cannot be read.
+    ListProblem { problem: String },
     /// A published operation the document no longer lists.
     PublishedMissing { method: String, path: String, operation_id: String },
     /// A published operation whose id the document changed.
@@ -66,24 +69,19 @@ impl fmt::Display for Finding {
                 write!(out, "{method} {path}: security {served:?}, the document says {documented:?}")
             }
             Finding::AllowlistedButServed { method, path } => {
-                write!(out, "{method} {path}: now served — delete its line from not-yet-ported.txt")
+                write!(out, "{method} {path}: now served — delete its line from reference/not-yet-ported/")
             }
             Finding::AllowlistUnknownRoute { method, path } => {
-                write!(out, "{method} {path}: in not-yet-ported.txt, and openapi.json does not list it")
+                write!(out, "{method} {path}: in reference/not-yet-ported/, and openapi.json does not list it")
             }
-            Finding::AllowlistGrew { entries, ceiling } => {
-                write!(
-                    out,
-                    "not-yet-ported.txt has {entries} routes, above its ceiling of {ceiling}: the list only shrinks"
-                )
+            Finding::AllowlistGrew { file, entries, ceiling } => {
+                write!(out, "{file} has {entries} routes, above its ceiling of {ceiling}: the list only shrinks")
             }
-            Finding::CeilingNotLowered { entries, ceiling } => {
-                write!(
-                    out,
-                    "not-yet-ported.txt has {entries} routes and a ceiling of {ceiling}: lower the ceiling to {entries}"
-                )
+            Finding::CeilingNotLowered { file, entries, ceiling } => {
+                write!(out, "{file} has {entries} routes and a ceiling of {ceiling}: lower the ceiling to {entries}")
             }
             Finding::Malformed { file, line, text } => write!(out, "{file}:{line}: not `METHOD /path …`: {text:?}"),
+            Finding::ListProblem { problem } => write!(out, "{problem}"),
             Finding::PublishedMissing { method, path, operation_id } => {
                 write!(out, "{method} {path} ({operation_id}): published, and the document no longer lists it")
             }

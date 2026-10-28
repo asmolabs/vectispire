@@ -13,8 +13,9 @@
 //! chain — sessions and keys resolved by `cp-access`'s `CredentialService` from the rows the seed minted, the
 //! visibility by `VisibilityService` over the stored setting, the entries written by `cp-audit`'s `AuditLog` — and the
 //! answer and every row it changed held to Java's; its requests to routes not ported yet are played in Java's place.
-//! A recording that does not replay green on **both** engines must be listed in `golden/deferred.txt` with its reason;
-//! one listed that replays green fails, so the list only shrinks.
+//! A recording that does not replay green on **both** engines must be listed in `golden/deferred/` with its reason;
+//! one listed that replays green fails, so the list only shrinks. A route of a composed module that a `route` line
+//! still covers is not owed: its recordings are played in Java's place until the line goes.
 //!
 //! The recording is generated, not committed (66 MB at 0.11.1): `crates/cp-contract/scripts/replay-goldens.sh` records
 //! the Java suite at this commit and runs this test on it. Without a recording it is ignored — reported as such by
@@ -249,35 +250,6 @@ fn router(db: &Db) -> axum::Router {
     routes.build(&chain, None).unwrap().layer(axum::middleware::from_fn_with_state(time, answering))
 }
 
-/// The routes of the issues, gate and inventory modules (Phase 3) this test owes a replay: those whose every recording
-/// replays green on both engines (2026-10-27). The modules are composed whole — a request of an owed test to another of
-/// their routes is answered by Java's recorded effect, as for any route not served — and each route leaves
-/// `golden/deferred.txt` as it joins this list, which only grows. What keeps the others there is in the list.
-const PHASE_THREE_REPLAYED: [(&str, &str); 22] = [
-    ("DELETE", "/api/v1/attack-surface"),
-    ("DELETE", "/api/v1/gate/policies/{kind}/{id}"),
-    ("DELETE", "/api/v1/repositories/{id}/apis"),
-    ("GET", "/api/v1/attack-surface"),
-    ("GET", "/api/v1/blast-radius/top-impact"),
-    ("GET", "/api/v1/gate/policies"),
-    ("GET", "/api/v1/gate/verdicts"),
-    ("GET", "/api/v1/history/repositories/{id}"),
-    ("GET", "/api/v1/history/repositories/{id}/export.csv"),
-    ("GET", "/api/v1/inventory/versions"),
-    ("GET", "/api/v1/licenses/matrix"),
-    ("GET", "/api/v1/licenses/policy"),
-    ("GET", "/api/v1/licenses/summary"),
-    ("GET", "/api/v1/projects/{id}/components"),
-    ("GET", "/api/v1/repositories/{id}/apis"),
-    ("GET", "/api/v1/sbom/diff"),
-    ("GET", "/api/v1/sbom/diff/latest"),
-    ("GET", "/api/v1/security/overview"),
-    ("POST", "/api/v1/issues/triage"),
-    ("PUT", "/api/v1/gate/policies/global"),
-    ("PUT", "/api/v1/gate/policies/{kind}/{id}"),
-    ("PUT", "/api/v1/licenses/policy"),
-];
-
 /// The issues, gate and inventory modules as the binary composes them, on the scan catalog and the targets above.
 fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vectispire_cp_http::routes::RouteEntry> {
     let scans = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)));
@@ -315,35 +287,22 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
     routes
 }
 
-/// The owed routes, each checked to be one the three modules route: a name in the list that no module serves would be
-/// a recording owed by nothing.
-fn phase_three_replayed() -> BTreeSet<(String, String)> {
+/// The routes this test owes a replay: every route the router composes, but those a `route` line of
+/// `golden/deferred/` still covers — their recordings are played in Java's place, as for a route not served, until the
+/// line is removed in the commit that makes them replay green. Derived, so that a module's port that brings its
+/// routes to green edits its own file of the list and not a list here.
+fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
     let db = support::unreachable();
     let composed = support::compose(&db, support::system_clock());
     let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
-    let routed: BTreeSet<(String, String)> = phase_three(&db, composed.targets, audit)
-        .into_iter()
-        .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
-        .collect();
-    PHASE_THREE_REPLAYED
-        .iter()
-        .map(|(method, path)| {
-            let route = ((*method).to_owned(), (*path).to_owned());
-            assert!(routed.contains(&route), "{method} {path} is listed and no module routes it");
-            route
-        })
-        .collect()
-}
-
-fn served() -> BTreeSet<(String, String)> {
-    let db = support::unreachable();
-    let composed = support::compose(&db, support::system_clock());
+    let phase_three = phase_three(&db, composed.targets.clone(), audit);
     vectispire_cp_targets::routes(composed.targets)
         .into_iter()
         .chain(vectispire_cp_scanning::routes(composed.scanning))
         .chain(vectispire_cp_agents::routes(composed.agents))
+        .chain(phase_three)
         .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
-        .chain(phase_three_replayed())
+        .filter(|route| !deferred.routes.contains_key(route))
         .collect()
 }
 
@@ -395,9 +354,9 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
     let recording = Recording::open(&dir).unwrap();
     let document = Document::embedded();
     let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
-    let served = served();
-    assert_eq!(served.len(), 49 + PHASE_THREE_REPLAYED.len(), "the three modules' routes and Phase 3's replayed ones");
-    let deferred = Deferred::embedded();
+    let deferred = Deferred::committed();
+    let served = served(&deferred);
+    println!("{} routes owed a replay: every route composed, but those a `route` line still covers", served.len());
     let all = listed(&recording, &document, &served).unwrap();
     let owing: BTreeSet<&str> =
         all.iter().filter(|listed| listed.served).filter_map(|listed| listed.name.split('/').next()).collect();

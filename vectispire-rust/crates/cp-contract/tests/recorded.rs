@@ -1,5 +1,5 @@
 //! The recorder's format read back (`recorded`), without a database: the placeholders' grammar, what a template
-//! admits and refuses, the rows' comparison, and `golden/deferred.txt`. The comparison is the oracle of the port —
+//! admits and refuses, the rows' comparison, and `golden/deferred/`. The comparison is the oracle of the port —
 //! each test below is a way it could be made lenient, refused.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -18,6 +18,7 @@ use vectispire_cp_contract::recorded::placeholders::{
 };
 use vectispire_cp_contract::recorded::replay::{Outcome, Replayed, compare_headers, compare_rows};
 use vectispire_cp_contract::recorded::rows::{Column, Kind, Schema, Table};
+use vectispire_cp_contract::shrinking::ListFile;
 use vectispire_cp_db::Engine;
 
 /// Credentials of the right shapes, deterministic: a hash is `$argon2id$fake$<the password>`.
@@ -473,24 +474,56 @@ fn every_recording_is_replayed_or_listed_and_no_line_is_stale() {
 }
 
 #[test]
-fn the_list_is_well_formed_and_held_to_its_ceiling() {
+fn the_list_is_well_formed_and_each_file_held_to_its_ceiling() {
     assert!(Deferred::parse("route GET /x\n").is_err(), "no reason");
     assert!(Deferred::parse("route GET /x | \n").is_err(), "an empty reason");
     assert!(Deferred::parse("route GET | r\n").is_err());
     assert!(Deferred::parse("golden a | r\ngolden a | s\n").is_err(), "twice");
     let document = Document::embedded();
-    let one = Deferred::parse("route GET /api/v1/teams | r\n").unwrap();
-    assert!(check_list(&one, &document, "1").is_empty());
-    assert_eq!(check_list(&one, &document, "0").len(), 1, "above the ceiling");
-    assert_eq!(check_list(&one, &document, "2").len(), 1, "below it: lower it");
-    let unknown = Deferred::parse("route GET /api/v1/nothing | r\n").unwrap();
-    assert_eq!(check_list(&unknown, &document, "1").len(), 1);
-    // The committed list.
-    let committed = Deferred::embedded();
+    let read = |texts: &[(&str, &str)]| {
+        let files: Vec<ListFile> = texts.iter().map(|(name, text)| ListFile::new("deferred", name, text)).collect();
+        Deferred::parse_files(&files)
+    };
+    let one = read(&[("access", "ceiling 1\nroute GET /api/v1/teams | r\n")]).unwrap();
+    assert!(check_list(&one, &document).is_empty());
+    let above = read(&[("access", "ceiling 0\nroute GET /api/v1/teams | r\n")]).unwrap();
     assert_eq!(
-        check_list(&committed, &document, vectispire_cp_contract::recorded::deferred::CEILING),
-        Vec::<String>::new()
+        check_list(&above, &document),
+        ["deferred/access.txt holds 1 lines, above its ceiling 0: the list only shrinks"]
     );
+    let below = read(&[("access", "ceiling 2\nroute GET /api/v1/teams | r\n")]).unwrap();
+    assert_eq!(
+        check_list(&below, &document),
+        ["deferred/access.txt holds 1 lines and its ceiling says 2: lower it to 1"]
+    );
+    let unknown = read(&[("access", "ceiling 1\nroute GET /api/v1/nothing | r\n")]).unwrap();
+    assert_eq!(check_list(&unknown, &document).len(), 1);
+
+    // Per file: one file's slack does not pay for another's growth, though the total is the same.
+    let moved = read(&[
+        ("access", "ceiling 2\nroute GET /api/v1/teams | r\n"),
+        ("_recording", "ceiling 0\ngolden c/t--001 | s\n"),
+    ])
+    .unwrap();
+    assert_eq!(check_list(&moved, &document).len(), 2, "{:?}", check_list(&moved, &document));
+    // The same line in two files is listed twice; a file listing nothing is deleted; a ceiling is required, once.
+    assert!(
+        read(&[("a", "ceiling 1\ngolden c/t--001 | r\n"), ("b", "ceiling 1\ngolden c/t--001 | r\n")])
+            .unwrap_err()
+            .iter()
+            .any(|problem| problem.contains("deferred/b.txt 2: listed twice"))
+    );
+    let empty = read(&[("a", "ceiling 0\n")]).unwrap();
+    assert_eq!(check_list(&empty, &document), ["deferred/a.txt lists nothing: delete the file"]);
+    let missing = read(&[("a", "golden c/t--001 | r\n")]).unwrap();
+    assert_eq!(check_list(&missing, &document), ["deferred/a.txt: no `ceiling N` line"]);
+    let second = read(&[("a", "ceiling 1\ngolden c/t--001 | r\nceiling 1\n")]).unwrap();
+    assert_eq!(check_list(&second, &document), ["deferred/a.txt:3: a second `ceiling` line"]);
+
+    // The committed list: every file at its ceiling, and the total what the single file held when it was split.
+    let committed = Deferred::committed();
+    assert_eq!(check_list(&committed, &document), Vec::<String>::new());
+    assert!(committed.files.len() > 1, "read from golden/deferred/, one file per module");
 }
 
 #[test]

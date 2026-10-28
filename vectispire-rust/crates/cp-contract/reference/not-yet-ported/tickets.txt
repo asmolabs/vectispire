@@ -1,0 +1,5 @@
+# The routes of `tickets` the Rust control plane does not serve yet — README.md beside this file says the rules.
+ceiling 3
+GET /api/v1/issues/{issueId}/tickets
+POST /api/v1/issues/{issueId}/tickets
+POST /api/v1/tickets/webhook/{provider}

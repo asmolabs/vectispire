@@ -1,0 +1,22 @@
+# The routes of `compliance` the Rust control plane does not serve yet — README.md beside this file says the rules.
+ceiling 20
+GET /api/v1/compliance/evidence-bundle.zip
+GET /api/v1/compliance/export.pdf
+GET /api/v1/compliance/frameworks/{framework}
+GET /api/v1/compliance/history
+GET /api/v1/compliance/scope
+GET /api/v1/compliance/soa
+GET /api/v1/compliance/soa/reviews/overdue
+GET /api/v1/compliance/soa/{framework}
+GET /api/v1/compliance/summary
+GET /api/v1/owasp/coverage
+GET /api/v1/owasp/coverage/weekly
+GET /api/v1/projects/{id}/compliance
+GET /api/v1/repositories/{id}/owasp-review
+GET /api/v1/repositories/{id}/owasp-review/export.pdf
+GET /api/v1/solutions/{id}/compliance
+POST /api/v1/repositories/{id}/owasp-review
+PUT /api/v1/compliance/scope/containers/{id}
+PUT /api/v1/compliance/scope/repositories/{id}
+PUT /api/v1/compliance/soa/{framework}/{controlId}
+PUT /api/v1/owasp/coverage/{category}/declaration

@@ -45,7 +45,7 @@ impl Published {
                     entries.push((method.to_ascii_uppercase(), path.to_owned(), id.to_owned()));
                 }
                 _ => malformed.push(Finding::Malformed {
-                    file: "published-operation-ids.txt",
+                    file: "published-operation-ids.txt".to_owned(),
                     line: index + 1,
                     text: line.to_owned(),
                 }),

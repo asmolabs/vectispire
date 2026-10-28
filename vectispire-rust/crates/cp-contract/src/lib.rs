@@ -14,8 +14,9 @@
 //! | [`check_published`] | no operation id a release published is renamed or removed |
 //!
 //! The document and the published list are **embedded copies** of the Java line's (`reference/`,
-//! moved by `reference/refresh.sh`), and the list of routes not ported yet is committed beside them:
-//! each is something a check could otherwise be satisfied by editing.
+//! moved by `reference/refresh.sh`), and the list of routes not ported yet is committed beside them, one file per
+//! module (`reference/not-yet-ported/`, [`shrinking`]): each is something a check could otherwise be satisfied by
+//! editing.
 
 #![forbid(unsafe_code)]
 
@@ -29,6 +30,7 @@ mod published;
 pub mod recorded;
 mod routes;
 mod schema;
+pub mod shrinking;
 
 pub use axum_support::{AxumServer, HttpServer, NO_ROUTE_HEADER, RecordingRouter, probe};
 pub use document::{
@@ -42,7 +44,9 @@ pub use golden::{
 pub use json::{Compare, Difference, DifferenceKind, Json, MAX_DEPTH, Numbers, ParseError, compare};
 pub use plan::{Plan, plan};
 pub use published::{Published, check_published};
-pub use routes::{Allowlist, ParamDecl, RouteDecl, RouteSource, SecurityDecl, check_routes};
+pub use routes::{
+    Allowlist, ParamDecl, RouteDecl, RouteSource, SecurityDecl, check_module, check_partition, check_routes,
+};
 pub use schema::{Check, SchemaError, Schemas};
 
 /// The conformance of a router that declares its routes as it registers them: the declarations
