@@ -937,6 +937,266 @@
     {
       "protocol": "SYSLOG_UDP",
       "endpoint": null
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:0/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:00000/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:1/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:65535/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:65536/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:99999/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:000443/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:2147483647/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:2147483648/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:99999999999/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:-1/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:+443/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "http://10.0.0.1:0"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "http://[::1]:65536/x"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://user@siem.example.com:99999/cef"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:443?q"
+    },
+    {
+      "protocol": "WEBHOOK",
+      "endpoint": "https://siem.example.com:99999#f"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "010.0.0.1:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "007.008.009.010:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.3:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "16909060:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.65535:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.65536:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.16777215:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.16777216:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "127.257:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "02130706689:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "4294967295:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "4294967296:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "99999999999:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "256.0.0.1:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.3.256:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.256.3:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "256.1:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.3.4.5:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1..2.3:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.3.4.:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.3.4..:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.3.4.5.:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "0:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "00:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "0.0.0.0:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "255.255.255.255:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "123.123.123.123.:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "000000000000001:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "0000000000000001:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "0000000000000001.:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "000000000000001.:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "001.002.003.004:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "0001.002.003.004:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1.2.3.4a:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "1e5:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "4294967296a:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "123:514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": ".1.2.3.4:514"
+    },
+    {
+      "protocol": "SYSLOG_UDP",
+      "endpoint": "16909060.:514"
+    },
+    {
+      "protocol": "SYSLOG_TLS",
+      "endpoint": "999.999.999.999:6514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "collector.example.com:00514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "collector.example.com:065535"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "collector.example.com:00000"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "10.0.0.1:0000514"
+    },
+    {
+      "protocol": "SYSLOG_TCP",
+      "endpoint": "10.0.0.1:00001"
     }
   ],
   "protocols": [
@@ -1585,6 +1845,103 @@
               "\n",
               "\u000b\n"
             ]
+          }
+        ]
+      },
+      {
+        "name": "a damaged second marker",
+        "parts": [
+          {
+            "file": "01-root.pem"
+          },
+          {
+            "file": "02-issuing.pem",
+            "replace": [
+              "-----BEGIN CERTIFICATE-----",
+              "-----BEGIN CERTIFICATE"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "a damaged first marker",
+        "parts": [
+          {
+            "file": "01-root.pem",
+            "replace": [
+              "-----BEGIN CERTIFICATE-----",
+              "-----BEGIN CERTIFICATE"
+            ]
+          },
+          {
+            "file": "02-issuing.pem"
+          }
+        ]
+      },
+      {
+        "name": "a second marker with no space",
+        "parts": [
+          {
+            "file": "01-root.pem"
+          },
+          {
+            "file": "02-issuing.pem",
+            "replace": [
+              "-----BEGIN CERTIFICATE-----",
+              "-----BEGINCERTIFICATE-----"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "a marker in the text before the armour",
+        "parts": [
+          {
+            "text": "copied from the -----BEGIN of the file\n"
+          },
+          {
+            "file": "01-root.pem"
+          }
+        ]
+      },
+      {
+        "name": "a lower-case marker after",
+        "parts": [
+          {
+            "file": "01-root.pem"
+          },
+          {
+            "file": "02-issuing.pem",
+            "replace": [
+              "-----BEGIN CERTIFICATE-----",
+              "-----begin CERTIFICATE-----"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "a marker in a header",
+        "parts": [
+          {
+            "file": "01-root.pem",
+            "replace": [
+              "-----BEGIN CERTIFICATE-----\n",
+              "-----BEGIN CERTIFICATE-----\nComment: -----BEGIN\n"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "an expired certificate after a damaged marker",
+        "parts": [
+          {
+            "file": "01-root.pem"
+          },
+          {
+            "text": "-----BEGIN CERT\n"
+          },
+          {
+            "file": "05-expired.pem"
           }
         ]
       }

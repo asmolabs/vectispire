@@ -293,6 +293,57 @@ fn a_syslog_endpoint_is_host_port_a_name_or_an_ipv4() {
 }
 
 #[test]
+fn a_webhook_s_port_is_one_a_connection_can_use() {
+    assert!(endpoint::parse(SiemProtocol::Webhook, Some("https://siem.example.com:65535/cef")).is_ok());
+    assert!(endpoint::parse(SiemProtocol::Webhook, Some("https://siem.example.com:1/cef")).is_ok());
+    for value in
+        ["https://siem.example.com:99999/cef", "https://siem.example.com:0/cef", "https://siem.example.com:65536/"]
+    {
+        assert_eq!(
+            refusal(SiemProtocol::Webhook, value),
+            "The webhook endpoint's port must be a number between 1 and 65535.",
+            "{value}"
+        );
+    }
+    // Past an `int`, `URI` reads no port at all: a registry authority, with no host.
+    assert_eq!(
+        refusal(SiemProtocol::Webhook, "https://siem.example.com:2147483648/cef"),
+        "The webhook endpoint names no host."
+    );
+}
+
+#[test]
+fn a_numeric_host_is_what_the_resolver_reads_as_an_address() {
+    for value in ["10.1:514", "010.0.0.1:514", "16909060:514", "1.2.3.4.:514", "255.255.255.255:514", "1.2.65535:514"] {
+        assert!(endpoint::parse(SiemProtocol::SyslogUdp, Some(value)).is_ok(), "{value} was refused");
+    }
+    for value in [
+        "999.999.999.999:514",
+        "256.0.0.1:514",
+        "1.2.3.4.5:514",
+        "1.2.3.4..:514",
+        "4294967296:514",
+        "1.2.65536:514",
+        "0000000000000001:514",
+    ] {
+        assert!(
+            refusal(SiemProtocol::SyslogUdp, value).ends_with("is not a host name or an IPv4 address."),
+            "{value} was accepted"
+        );
+    }
+    // A host with a letter is a name, whatever digits it holds: the resolver asks DNS for it.
+    assert!(endpoint::parse(SiemProtocol::SyslogUdp, Some("4294967296a:514")).is_ok());
+}
+
+#[test]
+fn a_port_written_with_leading_zeros_is_that_port_so_a_stored_one_keeps_working() {
+    assert_eq!(
+        endpoint::parse(SiemProtocol::SyslogTcp, Some("collector.example.com:00514")),
+        Ok(syslog_endpoint(SiemProtocol::SyslogTcp, "collector.example.com", 514))
+    );
+}
+
+#[test]
 fn an_ipv6_collector_is_written_in_brackets_which_are_not_part_of_the_host() {
     assert_eq!(
         endpoint::parse(SiemProtocol::SyslogTcp, Some("[2001:db8::1]:514")),

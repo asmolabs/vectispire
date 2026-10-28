@@ -25,6 +25,12 @@ import org.junit.jupiter.api.Test;
  * {@code isBlank} and {@code trim}, an IPv4-mapped address in brackets, a full-width digit in a port; and for the
  * collector CA, BouncyCastle's reading of the PEM text and of the certificates in {@code siem/collector-ca/}
  * ({@code generate.jsh}), the subject as {@code X500Name} renders it, and every refusal's sentence.
+ *
+ * <p>A webhook's port is checked as {@code URI.getPort} reads it; a syslog host of digits and dots as
+ * {@code Inet4Address.ofLiteral} reads it after one trailing dot — its short forms, its bounds per form, its
+ * fifteen-character limit; a port's leading zeros are kept. A bundle is answered three ways: {@code read} and
+ * {@code parse}, which a stored bundle goes through and which stop at a {@code -----BEGIN} line they cannot read,
+ * and {@code parsePasted}, which a typed one goes through and which refuses it.
  */
 class SiemReferenceSetTest {
 
@@ -160,6 +166,12 @@ class SiemReferenceSetTest {
                 answer.put("parse", "accepted");
             } catch (IllegalArgumentException refused) {
                 answer.put("parse", refused.getMessage());
+            }
+            try {
+                CollectorCa.parsePasted(pem, now);
+                answer.put("parsePasted", "accepted");
+            } catch (IllegalArgumentException refused) {
+                answer.put("parsePasted", refused.getMessage());
             }
         }
 

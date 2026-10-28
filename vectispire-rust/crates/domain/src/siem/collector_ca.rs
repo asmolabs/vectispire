@@ -26,6 +26,13 @@ impl CollectorCa {
         PinnedCa::parse(pem, now, &SUBJECT).map(CollectorCa)
     }
 
+    /// Reads a bundle somebody has just pasted, refusing one that would be read in part
+    /// ([`PinnedCa::parse_pasted`]). The save and the connection test use this; a stored bundle is read with
+    /// [`CollectorCa::parse`] or [`CollectorCa::read`], as it was accepted.
+    pub fn parse_pasted(pem: Option<&str>, now: Instant) -> Result<CollectorCa, Refused> {
+        PinnedCa::parse_pasted(pem, now, &SUBJECT).map(CollectorCa)
+    }
+
     /// Reads a bundle, checking its shape but not its dates — for describing a stored one, which may have expired
     /// since it was saved and must still be shown so that somebody replaces it.
     pub fn read(pem: Option<&str>) -> Result<CollectorCa, Refused> {

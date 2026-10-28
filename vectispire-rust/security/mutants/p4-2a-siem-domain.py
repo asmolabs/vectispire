@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Mutation check of Phase 4 task 4.2, first stage: the SIEM domain in crates/domain/src/siem (the catalogue and the
 placement of every audit operation, the CEF escapes and field order, the syslog header and framing, the endpoint
-reader, the severity minimum, the triage signals, the collector CA and the PEM and X.509 reading under it),
+reader — a webhook's port, a numeric host as `Inet4Address.ofLiteral` reads it —, the severity minimum, the triage
+signals, the collector CA and the PEM and X.509 reading under it, a pasted bundle read whole),
 TriageStatus moved to the domain, the calendar on Instant, and
 cp-audit's guards between the audit vocabulary and the SIEM's. See README.md.
 """
@@ -16,10 +17,15 @@ IN = ["-p", "vectispire-domain", "--lib", "instant"]
 CA = ["-p", "vectispire-domain", "--test", "collector_ca"]
 X = ["-p", "vectispire-domain", "--lib", "x509"]
 CAX = [CA, X]
+EL = [T, ["-p", "vectispire-domain", "--lib", "siem::endpoint"]]
+EP = "crates/domain/src/siem/endpoint.rs"
 
 # Equivalent, and removed: BER's indefinite length is refused by the shortest-form check as a length of zero, so
 # no separate guard exists for it; after a `\#` prefix `leading` is zero, so no prefix test guards the leading
-# spaces; reading every value of a single-valued RDN is reading its first.
+# spaces; reading every value of a single-valued RDN is reading its first. `java_uri` resetting the port when a
+# server authority falls back to a registry one is Java's, and unreachable: the port is the last thing read, so
+# nothing fails after it. An empty part of an IPv4 literal is refused by the parse of its digits as well, and a single
+# part's 32-bit bound by the `u32` the last part is written into.
 MUTANTS = [
     ("cef '=' escaped in values", "crates/domain/src/siem/cef.rs", "            '=' => out.push_str(\"\\\\=\"),\n", "", T),
     ("cef '|' escaped in header", "crates/domain/src/siem/cef.rs", "            '|' => out.push_str(\"\\\\|\"),\n", "", T),
@@ -45,6 +51,24 @@ MUTANTS = [
     ("endpoint no path", "crates/domain/src/siem/endpoint.rs", "if value.contains('/') {", "if value.contains(\"://\") {", T),
     ("endpoint java trim", "crates/domain/src/siem/endpoint.rs", "let value = java::trim(endpoint.unwrap_or(\"\"));", "let value = endpoint.unwrap_or(\"\").trim();", T),
     ("endpoint webhook host required", "crates/domain/src/siem/endpoint.rs", "uri.host.as_deref().is_none_or(java::is_blank)", "false", T),
+    ("webhook port 0 accepted", EP, "port == 0 || port > 65_535", "port > 65_535", T),
+    ("webhook port 65536 accepted", EP, "port == 0 || port > 65_535", "port == 0 || port > 65_536", T),
+    ("uri port not read", "crates/domain/src/repository_url.rs", "self.port = Some(self.substring(p, q).parse::<i32>().map_err(|_| Syntax)?);", "self.substring(p, q).parse::<i32>().map_err(|_| Syntax)?;", T),
+    ("numeric host not checked", EP, " || (is_numeric(host) && !is_ipv4_literal(host))", "", T),
+    ("numeric host digits only", EP, "b.is_ascii_digit() || b == b'.')", "b.is_ascii_digit())", T),
+    ("numeric host trailing dot kept", EP, "ipv4_of_literal(host.strip_suffix('.').unwrap_or(host))", "ipv4_of_literal(host)", T),
+    ("ipv4 fifteen characters", EP, "java::utf16_len(text) > 15", "java::utf16_len(text) > 16", EL),
+    ("ipv4 four parts", EP, "if leading.len() > 3 {", "if leading.len() > 4 {", EL),
+    ("ipv4 leading part a byte", EP, "*byte = u8::try_from(value(part)?).ok()?;", "*byte = u8::try_from(value(part)? & 0xff).ok()?;", EL),
+    ("ipv4 two parts 24 bits", EP, "1 => 1 << 24,", "1 => 1 << 25,", EL),
+    ("ipv4 three parts 16 bits", EP, "2 => 1 << 16,", "2 => 1 << 17,", EL),
+    ("ipv4 four parts 8 bits", EP, "_ => 1 << 8,", "_ => 1 << 9,", EL),
+    ("ipv4 bound exclusive", EP, "if last >= bound {", "if last > bound {", EL),
+    ("ipv4 last part fills the bytes left", EP, ".zip(tail).skip(leading.len())", ".zip(tail)", EL),
+    ("pasted damaged marker accepted", "crates/domain/src/pinned_ca.rs", "if read.pem.matches(\"-----BEGIN\").count() > read.anchors.len() {", "if false {", CA),
+    ("pasted every bundle refused", "crates/domain/src/pinned_ca.rs", "if read.pem.matches(\"-----BEGIN\").count() > read.anchors.len() {", "if read.pem.matches(\"-----BEGIN\").count() >= read.anchors.len() {", CA),
+    ("pasted marker with its space", "crates/domain/src/pinned_ca.rs", "if read.pem.matches(\"-----BEGIN\").count() > read.anchors.len() {", "if read.pem.matches(\"-----BEGIN \").count() > read.anchors.len() {", CA),
+    ("collector paste read leniently", "crates/domain/src/siem/collector_ca.rs", "PinnedCa::parse_pasted(pem, now, &SUBJECT)", "PinnedCa::parse(pem, now, &SUBJECT)", CA),
     ("filter ping bypass", "crates/domain/src/siem/severity_filter.rs", "    if event.event_type() == SecurityEventType::PingTest {\n        return true;\n    }\n", "", T),
     ("filter unreadable sends all", "crates/domain/src/siem/severity_filter.rs", ".is_none_or(|floor|", ".is_some_and(|floor|", T),
     ("filter event severity", "crates/domain/src/siem/severity_filter.rs", "event.cef_severity() >= floor", "event.event_type().cef_severity() >= floor", T),

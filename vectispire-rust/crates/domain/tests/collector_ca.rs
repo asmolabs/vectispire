@@ -98,6 +98,21 @@ fn a_bundle_of_more_certificates_than_a_chain_needs_is_refused() {
     assert!(refusal(&one.repeat(MAX_CERTIFICATES + 1)).contains(&format!("more than {MAX_CERTIFICATES}")));
 }
 
+#[test]
+fn a_paste_with_a_damaged_begin_line_is_refused_a_stored_one_is_read_as_it_was_accepted() {
+    let root = fixture("01-root.pem");
+    let issuing = fixture("02-issuing.pem");
+    let damaged = root.clone() + &issuing.replacen("-----BEGIN CERTIFICATE-----", "-----BEGIN CERTIFICATE", 1);
+
+    let refused = CollectorCa::parse_pasted(Some(&damaged), NOW).unwrap_err().0;
+    assert!(refused.starts_with("The collector CA has a -----BEGIN line that cannot be read"), "{refused}");
+    let stored = CollectorCa::parse(Some(&damaged), NOW).unwrap();
+    let subjects: Vec<&str> = stored.anchors().iter().map(|anchor| anchor.subject.as_str()).collect();
+    assert_eq!(subjects, ["CN=Corp Root"]);
+    assert_eq!(CollectorCa::read(Some(&damaged)).unwrap().anchors().len(), 1);
+    assert_eq!(CollectorCa::parse_pasted(Some(&(root + &issuing)), NOW).unwrap().anchors().len(), 2);
+}
+
 /// A case's text, built as the Java writer builds it.
 fn bundle(case: &Value) -> Option<String> {
     if case["absent"].as_bool() == Some(true) {
@@ -161,6 +176,10 @@ fn every_bundle_is_read_as_the_java_side_reads_it() {
             Err(refused) => rust["readRefused"] = json!(refused.0),
         }
         rust["parse"] = json!(match CollectorCa::parse(pem.as_deref(), now) {
+            Ok(_) => "accepted".to_owned(),
+            Err(refused) => refused.0,
+        });
+        rust["parsePasted"] = json!(match CollectorCa::parse_pasted(pem.as_deref(), now) {
             Ok(_) => "accepted".to_owned(),
             Err(refused) => refused.0,
         });

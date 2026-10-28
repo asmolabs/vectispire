@@ -84,6 +84,27 @@ impl PinnedCa {
         Ok(read)
     }
 
+    /// Reads a bundle somebody has just pasted: [`PinnedCa::parse`], and refused when part of it would not be read.
+    ///
+    /// BouncyCastle's reader — and `next_object` after it — stops at a `-----BEGIN` line it cannot read, silently,
+    /// and hands back what it had: a root followed by a damaged intermediate was pinned as the root alone, and the
+    /// handshake failed later with nothing pointing at the paste. Only where the text is typed: a stored bundle is
+    /// read as it was accepted ([`PinnedCa::parse`], [`PinnedCa::read`]), since refusing it now would stop a
+    /// connection that works with the certificates it has.
+    pub fn parse_pasted(pem: Option<&str>, now: Instant, subject: &Subject) -> Result<PinnedCa, Refused> {
+        let read = PinnedCa::parse(pem, now, subject)?;
+        // Every object the reader returned started at one; one it skipped leaves its marker uncounted. The
+        // marker cannot overlap itself, so counting matches is Java's `indexOf(…, at + 1)` loop.
+        if read.pem.matches("-----BEGIN").count() > read.anchors.len() {
+            return Err(Refused(format!(
+                "{} has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each \
+                 certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line.",
+                subject.field
+            )));
+        }
+        Ok(read)
+    }
+
     /// Reads a bundle, checking its shape but not its dates — for describing a stored one, which may have expired
     /// since it was saved and must still be shown so that somebody replaces it.
     pub fn read(pem: Option<&str>, subject: &Subject) -> Result<PinnedCa, Refused> {
@@ -225,7 +246,8 @@ fn java_lines(text: &str) -> Vec<&str> {
 }
 
 /// `PemReader.readPemObject`, one object: `None` when there is none left — including after a `-----BEGIN` line
-/// that is not a well-formed marker, where BouncyCastle stops reading, silently, whatever follows. `Some(None)`
+/// that is not a well-formed marker, where BouncyCastle stops reading, silently, whatever follows (a pasted bundle
+/// is refused for it, by `PinnedCa::parse_pasted`; a stored one is not). `Some(None)`
 /// is an object that cannot be read: no end marker, or Base64 that does not decode.
 #[allow(clippy::option_option)]
 fn next_object<'a>(lines: &mut impl Iterator<Item = &'a str>) -> Option<Option<(String, Vec<u8>)>> {

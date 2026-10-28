@@ -792,7 +792,7 @@
   }, {
     "protocol" : "WEBHOOK",
     "endpoint" : "https://host:99999/",
-    "webhook" : "https://host:99999/"
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
   }, {
     "protocol" : "WEBHOOK",
     "endpoint" : null,
@@ -952,11 +952,7 @@
   }, {
     "protocol" : "SYSLOG_TCP",
     "endpoint" : "999.999.999.999:514",
-    "syslog" : {
-      "protocol" : "SYSLOG_TCP",
-      "host" : "999.999.999.999",
-      "port" : 514
-    }
+    "refused" : "\"999.999.999.999\" is not a host name or an IPv4 address."
   }, {
     "protocol" : "SYSLOG_TCP",
     "endpoint" : "[::ffff:10.0.0.1]:514",
@@ -1085,6 +1081,374 @@
     "protocol" : "SYSLOG_UDP",
     "endpoint" : null,
     "refused" : "The endpoint is required."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:0/cef",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:00000/cef",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:1/cef",
+    "webhook" : "https://siem.example.com:1/cef"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:65535/cef",
+    "webhook" : "https://siem.example.com:65535/cef"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:65536/cef",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:99999/cef",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:000443/cef",
+    "webhook" : "https://siem.example.com:000443/cef"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:2147483647/cef",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:2147483648/cef",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:99999999999/cef",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:/cef",
+    "webhook" : "https://siem.example.com:/cef"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:-1/cef",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:+443/cef",
+    "refused" : "The webhook endpoint names no host."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "http://10.0.0.1:0",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "http://[::1]:65536/x",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://user@siem.example.com:99999/cef",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:443?q",
+    "webhook" : "https://siem.example.com:443?q"
+  }, {
+    "protocol" : "WEBHOOK",
+    "endpoint" : "https://siem.example.com:99999#f",
+    "refused" : "The webhook endpoint's port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "010.0.0.1:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "010.0.0.1",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "007.008.009.010:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "007.008.009.010",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.3:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1.2.3",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1.2",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "16909060:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "16909060",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.65535:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1.2.65535",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.65536:514",
+    "refused" : "\"1.2.65536\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.16777215:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1.16777215",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.16777216:514",
+    "refused" : "\"1.16777216\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "127.257:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "127.257",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "02130706689:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "02130706689",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "4294967295:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "4294967295",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "4294967296:514",
+    "refused" : "\"4294967296\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "99999999999:514",
+    "refused" : "\"99999999999\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "256.0.0.1:514",
+    "refused" : "\"256.0.0.1\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.3.256:514",
+    "refused" : "\"1.2.3.256\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.256.3:514",
+    "refused" : "\"1.256.3\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "256.1:514",
+    "refused" : "\"256.1\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.3.4.5:514",
+    "refused" : "\"1.2.3.4.5\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1..2.3:514",
+    "refused" : "\"1..2.3\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.3.4.:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1.2.3.4.",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.3.4..:514",
+    "refused" : "\"1.2.3.4..\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.3.4.5.:514",
+    "refused" : "\"1.2.3.4.5.\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1.",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "0:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "0",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "00:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "00",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "0.0.0.0:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "0.0.0.0",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "255.255.255.255:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "255.255.255.255",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "123.123.123.123.:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "123.123.123.123.",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "000000000000001:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "000000000000001",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "0000000000000001:514",
+    "refused" : "\"0000000000000001\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "0000000000000001.:514",
+    "refused" : "\"0000000000000001.\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "000000000000001.:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "000000000000001.",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "001.002.003.004:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "001.002.003.004",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "0001.002.003.004:514",
+    "refused" : "\"0001.002.003.004\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1.2.3.4a:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1.2.3.4a",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "1e5:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "1e5",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "4294967296a:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "4294967296a",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "123:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "123",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : ".1.2.3.4:514",
+    "refused" : "\".1.2.3.4\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_UDP",
+    "endpoint" : "16909060.:514",
+    "syslog" : {
+      "protocol" : "SYSLOG_UDP",
+      "host" : "16909060.",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TLS",
+    "endpoint" : "999.999.999.999:6514",
+    "refused" : "\"999.999.999.999\" is not a host name or an IPv4 address."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "collector.example.com:00514",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "collector.example.com",
+      "port" : 514
+    }
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "collector.example.com:065535",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "collector.example.com:00000",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "10.0.0.1:0000514",
+    "refused" : "The port must be a number between 1 and 65535."
+  }, {
+    "protocol" : "SYSLOG_TCP",
+    "endpoint" : "10.0.0.1:00001",
+    "syslog" : {
+      "protocol" : "SYSLOG_TCP",
+      "host" : "10.0.0.1",
+      "port" : 1
+    }
   } ],
   "protocols" : [ {
     "value" : null,
@@ -1240,7 +1604,8 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a root between blank lines",
     "read" : {
@@ -1254,7 +1619,8 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a bundle, the earliest expiry counts",
     "read" : {
@@ -1273,15 +1639,18 @@
         "derSha256" : "3b849f14e511b657ca3f9d28eee3858fb029e45bc31419e2ec79ff3291e9e53e"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a leaf",
     "readRefused" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
-    "parse" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
+    "parse" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
+    "parsePasted" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
   }, {
     "name" : "a CA that may not sign certificates",
     "readRefused" : "\"CN=Odd\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's.",
-    "parse" : "\"CN=Odd\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's."
+    "parse" : "\"CN=Odd\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's.",
+    "parsePasted" : "\"CN=Odd\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's."
   }, {
     "name" : "expired at the instant",
     "read" : {
@@ -1295,7 +1664,8 @@
         "derSha256" : "d83191fe7dcbd4dc141a86e09d22c801e5ff9caa146e7a841c94922883da2110"
       } ]
     },
-    "parse" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z."
+    "parse" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z.",
+    "parsePasted" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z."
   }, {
     "name" : "not valid yet by a second",
     "read" : {
@@ -1309,15 +1679,18 @@
         "derSha256" : "52964cc6af9e9b78cba369f43ee31ee6ca0f2f218ab1886eedf278f1e934b920"
       } ]
     },
-    "parse" : "The collector CA \"CN=Next Root\" is not valid before 2026-10-01T12:00:01Z."
+    "parse" : "The collector CA \"CN=Next Root\" is not valid before 2026-10-01T12:00:01Z.",
+    "parsePasted" : "The collector CA \"CN=Next Root\" is not valid before 2026-10-01T12:00:01Z."
   }, {
     "name" : "no basic constraints",
     "readRefused" : "\"CN=No Constraints\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
-    "parse" : "\"CN=No Constraints\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
+    "parse" : "\"CN=No Constraints\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
+    "parsePasted" : "\"CN=No Constraints\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
   }, {
     "name" : "version 1",
     "readRefused" : "\"CN=Version One\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
-    "parse" : "\"CN=Version One\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
+    "parse" : "\"CN=Version One\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
+    "parsePasted" : "\"CN=Version One\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
   }, {
     "name" : "a CA with no key usage",
     "read" : {
@@ -1331,11 +1704,13 @@
         "derSha256" : "69013f3bec30aa5f6fcfa4cdde1dab79d5b7813e2b89c51a80c159efe4594f46"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "CRL signing only",
     "readRefused" : "\"CN=CRL Signer\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's.",
-    "parse" : "\"CN=CRL Signer\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's."
+    "parse" : "\"CN=CRL Signer\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's.",
+    "parsePasted" : "\"CN=CRL Signer\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's."
   }, {
     "name" : "two octets of usage, signing",
     "read" : {
@@ -1349,11 +1724,13 @@
         "derSha256" : "793cfedc5235e2489a1d4a830abdedec97f7377cff689f307c1224818ec10cd4"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "two octets of usage, not signing",
     "readRefused" : "\"CN=Wide No Sign\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's.",
-    "parse" : "\"CN=Wide No Sign\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's."
+    "parse" : "\"CN=Wide No Sign\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's.",
+    "parsePasted" : "\"CN=Wide No Sign\" may not sign certificates (its key usage lacks keyCertSign), so it cannot have issued the collector's."
   }, {
     "name" : "generalized times",
     "read" : {
@@ -1367,7 +1744,8 @@
         "derSha256" : "053ad0c289e9e60b8094cb565bc1d3fd067fa5c5cc7f7b46e8529cd86a683e5d"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "the UTC pivot years",
     "read" : {
@@ -1381,7 +1759,8 @@
         "derSha256" : "a701d4c8458e3f69e656b3246626a24dcfbac7cecdc893b1abda31ce34bb5319"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a rich subject",
     "read" : {
@@ -1395,7 +1774,8 @@
         "derSha256" : "2e0823795d736b1883129f9ae710bd2ba89b375cce9c8a195ff7504e4e143e70"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a subject starting with a hash",
     "read" : {
@@ -1409,7 +1789,8 @@
         "derSha256" : "5f87cd1347db6cb6cb71ff882d5328e985d352ac5bfdd52ca84fa26629bcfdca"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "an empty subject",
     "read" : {
@@ -1423,11 +1804,13 @@
         "derSha256" : "755cca7a77ddafe264bc33a3469f838581c124fa123cd0dc607b3d41e313401b"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a public key",
     "readRefused" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
-    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
+    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
+    "parsePasted" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
   }, {
     "name" : "eight certificates",
     "read" : {
@@ -1476,43 +1859,53 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "nine certificates",
     "readRefused" : "The collector CA holds more than 8 certificates.",
-    "parse" : "The collector CA holds more than 8 certificates."
+    "parse" : "The collector CA holds more than 8 certificates.",
+    "parsePasted" : "The collector CA holds more than 8 certificates."
   }, {
     "name" : "eight certificates and garbage",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "words",
     "readRefused" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
-    "parse" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
+    "parse" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
+    "parsePasted" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
   }, {
     "name" : "garbage in the armour",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "blank",
     "readRefused" : "The collector CA is empty.",
-    "parse" : "The collector CA is empty."
+    "parse" : "The collector CA is empty.",
+    "parsePasted" : "The collector CA is empty."
   }, {
     "name" : "absent",
     "readRefused" : "The collector CA is empty.",
-    "parse" : "The collector CA is empty."
+    "parse" : "The collector CA is empty.",
+    "parsePasted" : "The collector CA is empty."
   }, {
     "name" : "too long",
     "readRefused" : "The collector CA is 16385 characters long; at most 16384 are accepted.",
-    "parse" : "The collector CA is 16385 characters long; at most 16384 are accepted."
+    "parse" : "The collector CA is 16385 characters long; at most 16384 are accepted.",
+    "parsePasted" : "The collector CA is 16385 characters long; at most 16384 are accepted."
   }, {
     "name" : "exactly the limit",
     "readRefused" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
-    "parse" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
+    "parse" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
+    "parsePasted" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
   }, {
     "name" : "too long in UTF-16 units",
     "readRefused" : "The collector CA is 16386 characters long; at most 16384 are accepted.",
-    "parse" : "The collector CA is 16386 characters long; at most 16384 are accepted."
+    "parse" : "The collector CA is 16386 characters long; at most 16384 are accepted.",
+    "parsePasted" : "The collector CA is 16386 characters long; at most 16384 are accepted."
   }, {
     "name" : "CRLF line ends",
     "read" : {
@@ -1526,7 +1919,8 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "CR line ends",
     "read" : {
@@ -1540,7 +1934,8 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "text before the armour",
     "read" : {
@@ -1554,7 +1949,8 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a header in the armour",
     "read" : {
@@ -1568,7 +1964,8 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "an indented BEGIN line",
     "read" : {
@@ -1582,11 +1979,13 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "a broken BEGIN line first",
     "readRefused" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
-    "parse" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
+    "parse" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
+    "parsePasted" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
   }, {
     "name" : "a broken BEGIN line after",
     "read" : {
@@ -1600,7 +1999,8 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line."
   }, {
     "name" : "labelled X509 CERTIFICATE",
     "read" : {
@@ -1614,47 +2014,58 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "labelled TRUSTED CERTIFICATE",
     "readRefused" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
-    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
+    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
+    "parsePasted" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
   }, {
     "name" : "an unknown label",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "no END line",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "an END line for another label",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "spaces inside the base64",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "tabs around the base64 lines",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "a base64 character missing",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "a leaf before a root",
     "readRefused" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
-    "parse" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
+    "parse" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own.",
+    "parsePasted" : "\"CN=collector.corp\" is not a certificate authority (its basic constraints do not say CA): pin the CA that issued the collector's certificate, not the collector's own."
   }, {
     "name" : "a root then a public key",
     "readRefused" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
-    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
+    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
+    "parsePasted" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
   }, {
     "name" : "a public key then nine certificates",
     "readRefused" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
-    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
+    "parse" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here.",
+    "parsePasted" : "The collector CA holds something other than certificates. Paste the CA's certificate in PEM form (-----BEGIN CERTIFICATE-----); a private key never belongs here."
   }, {
     "name" : "text after the END marker",
     "read" : {
@@ -1668,15 +2079,18 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
   }, {
     "name" : "an indented END line",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "a private-key label over garbage",
     "readRefused" : "The collector CA is not a readable PEM certificate.",
-    "parse" : "The collector CA is not a readable PEM certificate."
+    "parse" : "The collector CA is not a readable PEM certificate.",
+    "parsePasted" : "The collector CA is not a readable PEM certificate."
   }, {
     "name" : "an expired certificate behind a good one",
     "read" : {
@@ -1695,7 +2109,8 @@
         "derSha256" : "d83191fe7dcbd4dc141a86e09d22c801e5ff9caa146e7a841c94922883da2110"
       } ]
     },
-    "parse" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z."
+    "parse" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z.",
+    "parsePasted" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z."
   }, {
     "name" : "vertical tabs at the line ends, which String.trim strips",
     "read" : {
@@ -1709,6 +2124,102 @@
         "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
       } ]
     },
-    "parse" : "accepted"
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
+  }, {
+    "name" : "a damaged second marker",
+    "read" : {
+      "pemSha256" : "97987a8c199c9578d0d64d59514f774876a988d5d003368885b887d2af7669ec",
+      "subject" : "CN=Corp Root",
+      "notAfter" : "2036-01-01T00:00:00Z",
+      "anchors" : [ {
+        "subject" : "CN=Corp Root",
+        "notBefore" : "2026-01-01T00:00:00Z",
+        "notAfter" : "2036-01-01T00:00:00Z",
+        "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
+      } ]
+    },
+    "parse" : "accepted",
+    "parsePasted" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line."
+  }, {
+    "name" : "a damaged first marker",
+    "readRefused" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
+    "parse" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included.",
+    "parsePasted" : "The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
+  }, {
+    "name" : "a second marker with no space",
+    "read" : {
+      "pemSha256" : "f7c42f4a977dfd2163a38e119c2bcc827205f02fffe9c8c5f36eac48cee7094c",
+      "subject" : "CN=Corp Root",
+      "notAfter" : "2036-01-01T00:00:00Z",
+      "anchors" : [ {
+        "subject" : "CN=Corp Root",
+        "notBefore" : "2026-01-01T00:00:00Z",
+        "notAfter" : "2036-01-01T00:00:00Z",
+        "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
+      } ]
+    },
+    "parse" : "accepted",
+    "parsePasted" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line."
+  }, {
+    "name" : "a marker in the text before the armour",
+    "read" : {
+      "pemSha256" : "317e99e6fa6f1fa262312e9e216b8ff66be9aabf4aae689f202bf63f9c4600ac",
+      "subject" : "CN=Corp Root",
+      "notAfter" : "2036-01-01T00:00:00Z",
+      "anchors" : [ {
+        "subject" : "CN=Corp Root",
+        "notBefore" : "2026-01-01T00:00:00Z",
+        "notAfter" : "2036-01-01T00:00:00Z",
+        "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
+      } ]
+    },
+    "parse" : "accepted",
+    "parsePasted" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line."
+  }, {
+    "name" : "a lower-case marker after",
+    "read" : {
+      "pemSha256" : "08b4147a2d267561e625d659ea553bdd502c50667512e5dbb5b3a648d037ec7c",
+      "subject" : "CN=Corp Root",
+      "notAfter" : "2036-01-01T00:00:00Z",
+      "anchors" : [ {
+        "subject" : "CN=Corp Root",
+        "notBefore" : "2026-01-01T00:00:00Z",
+        "notAfter" : "2036-01-01T00:00:00Z",
+        "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
+      } ]
+    },
+    "parse" : "accepted",
+    "parsePasted" : "accepted"
+  }, {
+    "name" : "a marker in a header",
+    "read" : {
+      "pemSha256" : "dc9a277c66ea5929d1ed91c4736607fd0d5b2eeebb5814bb60b398f653b06dc6",
+      "subject" : "CN=Corp Root",
+      "notAfter" : "2036-01-01T00:00:00Z",
+      "anchors" : [ {
+        "subject" : "CN=Corp Root",
+        "notBefore" : "2026-01-01T00:00:00Z",
+        "notAfter" : "2036-01-01T00:00:00Z",
+        "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
+      } ]
+    },
+    "parse" : "accepted",
+    "parsePasted" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line."
+  }, {
+    "name" : "an expired certificate after a damaged marker",
+    "read" : {
+      "pemSha256" : "4cf438068afee36611a2eac914e9886466c1f67bf3903c9c68898ae12f8903fe",
+      "subject" : "CN=Corp Root",
+      "notAfter" : "2036-01-01T00:00:00Z",
+      "anchors" : [ {
+        "subject" : "CN=Corp Root",
+        "notBefore" : "2026-01-01T00:00:00Z",
+        "notAfter" : "2036-01-01T00:00:00Z",
+        "derSha256" : "a33d6239d7c527a3f2eeeda20a5d1d515761bb0a2ecdf5b06f5f2e1b11ffcae8"
+      } ]
+    },
+    "parse" : "accepted",
+    "parsePasted" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line."
   } ]
 }

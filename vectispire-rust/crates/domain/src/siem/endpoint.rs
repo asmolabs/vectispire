@@ -57,6 +57,11 @@ fn webhook(value: &str) -> Result<SiemEndpoint, Refused> {
     if uri.host.as_deref().is_none_or(java::is_blank) {
         return Err(refused("The webhook endpoint names no host."));
     }
+    // `URI` reads any run of digits that fits an `int` as a port: 99999 was saved, and every delivery failed.
+    // A port past `i32` is no port to `URI` at all — a registry authority, refused above as naming no host.
+    if uri.port.is_some_and(|port| port == 0 || port > 65_535) {
+        return Err(refused("The webhook endpoint's port must be a number between 1 and 65535."));
+    }
     Ok(SiemEndpoint::Webhook { url: value.to_owned() })
 }
 
@@ -88,7 +93,7 @@ fn syslog(protocol: SiemProtocol, value: &str) -> Result<SiemEndpoint, Refused> 
         if host.contains(':') {
             return Err(refused(IPV6_FORM));
         }
-        if !is_host_name(host) {
+        if !is_host_name(host) || (is_numeric(host) && !is_ipv4_literal(host)) {
             return Err(Refused(format!("\"{host}\" is not a host name or an IPv4 address.")));
         }
         (host, port)
@@ -106,6 +111,62 @@ fn is_host_name(host: &str) -> bool {
                 && label.bytes().next_back().is_some_and(|b| b.is_ascii_alphanumeric());
             alphanumeric_ends && label.len() <= 63 && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
         })
+}
+
+/// `[0-9.]+`: digits and dots only — not a DNS name, since no top-level label is numeric, so an IPv4 address or
+/// nothing. The host-name pattern alone let `999.999.999.999` through, and a collector never reachable was saved.
+fn is_numeric(host: &str) -> bool {
+    !host.is_empty() && host.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+}
+
+/// What the resolver reads as an address: `Inet4Address.ofLiteral` after the one trailing dot a fully qualified
+/// name may carry. Exactly what was reachable before the numeric check existed, so no stored endpoint that worked
+/// is refused at its next delivery.
+fn is_ipv4_literal(host: &str) -> bool {
+    ipv4_of_literal(host.strip_suffix('.').unwrap_or(host)).is_some()
+}
+
+/// `Inet4Address.ofLiteral` (`IPAddressUtil.textToNumericFormatV4`, JDK 25): one to fifteen characters; one to
+/// four parts of ASCII decimal digits, leading zeros ignored (`010` is ten, never octal); every part but the last
+/// at most 255, and the last filling the bytes left — under 2^32 alone, 2^24 after one part, 2^16 after two, 2^8
+/// after three. No part empty, so no leading, doubled or trailing dot. The posix reading (`ofPosixLiteral`'s octal
+/// and hex) is refused by `ofLiteral` either way, so it has no branch here.
+pub(crate) fn ipv4_of_literal(text: &str) -> Option<[u8; 4]> {
+    if text.is_empty() || java::utf16_len(text) > 15 {
+        return None;
+    }
+    let parts: Vec<&str> = text.split('.').collect();
+    let (last, leading) = parts.split_last()?;
+    if leading.len() > 3 {
+        return None;
+    }
+    let value = |part: &str| -> Option<u64> {
+        if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        // Fifteen digits at most: a `u64` holds them.
+        part.parse::<u64>().ok()
+    };
+    let mut bytes = [0u8; 4];
+    for (byte, part) in bytes.iter_mut().zip(leading) {
+        *byte = u8::try_from(value(part)?).ok()?;
+    }
+    let bound: u64 = match leading.len() {
+        0 => 1 << 32,
+        1 => 1 << 24,
+        2 => 1 << 16,
+        _ => 1 << 8,
+    };
+    let last = value(last)?;
+    if last >= bound {
+        return None;
+    }
+    // The last part fills the bytes left, low bytes last: Java's `switch` falling through.
+    let tail = u32::try_from(last).ok()?.to_be_bytes();
+    for (byte, from) in bytes.iter_mut().zip(tail).skip(leading.len()) {
+        *byte = from;
+    }
+    Some(bytes)
 }
 
 /// `InetAddress.ofLiteral(text) instanceof Inet6Address`.
@@ -129,10 +190,44 @@ fn is_ipv6_literal(text: &str) -> bool {
     address.parse::<Ipv6Addr>().is_ok_and(|parsed| parsed.to_ipv4_mapped().is_none())
 }
 
-/// One to five ASCII digits, 1 to 65535 — a full-width `５１４` is not a port.
+/// One to five ASCII digits, 1 to 65535 — a full-width `５１４` is not a port. Leading zeros are kept, decided with
+/// the Java side (6f8b5d117): `00514` is 514 and nothing else, and a stored endpoint is read again at each delivery
+/// — refusing it now would stop an export that works.
 fn port_of(text: &str) -> Result<u16, Refused> {
     if text.is_empty() || text.len() > 5 || !text.bytes().all(|b| b.is_ascii_digit()) {
         return Err(refused(PORT_REFUSED));
     }
     text.parse::<u16>().ok().filter(|port| *port >= 1).ok_or_else(|| refused(PORT_REFUSED))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ipv4_of_literal;
+
+    #[test]
+    fn the_jdk_s_own_examples_read_to_the_addresses_its_javadoc_gives() {
+        // `Inet4Address`'s class javadoc, JDK 25.
+        assert_eq!(ipv4_of_literal("007.008.009.010"), Some([7, 8, 9, 10]));
+        assert_eq!(ipv4_of_literal("127.0.257"), Some([127, 0, 1, 1]));
+        assert_eq!(ipv4_of_literal("127.257"), Some([127, 0, 1, 1]));
+        assert_eq!(ipv4_of_literal("02130706689"), Some([127, 0, 1, 1]));
+        assert_eq!(ipv4_of_literal("16909060"), Some([1, 2, 3, 4]));
+        assert_eq!(ipv4_of_literal("1.2.3"), Some([1, 2, 0, 3]));
+        assert_eq!(ipv4_of_literal("4294967295"), Some([255, 255, 255, 255]));
+    }
+
+    #[test]
+    fn each_form_has_its_bound_and_the_text_its_fifteen_characters() {
+        assert_eq!(ipv4_of_literal("1.16777215"), Some([1, 255, 255, 255]));
+        assert_eq!(ipv4_of_literal("1.16777216"), None);
+        assert_eq!(ipv4_of_literal("1.2.65536"), None);
+        assert_eq!(ipv4_of_literal("1.2.3.256"), None);
+        assert_eq!(ipv4_of_literal("256.1"), None);
+        assert_eq!(ipv4_of_literal("4294967296"), None);
+        assert_eq!(ipv4_of_literal("000000000000001"), Some([0, 0, 0, 1]));
+        assert_eq!(ipv4_of_literal("0000000000000001"), None);
+        for refused in ["", ".", "1.", ".1", "1..2", "1.2.3.4.5", "0x1", "1.2.3.4 ", "١"] {
+            assert_eq!(ipv4_of_literal(refused), None, "{refused:?}");
+        }
+    }
 }

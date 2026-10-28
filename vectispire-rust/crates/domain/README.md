@@ -50,6 +50,18 @@ Everything that leaves the system — the CEF line, the syslog header, the wire 
 placements to each other in both directions (Java's switch has no default; here the two lists live in different
 crates), and every `Signal` written with a literal name in the workspace to a `SecurityEventType`.
 
+**Three Java behaviours fixed on the Java side first, then followed here** (6f8b5d117), since each was a value
+saved that could never work: a webhook's port is checked as `URI.getPort` reads it (`:99999` was saved, every
+delivery failed); a syslog host of digits and dots must be an IPv4 literal `Inet4Address.ofLiteral` reads, after one
+trailing dot (`endpoint::ipv4_of_literal`: one to four decimal parts, the last filling the bytes left, fifteen
+characters at most — `999.999.999.999` matched the host-name pattern); and a CA bundle **typed** is refused when a
+`-----BEGIN` line was skipped by the reader (`PinnedCa::parse_pasted`, `CollectorCa::parse_pasted`), where `parse` and
+`read` stay lenient for a stored bundle, which is read as it was accepted. **The fourth stays, decided**: a port
+written with leading zeros (`00514`) is that port, since a stored endpoint is read again at each delivery and refusing
+it would stop an export that works; `SiemEndpointTest.leadingZeros` and the reference set pin it on both sides.
+Still as Java has it: the marker count is of the exact text `-----BEGIN`, so a line the reader skips that does not
+spell it (`-----begin CERTIFICATE-----`) is not counted, and a header that quotes it is — both in the reference set.
+
 Ported, but shaped for Rust: an issue's severity given to a type whose severity is fixed is refused by `build()`,
 where Java throws at the call — either way no event exists. `SecurityEventRaised` and `SecurityEventRaisedApart`
 are Spring events and are not here: the export's crate replaces them with a trait.
