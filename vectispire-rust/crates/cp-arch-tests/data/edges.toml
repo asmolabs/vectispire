@@ -215,7 +215,7 @@ reason = "The deployment's settings (`t_setting`): retention, the scanners' swit
 [module.siem]
 status = "pending"
 allowed = ["access::security"]
-reason = "Nothing above the foundation for its services: it hears the audit log through its listener. `access::security` for its routes."
+reason = "Nothing above the foundation for its services: it hears the audit log through `cp-audit`'s `Listener` and `ChainBrokenListener`, queues through `cp-outbox` and sends through `cp-outbound`, all shared. `access::security` for its routes — unused until they are ported (task 4.2, third stage), which is why the module is still pending."
 
 [module.targets]
 status = "pending"
