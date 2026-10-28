@@ -3,6 +3,7 @@
 # vectispire-core's runtime classpath (Flyway, the JDBC drivers, and MigrationDialect itself).
 #
 #   oracle.sh migrate|check|validate|history <jdbc url> <user> <password> <vendor> [<db/migration root>|-] [<target>]
+#   oracle.sh classpath     asks Gradle for the classpath if it is not kept yet, and stops there
 #
 # The classpath is asked of Gradle once and kept in ORACLE_CLASSPATH_FILE (default: under the cargo
 # target directory); delete the file after a dependency change. Needs a JDK 25 (`java` on PATH or
@@ -26,4 +27,5 @@ if [ ! -s "$classpath_file" ]; then
     mv "$pending" "$classpath_file"
 fi
 
+[ "${1:-}" = "classpath" ] && exit 0
 exec "$java" -cp "$(cat "$classpath_file")" "$here/FlywayOracle.java" "$@"
