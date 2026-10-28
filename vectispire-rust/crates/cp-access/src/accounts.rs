@@ -117,6 +117,7 @@ pub enum AuditOperation {
     ApiKeyDeleted,
     LoginBlocked,
     LoginFailure,
+    LoginSuccess,
     PasswordChanged,
 }
 
@@ -127,6 +128,7 @@ impl AuditOperation {
             AuditOperation::ApiKeyDeleted => "API_KEY_DELETED",
             AuditOperation::LoginBlocked => "LOGIN_BLOCKED",
             AuditOperation::LoginFailure => "LOGIN_FAILURE",
+            AuditOperation::LoginSuccess => "LOGIN_SUCCESS",
             AuditOperation::PasswordChanged => "PASSWORD_CHANGED",
         }
     }
@@ -153,6 +155,13 @@ pub trait Audit {
 /// The clock — Java's injected `Clock`, read once per gesture.
 pub trait Clock {
     fn now(&self) -> OffsetDateTime;
+}
+
+/// The credentials' clock, shared by the sign-in services, serves the accounts too: one instant source per binary.
+impl Clock for std::sync::Arc<dyn crate::credentials::Clock> {
+    fn now(&self) -> OffsetDateTime {
+        crate::credentials::Clock::now(&**self)
+    }
 }
 
 /// The account's password budget — `AuthService.reservePassword` and `clearPasswordFailures` (task 1.3 owns the
@@ -560,7 +569,8 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
     }
 
     /// The password half of the sign-in — `AuthService.login` from the lookup to the rehash; the throttle, the
-    /// second factor and the session are the credentials and MFA tasks'.
+    /// second factor and the session are [`crate::sign_in`]'s, which calls the three steps itself with the throttle
+    /// between the lookup and the derivation.
     ///
     /// **A name no account can hold opens no account**, and **one key derivation whatever the name**: an unknown
     /// name, an ill-formed one and a deactivated account are verified against a stand-in hash, so the answer's
@@ -573,29 +583,42 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
         username: Option<&str>,
         password: Option<&str>,
     ) -> Result<Option<User>, AccountError> {
-        let user = match username {
+        let user = self.sign_in_lookup(username).await?;
+        let Some(found) = verify_sign_in(user, password) else {
+            return Ok(None);
+        };
+        self.rehash_if_stale(&found, password).await;
+        Ok(Some(found))
+    }
+
+    /// The account a typed name opens, before the throttle — a query, and no hashing. A name outside
+    /// `AccountRules`' grammar is not looked up: the database's collation ignores characters no account name holds
+    /// (U+00AD, U+200B…), so `ali\u{AD}ce` opened `alice` and met its counter while its folded key was a counter of
+    /// its own — the lockout then answered what the uniform refusal is built not to.
+    pub async fn sign_in_lookup(&self, username: Option<&str>) -> Result<Option<User>, AccountError> {
+        Ok(match username {
             Some(name) if account_rules::is_well_formed_username(Some(name)) => {
                 self.store.find_by_username(name).await?
             }
             _ => None,
-        };
-        let active = user.filter(|found| found.is_active);
-        let stand_in = stand_in_hash();
-        let stored = active.as_ref().and_then(|found| found.password.as_ref().map(PasswordHash::encoded));
-        // `active.map(UserEntity::getPassword).orElseGet(standInHash)`: Java's `Optional.map` of a null password is
-        // empty, so an active account without one is verified against the stand-in too — one derivation every time.
-        let against = stored.unwrap_or(stand_in.as_str());
-        let matches = passwords::verify(password, Some(against));
-        let Some(found) = active.filter(|_| matches) else {
-            return Ok(None);
-        };
-        if passwords::needs_rehash(found.password.as_ref().map(PasswordHash::encoded)) {
+        })
+    }
+
+    /// `rehashIfStale`: rewrites a hash made under weaker parameters than today's, after the password was accepted.
+    /// A failure to save is logged and swallowed: the stored hash is still valid under its own parameters, and
+    /// refusing the session over a housekeeping write would turn a cost upgrade into an outage.
+    pub async fn rehash_if_stale(&self, user: &User, password: Option<&str>) {
+        if passwords::needs_rehash(user.password.as_ref().map(PasswordHash::encoded)) {
             let rewritten = PasswordHash::new(passwords::hash(password.unwrap_or("")));
-            if let Err(error) = self.store.rehash(found.id, rewritten).await {
-                tracing::warn!(username = %found.username, %error, "Could not rewrite the password hash under current parameters.");
+            if let Err(error) = self.store.rehash(user.id, rewritten).await {
+                tracing::warn!(username = %user.username, %error, "Could not rewrite the password hash under current parameters.");
             }
         }
-        Ok(Some(found))
+    }
+
+    /// The account store, for the sign-in services that share it.
+    pub(crate) fn store(&self) -> &S {
+        &self.store
     }
 
     async fn require_account(&self, id: i64) -> Result<User, AccountError> {
@@ -633,6 +656,19 @@ impl<S: AccountStore + Sync, A: Audit + Sync, C: Clock + Sync> Accounts<S, A, C>
             })
             .await;
     }
+}
+
+/// The one key derivation of a sign-in, whatever the name: the active account's own hash, or the stand-in for an
+/// unknown name, a deactivated account and an account without a password — Java's `Optional.map` of a null password
+/// is empty, so that one is verified against the stand-in too. The account when the password is its own and it is
+/// active.
+pub fn verify_sign_in(user: Option<User>, password: Option<&str>) -> Option<User> {
+    let active = user.filter(|found| found.is_active);
+    let stand_in = stand_in_hash();
+    let stored = active.as_ref().and_then(|found| found.password.as_ref().map(PasswordHash::encoded));
+    let against = stored.unwrap_or(stand_in.as_str());
+    let matches = passwords::verify(password, Some(against));
+    active.filter(|_| matches)
 }
 
 /// A real Argon2 hash of nothing anybody knows, computed once per process, for the unknown-name path.

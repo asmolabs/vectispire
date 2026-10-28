@@ -4,8 +4,10 @@ The control plane's `access` module, `core.access`, being ported (plan, Phase 1)
 plane is the product.** So far it holds **accounts and passwords** (task 1.1); **the credentials** (task 1.2):
 sessions, API keys, agents' keys and the SCIM token, and the bearer filter's decisions behind `cp-http`'s
 `Credentials`; and **roles and their flags, what a caller may see, the row guards, four-eyes, and who could approve**
-(task 1.5); and **the second factor's codes and the sign-in throttle's arithmetic** (the pure half of 1.3). The services
-of MFA and throttles (1.3), single sign-on (1.4) and the routes (1.7) land beside these files.
+(task 1.5); **the second factor's codes and the sign-in throttle's arithmetic** (the pure half of 1.3); and **the sign-in
+services** (1.3's service half): the throttle's reservations, the password sign-in, the second factor's challenge, TOTP
+enrolment and recovery, the shared rate windows and the hourly cleanup. Single sign-on (1.4) and the routes (1.7) land
+beside these files.
 
 ## Accounts and passwords (task 1.1)
 
@@ -258,3 +260,74 @@ so the user key folds exactly as Java folds (the final sigma by `java::to_lower_
   limit under five; `decide_one` answers "allowed" instead, and the reference set does not include it.
 - `JEẞICA` and `jeßica` fold to different keys (`jeßica`, `jessica`), though MySQL's collation equates them. It is no
   oracle: sign-in looks up only names matching `[A-Za-z0-9._-]{2,64}`, so no non-ASCII spelling opens an account.
+
+## The sign-in services (task 1.3, second half)
+
+| Here | Java |
+|---|---|
+| `throttle` — `Throttle`, `Reservation` (`reserve`, `release`, `reserve_second_factor`, `reserve_password`, `clear_password_failures`, `second_factor_lockout`, `clear_second_factor_failures`), and `PasswordAttempts` for `Accounts::change_own_password` | `AuthService`'s throttle half |
+| `sign_in` — `SignInFlow::login` | `AuthService.login` |
+| `sign_in` — `SignInFlow::{sign_in, verify, exchange, options, change_password}`, `SignInMethodPolicy` | `AuthenticationFlowService` (minus `completeFederatedSignIn`), `SignInMethodPolicy` |
+| `second_factor` — `SecondFactor::{setup, enable, disable, verify, enrolment}`, the contexts (`cp-crypto`'s `totp_secret_context`, `backup_codes_context`) | `TotpService` |
+| `rate_windows` — `RateWindows`, `impl SharedWindow` (`cp-http`), `shared_webhook_window` | `RateWindows` |
+| `session_cleanup` — `SessionCleanup::prune`, `SessionCleanupTask` at `SESSION_CLEANUP`, `session_cleanup_task` | `SessionCleanupService`, `SessionCleanupTask` |
+| `persistence/sign_in/` — `SignInStore`, `RateWindowStore`, `SqlSignInStore` | `LoginAttemptRepository`, `MfaChallengeRepository`, `RateWindowRepository`, `UserRepository`'s second-factor statements |
+
+The services are written against ports — `AccountStore` (task 1.1), `SignInStore`, `RateWindowStore`, `SessionDoor`
+(implemented by `CredentialService`), `SecretSeal` (implemented by `cp-crypto`'s `Encryption`) and `Audit` — so that
+`AuthServiceTest`'s cases run over doubles (`tests/sign_in_flow.rs`) and the statements, the races and the Java tests
+that need a database run on MySQL 9.4 and PostgreSQL 17 (`tests/sign_in_on_both_engines.rs`). `Accounts::
+check_sign_in_password` is now three steps — `sign_in_lookup`, `verify_sign_in`, `rehash_if_stale` — which the login
+calls with the throttle between the lookup and the derivation, so the account is looked up once.
+
+**The binary composes two of them today**: `SESSION_CLEANUP` (its line left `cp-maintenance`'s `deferred.txt`) and the
+webhook's shared window (`Chain::with_shared_webhook_window`, `crates/cp-app/src/main.rs`). The sign-in flows have no
+route yet: they are composed with the routes (1.7).
+
+### Held to the Java side
+
+- **The throttle counts first, then checks**: each reservation commits its rows before counting the others', a refused
+  one takes its rows back. On both engines, twelve reservations at once against a ceiling of five admit at most five,
+  and twelve wrong passwords, twelve wrong current passwords, twelve wrong codes across four challenges and twelve
+  attempts to switch the factor off each reach their check at most five times (`AuthenticationCeilingsTest`).
+- **The statements that decide a race** are each raced on both engines: sixteen presentations of one challenge are
+  sixteen counted, one TOTP step presented twice is accepted once, one backup code spent twice is spent once, and a
+  window's first hit that loses its insert to another instance is counted (the interleaving forced, as
+  `RateWindowsIntegrationTest` forces it); sixteen hits at once lose none and admit at most the ceiling.
+- **A second factor crosses the switch** (`tests/across_the_switch.rs`, against the published 0.11.0-rc.3): enabled in
+  Rust, Java asks for the code at sign-in, accepts the next one and disables the factor with a Rust backup code;
+  enabled again on Java, Rust accepts its next code and spends one of its backup codes. The contexts are
+  `TotpService`'s, `user:totp_secret:<id>` and `user:backup_codes:<id>`, and the codes are joined by `,`.
+- **Every message and audit entry** is Java's, word for word: the throttle's `Attempt refused by the throttle (Ns to
+  wait)` with `SIGN_IN_THROTTLED`, `Login failed`, the challenge destroyed after three codes and the account locked
+  with `MFA_FAILURE_CEILING`, the backup code with `MFA_BACKUP_CODE_USED`, the enrolment's and disabling's sentences;
+  every wait is `toSeconds()`, truncated.
+- **Mutations**: `security/mutants/p1-7b-access-signin.py`, each guard broken once and caught by a red test.
+
+### Differences, on purpose
+
+- **Enabling and disabling the factor write the factor's columns only** (`mfa_enabled`, `totp_secret`,
+  `mfa_backup_codes`, `totp_last_step`, `updated_at`). Java saves the whole entity read at the start of the request, so
+  a role change or a deactivation committed in between was written back as it was — the same difference as the
+  password's rehash.
+- **An address absent from a login** is counted under `login:client:null`, as `String.valueOf(null)` is in Java; the
+  routes always resolve one.
+- **The single sign-on provider** is a configuration value handed in (`SignInParts::provider_label`, the default label
+  `single sign-on`), not an OIDC client: that client is task 1.4's.
+
+### Not here
+
+- **The federated sign-in** (`AuthenticationFlowService.completeFederatedSignIn`, `ExternalIdentityService`,
+  `FederatedSecondFactorPolicy`, the group sync) is task 1.4's, and so is the provider's label read from the client
+  registration.
+- **The routes** (`/api/v1/auth/**`, the 42 lines of `crates/cp-contract/reference/not-yet-ported/access.txt`) are task
+  1.7's: they map `SignIn`, `Verification`, `Handoff` and `SecondFactorError` to their statuses and messages.
+
+### A Java defect, fixed on both sides
+
+**`AuthenticationFlowService.rememberChallenge` stored the user agent unclipped** into `t_mfa_challenge.user_agent`, a
+`varchar(255)`, where a session's was clipped (`AuthService.clip`). A longer `User-Agent` failed the insert after the
+password was accepted and its counters cleared: the published 0.11.0-rc.3 answers **500** to a sign-in with a
+300-character agent from an account with a second factor. Fixed on the Java side first (asmolabs/vectispire#84, which
+also cuts on a character boundary), and ported fixed: the challenge's agent is clipped as a session's is
+(`a_user_agent_past_the_column_is_clipped_*`, a surrogate pair at the cut).

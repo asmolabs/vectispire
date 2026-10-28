@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_user set mfa_backup_codes = ?, updated_at = ? where id = ? and mfa_backup_codes = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "8726b7badb72dcbf3343b441132c0f2cb8832befe9280f8ace65915d6ef3c475"
+}

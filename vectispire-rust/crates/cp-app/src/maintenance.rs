@@ -26,6 +26,9 @@
 //!
 //! **Gate (Phase 3)** fills `GATE_VERDICTS`: the gate's verdict register, purged past the evidence window.
 //!
+//! **Access (task 1.3)** fills `SESSION_CLEANUP`: expired sessions, attempts past twice the throttle's window, abandoned
+//! challenges and closed rate windows — each purge on its own, none failing the tick.
+//!
 //! The turns are started by `main` (2.11) beside the server with the shutdown signal as their stop.
 
 use std::sync::Arc;
@@ -73,6 +76,7 @@ pub fn tasks(
     gate: Arc<GateModule>,
     settings: Settings,
     clock: Arc<dyn Clock>,
+    session_cleanup: Arc<dyn MaintenanceTask>,
 ) -> Result<Vec<Arc<dyn MaintenanceTask>>, MaintenanceError> {
     let mut tasks = vectispire_cp_outbox::tasks(outbox)?;
     tasks.extend(vectispire_cp_targets::tasks(targets));
@@ -85,6 +89,7 @@ pub fn tasks(
         settings.clone(),
         clock.clone(),
     ));
+    tasks.push(session_cleanup);
     tasks.extend(gate.tasks(settings, clock));
     Ok(tasks)
 }
@@ -101,6 +106,18 @@ pub fn turns(
     gate: Arc<GateModule>,
     settings: Settings,
     clock: Arc<dyn Clock>,
+    session_cleanup: Arc<dyn MaintenanceTask>,
 ) -> Result<Turns, MaintenanceError> {
-    Ok(Turns::new(tasks(outbox, targets, scanning, agents, inventory, issues, gate, settings, clock)?)?)
+    Ok(Turns::new(tasks(
+        outbox,
+        targets,
+        scanning,
+        agents,
+        inventory,
+        issues,
+        gate,
+        settings,
+        clock,
+        session_cleanup,
+    )?)?)
 }

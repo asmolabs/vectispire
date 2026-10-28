@@ -4043,11 +4043,15 @@ dependencies = [
  "unicode-normalization",
  "uuid",
  "vectispire-cp-arch-tests",
+ "vectispire-cp-crypto",
  "vectispire-cp-db",
  "vectispire-cp-http",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
  "vectispire-domain",
  "vectispire-migrate",
  "vectispire-testkit",
+ "vectispire-tls",
  "zeroize",
 ]
 
