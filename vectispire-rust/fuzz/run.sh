@@ -35,6 +35,14 @@ for path in sys.argv[2:]:
             for case in item:
                 if isinstance(case, dict) and isinstance(case.get("body"), str):
                     put(case["body"].encode())
+                elif isinstance(case, dict) and isinstance(case.get("endpoint"), str):  # siem_endpoint
+                    put(case["endpoint"].encode())
+                elif isinstance(case, dict) and isinstance(case.get("hostname"), str):  # siem_cef: NUL, hostname
+                    put(("x\0" + case["hostname"]).encode())
+                elif isinstance(case, dict) and isinstance(case.get("calls"), list):  # siem_cef: each value
+                    for call in case["calls"]:
+                        if len(call) > 1 and isinstance(call[-1], str):
+                            put(call[-1].encode())
         elif isinstance(item, dict) and isinstance(item.get("body"), str):  # result_body: rust-written.json
             put(item["body"].encode())
         elif isinstance(item, dict) and isinstance(item.get("raw"), str):  # failure_scrub: raw, NUL, a secret
@@ -54,6 +62,9 @@ seed syft_sbom ../reference/dependencies/sboms/*.json
 seed failure_scrub ../reference/failure-reason/inputs.json
 seed https_location ../reference/repository-url/inputs.json
 seed result_body ../reference/artifacts/*.json
+seed siem_cef ../reference/siem/inputs.json
+seed siem_endpoint ../reference/siem/inputs.json
+seed collector_ca ../reference/siem/collector-ca/*.pem
 
 failed=""
 for target in $targets; do
