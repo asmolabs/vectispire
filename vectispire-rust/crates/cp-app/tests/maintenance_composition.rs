@@ -47,9 +47,38 @@ impl OutboxStore for Unused {
 fn outbox() -> Arc<Outbox> {
     Arc::new(Outbox::new(
         Arc::new(Unused),
-        vectispire_cp_app::maintenance::outbox_registry(audit()),
+        vectispire_cp_app::maintenance::outbox_registry(audit(), &siem()),
         Arc::new(SystemClock),
     ))
+}
+
+/// The SIEM export as the binary composes it, over a pool that never connects.
+fn siem() -> vectispire_cp_app::siem::Siem {
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+    use vectispire_cp_outbound::{OutboundUrlGuard, PinnedHttpSender};
+    let settings = DbSettings {
+        url: DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: PoolSettings::default(),
+        ca_pem: None,
+    };
+    let door = VaultDoor {
+        sender: PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: OutboundUrlGuard::new(Vec::new()),
+    };
+    vectispire_cp_app::siem::compose(
+        vectispire_cp_app::siem::SiemSetup {
+            db: vectispire_cp_db::Db::connect_lazy(&settings).unwrap(),
+            guard: OutboundUrlGuard::new(Vec::new()),
+            trust: vectispire_tls::TlsTrust::BuiltIn,
+            encryption: Arc::new(Encryption::new(&EncryptionConfig::default(), door).unwrap()),
+            version: None,
+        },
+        Arc::new(vectispire_cp_audit::SystemClock),
+    )
+    .unwrap()
 }
 
 /// An audit log over a pool that never connects: the composition delivers nothing.
@@ -247,6 +276,7 @@ fn issues(
         scans: scanning.catalog().clone(),
         settings: Arc::new(vectispire_cp_settings::Settings::new(db)),
         audit,
+        events: Arc::new(vectispire_cp_outbox::NotExported),
     }))
 }
 
@@ -283,6 +313,7 @@ fn gate(
         rules.coverage.clone(),
         audit,
         Arc::new(vectispire_cp_targets::SystemClock),
+        Arc::new(vectispire_cp_outbox::NotExported),
     ))
 }
 
@@ -324,14 +355,20 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
 async fn the_binary_s_relay_is_held_until_its_registry_is_java_s() {
     let relay = NotificationRelayTask::new(outbox(), &JavaRegistry::compiled_in().unwrap());
     assert!(relay.is_held(), "the relay would abandon Java's messages of the types this binary lacks");
-    assert!(!relay.coverage().missing_handlers.contains(&"agent_result_audit".to_owned()), "{}", relay.coverage());
+    for handled in ["agent_result_audit", "siem_event"] {
+        assert!(!relay.coverage().missing_handlers.contains(&handled.to_owned()), "{}", relay.coverage());
+    }
 }
 
 /// Every handler a module has is registered, held relay or not: the agents' audit delivery was written, enqueued by
-/// every accepted result, and missing from the registry — the relay would have opened without it.
+/// every accepted result, and missing from the registry — the relay would have opened without it. The SIEM's is the
+/// second (task 4.2).
 #[tokio::test]
 async fn the_binary_registers_every_handler_it_has() {
-    let registry = vectispire_cp_app::maintenance::outbox_registry(audit());
-    assert_eq!(registry.handler_types().into_iter().collect::<Vec<_>>(), vec!["agent_result_audit".to_owned()]);
+    let registry = vectispire_cp_app::maintenance::outbox_registry(audit(), &siem());
+    assert_eq!(
+        registry.handler_types().into_iter().collect::<Vec<_>>(),
+        vec!["agent_result_audit".to_owned(), "siem_event".to_owned()]
+    );
     assert!(registry.channel_types().is_empty());
 }

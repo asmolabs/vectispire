@@ -35,12 +35,15 @@ vectispire-cp-rules = { path = "../cp-rules" }
 vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-scanning = { path = "../cp-scanning" }
 vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-cp-siem = { path = "../cp-siem" }
 vectispire-cp-targets = { path = "../cp-targets" }
 vectispire-domain.workspace = true
 vectispire-runner = { path = "../runner" }
 vectispire-tls.workspace = true
 
 [dev-dependencies]
+# The SIEM composition test: a database of its own per engine, on a throwaway server or the shared one CI names.
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 # The composition test builds the targets module over a pool that never connects: it runs no task.
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }

@@ -291,19 +291,56 @@ async fn serve() -> ExitCode {
     }
 
     let clock: Arc<dyn vectispire_cp_targets::Clock> = Arc::new(vectispire_cp_targets::SystemClock);
+
+    // The SIEM export, before the audit log that takes its events as a listener (`cp-app/src/siem.rs` says why the
+    // order is this one). Its collectors are reached with the runtime's trust: an unreadable bundle refuses the start.
+    let trust = match vectispire_tls::TlsTrust::from_environment() {
+        Ok(trust) => trust,
+        Err(refusal) => {
+            tracing::error!("{refusal}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let siem = match vectispire_cp_app::siem::compose(
+        vectispire_cp_app::siem::SiemSetup {
+            db: db.clone(),
+            guard: guard.clone(),
+            trust,
+            encryption: encryption.clone(),
+            version: vectispire_cp_settings::about::product_version(
+                settings.exports.tool_version.as_deref(),
+                Some(env!("CARGO_PKG_VERSION")),
+            ),
+        },
+        Arc::new(vectispire_cp_audit::SystemClock),
+    ) {
+        Ok(siem) => siem,
+        Err(refusal) => {
+            tracing::error!("The SIEM export's trust could not be read: {refusal}");
+            return ExitCode::FAILURE;
+        }
+    };
+
     let mirror = vectispire_cp_app::audit_mirror::FileMirror::configured(settings.audit_mirror_path.as_deref());
     let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
         db.clone(),
         Arc::new(mirror),
         Arc::new(vectispire_cp_audit::SystemClock),
-        Vec::new(),
+        vectispire_cp_app::siem::audit_listeners(&siem),
     ));
 
     let outbox = Arc::new(vectispire_cp_outbox::Outbox::on_database(
         db.clone(),
-        vectispire_cp_app::maintenance::outbox_registry(audit.clone()),
+        vectispire_cp_app::maintenance::outbox_registry(audit.clone(), &siem),
         Arc::new(vectispire_cp_maintenance::SystemClock),
     ));
+    let siem_service = vectispire_cp_app::siem::service(
+        &siem,
+        db.clone(),
+        encryption.clone(),
+        (*audit).clone(),
+        Arc::new(vectispire_cp_audit::SystemClock),
+    );
 
     let target_scans = vectispire_cp_scanning::target_scans(db.clone(), clock.clone());
     let purge = vectispire_cp_targets::PurgeRegistry::stand_ins()
@@ -372,6 +409,7 @@ async fn serve() -> ExitCode {
         scans: (*scan_catalog).clone(),
         settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
         audit: audit.clone(),
+        events: siem.security_events(),
     }));
 
     let policy = vectispire_domain::scan_queue::Policy {
@@ -452,6 +490,7 @@ async fn serve() -> ExitCode {
         rules_module.coverage.clone(),
         audit.clone(),
         clock.clone(),
+        siem.security_events(),
     ));
 
     let turns = match vectispire_cp_app::maintenance::turns(
@@ -497,6 +536,7 @@ async fn serve() -> ExitCode {
         inventory.clone(),
         issues.clone(),
         gate.clone(),
+        siem_service,
     ) {
         routes = routes.route(entry);
     }
@@ -549,7 +589,7 @@ async fn serve() -> ExitCode {
         Arc::new(vectispire_cp_audit::AuditLogQuery::new(
             (*audit).clone(),
             Arc::new(vectispire_cp_audit::SystemClock),
-            Vec::new(),
+            vectispire_cp_app::siem::chain_broken_listeners(&siem),
         )),
         audit.clone(),
         Arc::new(vectispire_cp_maintenance::OneShotJobs::new(

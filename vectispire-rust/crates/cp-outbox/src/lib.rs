@@ -7,6 +7,9 @@
 //! - [`Outbox::relay`] tries each due message once: claimed by a conditional update on `next_attempt_at` (no row lock),
 //!   delivered by its type's handler or channel, settled on its own — sent, retried on the backoff, or abandoned with
 //!   its reason. A type nobody handles is a failure like any other, retried then abandoned, never skipped.
+//! - [`SecurityEvents`] is the port a module raises a SIEM event through — Java's `SecurityEventRaised` and
+//!   `SecurityEventRaisedApart` — implemented by the SIEM module and handed in by the binary, so that `issues`, `gate`
+//!   and the threat feed raise events without depending on the export.
 //! - [`Outbox::prune_sent`] and [`Outbox::counts`] are the purge and the screen's figures.
 //! - [`NotificationRelayTask`] and [`SentMessagesTask`] are the module's slots in the maintenance turns. **The relay task
 //!   is held back while this binary's handlers differ from Java's** (README.md, "The relay is held back").
@@ -18,6 +21,7 @@ mod internal;
 mod payload;
 mod persistence;
 pub mod retry;
+mod security_events;
 
 use std::collections::BTreeMap;
 use std::panic::AssertUnwindSafe;
@@ -36,6 +40,7 @@ pub use delivery::{
 pub use internal::{NotificationRelayTask, SentMessagesTask};
 pub use payload::{PayloadError, stamped};
 pub use persistence::{DueMessage, FAILED, NewMessage, OutboxStore, PENDING, SENT, StoreError, StoreFuture};
+pub use security_events::{NotExported, RaiseError, SecurityEvents};
 
 use delivery::Route;
 

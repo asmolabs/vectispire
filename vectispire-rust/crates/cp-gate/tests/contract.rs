@@ -80,6 +80,7 @@ async fn the_routes_are_the_documented_ones() {
         scans: (*scan_catalog).clone(),
         settings: Arc::new(vectispire_cp_settings::Settings::new(db.clone())),
         audit: audit.clone(),
+        events: Arc::new(vectispire_cp_outbox::NotExported),
     }));
     let rules = vectispire_cp_rules::RulesModule::new(
         db.clone(),
@@ -88,8 +89,16 @@ async fn the_routes_are_the_documented_ones() {
         audit.clone(),
     );
 
-    let gate =
-        GateModule::new(db, issues.catalog().clone(), scan_catalog, targets, rules.coverage.clone(), audit, clock);
+    let gate = GateModule::new(
+        db,
+        issues.catalog().clone(),
+        scan_catalog,
+        targets,
+        rules.coverage.clone(),
+        audit,
+        clock,
+        Arc::new(vectispire_cp_outbox::NotExported),
+    );
 
     let entries = gate.routes();
     assert_eq!(entries.len(), 7);

@@ -1,10 +1,12 @@
 //! Folding scan findings into the issue history: `IssueSyncService` and `IssueBacklog`.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use time::OffsetDateTime;
 use vectispire_cp_db::{ScanTarget, Tx};
 use vectispire_cp_http::credentials::BoxFuture;
+use vectispire_cp_outbox::SecurityEvents;
 use vectispire_cp_scanning::ingestion::{Backlog, BacklogDelta, Observation, ObservedFinding};
 use vectispire_cp_scanning::ports::PortError;
 use vectispire_domain::fingerprint::{self, Input};
@@ -12,6 +14,7 @@ use vectispire_domain::{FindingType, bounded_text};
 
 use crate::error::IssueError;
 use crate::persistence::{IssueRepository, IssueRow, NewIssue, NewTriageEvent};
+use crate::signals::{self, Signalled};
 use crate::triage::{TriageOrigin, TriageStatus};
 
 pub struct IssueSyncService;
@@ -22,6 +25,7 @@ impl IssueSyncService {
     /// Folds one observation into issues.
     #[allow(clippy::too_many_arguments)]
     pub async fn fold(
+        events: &dyn SecurityEvents,
         tx: &mut Tx,
         scan_id: Option<i64>,
         target: ScanTarget,
@@ -59,6 +63,7 @@ impl IssueSyncService {
         let mut reopened_count = 0i32;
         let mut reopen_events = Vec::new();
         let mut id_by_fingerprint: BTreeMap<String, i64> = BTreeMap::new();
+        let mut leaks = Vec::new();
 
         for (fp, indices) in &by_fingerprint {
             let first_idx = indices.first().copied().unwrap_or_default();
@@ -179,7 +184,28 @@ impl IssueSyncService {
 
                 let inserted = IssueRepository::insert_issue(tx, &new_issue).await?;
                 id_by_fingerprint.insert(fp.clone(), inserted.id);
+                if signals::is_leak(&new_issue.type_, &new_issue.severity) {
+                    leaks.push((inserted.id, new_issue));
+                }
             }
+        }
+
+        // A leak is announced once, when its issue is created: one seen again stays quiet, and one that comes back
+        // after being resolved reopens its issue — neither is announced again. Queued in this transaction, after the
+        // insert gave each issue its number: a scan that rolls back announces nothing, and the event leaves only once
+        // the issues it names exist.
+        for (id, leak) in &leaks {
+            let event = signals::secret_leak(Signalled {
+                id: *id,
+                identifier: &leak.identifier,
+                file_path: leak.file_path.as_deref(),
+                package_name: leak.package_name.as_deref(),
+                repo_id: leak.repo_id,
+                container_id: leak.container_id,
+                first_seen_at: leak.first_seen_at,
+            })
+            .map_err(|refused| IssueError::Store(refused.0))?;
+            events.raise(tx, &event).await.map_err(|failed| IssueError::Store(failed.to_string()))?;
         }
 
         // 4. Record any reopenings into triage history
@@ -377,13 +403,15 @@ impl IssueSyncService {
     }
 }
 
-/// Backlog port implementation for `ScanIngestor`. It holds no database: it folds in the transaction it is handed.
-#[derive(Default)]
-pub struct IssueBacklog;
+/// Backlog port implementation for `ScanIngestor`. It holds no database: it folds in the transaction it is handed,
+/// and raises the leaks it creates in it.
+pub struct IssueBacklog {
+    events: Arc<dyn SecurityEvents>,
+}
 
 impl IssueBacklog {
-    pub fn new() -> Self {
-        Self
+    pub fn new(events: Arc<dyn SecurityEvents>) -> Self {
+        Self { events }
     }
 }
 
@@ -404,6 +432,7 @@ impl Backlog for IssueBacklog {
             // Only in the scan's transaction: the fold and the delta it queues commit with the scan's findings, or
             // roll back with them — never in a transaction of its own, which kept a refused result's issues.
             IssueSyncService::fold(
+                self.events.as_ref(),
                 tx,
                 Some(observation.scan_id),
                 target,

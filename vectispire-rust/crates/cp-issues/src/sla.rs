@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use time::{Duration, OffsetDateTime};
 use vectispire_cp_db::{Db, Visibility};
+use vectispire_cp_outbox::SecurityEvents;
 use vectispire_cp_settings::{Setting, Settings};
 use vectispire_domain::Severity;
 
@@ -219,14 +220,15 @@ impl SlaService {
 pub struct SlaBreachSignals {
     db: Db,
     sla: Arc<SlaService>,
+    events: Arc<dyn SecurityEvents>,
 }
 
 impl SlaBreachSignals {
     pub const LOOKBACK: Duration = Duration::days(7);
     pub const BATCH: usize = 200;
 
-    pub fn new(db: Db, sla: Arc<SlaService>) -> Self {
-        Self { db, sla }
+    pub fn new(db: Db, sla: Arc<SlaService>, events: Arc<dyn SecurityEvents>) -> Self {
+        Self { db, sla, events }
     }
 
     /// Scans for deadlines passed since the last turn and marks them signalled.
@@ -273,6 +275,27 @@ impl SlaBreachSignals {
                 break;
             }
 
+            // Each event queued in the batch's transaction, with the mark that keeps it from being raised again: the
+            // two commit together, or the next turn finds the issue unsignalled and raises it then. The deadlines
+            // were marked here and announced nowhere until the SIEM was composed.
+            for breach in &breaches {
+                let event = crate::signals::sla_breach(
+                    crate::signals::Signalled {
+                        id: breach.id,
+                        identifier: &breach.identifier,
+                        file_path: breach.file_path.as_deref(),
+                        package_name: breach.package_name.as_deref(),
+                        repo_id: breach.repo_id,
+                        container_id: breach.container_id,
+                        first_seen_at: breach.first_seen_at,
+                    },
+                    severity,
+                    window,
+                    breach.first_seen_at.saturating_add(window),
+                )
+                .map_err(|refused| IssueError::Store(refused.0))?;
+                self.events.raise(&mut tx, &event).await.map_err(|failed| IssueError::Store(failed.to_string()))?;
+            }
             let ids: Vec<i64> = breaches.iter().map(|b| b.id).collect();
             IssueRepository::mark_sla_breach_signalled(&mut tx, &ids, now).await?;
             crate::persistence::commit(tx).await?;

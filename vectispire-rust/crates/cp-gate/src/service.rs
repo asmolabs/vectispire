@@ -10,9 +10,12 @@ use vectispire_cp_db::{Db, ScanTarget, Visibility};
 use vectispire_cp_issues::IssueCatalog;
 use vectispire_cp_issues::triage::TriageStatus;
 use vectispire_cp_issues::views::IssueView;
+use vectispire_cp_outbox::{RaiseError, SecurityEvents};
 use vectispire_cp_rules::RuleCoverageService;
 use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_targets::{Clock, Targets};
+use vectispire_domain::instant::Instant;
+use vectispire_domain::siem::{CefEvent, SecurityEventType};
 use vectispire_domain::{FindingType, ScanStatus, Severity, bounded_text};
 
 use crate::cursor::RegisterCursor;
@@ -268,6 +271,8 @@ pub struct GateService {
     rule_coverage: Arc<RuleCoverageService>,
     active_policies: ActiveGatePolicies,
     clock: Arc<dyn Clock>,
+    /// Where a refusal's `SECURITY_GATE_FAILED` goes: the SIEM export's queue in the binary.
+    events: Arc<dyn SecurityEvents>,
 }
 
 impl GateService {
@@ -278,6 +283,7 @@ impl GateService {
         targets: Arc<Targets>,
         rule_coverage: Arc<RuleCoverageService>,
         clock: Arc<dyn Clock>,
+        events: Arc<dyn SecurityEvents>,
     ) -> Self {
         Self {
             db: db.clone(),
@@ -287,6 +293,7 @@ impl GateService {
             rule_coverage,
             active_policies: ActiveGatePolicies::new(db),
             clock,
+            events,
         }
     }
 
@@ -345,11 +352,87 @@ impl GateService {
         Ok(observation_of(latest.as_ref().map(|row| row.status.as_str())))
     }
 
-    async fn record(&self, target: ScanTarget, decision: &Decision, caller: &Caller) {
+    /// The verdict and, for a refusal, its `SECURITY_GATE_FAILED` — **in one transaction**, or apart if that cannot
+    /// commit (decision 0033).
+    ///
+    /// Together, the two commit or neither does: published after the verdict's own write, a stop between the two left
+    /// a refusal in the register that no SOC ever heard of. A gate refusal leaves no audit entry — the verdict register
+    /// is its record — so it is raised here rather than signalled.
+    ///
+    /// **Never at the expense of the answer.** A pipeline waiting on a verdict must get one. If the two cannot commit
+    /// together, the verdict is written alone and the event raised on its own; if the verdict cannot be written at
+    /// all, that is a hole in the register, logged at error level, and not a reason to fail somebody's build.
+    pub(crate) async fn record(&self, target: ScanTarget, decision: &Decision, caller: &Caller) {
+        let refusal = if decision.verdict.passed { None } else { self.refusal(target, decision, caller) };
+        match self.record_together(target, decision, caller, refusal.as_ref()).await {
+            Ok(()) => return,
+            Err(together) => tracing::warn!(
+                "Gate verdict and its SIEM event could not commit together; recording them apart: {together}"
+            ),
+        }
+        if let Err(failed) = self.record_alone(target, decision, caller).await {
+            tracing::error!("Gate verdict could not be recorded: {failed}");
+        }
+        if let Some(event) = &refusal {
+            self.events.raise_apart(event).await;
+        }
+    }
+
+    async fn record_together(
+        &self,
+        target: ScanTarget,
+        decision: &Decision,
+        caller: &Caller,
+        refusal: Option<&CefEvent>,
+    ) -> Result<(), RaiseError> {
+        let mut tx = crate::persistence::write(&self.db).await?;
+        GateVerdictRepository::insert(&mut tx, &self.verdict_row(target, decision, caller)).await?;
+        if let Some(event) = refusal {
+            self.events.raise(&mut tx, event).await?;
+        }
+        crate::persistence::commit(tx).await?;
+        Ok(())
+    }
+
+    async fn record_alone(&self, target: ScanTarget, decision: &Decision, caller: &Caller) -> Result<(), StoreError> {
+        let mut tx = crate::persistence::write(&self.db).await?;
+        GateVerdictRepository::insert(&mut tx, &self.verdict_row(target, decision, caller)).await?;
+        crate::persistence::commit(tx).await
+    }
+
+    /// The refusal's event. It cannot be refused by its own builder (no extension it sets is invalid); were it, the
+    /// verdict would still be recorded, and the reason logged.
+    fn refusal(&self, target: ScanTarget, decision: &Decision, caller: &Caller) -> Option<CefEvent> {
+        let (kind, id) = match target {
+            ScanTarget::Repository(id) => ("repository", id),
+            ScanTarget::Container(id) => ("container", id),
+        };
+        let now = self.clock.now();
+        let built = CefEvent::builder(
+            SecurityEventType::SecurityGateFailed,
+            Instant { epoch_second: now.unix_timestamp(), nano: now.nanosecond() },
+        )
+        .message(
+            format!(
+                "{} violation(s) against the {} policy",
+                decision.verdict.violations.len(),
+                decision.policy.source.name().to_ascii_lowercase()
+            )
+            .as_str(),
+        )
+        .user(caller.principal.as_deref())
+        .source_ip(caller.ip_address.as_deref())
+        .action("GATE_EVALUATED")
+        .target(format!("{kind} {id}").as_str())
+        .build();
+        built.map_err(|refused| tracing::error!("The gate refusal's SIEM event could not be built: {refused}")).ok()
+    }
+
+    /// A new row each time, as Java's: the one a failed transaction tried is not reused.
+    fn verdict_row(&self, target: ScanTarget, decision: &Decision, caller: &Caller) -> GateVerdictRow {
         let verdict = &decision.verdict;
         let count = |sev: Severity| *verdict.counts_by_severity.get(&sev).unwrap_or(&0);
-
-        let row = GateVerdictRow {
+        GateVerdictRow {
             id: Uuid::new_v4().to_string(),
             repo_id: match target {
                 ScanTarget::Repository(id) => Some(id),
@@ -373,16 +456,6 @@ impl GateService {
             decided_at: self.clock.now(),
             decided_by: caller.principal.clone(),
             ip_address: caller.ip_address.clone(),
-        };
-
-        if let Ok(mut tx) = crate::persistence::write(&self.db).await {
-            if let Ok(()) = GateVerdictRepository::insert(&mut tx, &row).await {
-                let _ = crate::persistence::commit(tx).await;
-            } else {
-                tracing::error!("Gate verdict could not be recorded in database");
-            }
-        } else {
-            tracing::error!("Gate verdict could not open transaction to record");
         }
     }
 

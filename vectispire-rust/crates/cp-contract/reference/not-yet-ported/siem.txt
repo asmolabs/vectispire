@@ -1,5 +1,0 @@
-# The routes of `siem` the Rust control plane does not serve yet — README.md beside this file says the rules.
-ceiling 3
-GET /api/v1/siem/config
-POST /api/v1/siem/test
-PUT /api/v1/siem/config

@@ -137,6 +137,7 @@ deny = [
         "vectispire-cp-issues",
         "vectispire-cp-rules",
         "vectispire-cp-scanning",
+        "vectispire-cp-siem",
         "vectispire-cp-targets",
     ], reason = "the agent opens no port; the control plane's crates may" },
     { crate = "actix-web", reason = "the agent opens no port" },

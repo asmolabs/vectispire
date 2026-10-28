@@ -259,6 +259,7 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
         scans: (*scans).clone(),
         settings: Arc::new(Settings::new(db.clone())),
         audit: audit.clone(),
+        events: Arc::new(vectispire_cp_outbox::NotExported),
     }));
     let rules = vectispire_cp_rules::RulesModule::new(
         db.clone(),
@@ -280,6 +281,7 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
         rules.coverage.clone(),
         audit,
         Arc::new(SystemClock),
+        Arc::new(vectispire_cp_outbox::NotExported),
     );
     let mut routes = vectispire_cp_issues::routes(issues);
     routes.extend(gate.routes());

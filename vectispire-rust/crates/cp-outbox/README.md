@@ -28,6 +28,12 @@ module, as Java declares it on `VectispireApplication`; its one edge is `mainten
   Phase 5). A destination returns `DeliveryError::Gone(reason)` or `DeliveryError::Failed { kind, message }`, where
   `kind` is the simple name of the exception Java's sender of the same destination throws, so `last_error` reads the
   same whichever control plane wrote it.
+- **`SecurityEvents`** is the port a module raises a SIEM event through — Java's `SecurityEventRaised` (`raise`, in the
+  caller's transaction) and `SecurityEventRaisedApart` (`raise_apart`, in one of its own, never failing). The SIEM
+  module implements it and the binary hands it to `issues` and `gate`; it lives here because the event is an outbox row
+  in the raiser's transaction, and a shared module is one every module may use without an edge
+  (`crates/cp-siem/README.md`, "Where a module raises an event"). `NotExported` drops every event, for the module tests
+  that compose a raiser without the SIEM.
 
 ## The relay is held back
 

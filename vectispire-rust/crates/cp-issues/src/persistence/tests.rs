@@ -81,12 +81,17 @@ fn run(engine: Engine) {
             the_backlog_shows_a_reader_only_what_it_was_granted,
             the_exceptions_register_pages_by_cursor_and_visibility,
             the_gate_weighs_a_state_whole_in_key_order_under_the_dual_target_rule,
+            a_scan_raises_a_leak_once_when_it_creates_its_issue,
         );
         the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
         });
         one_transaction_runs_a_checked_query_and_the_repository(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("one_transaction_runs_a_checked_query_and_the_repository: {failure}"));
+        });
+        // Last: it commits its row, which the checks above would count.
+        a_passed_deadline_is_raised_with_its_mark_and_not_again(&db).await.unwrap_or_else(|failure| {
+            failures.push(format!("a_passed_deadline_is_raised_with_its_mark_and_not_again: {failure}"));
         });
         db.close().await;
         assert!(failures.is_empty(), "{engine}: {} check(s) failed:\n  {}", failures.len(), failures.join("\n  "));
@@ -804,5 +809,127 @@ async fn the_gate_weighs_a_state_whole_in_key_order_under_the_dual_target_rule(t
     ensure_eq!(read(of), vec![both.id], "the row naming both is the repository's");
     let all = IssueRepository::find_by_state(tx, "open", None).await.map_err(|e| e.to_string())?;
     ensure_eq!(read(all), vec![image.id, both.id, repo.id, image_again.id], "every open issue, in key order");
+    Ok(())
+}
+
+// ---- the SIEM events the backlog raises (task 4.2: the emitters of issues) ----
+
+/// What the backlog raised, in order, and in which transaction's keeping: a stand-in for the SIEM's queue.
+#[derive(Default)]
+struct Raised(std::sync::Mutex<Vec<vectispire_domain::siem::CefEvent>>);
+
+impl Raised {
+    fn taken(&self) -> Vec<vectispire_domain::siem::CefEvent> {
+        std::mem::take(&mut *self.0.lock().unwrap())
+    }
+}
+
+impl vectispire_cp_outbox::SecurityEvents for Raised {
+    fn raise<'a>(
+        &'a self,
+        _: &'a mut Tx,
+        event: &'a vectispire_domain::siem::CefEvent,
+    ) -> vectispire_cp_http::credentials::BoxFuture<'a, Result<(), vectispire_cp_outbox::RaiseError>> {
+        self.0.lock().unwrap().push(event.clone());
+        Box::pin(async { Ok(()) })
+    }
+
+    fn raise_apart<'a>(
+        &'a self,
+        _: &'a vectispire_domain::siem::CefEvent,
+    ) -> vectispire_cp_http::credentials::BoxFuture<'a, ()> {
+        Box::pin(async { panic!("the backlog raises in its own transaction, never apart") })
+    }
+}
+
+fn secret(rule: &str, severity: &str) -> vectispire_cp_scanning::ingestion::ObservedFinding {
+    vectispire_cp_scanning::ingestion::ObservedFinding {
+        type_: "secret".into(),
+        source: "gitleaks".into(),
+        identifier: Some(rule.into()),
+        severity: Some(severity.into()),
+        file_path: Some("config/prod.env".into()),
+        ..Default::default()
+    }
+}
+
+async fn fold(
+    raised: &Raised,
+    tx: &mut Tx,
+    findings: &[vectispire_cp_scanning::ingestion::ObservedFinding],
+) -> Result<(), String> {
+    let types = std::collections::BTreeSet::from([vectispire_domain::FindingType::Secret]);
+    crate::sync::IssueSyncService::fold(
+        raised,
+        tx,
+        None,
+        ScanTarget::Repository(REPO_A),
+        findings,
+        &types,
+        &std::collections::BTreeSet::new(),
+        None,
+        &BTreeMap::new(),
+    )
+    .await
+    .map(|_| ())
+    .map_err(|error| error.to_string())
+}
+
+async fn a_scan_raises_a_leak_once_when_it_creates_its_issue(tx: &mut Tx) -> Check {
+    use vectispire_domain::siem::SecurityEventType;
+    let raised = Raised::default();
+    fold(&raised, tx, &[secret("aws-access-token", "high"), secret("generic-api-key", "medium")]).await?;
+    let first = raised.taken();
+    ensure_eq!(first.len(), 1, "a high secret is a leak, a medium one is not");
+    ensure_eq!(first[0].event_type(), SecurityEventType::SecretLeakDetected, "the event");
+    let created = IssueRepository::find_open_by_target(tx, "open", &["secret".to_owned()], Some(REPO_A), None)
+        .await
+        .map_err(|e| e.to_string())?;
+    let leak = created.iter().find(|row| row.identifier == "aws-access-token").ok_or("the leak's issue")?;
+    let expected = format!("Secret matching rule aws-access-token found in config/prod.env (issue {})", leak.id);
+    ensure_eq!(first[0].message(), Some(expected.as_str()), "the issue's number, never its description");
+    // Seen again, the issue exists: nothing is announced a second time.
+    fold(&raised, tx, &[secret("aws-access-token", "high"), secret("generic-api-key", "medium")]).await?;
+    ensure_eq!(raised.taken().len(), 0, "a leak seen again");
+    Ok(())
+}
+
+async fn a_passed_deadline_is_raised_with_its_mark_and_not_again(db: &Db) -> Check {
+    use vectispire_domain::siem::SecurityEventType;
+    let now = OffsetDateTime::now_utc();
+    let mut tx = db.begin(Mode::ReadWrite).await.map_err(|e| e.to_string())?;
+    let late = insert(
+        &mut tx,
+        NewIssue {
+            severity: "critical".into(),
+            first_seen_at: to_microseconds(now - Duration::days(18)),
+            ..issue("sla-raised", Some(REPO_B), None)
+        },
+    )
+    .await?;
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    let raised = std::sync::Arc::new(Raised::default());
+    let settings = std::sync::Arc::new(vectispire_cp_settings::Settings::new(db.clone()));
+    let sla = std::sync::Arc::new(crate::sla::SlaService::new(db.clone(), settings));
+    let signals = crate::sla::SlaBreachSignals::new(db.clone(), sla, raised.clone());
+    signals.signal_crossings().await.map_err(|e| e.to_string())?;
+    let events = raised.taken();
+    ensure_eq!(events.len(), 1, "one critical issue past its fifteen days");
+    ensure_eq!(events[0].event_type(), SecurityEventType::SlaBreached, "the event");
+    let due = to_microseconds(now - Duration::days(18)) + Duration::days(15);
+    ensure_eq!(events[0].timestamp().epoch_second, due.unix_timestamp(), "dated when the window closed");
+    let message = events[0].message().unwrap_or_default().to_owned();
+    if !message.starts_with(&format!("CRITICAL issue {} (CVE-2026-sla-raised) passed its 15-day", late.id)) {
+        return Err(format!("the message: {message}"));
+    }
+    let mut tx = db.begin(Mode::ReadOnly).await.map_err(|e| e.to_string())?;
+    let marked = IssueRepository::find_by_id(&mut tx, late.id).await.map_err(|e| e.to_string())?.ok_or("the issue")?;
+    tx.rollback().await.map_err(|e| e.to_string())?;
+    if marked.sla_breach_signalled_at.is_none() {
+        return Err("raised and not marked: the next turn would raise it again".into());
+    }
+    signals.signal_crossings().await.map_err(|e| e.to_string())?;
+    ensure_eq!(raised.taken().len(), 0, "a deadline raised once");
     Ok(())
 }

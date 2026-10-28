@@ -1,5 +1,5 @@
-//! The control plane's SIEM module — `core.siem` (plan, Phase 4 task 4.2, second stage): its services, not yet its
-//! routes nor its place in the binary (the third stage).
+//! The control plane's SIEM module — `core.siem` (plan, Phase 4 task 4.2): its services and its three routes
+//! ([`routes`]); `cp-app/src/siem.rs` gives it its place in the binary.
 //!
 //! - [`SiemExporterService`] — the singleton configuration: read, checked and saved (the header encrypted at rest
 //!   under its own context, the collector CA read as pasted, a new destination not inheriting the old header), the
@@ -13,7 +13,7 @@
 //!   collector's own CA in place of the runtime's trust when one is pinned.
 //!
 //! What uses what is Java's `package-info`: nothing above the foundation for the services (audit, outbox, outbound,
-//! settings, crypto, all shared), `access::security` for the routes when they come. The domain — the event catalogue,
+//! settings, crypto, all shared), `access::security` for the routes. The domain — the event catalogue,
 //! the CEF line, the syslog frame, the endpoint and the CA — is `vectispire_domain::siem`, which the modules that raise
 //! events share.
 
@@ -26,6 +26,7 @@ mod events;
 mod internal;
 mod persistence;
 mod transport;
+mod web;
 
 pub use config::{
     AUTH_HEADER_CONTEXT, MAX_AUTH_HEADER_LENGTH, MAX_ENDPOINT_LENGTH, NOT_DELIVERED, REFUSED_BY_POLICY,
@@ -40,3 +41,4 @@ pub use events::{
 pub use internal::sender::{LABEL, SiemSender, TIMEOUT, body};
 pub use internal::syslog::{MAX_DATAGRAM, SyslogSender, TrustUnreadable};
 pub use transport::{PrivateDestinations, SendError, Transport};
+pub use web::routes;

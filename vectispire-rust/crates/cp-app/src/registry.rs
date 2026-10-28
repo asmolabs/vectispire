@@ -1,4 +1,4 @@
-//! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues (10), gate (7).
+//! Every route the control plane registers: targets (29), scanning (3), agents (17), rules (9), inventory (18), issues (10), gate (7), siem (3).
 
 use std::sync::Arc;
 
@@ -8,9 +8,11 @@ use vectispire_cp_http::routes::{NoVisibility, RouteEntry, Routes};
 use vectispire_cp_inventory::Inventory;
 use vectispire_cp_rules::RulesModule;
 use vectispire_cp_scanning::Scanning;
+use vectispire_cp_siem::SiemExporterService;
 use vectispire_cp_targets::Targets;
 
 /// All route entries from the composed modules.
+#[allow(clippy::too_many_arguments)]
 pub fn entries(
     targets: Arc<Targets>,
     scanning: Arc<Scanning>,
@@ -19,6 +21,7 @@ pub fn entries(
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
+    siem: Arc<SiemExporterService>,
 ) -> Vec<RouteEntry> {
     let mut list = Vec::new();
     list.extend(vectispire_cp_targets::routes(targets.clone()));
@@ -28,11 +31,13 @@ pub fn entries(
     list.extend(vectispire_cp_inventory::routes(inventory, targets));
     list.extend(vectispire_cp_issues::routes(issues));
     list.extend(gate.routes());
+    list.extend(vectispire_cp_siem::routes(siem));
     list
 }
 
 /// The registry, with every module's routes added.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn routes(
     targets: Arc<Targets>,
     scanning: Arc<Scanning>,
@@ -41,9 +46,10 @@ pub fn routes(
     inventory: Arc<Inventory>,
     issues: Arc<vectispire_cp_issues::Issues>,
     gate: Arc<GateModule>,
+    siem: Arc<SiemExporterService>,
 ) -> Routes<()> {
     let mut routes = Routes::new(NoVisibility);
-    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate) {
+    for entry in entries(targets, scanning, agents, rules, inventory, issues, gate, siem) {
         routes = routes.route(entry);
     }
     routes

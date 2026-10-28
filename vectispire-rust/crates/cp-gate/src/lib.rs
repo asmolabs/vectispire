@@ -37,6 +37,7 @@ use vectispire_cp_db::Db;
 use vectispire_cp_http::routes::RouteEntry;
 use vectispire_cp_issues::IssueCatalog;
 use vectispire_cp_maintenance::MaintenanceTask;
+use vectispire_cp_outbox::SecurityEvents;
 use vectispire_cp_rules::RuleCoverageService;
 use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_settings::Settings;
@@ -76,6 +77,7 @@ pub struct GateModule {
 opaque_debug!(GateModule);
 
 impl GateModule {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         db: Db,
         issues: Arc<IssueCatalog>,
@@ -84,8 +86,9 @@ impl GateModule {
         coverage: Arc<RuleCoverageService>,
         audit: Arc<AuditLog>,
         clock: Arc<dyn Clock>,
+        events: Arc<dyn SecurityEvents>,
     ) -> Self {
-        let gate = Arc::new(GateService::new(db.clone(), issues, scans, targets, coverage, clock));
+        let gate = Arc::new(GateService::new(db.clone(), issues, scans, targets, coverage, clock, events));
         let admin = Arc::new(GatePolicyAdministrationService::new(gate.clone(), audit));
         let verdicts = Arc::new(GateRegisterService::new(db));
         Self { gate, admin, verdicts }

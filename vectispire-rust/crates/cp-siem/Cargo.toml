@@ -15,7 +15,10 @@ mysql-queries = []
 postgres-queries = []
 
 [dependencies]
+# The routes: the server stack is the control plane's (deny.toml lists this crate among axum's wrappers).
+axum.workspace = true
 futures-util.workspace = true
+http.workspace = true
 # `uname`'s node name: the HOSTNAME a syslog header states when the environment names none — what
 # `InetAddress.getLocalHost().getHostName()` answers on the Java side. A feature of a crate already linked.
 rustix = { workspace = true, features = ["system"] }
@@ -34,9 +37,12 @@ time = { version = "0.3", features = ["std"] }
 tokio = { workspace = true, features = ["net", "time", "io-util", "rt"] }
 tracing.workspace = true
 uuid = { version = "1", features = ["v4"] }
+# `access::security`, for the routes: `RequestActors`.
+vectispire-cp-access = { path = "../cp-access" }
 vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-db = { path = "../cp-db" }
+vectispire-cp-http.workspace = true
 vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-settings = { path = "../cp-settings" }
@@ -44,6 +50,8 @@ vectispire-domain.workspace = true
 vectispire-tls.workspace = true
 
 [dev-dependencies]
+# The contract test: the routes against `openapi.json` and the list of routes not ported.
+vectispire-cp-contract = { path = "../cp-contract" }
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 futures-util.workspace = true
