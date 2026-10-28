@@ -75,6 +75,10 @@ skip = [
 wildcards = "deny"
 # The workspace's own crates, by path: nothing here is published, so a path is the version.
 allow-wildcard-paths = true
+# **The wrappers stay a list written by hand**, one crate per line in order (the dependency's own ecosystem first, then
+# the workspace's crates): each is a review decision — who may link a database driver or a server — and deriving it
+# from the crates that happen to use one would turn the ban into a description of whatever the code does. One per
+# line so that two module ports adding their crate touch different lines.
 deny = [
     # Decision 0003: the agent holds no database connection, so no crate here may be a client of one.
     # `wrappers`: the control plane's database layer, its migration runner and the modules' persistence (each
@@ -84,7 +88,26 @@ deny = [
     # agent's closure holds none of it. (sea-query-sqlx is the layer's query-builder binding, a dependent of sqlx;
     # vectispire-cp-contract replays the recorded traffic, seeding and reading every table — no module uses it.
     # sea-orm builds the repositories' statements; its own sqlx connections are never opened, cp-db runs them.)
-    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx", "sea-orm", "vectispire-cp-access", "vectispire-cp-audit", "vectispire-cp-settings", "vectispire-cp-maintenance", "vectispire-cp-outbox", "vectispire-cp-targets", "vectispire-cp-scanning", "vectispire-cp-agents", "vectispire-cp-rules", "vectispire-cp-inventory", "vectispire-cp-issues", "vectispire-cp-gate", "vectispire-cp-siem", "vectispire-cp-contract"], reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sqlx", wrappers = [
+        "sea-orm",
+        "sea-query-sqlx",
+        "vectispire-cp-access",
+        "vectispire-cp-agents",
+        "vectispire-cp-audit",
+        "vectispire-cp-contract",
+        "vectispire-cp-db",
+        "vectispire-cp-gate",
+        "vectispire-cp-inventory",
+        "vectispire-cp-issues",
+        "vectispire-cp-maintenance",
+        "vectispire-cp-outbox",
+        "vectispire-cp-rules",
+        "vectispire-cp-scanning",
+        "vectispire-cp-settings",
+        "vectispire-cp-siem",
+        "vectispire-cp-targets",
+        "vectispire-migrate",
+    ], reason = "decision 0003: the agent holds no database connection" },
     { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
     { crate = "postgres", reason = "decision 0003: the agent holds no database connection" },
     { crate = "tokio-postgres", reason = "decision 0003: the agent holds no database connection" },
@@ -93,11 +116,29 @@ deny = [
     { crate = "rusqlite", reason = "decision 0003: the agent holds no database connection" },
     # SeaORM describes the repositories' tables (the hybrid adopted after the cp-issues spike, 2026-10-26): cp-db
     # runs its statements, and a module crate is listed here when its repository is ported to it — never the agent.
-    { crate = "sea-orm", wrappers = ["vectispire-cp-db", "vectispire-cp-issues", "vectispire-cp-gate", "vectispire-cp-scanning", "vectispire-cp-inventory"], reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sea-orm", wrappers = [
+        "vectispire-cp-db",
+        "vectispire-cp-gate",
+        "vectispire-cp-inventory",
+        "vectispire-cp-issues",
+        "vectispire-cp-scanning",
+    ], reason = "decision 0003: the agent holds no database connection" },
     # The agent opens no port: the server stack is linkable by the control plane's crates only. A wrapper is a
     # crate allowed to depend on it directly; any other dependent — the agent above all — fails the check, and
     # crates/agent/tests/isolation.rs forbids it in the agent's graph whatever this says.
-    { crate = "axum", wrappers = ["vectispire-cp-app", "vectispire-cp-http", "vectispire-cp-contract", "vectispire-cp-access", "vectispire-cp-targets", "vectispire-cp-scanning", "vectispire-cp-agents", "vectispire-cp-rules", "vectispire-cp-inventory", "vectispire-cp-issues", "vectispire-cp-gate"], reason = "the agent opens no port; the control plane's crates may" },
+    { crate = "axum", wrappers = [
+        "vectispire-cp-access",
+        "vectispire-cp-agents",
+        "vectispire-cp-app",
+        "vectispire-cp-contract",
+        "vectispire-cp-gate",
+        "vectispire-cp-http",
+        "vectispire-cp-inventory",
+        "vectispire-cp-issues",
+        "vectispire-cp-rules",
+        "vectispire-cp-scanning",
+        "vectispire-cp-targets",
+    ], reason = "the agent opens no port; the control plane's crates may" },
     { crate = "actix-web", reason = "the agent opens no port" },
     { crate = "warp", reason = "the agent opens no port" },
     { crate = "rocket", reason = "the agent opens no port" },

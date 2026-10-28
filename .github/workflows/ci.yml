@@ -1506,8 +1506,9 @@ jobs:
   # **The Java suite's HTTP traffic, recorded at this commit and replayed against the Rust control plane.** The
   # recorder (vectispire-java/…/core/golden/) writes one file per request of every HTTP test; the Rust port
   # is to answer every one as Java did. Every recording is read (a format that drifted fails), each of a route
-  # not served yet is covered by a line of vectispire-rust/golden/deferred.txt saying why, and each of a served
-  # route is replayed — seed, request, answer and rows — on both engines (`replay-goldens.sh`). The recordings
+  # not served yet is covered by a line of vectispire-rust/golden/deferred/ saying why (one file per module whose
+  # port ends the line, each at its own ceiling), and each of a served route is replayed — seed, request, answer and
+  # rows — on both engines (`replay-goldens.sh`, which finds every `crates/*/tests/golden.rs` replay). The recordings
   # are generated here, not committed (66 MB, 7,000 files), kept as an artifact for a few days, and scanned: they
   # carry no credential but the one invented value the export test plants, allowed by name.
   rust-replay:
@@ -1551,8 +1552,9 @@ jobs:
           rustup show active-toolchain || rustup toolchain install
           grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
             || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
-      # The plan (every recording of a route not served covered by golden/deferred.txt), then each served module's
-      # replay on MySQL and PostgreSQL: a recording of a served route replays green on both, or is listed with why.
+      # The plan (every recording of a route not served covered by golden/deferred/), then every replay test the
+      # script finds (crates/*/tests/golden.rs) on MySQL and PostgreSQL: a recording of a served route replays green on
+      # both, or is listed with why. No module is named here: a port adds nothing to this job.
       - name: the recordings replayed against the served routes
         working-directory: vectispire-rust
         run: crates/cp-contract/scripts/replay-goldens.sh "$RUNNER_TEMP/goldens"
