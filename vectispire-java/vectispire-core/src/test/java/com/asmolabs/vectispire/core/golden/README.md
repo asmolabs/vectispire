@@ -253,8 +253,10 @@ response that minted the token. Collected from:
 - any 43-character base64url run with upper case, lower case and a digit in it, not touching `+`, `/`
   or `=` (thirty-two random bytes: a session token, an agent key), outside a stored form;
 - any base64 or base64url run of 40 to 200 characters, padded or not, with upper case, lower case and
-  a digit in it: an agent's sealing or signing public key, an ECDSA signature. A signature's DER
-  length varies, and so does its padding.
+  a digit in it — or, instead of the digit, base64's `=` padding at its end: an agent's sealing or
+  signing public key, an ECDSA signature. A signature's DER length varies, and so does its padding.
+  One key in about 1,300 has no digit, and without the padding rule it stayed literal in the row
+  that stores it, which the replay's own key could never match.
 
 `correct horse battery staple` is never a secret. It is `ApiTestBase`'s fixture passphrase, in the
 source.
