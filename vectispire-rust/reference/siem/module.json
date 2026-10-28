@@ -1,0 +1,2224 @@
+{
+  "now" : "2026-10-01T12:00:00.123456Z",
+  "messageId" : "0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41",
+  "version" : "2.3.0",
+  "type" : "siem_event",
+  "authHeaderContext" : "siem_config:auth_header",
+  "refusedByPolicy" : "Refused by the outbound policy: this destination is not allowed. A collector on the internal network needs an administrator to enable “Allow a private SIEM destination”; Vectispire's own database, its Docker daemon and the instance metadata endpoint are refused in every case.",
+  "notDelivered" : "The event was not delivered: the collector could not be reached, or did not accept it. The cause is in the server log.",
+  "queued" : [ {
+    "name" : "an operation that signals on its own",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "API_KEY_CREATED",
+      "resourceId" : "42",
+      "description" : "API key issued: ci-pipeline",
+      "user" : "alice",
+      "ip" : "203.0.113.7",
+      "userAgent" : "curl/8.9",
+      "signal" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued: ci-pipeline\",\"extensions\":{\"suser\":\"alice\",\"src\":\"203.0.113.7\",\"act\":\"API_KEY_CREATED\",\"cs1Label\":\"Target\",\"cs1\":\"42\",\"cs2Label\":\"UserAgent\",\"cs2\":\"curl/8.9\"},\"cefSeverity\":5,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "a signal its writer named",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "LOGIN_BLOCKED",
+      "resourceId" : "bob",
+      "description" : "Sign-in refused: too many failures",
+      "user" : "bob",
+      "ip" : "198.51.100.2",
+      "userAgent" : null,
+      "signal" : "SIGN_IN_THROTTLED"
+    },
+    "payload" : "{\"eventType\":\"SIGN_IN_THROTTLED\",\"timestamp\":1790856000123,\"message\":\"Sign-in refused: too many failures\",\"extensions\":{\"suser\":\"bob\",\"src\":\"198.51.100.2\",\"act\":\"LOGIN_BLOCKED\",\"cs1Label\":\"Target\",\"cs1\":\"bob\"},\"cefSeverity\":7,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "an operation that signals nothing",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "SETTING_UPDATED",
+      "resourceId" : "branch",
+      "description" : "Branch changed",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : null
+    },
+    "payload" : null
+  }, {
+    "name" : "below the minimum",
+    "minSeverity" : "CRITICAL",
+    "record" : {
+      "operation" : "API_KEY_CREATED",
+      "resourceId" : "42",
+      "description" : "API key issued",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : null
+    },
+    "payload" : null
+  }, {
+    "name" : "the minimum, in lower case",
+    "minSeverity" : "high",
+    "record" : {
+      "operation" : "API_KEY_CREATED",
+      "resourceId" : "42",
+      "description" : "API key issued",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : null
+    },
+    "payload" : null
+  }, {
+    "name" : "an unreadable minimum sends everything",
+    "minSeverity" : "SEVERE",
+    "record" : {
+      "operation" : "API_KEY_CREATED",
+      "resourceId" : "42",
+      "description" : "API key issued",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\",\"cs1Label\":\"Target\",\"cs1\":\"42\"},\"cefSeverity\":5,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "a description past 1024 units",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "API_KEY_CREATED",
+      "resourceId" : "42",
+      "description" : "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\",\"cs1Label\":\"Target\",\"cs1\":\"42\"},\"cefSeverity\":5,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "a cut through a surrogate pair",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "API_KEY_CREATED",
+      "resourceId" : "42",
+      "description" : "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy😀z",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy?\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\",\"cs1Label\":\"Target\",\"cs1\":\"42\"},\"cefSeverity\":5,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "no description, no resource, blank actor",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "API_KEY_DELETED",
+      "resourceId" : null,
+      "description" : null,
+      "user" : " ",
+      "ip" : "",
+      "userAgent" : "\t",
+      "signal" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_REVOKED\",\"timestamp\":1790856000123,\"message\":null,\"extensions\":{\"act\":\"API_KEY_DELETED\"},\"cefSeverity\":4,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "text JSON escapes",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "API_KEY_CREATED",
+      "resourceId" : "q\"uote\\",
+      "description" : "line\nbreak\ttab \u0001 é – ✓ 😀   / ",
+      "user" : "a\"b",
+      "ip" : null,
+      "userAgent" : "Mozilla/5.0 (X11)",
+      "signal" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"line\\nbreak\\ttab \\u0001 é – ✓ 😀   / \",\"extensions\":{\"suser\":\"a\\\"b\",\"act\":\"API_KEY_CREATED\",\"cs1Label\":\"Target\",\"cs1\":\"q\\\"uote\\\\\",\"cs2Label\":\"UserAgent\",\"cs2\":\"Mozilla/5.0 (X11)\"},\"cefSeverity\":5,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "the connection test is never queued",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "SETTING_UPDATED",
+      "resourceId" : "1",
+      "description" : "ping",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : "PING_TEST"
+    },
+    "payload" : null
+  }, {
+    "name" : "the stop notice is never queued",
+    "minSeverity" : "LOW",
+    "record" : {
+      "operation" : "SETTING_UPDATED",
+      "resourceId" : "1",
+      "description" : "stop",
+      "user" : "alice",
+      "ip" : null,
+      "userAgent" : null,
+      "signal" : "SIEM_EXPORT_STOPPED"
+    },
+    "payload" : null
+  }, {
+    "name" : "a setting change named by its writer",
+    "minSeverity" : "HIGH",
+    "record" : {
+      "operation" : "SETTING_UPDATED",
+      "resourceId" : "1",
+      "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=HIGH)",
+      "user" : "admin",
+      "ip" : "10.0.0.1",
+      "userAgent" : "ua",
+      "signal" : "SECURITY_SETTING_CHANGED"
+    },
+    "payload" : null
+  }, {
+    "name" : "chain broken: The audit chain breaks at entry 6f1c-entry",
+    "minSeverity" : "HIGH",
+    "chainBroken" : {
+      "brokenAt" : "6f1c-entry",
+      "missingFromTable" : 0
+    },
+    "payload" : "{\"eventType\":\"AUDIT_CHAIN_BROKEN\",\"timestamp\":1790856000123,\"message\":\"The audit chain breaks at entry 6f1c-entry\",\"extensions\":{\"act\":\"AUDIT_VERIFIED\",\"cs1Label\":\"Target\",\"cs1\":\"6f1c-entry\"},\"cefSeverity\":10,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "chain broken: 1 entry held by the mirror are missing from the table",
+    "minSeverity" : "HIGH",
+    "chainBroken" : {
+      "brokenAt" : null,
+      "missingFromTable" : 1
+    },
+    "payload" : "{\"eventType\":\"AUDIT_CHAIN_BROKEN\",\"timestamp\":1790856000123,\"message\":\"1 entry held by the mirror are missing from the table\",\"extensions\":{\"act\":\"AUDIT_VERIFIED\"},\"cefSeverity\":10,\"message_id\":\"{message_id}\"}"
+  }, {
+    "name" : "chain broken: 3 entries held by the mirror are missing from the table",
+    "minSeverity" : "HIGH",
+    "chainBroken" : {
+      "brokenAt" : null,
+      "missingFromTable" : 3
+    },
+    "payload" : "{\"eventType\":\"AUDIT_CHAIN_BROKEN\",\"timestamp\":1790856000123,\"message\":\"3 entries held by the mirror are missing from the table\",\"extensions\":{\"act\":\"AUDIT_VERIFIED\"},\"cefSeverity\":10,\"message_id\":\"{message_id}\"}"
+  } ],
+  "delivered" : [ {
+    "name" : "webhook with a header",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : "Bearer siem-token",
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : {
+          "Authorization" : "Bearer siem-token"
+        },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "webhook without a header",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : { },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "webhook, protocol in lower case",
+    "config" : {
+      "enabled" : true,
+      "protocol" : " webhook ",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : { },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "syslog over UDP",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : "Bearer never-sent",
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "guard" : {
+        "host" : "127.0.0.1",
+        "port" : 514,
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export"
+      },
+      "syslog" : {
+        "protocol" : "SYSLOG_UDP",
+        "port" : 514,
+        "message" : "<84>1 2026-10-01T12:00:00.123Z {hostname} vectispire - VECTI-SEC-012 - CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued",
+        "timeoutSeconds" : 10,
+        "label" : "SIEM export",
+        "pinnedCa" : null
+      }
+    }
+  }, {
+    "name" : "syslog over TCP",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "collector.example:6514",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "guard" : {
+        "host" : "collector.example",
+        "port" : 6514,
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export"
+      },
+      "syslog" : {
+        "protocol" : "SYSLOG_TCP",
+        "port" : 6514,
+        "message" : "<84>1 2026-10-01T12:00:00.123Z {hostname} vectispire - VECTI-SEC-012 - CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued",
+        "timeoutSeconds" : 10,
+        "label" : "SIEM export",
+        "pinnedCa" : null
+      }
+    }
+  }, {
+    "name" : "syslog over TLS, a CA pinned",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "collector.example:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n"
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "guard" : {
+        "host" : "collector.example",
+        "port" : 6514,
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export"
+      },
+      "syslog" : {
+        "protocol" : "SYSLOG_TLS",
+        "port" : 6514,
+        "message" : "<84>1 2026-10-01T12:00:00.123Z {hostname} vectispire - VECTI-SEC-012 - CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued",
+        "timeoutSeconds" : 10,
+        "label" : "SIEM export",
+        "pinnedCa" : "CN=Corp Root"
+      }
+    }
+  }, {
+    "name" : "syslog over TLS, no CA",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "collector.example:6514",
+      "header" : null,
+      "ca" : "  "
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "guard" : {
+        "host" : "collector.example",
+        "port" : 6514,
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export"
+      },
+      "syslog" : {
+        "protocol" : "SYSLOG_TLS",
+        "port" : 6514,
+        "message" : "<84>1 2026-10-01T12:00:00.123Z {hostname} vectispire - VECTI-SEC-012 - CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued",
+        "timeoutSeconds" : 10,
+        "label" : "SIEM export",
+        "pinnedCa" : null
+      }
+    }
+  }, {
+    "name" : "a CA stored for a webhook is not read",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : "not a pem"
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|rt=1790856000123 outcome=success suser=alice act=API_KEY_CREATED externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=API key issued\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : { },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "switched off",
+    "config" : {
+      "enabled" : false,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "gone" : "the SIEM export was switched off or its endpoint cleared after this event was queued"
+    }
+  }, {
+    "name" : "no endpoint",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : null,
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "gone" : "the SIEM export was switched off or its endpoint cleared after this event was queued"
+    }
+  }, {
+    "name" : "a blank endpoint",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : " \t",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "gone" : "the SIEM export was switched off or its endpoint cleared after this event was queued"
+    }
+  }, {
+    "name" : "a protocol this version does not speak",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SMTP",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "gone" : "the stored SIEM protocol \"SMTP\" is not one this version speaks"
+    }
+  }, {
+    "name" : "an endpoint unusable for its protocol",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "gone" : "the stored SIEM endpoint is unusable for SYSLOG_TCP: A syslog endpoint is host:port, for example collector.example.com:514 — no scheme and no path: the protocol field already says how events travel."
+    }
+  }, {
+    "name" : "a CA that has expired since",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "collector.example:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBODCB36ADAgECAgID7TAKBggqhkjOPQQDAjATMREwDwYDVQQDDAhPbGQgUm9v\ndDAeFw0yNTAxMDEwMDAwMDBaFw0yNjEwMDExMjAwMDBaMBMxETAPBgNVBAMMCE9s\nZCBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENJ8hsVzrSzNRRKttnj8I\nMByLgMtZS3g63q5rkprXTpywCLepN2uxL+ZXDYGz1F8NUGs6986VL1v3tEMECcnH\nUqMjMCEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0E\nAwIDSAAwRQIhAPr2LFHWyc9YOilwNAq4MGITl4T7PgDqy8E38gvZHBeIAiBQn4F3\n1SIgJu8y5xqI6P2o+zrE5LSACuqVBfyMa9wbmw==\n-----END CERTIFICATE-----\n"
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "gone" : "the pinned SIEM collector CA is unusable: The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z."
+    }
+  }, {
+    "name" : "an unreadable CA",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "collector.example:6514",
+      "header" : null,
+      "ca" : "not a pem"
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1790856000123,\"message\":\"API key issued\",\"extensions\":{\"suser\":\"alice\",\"act\":\"API_KEY_CREATED\"},\"cefSeverity\":5,\"message_id\":\"0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+    "answer" : {
+      "gone" : "the pinned SIEM collector CA is unusable: The collector CA holds no certificate. Paste it in PEM form, -----BEGIN CERTIFICATE----- included."
+    }
+  }, {
+    "name" : "the CA is read after the event",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "collector.example:6514",
+      "header" : null,
+      "ca" : "not a pem"
+    },
+    "payload" : "{\"eventType\":\"NOT_A_TYPE\",\"timestamp\":1}",
+    "answer" : {
+      "kind" : "IllegalStateException",
+      "message" : "SIEM event 0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 names an event type this version does not know"
+    }
+  }, {
+    "name" : "a row queued before the severity was stored",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"CRITICAL_KEV_DETECTED\",\"timestamp\":1790856000000,\"message\":null,\"extensions\":{\"cs3Label\":\"Identifier\",\"cs3\":\"CVE-2026-0001\"},\"message_id\":\"x\"}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-002|Actively exploited vulnerability (KEV) detected|10|rt=1790856000000 outcome=detected cs3Label=Identifier cs3=CVE-2026-0001 externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : { },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "an externalId already there keeps its place",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_REVOKED\",\"timestamp\":0,\"message\":\"m\",\"extensions\":{\"externalId\":\"old\",\"suser\":\"bob\"},\"cefSeverity\":4}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-013|API key revoked|4|rt=0 outcome=success externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 suser=bob msg=m\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : { },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "no extensions",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_REVOKED\",\"timestamp\":-1,\"message\":\"\",\"extensions\":null}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-013|API key revoked|4|rt=-1 outcome=success externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : { },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "members in another order, one unknown",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"cefSeverity\":8,\"extensions\":{\"act\":\"X\"},\"unknown\":[1,{\"a\":2}],\"message\":\"q\\\"uote \\\\ é \\u2028 😀\",\"timestamp\":1790856000999,\"eventType\":\"AGENT_RESULT_REFUSED\"}",
+    "answer" : {
+      "webhook" : {
+        "url" : "https://collector.example/cef",
+        "body" : "{\"cef\":\"CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-015|Agent result refused: attestation did not verify|8|rt=1790856000999 outcome=failure act=X externalId=0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 msg=q\\\"uote \\\\\\\\ é   😀\"}",
+        "policy" : "INTERNAL_ALLOWED",
+        "label" : "SIEM export",
+        "headers" : { },
+        "timeoutSeconds" : 10
+      }
+    }
+  }, {
+    "name" : "an unknown event type",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"NOT_A_TYPE\",\"timestamp\":1}",
+    "answer" : {
+      "kind" : "IllegalStateException",
+      "message" : "SIEM event 0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 names an event type this version does not know"
+    }
+  }, {
+    "name" : "no event type",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"timestamp\":1}",
+    "answer" : {
+      "kind" : "IllegalStateException",
+      "message" : "SIEM event 0b7e5f0e-6a7c-4f39-9d55-1f3c2a9b8e41 names an event type this version does not know"
+    }
+  }, {
+    "name" : "a severity off the scale",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1,\"cefSeverity\":11}",
+    "answer" : {
+      "kind" : "IllegalArgumentException",
+      "message" : "A CEF severity is 0 to 10, not 11"
+    }
+  }, {
+    "name" : "an extension key that is not one",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":\"API_KEY_ISSUED\",\"timestamp\":1,\"extensions\":{\"bad-key\":\"v\"}}",
+    "answer" : {
+      "kind" : "IllegalArgumentException",
+      "message" : "Not a CEF extension key: bad-key"
+    }
+  }, {
+    "name" : "not JSON",
+    "config" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.example/cef",
+      "header" : null,
+      "ca" : null
+    },
+    "payload" : "{\"eventType\":",
+    "answer" : {
+      "kind" : "IllegalStateException",
+      "message" : "A queued SIEM event could not be read: {jackson}"
+    }
+  } ],
+  "saves" : [ {
+    "name" : "the first save",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : "Bearer t",
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://siem.example.com/e",
+        "header" : "v2:Bearer t",
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : true,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "defaults: no protocol, no minimum",
+    "request" : {
+      "enabled" : false,
+      "protocol" : null,
+      "endpoint" : null,
+      "header" : null,
+      "minSeverity" : null,
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "WEBHOOK",
+        "endpoint" : null,
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=WEBHOOK, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "blank protocol and minimum",
+    "request" : {
+      "enabled" : false,
+      "protocol" : " ",
+      "endpoint" : "",
+      "header" : null,
+      "minSeverity" : "\t",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=WEBHOOK, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "protocol and minimum in any case, trimmed",
+    "request" : {
+      "enabled" : true,
+      "protocol" : " syslog_udp ",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : " medium ",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "MEDIUM",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_UDP, minimum severity=MEDIUM)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a minimum by Java's equalsIgnoreCase",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : "hıgh",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_UDP, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "an unknown protocol",
+    "request" : {
+      "enabled" : true,
+      "protocol" : " smtp ",
+      "endpoint" : "x",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "Unknown SIEM protocol \"smtp\". Expected one of: WEBHOOK, SYSLOG_UDP, SYSLOG_TCP, SYSLOG_TLS.",
+      "written" : false
+    }
+  }, {
+    "name" : "an unknown minimum",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://s.example/e",
+      "header" : null,
+      "minSeverity" : " severe ",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "Unknown minimum severity \"severe\". Expected one of: CRITICAL, HIGH, MEDIUM, LOW.",
+      "written" : false
+    }
+  }, {
+    "name" : "an endpoint past its column",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://s.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "The endpoint is longer than 1024 characters.",
+      "written" : false
+    }
+  }, {
+    "name" : "an endpoint past its column once trimmed",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : " https://s.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://s.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "an enabled export with no endpoint",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : " ",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "An enabled SIEM export needs an endpoint.",
+      "written" : false
+    }
+  }, {
+    "name" : "a disabled export with no endpoint",
+    "request" : {
+      "enabled" : false,
+      "protocol" : "WEBHOOK",
+      "endpoint" : null,
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "WEBHOOK",
+        "endpoint" : null,
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=WEBHOOK, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a URL for syslog",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "https://collector.example.com/cef",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "A syslog endpoint is host:port, for example collector.example.com:6514 — no scheme and no path: the protocol field already says how events travel.",
+      "written" : false
+    }
+  }, {
+    "name" : "host:port for a webhook",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "collector.example.com:514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "A webhook endpoint is an http(s) URL, for example https://collector.example.com/cef.",
+      "written" : false
+    }
+  }, {
+    "name" : "an endpoint refused even when disabled",
+    "request" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "collector.example.com",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "A syslog endpoint needs its port, for example collector.example.com:514.",
+      "written" : false
+    }
+  }, {
+    "name" : "a header for syslog",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "collector.example.com:514",
+      "header" : "Bearer never-sent",
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "The authorization header applies to the webhook protocol only: a syslog frame has nowhere to carry it.",
+      "written" : false
+    }
+  }, {
+    "name" : "a header with a line break",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://s.example/e",
+      "header" : "Bearer a\nX-Injected: 1",
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "The authorization header may hold printable ASCII only: no line break, no control or accented character.",
+      "written" : false
+    }
+  }, {
+    "name" : "a header with an accent",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://s.example/e",
+      "header" : "Bearer é",
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "The authorization header may hold printable ASCII only: no line break, no control or accented character.",
+      "written" : false
+    }
+  }, {
+    "name" : "a header past 1500",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://s.example/e",
+      "header" : "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "The authorization header is longer than 1500 characters.",
+      "written" : false
+    }
+  }, {
+    "name" : "a header trimmed to 1500",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://s.example/e",
+      "header" : " BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB ",
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://s.example/e",
+        "header" : "v2:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : true,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a CA for another protocol",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "c.example.com:514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "A collector CA applies to syslog over TLS only: the other protocols do not verify a collector's certificate against it.",
+      "written" : false
+    }
+  }, {
+    "name" : "an expired CA",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBODCB36ADAgECAgID7TAKBggqhkjOPQQDAjATMREwDwYDVQQDDAhPbGQgUm9v\ndDAeFw0yNTAxMDEwMDAwMDBaFw0yNjEwMDExMjAwMDBaMBMxETAPBgNVBAMMCE9s\nZCBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENJ8hsVzrSzNRRKttnj8I\nMByLgMtZS3g63q5rkprXTpywCLepN2uxL+ZXDYGz1F8NUGs6986VL1v3tEMECcnH\nUqMjMCEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0E\nAwIDSAAwRQIhAPr2LFHWyc9YOilwNAq4MGITl4T7PgDqy8E38gvZHBeIAiBQn4F3\n1SIgJu8y5xqI6P2o+zrE5LSACuqVBfyMa9wbmw==\n-----END CERTIFICATE-----\n",
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z.",
+      "written" : false
+    }
+  }, {
+    "name" : "a damaged bundle",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE\nMIIBQzCB6qADAgECAgID6jAKBggqhkjOPQQDAjAXMRUwEwYDVQQDDAxDb3JwIElz\nc3VpbmcwHhcNMjYwMTAxMDAwMDAwWhcNMjcwMTAxMDAwMDAwWjAXMRUwEwYDVQQD\nDAxDb3JwIElzc3VpbmcwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARtt/NH2Qk8\nW7cmabTxrtmyAumx0A0FUf8PfOaYF1YaeW2s8TQ/yN5g3W4lLRSMkPCfQFShEqz+\nMqV3Bm823wT1oyYwJDASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQEAwIC\nBDAKBggqhkjOPQQDAgNIADBFAiA+o+V37IexRqjx5oYixHj/uIkWmYKrZ1Mk8I0t\nKbGk9wIhAK0NC/cvCQM9h83JxzpK1lesXwX/FOifRlClwQOFHqHn\n-----END CERTIFICATE-----\n",
+      "noticeFails" : false
+    },
+    "answer" : {
+      "refused" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line.",
+      "written" : false
+    }
+  }, {
+    "name" : "a CA pinned",
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_TLS",
+        "endpoint" : "c.example.com:6514",
+        "header" : null,
+        "caSubject" : "CN=Corp Root",
+        "caPem" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----",
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T12:00:00.123456Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : "2036-01-01T00:00:00Z",
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_TLS, minimum severity=HIGH, collector CA pinned)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a blank header keeps the stored one",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : "Bearer stored",
+      "ca" : null,
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : "  ",
+      "minSeverity" : "LOW",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://siem.example.com/e",
+        "header" : "v2:Bearer stored",
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "LOW",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : true,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=LOW)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a moved endpoint drops the stored header",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : "Bearer stored",
+      "ca" : null,
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://collector.attacker.example/e",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://collector.attacker.example/e",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ "WEBHOOK https://siem.example.com/e | header=Bearer stored | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was pointed at another collector: this one will receive no further events." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=HIGH); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a moved endpoint with its own header",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : "Bearer stored",
+      "ca" : null,
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem2.example.com/e",
+      "header" : " Bearer new ",
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://siem2.example.com/e",
+        "header" : "v2:Bearer new",
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : true,
+      "caNotAfter" : null,
+      "notices" : [ "WEBHOOK https://siem.example.com/e | header=Bearer stored | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was pointed at another collector: this one will receive no further events." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=HIGH); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "the same endpoint, spaced, is not a move",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : "Bearer stored",
+      "ca" : null,
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "  https://siem.example.com/e  ",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://siem.example.com/e",
+        "header" : "v2:Bearer stored",
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : true,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=WEBHOOK, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "an omitted CA keeps the pinned one",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "minSeverity" : "LOW",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_TLS",
+        "endpoint" : "c.example.com:6514",
+        "header" : null,
+        "caSubject" : "CN=Corp Root",
+        "caPem" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+        "minSeverity" : "LOW",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : "2036-01-01T00:00:00Z",
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_TLS, minimum severity=LOW, collector CA pinned)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a blank CA removes it",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : " ",
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_TLS",
+        "endpoint" : "c.example.com:6514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_TLS, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "leaving TLS drops the CA",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "c.example.com:514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_TCP",
+        "endpoint" : "c.example.com:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ "SYSLOG_TLS c.example.com 6514 | header=null | ca=CN=Corp Root | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was pointed at another collector: this one will receive no further events." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_TCP, minimum severity=HIGH); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "switching off tells the collector",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : null,
+      "minSeverity" : "CRITICAL"
+    },
+    "request" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : "CRITICAL",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "CRITICAL",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was switched off: no further events will be sent until it is switched back on." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=SYSLOG_UDP, minimum severity=CRITICAL); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "redirecting tells the collector left",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : null,
+      "minSeverity" : "CRITICAL"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:515",
+      "header" : null,
+      "minSeverity" : "CRITICAL",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:515",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "CRITICAL",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was pointed at another collector: this one will receive no further events." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_UDP, minimum severity=CRITICAL); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "another protocol to the same text is a move",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : null,
+      "minSeverity" : "CRITICAL"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : "CRITICAL",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_TCP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "CRITICAL",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was pointed at another collector: this one will receive no further events." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_TCP, minimum severity=CRITICAL); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a new minimum leaves nobody",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : null,
+      "minSeverity" : "CRITICAL"
+    },
+    "request" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : true,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=true, protocol=SYSLOG_UDP, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a collector that cannot be told",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : null,
+      "minSeverity" : "CRITICAL"
+    },
+    "request" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : true
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was switched off: no further events will be sent until it is switched back on." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=SYSLOG_UDP, minimum severity=HIGH); stop notice NOT delivered to the previous collector (the cause is in the server log)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "the webhook left is told with its header",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : "Bearer stored",
+      "ca" : null,
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : false,
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://siem.example.com/e",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "WEBHOOK",
+        "endpoint" : "https://siem.example.com/e",
+        "header" : "v2:Bearer stored",
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : true,
+      "caNotAfter" : null,
+      "notices" : [ "WEBHOOK https://siem.example.com/e | header=Bearer stored | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was switched off: no further events will be sent until it is switched back on." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=WEBHOOK, minimum severity=HIGH); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "an export already off tells nobody",
+    "before" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : null,
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : null,
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : null,
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=SYSLOG_UDP, minimum severity=HIGH)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a TLS collector left is told with its CA",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "SYSLOG_TLS",
+        "endpoint" : "c.example.com:6514",
+        "header" : null,
+        "caSubject" : "CN=Corp Root",
+        "caPem" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : "2036-01-01T00:00:00Z",
+      "notices" : [ "SYSLOG_TLS c.example.com 6514 | header=null | ca=CN=Corp Root | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was switched off: no further events will be sent until it is switched back on." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=SYSLOG_TLS, minimum severity=HIGH, collector CA pinned); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a collector whose CA lapsed is not told",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBODCB36ADAgECAgID7TAKBggqhkjOPQQDAjATMREwDwYDVQQDDAhPbGQgUm9v\ndDAeFw0yNTAxMDEwMDAwMDBaFw0yNjEwMDExMjAwMDBaMBMxETAPBgNVBAMMCE9s\nZCBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENJ8hsVzrSzNRRKttnj8I\nMByLgMtZS3g63q5rkprXTpywCLepN2uxL+ZXDYGz1F8NUGs6986VL1v3tEMECcnH\nUqMjMCEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0E\nAwIDSAAwRQIhAPr2LFHWyc9YOilwNAq4MGITl4T7PgDqy8E38gvZHBeIAiBQn4F3\n1SIgJu8y5xqI6P2o+zrE5LSACuqVBfyMa9wbmw==\n-----END CERTIFICATE-----\n",
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "SYSLOG_TLS",
+        "endpoint" : "c.example.com:6514",
+        "header" : null,
+        "caSubject" : "CN=Old Root",
+        "caPem" : "-----BEGIN CERTIFICATE-----\nMIIBODCB36ADAgECAgID7TAKBggqhkjOPQQDAjATMREwDwYDVQQDDAhPbGQgUm9v\ndDAeFw0yNTAxMDEwMDAwMDBaFw0yNjEwMDExMjAwMDBaMBMxETAPBgNVBAMMCE9s\nZCBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENJ8hsVzrSzNRRKttnj8I\nMByLgMtZS3g63q5rkprXTpywCLepN2uxL+ZXDYGz1F8NUGs6986VL1v3tEMECcnH\nUqMjMCEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0E\nAwIDSAAwRQIhAPr2LFHWyc9YOilwNAq4MGITl4T7PgDqy8E38gvZHBeIAiBQn4F3\n1SIgJu8y5xqI6P2o+zrE5LSACuqVBfyMa9wbmw==\n-----END CERTIFICATE-----\n",
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : false,
+      "caNotAfter" : "2026-10-01T12:00:00Z",
+      "notices" : [ ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=SYSLOG_TLS, minimum severity=HIGH, collector CA pinned)",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  }, {
+    "name" : "a syslog collector left is told without a stale header",
+    "before" : {
+      "enabled" : true,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : "Bearer stale",
+      "ca" : null,
+      "minSeverity" : "HIGH"
+    },
+    "request" : {
+      "enabled" : false,
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "minSeverity" : "HIGH",
+      "ca" : null,
+      "noticeFails" : false
+    },
+    "answer" : {
+      "row" : {
+        "enabled" : false,
+        "protocol" : "SYSLOG_UDP",
+        "endpoint" : "127.0.0.1:514",
+        "header" : "v2:Bearer stale",
+        "caSubject" : null,
+        "caPem" : null,
+        "minSeverity" : "HIGH",
+        "createdAt" : "2026-10-01T11:00:00Z",
+        "updatedAt" : "2026-10-01T12:00:00.123456Z"
+      },
+      "hasAuthHeader" : true,
+      "caNotAfter" : null,
+      "notices" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-028|SIEM export switched off or redirected|7|rt=1790856000123 outcome=success suser=admin src=10.0.0.1 act=SETTING_UPDATED cs1Label=Target cs1=1 cs2Label=UserAgent cs2=Mozilla/5.0 msg=The SIEM export was switched off: no further events will be sent until it is switched back on." ],
+      "audit" : {
+        "operation" : "SETTING_UPDATED",
+        "resourceId" : "1",
+        "description" : "SIEM configuration updated (enabled=false, protocol=SYSLOG_UDP, minimum severity=HIGH); stop notice delivered to the previous collector",
+        "user" : "admin",
+        "ip" : "10.0.0.1",
+        "userAgent" : "Mozilla/5.0",
+        "signal" : "SECURITY_SETTING_CHANGED"
+      }
+    }
+  } ],
+  "tests" : [ {
+    "name" : "no endpoint",
+    "request" : {
+      "protocol" : "WEBHOOK",
+      "endpoint" : null,
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "An endpoint is required.",
+      "statusCode" : 0,
+      "sent" : [ ]
+    }
+  }, {
+    "name" : "a blank endpoint",
+    "request" : {
+      "protocol" : "WEBHOOK",
+      "endpoint" : " ",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "An endpoint is required.",
+      "statusCode" : 0,
+      "sent" : [ ]
+    }
+  }, {
+    "name" : "a webhook delivered",
+    "request" : {
+      "protocol" : "WEBHOOK",
+      "endpoint" : "https://s.example/e",
+      "header" : "Bearer t",
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over WEBHOOK.",
+      "statusCode" : 200,
+      "sent" : [ "WEBHOOK https://s.example/e | header=Bearer t | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "a webhook, header blank",
+    "request" : {
+      "protocol" : null,
+      "endpoint" : "https://s.example/e",
+      "header" : "  ",
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over WEBHOOK.",
+      "statusCode" : 200,
+      "sent" : [ "WEBHOOK https://s.example/e | header=   | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "syslog delivered, the header not sent",
+    "request" : {
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : "Bearer t",
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over SYSLOG_UDP.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "the stored protocol when none is given",
+    "stored" : {
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "ca" : null
+    },
+    "request" : {
+      "protocol" : null,
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over SYSLOG_UDP.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "the stored protocol unreadable: webhook",
+    "stored" : {
+      "protocol" : "SMTP",
+      "endpoint" : "x",
+      "ca" : null
+    },
+    "request" : {
+      "protocol" : " ",
+      "endpoint" : "https://s.example/e",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over WEBHOOK.",
+      "statusCode" : 200,
+      "sent" : [ "WEBHOOK https://s.example/e | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "an unknown protocol",
+    "request" : {
+      "protocol" : "smtp",
+      "endpoint" : "https://s.example/e",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "Unknown SIEM protocol \"smtp\". Expected one of: WEBHOOK, SYSLOG_UDP, SYSLOG_TCP, SYSLOG_TLS.",
+      "statusCode" : 0,
+      "sent" : [ ]
+    }
+  }, {
+    "name" : "an endpoint unusable for the protocol",
+    "request" : {
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "https://s.example/e",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "A syslog endpoint is host:port, for example collector.example.com:514 — no scheme and no path: the protocol field already says how events travel.",
+      "statusCode" : 0,
+      "sent" : [ ]
+    }
+  }, {
+    "name" : "the CA typed for the test",
+    "request" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n",
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over SYSLOG_TLS.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_TLS c.example.com 6514 | header=null | ca=CN=Corp Root | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "the stored CA when none is typed",
+    "stored" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n"
+    },
+    "request" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over SYSLOG_TLS.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_TLS c.example.com 6514 | header=null | ca=CN=Corp Root | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "a blank CA tests the runtime's store",
+    "stored" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n"
+    },
+    "request" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : " ",
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over SYSLOG_TLS.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_TLS c.example.com 6514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "a stored bundle is read as it was accepted",
+    "stored" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE\nMIIBQzCB6qADAgECAgID6jAKBggqhkjOPQQDAjAXMRUwEwYDVQQDDAxDb3JwIElz\nc3VpbmcwHhcNMjYwMTAxMDAwMDAwWhcNMjcwMTAxMDAwMDAwWjAXMRUwEwYDVQQD\nDAxDb3JwIElzc3VpbmcwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARtt/NH2Qk8\nW7cmabTxrtmyAumx0A0FUf8PfOaYF1YaeW2s8TQ/yN5g3W4lLRSMkPCfQFShEqz+\nMqV3Bm823wT1oyYwJDASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQEAwIC\nBDAKBggqhkjOPQQDAgNIADBFAiA+o+V37IexRqjx5oYixHj/uIkWmYKrZ1Mk8I0t\nKbGk9wIhAK0NC/cvCQM9h83JxzpK1lesXwX/FOifRlClwQOFHqHn\n-----END CERTIFICATE-----\n"
+    },
+    "request" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over SYSLOG_TLS.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_TLS c.example.com 6514 | header=null | ca=CN=Corp Root | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "the same bundle typed is read as a paste",
+    "request" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBOzCB4aADAgECAgID6TAKBggqhkjOPQQDAjAUMRIwEAYDVQQDDAlDb3JwIFJv\nb3QwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAUMRIwEAYDVQQDDAlD\nb3JwIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARbiJUpWDIEm3OerL3I\nehRBVkTMP7DrS2NSVZlSFwaev2alkUgkeGAC+6B4RuQwaMhSXUS9foZI33NeKmpd\n1THsoyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjO\nPQQDAgNJADBGAiEA+0aPIF3k3Htmz2m3UGiJBxsMdNIXZh38arFWrI1NoBQCIQDj\n68QHK40HCgqzqNr5Swc8Ma5nsDeLi2tJQ308kgYs5Q==\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE\nMIIBQzCB6qADAgECAgID6jAKBggqhkjOPQQDAjAXMRUwEwYDVQQDDAxDb3JwIElz\nc3VpbmcwHhcNMjYwMTAxMDAwMDAwWhcNMjcwMTAxMDAwMDAwWjAXMRUwEwYDVQQD\nDAxDb3JwIElzc3VpbmcwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARtt/NH2Qk8\nW7cmabTxrtmyAumx0A0FUf8PfOaYF1YaeW2s8TQ/yN5g3W4lLRSMkPCfQFShEqz+\nMqV3Bm823wT1oyYwJDASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQEAwIC\nBDAKBggqhkjOPQQDAgNIADBFAiA+o+V37IexRqjx5oYixHj/uIkWmYKrZ1Mk8I0t\nKbGk9wIhAK0NC/cvCQM9h83JxzpK1lesXwX/FOifRlClwQOFHqHn\n-----END CERTIFICATE-----\n",
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line.",
+      "statusCode" : 0,
+      "sent" : [ ]
+    }
+  }, {
+    "name" : "an expired CA typed",
+    "request" : {
+      "protocol" : "SYSLOG_TLS",
+      "endpoint" : "c.example.com:6514",
+      "header" : null,
+      "ca" : "-----BEGIN CERTIFICATE-----\nMIIBODCB36ADAgECAgID7TAKBggqhkjOPQQDAjATMREwDwYDVQQDDAhPbGQgUm9v\ndDAeFw0yNTAxMDEwMDAwMDBaFw0yNjEwMDExMjAwMDBaMBMxETAPBgNVBAMMCE9s\nZCBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENJ8hsVzrSzNRRKttnj8I\nMByLgMtZS3g63q5rkprXTpywCLepN2uxL+ZXDYGz1F8NUGs6986VL1v3tEMECcnH\nUqMjMCEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0E\nAwIDSAAwRQIhAPr2LFHWyc9YOilwNAq4MGITl4T7PgDqy8E38gvZHBeIAiBQn4F3\n1SIgJu8y5xqI6P2o+zrE5LSACuqVBfyMa9wbmw==\n-----END CERTIFICATE-----\n",
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "The collector CA \"CN=Old Root\" expired on 2026-10-01T12:00:00Z.",
+      "statusCode" : 0,
+      "sent" : [ ]
+    }
+  }, {
+    "name" : "a CA typed for UDP is not read",
+    "request" : {
+      "protocol" : "SYSLOG_UDP",
+      "endpoint" : "127.0.0.1:514",
+      "header" : null,
+      "ca" : "not a pem",
+      "outcome" : "sent"
+    },
+    "answer" : {
+      "success" : true,
+      "message" : "Event delivered over SYSLOG_UDP.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_UDP 127.0.0.1 514 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "refused by the policy",
+    "request" : {
+      "protocol" : "WEBHOOK",
+      "endpoint" : "http://127.0.0.1:9/e",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "unsafe"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "Refused by the outbound policy: this destination is not allowed. A collector on the internal network needs an administrator to enable “Allow a private SIEM destination”; Vectispire's own database, its Docker daemon and the instance metadata endpoint are refused in every case.",
+      "statusCode" : 0,
+      "sent" : [ "WEBHOOK http://127.0.0.1:9/e | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  }, {
+    "name" : "not delivered",
+    "request" : {
+      "protocol" : "SYSLOG_TCP",
+      "endpoint" : "127.0.0.1:9",
+      "header" : null,
+      "ca" : null,
+      "outcome" : "failed"
+    },
+    "answer" : {
+      "success" : false,
+      "message" : "The event was not delivered: the collector could not be reached, or did not accept it. The cause is in the server log.",
+      "statusCode" : 0,
+      "sent" : [ "SYSLOG_TCP 127.0.0.1 9 | header=null | ca=null | CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-999|SIEM connector health check|1|rt=1790856000123 outcome=success msg=Vectispire SIEM health check" ]
+    }
+  } ]
+}
