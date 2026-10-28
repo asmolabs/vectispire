@@ -358,9 +358,20 @@ final class Placeholders {
         if (text == null || text.isEmpty()) {
             return text;
         }
-        // A PEM block whole, before anything inside it is read as a token.
-        String out = replace(text, PEM, match -> "«pem:" + match.group(1).toLowerCase(Locale.ROOT).replace(' ', '-') + ":"
-                + pems.computeIfAbsent(match.group(), key -> pems.size() + 1) + "»");
+        // A PEM block whole, before anything inside it is read as a token. **A certificate stays literal**: it is
+        // public, and an answer states what it reads from one — the subject, the expiry — so a replay sending a
+        // placeholder in its place could answer nothing Java answered (the SIEM's collector CA, refused or pinned).
+        // It is set aside while the rules run, so that no base64 run of its body is read as a token. A key is a
+        // placeholder: no key reaches a golden.
+        List<String> certificates = new ArrayList<>();
+        String out = replace(text, PEM, match -> {
+            if ("CERTIFICATE".equals(match.group(1))) {
+                certificates.add(match.group());
+                return CERTIFICATE_SET_ASIDE + (certificates.size() - 1) + CERTIFICATE_SET_ASIDE;
+            }
+            return "«pem:" + match.group(1).toLowerCase(Locale.ROOT).replace(' ', '-') + ":"
+                    + pems.computeIfAbsent(match.group(), key -> pems.size() + 1) + "»";
+        });
         // Stored forms next: an Argon2 hash carries 43 base64 characters that would otherwise read as a token.
         out = replace(out, PASSWORD_HASH, match -> passwordHash(match.group()));
         out = replace(out, SEALED, match -> "«sealed»");
@@ -394,8 +405,14 @@ final class Placeholders {
             return id == null ? match.group() : id;
         });
         out = replace(out, LONG_NUMBER, match -> longNumber(match.group()));
+        for (int i = 0; i < certificates.size(); i++) {
+            out = out.replace(CERTIFICATE_SET_ASIDE + i + CERTIFICATE_SET_ASIDE, certificates.get(i));
+        }
         return out;
     }
+
+    /** Brackets a certificate's index while the rules run: a character no recorded text holds. */
+    private static final String CERTIFICATE_SET_ASIDE = "\u0000";
 
     private String replaceHashesOfSecrets(String text) {
         if (secretHashes.isEmpty() || text.length() < 64) {

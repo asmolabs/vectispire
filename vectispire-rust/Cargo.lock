@@ -4084,6 +4084,7 @@ dependencies = [
  "vectispire-cp-rules",
  "vectispire-cp-scanning",
  "vectispire-cp-settings",
+ "vectispire-cp-siem",
  "vectispire-cp-targets",
  "vectispire-crypto",
  "vectispire-domain",

@@ -76,7 +76,7 @@ impl IssueDecisionService {
             .ok_or_else(|| IssueError::NotFound("Issue not found.".to_owned()))?;
 
         Self::require_visible(&issue, &caller.visibility)?;
-        let _previous = issue.triage_status.clone();
+        let previous = issue.triage_status.clone();
 
         let request = decision.to_request(actor.clone());
         let updated = IssueTriageService::triage(&mut tx, id, &request, can_approve).await?;
@@ -99,7 +99,7 @@ impl IssueDecisionService {
         let mut rec = Record::of(AuditOperation::IssueTriaged, &id.to_string(), &desc, Some(&actor));
         rec.ip_address = caller.ip_address;
         rec.user_agent = caller.user_agent;
-        self.audit.record(rec).await;
+        self.audit.record(signalled(rec, &[Some(previous.as_str())], Some(updated.triage_status.as_str()))).await;
 
         Ok(updated.to_view())
     }
@@ -145,7 +145,9 @@ impl IssueDecisionService {
         let mut rec = Record::of(AuditOperation::IssueTriaged, &format!("{} issues", ids.len()), &desc, Some(&actor));
         rec.ip_address = caller.ip_address;
         rec.user_agent = caller.user_agent;
-        self.audit.record(rec).await;
+        let previous: Vec<Option<&str>> = result.previous.iter().map(|status| Some(status.as_str())).collect();
+        let after = result.triaged.first().map(|issue| issue.triage_status.as_str());
+        self.audit.record(signalled(rec, &previous, after)).await;
 
         Ok(result.triaged.into_iter().map(|i| i.to_view()).collect())
     }
@@ -254,3 +256,35 @@ impl IssueDecisionService {
 }
 
 opaque_debug!(IssueDecisionService);
+
+/// The entry, signalling the SIEM event the decision is — `TriageSignals`: a status settled, a request approved or
+/// refused — and not otherwise. It is also how a ticket attached or an issue put under review leaves no event: the
+/// same operation, no signal. Without it the SOC heard of no triage decision at all, since `ISSUE_TRIAGED` names
+/// none by its operation.
+fn signalled(entry: Record, previous: &[Option<&str>], result: Option<&str>) -> Record {
+    match vectispire_domain::siem::triage_signals::of(previous, result) {
+        Some(event) => entry.signalling(vectispire_cp_audit::Signal(event.wire_name())),
+        None => entry,
+    }
+}
+
+#[cfg(test)]
+mod signal_tests {
+    use super::*;
+
+    fn entry() -> Record {
+        Record::of(AuditOperation::IssueTriaged, "7", "Triage", Some("lead"))
+    }
+
+    #[test]
+    fn a_settling_decision_signals_and_housekeeping_does_not() {
+        let settled = signalled(entry(), &[Some("under_review")], Some("not_affected"));
+        assert_eq!(settled.signal.map(|signal| signal.0), Some("TRIAGE_SETTLED"));
+        let approved = signalled(entry(), &[Some("pending_approval")], Some("not_affected"));
+        assert_eq!(approved.signal.map(|signal| signal.0), Some("TRIAGE_APPROVED"));
+        let refused = signalled(entry(), &[Some("affected"), Some("pending_approval")], Some("under_review"));
+        assert_eq!(refused.signal.map(|signal| signal.0), Some("TRIAGE_REFUSED"));
+        assert_eq!(signalled(entry(), &[Some("affected")], Some("under_review")).signal, None);
+        assert_eq!(signalled(entry(), &[Some("affected")], None).signal, None);
+    }
+}

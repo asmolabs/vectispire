@@ -46,6 +46,8 @@ vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-gate = { path = "../cp-gate" }
 vectispire-cp-rules = { path = "../cp-rules" }
 vectispire-cp-inventory = { path = "../cp-inventory" }
+# The replay composes the SIEM export as the binary does: its listener queues the events the recordings hold.
+vectispire-cp-siem = { path = "../cp-siem" }
 http-body-util.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true

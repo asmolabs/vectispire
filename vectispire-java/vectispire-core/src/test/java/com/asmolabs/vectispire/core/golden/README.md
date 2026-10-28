@@ -265,7 +265,7 @@ Then, on every string, in this order:
 
 | rule | placeholder |
 |---|---|
-| a PEM block, whole | `«pem:<label>:N»`, such as `«pem:certificate:1»`. The suites generate their certificate authorities and keys at every run, and no key reaches a golden |
+| a PEM block, whole — **not a certificate**, which stays literal | `«pem:<label>:N»`, such as `«pem:private-key:1»`. The suites generate their keys at every run, and no key reaches a golden. A certificate is public and an answer states what it reads from one (a subject, an expiry): replaced, it left the SIEM's collector-CA recordings unreplayable. Its body is set aside while the other rules run, so no run of its base64 is read as a token |
 | an Argon2 or bcrypt hash | `«password-hash(correct horse battery staple)»`, `«password-hash(secret:N)»` when it verifies against that secret (a password sent in this test, or an API key), else `«password-hash(?)»`. A replay seeding the row hashes that value |
 | a sealed value, `v2:` and base64 (`SecretCipher`) | `«sealed»` |
 | the SHA-256 hex of a known secret | `«sha256(secret:N)»`. A session's `token_hash`: the replay mints a token, stores its hash and sends it |
