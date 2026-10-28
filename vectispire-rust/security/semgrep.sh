@@ -6,6 +6,8 @@ set -eu
 cd "$(dirname "$0")/.."
 IMAGE=semgrep/semgrep@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8
 
+# Pulled with retries first: `docker run` pulls once, and a registry timeout is not a finding.
+../scripts/pull-pinned-image.sh "$IMAGE"
 docker run --rm --network none -v "$PWD:/src:ro" -w /src "$IMAGE" \
   semgrep scan --quiet --metrics=off --disable-version-check --error --config security/semgrep/rust.yml \
   --exclude target --json --output /dev/stdout . > "${TMPDIR:-/tmp}/vs-rs-semgrep.json" || status=$?
