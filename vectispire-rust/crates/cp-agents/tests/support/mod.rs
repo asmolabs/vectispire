@@ -22,8 +22,7 @@ use vectispire_cp_outbox::{Outbox, Registry};
 use vectispire_cp_scanning::ports::{BundledRules, IngestionStandIn, NoPlugins};
 use vectispire_cp_scanning::{Scanning, ScanningConfig};
 use vectispire_cp_targets::{
-    AuditSink, Clock, IssuesStandIn, PurgeRegistry, SystemClock as TargetsClock, Targets, TargetsConfig,
-    TargetsForAccess,
+    AuditSink, Clock, PurgeRegistry, SystemClock as TargetsClock, Targets, TargetsConfig, TargetsForAccess,
 };
 use vectispire_domain::git_host_allowlist::GitHostAllowlist;
 use vectispire_domain::scan_queue::Policy;
@@ -245,7 +244,7 @@ pub fn compose_with_ingestor(
         db: db.clone(),
         audit: entries.clone(),
         scans: vectispire_cp_scanning::target_scans(db.clone(), clock.clone()),
-        backlog: Arc::new(IssuesStandIn),
+        backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
         purge: PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners()),
         encryption: enc.clone(),
         allowed_hosts: GitHostAllowlist::default(),

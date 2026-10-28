@@ -237,6 +237,15 @@ fn a_clock_value_must_be_in_the_recorders_window() {
 }
 
 #[test]
+fn a_rate_window_is_seeded_in_a_row_and_never_in_a_request() {
+    let mut b = bindings();
+    // A webhook's hit, played in Java's place: the key keeps its limit and subject, the window is the epoch's.
+    let key = b.concrete("TICKET_WEBHOOK:«window»:abc123", "window_key", Context::Row).unwrap();
+    assert_eq!(key, "TICKET_WEBHOOK:0:abc123");
+    assert!(b.concrete("«window»", "window", Context::Wire).is_err(), "a request names the live window");
+}
+
+#[test]
 fn the_rules_that_number_nothing_cover_only_their_shape() {
     let mut b = bindings();
     assert!(b.match_text("«sealed»", "v2:AAAAbbbb==", "git_token").is_ok());

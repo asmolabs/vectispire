@@ -292,24 +292,8 @@ golden api.PluginsRoutesTest.Scans/theScanKeepsARefusalAndAWaiver--008-GET-api_v
 golden api.PluginsRoutesTest.Scans/theScanKeepsEachPluginsOutcome--008-GET-api_v1_scans_t_scan_1_ | follows an agent’s long poll (`async`), whose two records this replay does not merge yet (2.9)
 golden api.ProblemDetailsRoutesTest/aWrongContentType--001-POST-api_v1_repositories | MockMvc does not force the request’s charset as the container does: cp-http answers the container’s sentence, pinned by its own capture (crates/cp-http/tests/golden)
 golden api.ProblemDetailsRoutesTest/theBodyLimit--001-POST-api_v1_repositories | a request body past 64 KiB, in a gzip sidecar this replay does not send yet
-golden api.ProjectAggregatesRoutesTest.Read/partialAndNone--007-GET-api_v1_projects_t_project_1_ | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectAggregatesRoutesTest.Read/whole--005-GET-api_v1_projects_t_project_1_ | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectAggregatesRoutesTest.Read/whole--006-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 golden api.ProjectChecklistsRoutesTest.TheDocument/theStoredBytes--027-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s checklists listener is a stand-in until Phase 5: the checklists it deletes stay
 golden api.ProjectChecklistsRoutesTest/deletingTheProjectPurges--019-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s checklists listener is a stand-in until Phase 5: the checklists it deletes stay
-golden api.ProjectContainersRoutesTest/aMoveCarriesImages--006-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/aProjectGrantGivesAndRemovesImageAccess--007-GET-api_v1_containers | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/aProjectGrantGivesAndRemovesImageAccess--009-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/deletingAProjectUnfilesImages--005-GET-api_v1_containers | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/deletingAProjectUnfilesImages--007-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/fileListAndRemove--005-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/fileListAndRemove--006-GET-api_v1_containers | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/fileListAndRemove--009-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ProjectContainersRoutesTest/fileListAndRemove--010-GET-api_v1_containers | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--056-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--074-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--135-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.ReadCostSweepTest/noGetRouteLoadsTheEstate--153-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 golden api.RemainingContractTest/theEncryptionState--001-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.RemainingContractTest/theEncryptionState--002-GET-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
 golden api.ReportPluginsRoutesTest.Activating/projectDeleted--005-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s report plugins listener is a stand-in until Phase 5: the rows it deletes stay
@@ -322,16 +306,6 @@ golden api.ScanExaminationRoutesTest/theAgentsResultIsRecorded--005-GET-api_v1_s
 golden api.SiemSignalsRoutesTest/projectVisibilityChanges--005-PUT-api_v1_projects_t_project_1_repositories_t_repository_1_ | the SIEM event is enqueued by the siem module from the audit entry’s signal (Phase 4)
 golden api.SiemSignalsRoutesTest/projectVisibilityChanges--008-DELETE-api_v1_projects_t_project_1_ | the SIEM event is enqueued by the siem module from the audit entry’s signal (Phase 4)
 golden api.SiemSignalsRoutesTest/targetDeletionRevocations--005-DELETE-api_v1_repositories_t_repository_2_ | the SIEM event is enqueued by the siem module from the audit entry’s signal (Phase 4)
-golden api.SolutionsRoutesTest/aPartialGrantSeesAPartialProject--007-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.SolutionsRoutesTest/aProjectGrantIsResolvedAtEachRequest--007-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.SolutionsRoutesTest/aProjectGrantIsResolvedAtEachRequest--009-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.SolutionsRoutesTest/aProjectMovesWithEverythingItNames--008-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.SolutionsRoutesTest/aProjectMovesWithEverythingItNames--011-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.SolutionsRoutesTest/aTeamProjectGrantWorks--008-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.SolutionsRoutesTest/anAdministratorSeesTheWholeTree--005-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.SolutionsRoutesTest/deletingAProjectDetaches--007-GET-api_v1_solutions | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.TeamVisibilityTest/membershipGrantsTheTeamsTargets--006-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
-golden api.VisibilityRoutesTest/anAssignedReaderSeesOnlyItsOwn--004-GET-api_v1_repositories | the backlog figures are IssuesStandIn’s zeros until issues port TargetBacklog (Phase 3)
 
 # ── The agents' routes (task 2.9, replayed with targets and scanning since 2026-10-22): stand-ins and recording limits ──
 golden api.AgentConcurrencyRoutesTest/theClaimHonoursTheLimit--011-GET-api_v1_agent_jobs | the test rewinds a lease or a retry's wait directly, and the recorder normalises timestamps: the change is not in the seed — recording limit
