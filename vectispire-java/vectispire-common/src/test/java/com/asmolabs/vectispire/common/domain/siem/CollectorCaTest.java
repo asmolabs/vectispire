@@ -70,6 +70,12 @@ class CollectorCaTest {
         assertThat(CollectorCa.parse(damaged, NOW).anchors())
                 .extracting(CollectorCa.Anchor::subject).containsExactly("CN=Root");
         assertThat(CollectorCa.parsePasted(root + issuing, NOW).anchors()).hasSize(2);
+
+        // The reader knows the marker in capitals only: a lower-case one ends the bundle just as silently.
+        String lowerCase = root + issuing.replaceFirst("-----BEGIN CERTIFICATE-----", "-----begin CERTIFICATE-----");
+        assertThatThrownBy(() -> CollectorCa.parsePasted(lowerCase, NOW))
+                .hasMessageStartingWith("The collector CA has a -----BEGIN line that cannot be read");
+        assertThat(CollectorCa.parse(lowerCase, NOW).anchors()).hasSize(1);
     }
 
     @Test

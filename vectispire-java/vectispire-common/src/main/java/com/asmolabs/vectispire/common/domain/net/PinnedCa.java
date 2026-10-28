@@ -97,10 +97,16 @@ public record PinnedCa(String pem, List<Anchor> anchors) {
         return read;
     }
 
-    /** Every object the reader returned started at one; one it skipped leaves its marker uncounted. */
+    /**
+     * Every object the reader returned started at one; one it skipped leaves its marker uncounted. Counted in any
+     * ASCII case: the reader knows only {@code -----BEGIN}, so a second certificate behind {@code -----begin} was
+     * dropped as silently as one behind a broken line. ASCII only, so that no other letter folds into the marker.
+     */
     private static int markers(String pem) {
+        StringBuilder folded = new StringBuilder(pem.length());
+        pem.chars().forEach(c -> folded.append((char) (c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c)));
         int count = 0;
-        for (int at = pem.indexOf("-----BEGIN"); at >= 0; at = pem.indexOf("-----BEGIN", at + 1)) {
+        for (int at = folded.indexOf("-----begin"); at >= 0; at = folded.indexOf("-----begin", at + 1)) {
             count++;
         }
         return count;
