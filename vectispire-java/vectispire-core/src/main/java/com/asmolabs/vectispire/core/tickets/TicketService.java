@@ -93,7 +93,7 @@ public class TicketService {
      * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException worded for whoever pasted it
      */
     public Optional<PinnedCa> caToPin(String pem) {
-        return pem == null || pem.isBlank() ? Optional.empty() : Optional.of(PinnedCa.parse(pem, clock.instant(), CA));
+        return pem == null || pem.isBlank() ? Optional.empty() : Optional.of(PinnedCa.parsePasted(pem, clock.instant(), CA));
     }
 
     /**

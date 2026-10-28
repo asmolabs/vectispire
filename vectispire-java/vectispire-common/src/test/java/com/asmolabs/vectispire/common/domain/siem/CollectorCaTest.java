@@ -58,6 +58,21 @@ class CollectorCaTest {
     }
 
     @Test
+    @DisplayName("a paste with a damaged -----BEGIN line is refused; a stored one is read as it was accepted")
+    void aDamagedMarkerIsNotSilentlyCutShort() throws Exception {
+        String root = certificate("CN=Root", true, null, NOW.minus(Duration.ofDays(1)), NOW.plus(Duration.ofDays(900)));
+        String issuing = certificate("CN=Issuing", true, null, NOW.minus(Duration.ofDays(1)), NOW.plus(Duration.ofDays(90)));
+        String damaged = root + issuing.replaceFirst("-----BEGIN CERTIFICATE-----", "-----BEGIN CERTIFICATE");
+
+        assertThatThrownBy(() -> CollectorCa.parsePasted(damaged, NOW))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessageStartingWith("The collector CA has a -----BEGIN line that cannot be read");
+        assertThat(CollectorCa.parse(damaged, NOW).anchors())
+                .extracting(CollectorCa.Anchor::subject).containsExactly("CN=Root");
+        assertThat(CollectorCa.parsePasted(root + issuing, NOW).anchors()).hasSize(2);
+    }
+
+    @Test
     @DisplayName("the collector's own certificate is refused: it is not a CA")
     void refusesALeaf() throws Exception {
         String leaf = certificate("CN=collector.corp", false, null, NOW.minus(Duration.ofDays(1)), NOW.plus(Duration.ofDays(30)));

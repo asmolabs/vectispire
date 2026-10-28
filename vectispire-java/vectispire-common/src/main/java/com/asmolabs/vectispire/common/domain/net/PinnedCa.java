@@ -78,6 +78,35 @@ public record PinnedCa(String pem, List<Anchor> anchors) {
     }
 
     /**
+     * Reads a bundle somebody has just pasted: {@link #parse}, and refused when part of it would not be read.
+     *
+     * <p>BouncyCastle's reader stops at a {@code -----BEGIN} line it cannot read, silently, and hands back what it
+     * had: a root followed by a damaged intermediate was pinned as the root alone, and the collector failed its
+     * handshake later with nothing pointing at the paste. Only where the text is typed: a stored bundle is read as
+     * it was accepted, since refusing it now would stop a connection that works with the certificates it has.
+     *
+     * @throws InvalidInputException worded for the person who pasted it
+     */
+    public static PinnedCa parsePasted(String pem, Instant now, Subject subject) {
+        PinnedCa read = parse(pem, now, subject);
+        if (markers(read.pem()) > read.anchors().size()) {
+            throw new InvalidInputException(subject.field() + " has a -----BEGIN line that cannot be read, and what "
+                    + "follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- "
+                    + "line to its -----END CERTIFICATE----- line.");
+        }
+        return read;
+    }
+
+    /** Every object the reader returned started at one; one it skipped leaves its marker uncounted. */
+    private static int markers(String pem) {
+        int count = 0;
+        for (int at = pem.indexOf("-----BEGIN"); at >= 0; at = pem.indexOf("-----BEGIN", at + 1)) {
+            count++;
+        }
+        return count;
+    }
+
+    /**
      * Reads a bundle, checking its shape but not its dates — for describing a stored one, which may
      * have expired since it was saved and must still be shown so that somebody replaces it.
      *
