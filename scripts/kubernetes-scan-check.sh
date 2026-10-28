@@ -130,6 +130,8 @@ python3 "$fixture_dir/matcher-db.py" "$work/matcher/vulnerability.db" "$PACKAGE"
 chmod 644 "$work/matcher/vulnerability.db"
 chmod 777 "$work/db"
 generation="$(python3 -c 'import time; print(int(time.time() * 1000))')-$(openssl rand -hex 4)"
+# With retries, as the composition check pulls it: a registry timeout is not a cluster that cannot scan.
+"$root/scripts/pull-pinned-image.sh" "$GRYPE_IMAGE"
 docker run --rm --network none -u 1000:1000 -v "$work/db:/db" -v "$work/matcher:/in:ro" \
   -e "GRYPE_DB_CACHE_DIR=/db/vectispire-vulnerability-db/generations/$generation" \
   -e GRYPE_CHECK_FOR_APP_UPDATE=false "$GRYPE_IMAGE" db import /in/vulnerability.db > /dev/null

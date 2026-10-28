@@ -34,6 +34,39 @@ display_name, is_masked_form_of}`, `repository_identity`, `image_reference`, `as
 (`TargetRulesReferenceSetTest`, written before the port). `java_uri::Parsed` gained `raw_path`, which `identity`
 reads as `URI.getRawPath`. `schedules` holds only what the listings need; the scheduler's `isDue` is task 2.7's.
 
+## The SIEM's domain (task 4.2, first stage)
+
+`siem` is `common.domain.siem`: the event catalogue (`SecurityEventType`, wire names, signature ids, CEF
+severities and outcomes), `signalled_by` and the placement of every audit operation, `CefEvent` and its builder,
+the RFC 5424 frame and octet counting (`syslog`), the endpoint an operator types (`endpoint`), the protocol, the
+severity minimum and the triage signals, and the collector CA (`siem::collector_ca`) over `pinned_ca`, the X.509
+reading of a pinned CA that the forge connections will share as Java shares it. It sits here, not in the export's crate, so that the modules raising an
+event (issues, gate, the threat feed) build one without depending on the export — as the Java types sit in
+`vectispire-common`. `TriageStatus` moved here from `cp-issues` with it (re-exported there), so that the gate and
+the SOC's signals ask one `is_settled`.
+
+Everything that leaves the system — the CEF line, the syslog header, the wire names, the refusals — is held to
+`reference/siem/` (`SiemReferenceSetTest`). `cp-audit`'s `tests/siem_vocabulary.rs` holds the operations and the
+placements to each other in both directions (Java's switch has no default; here the two lists live in different
+crates), and every `Signal` written with a literal name in the workspace to a `SecurityEventType`.
+
+**Three Java behaviours fixed on the Java side first, then followed here** (6f8b5d117), since each was a value
+saved that could never work: a webhook's port is checked as `URI.getPort` reads it (`:99999` was saved, every
+delivery failed); a syslog host of digits and dots must be an IPv4 literal `Inet4Address.ofLiteral` reads, after one
+trailing dot (`endpoint::ipv4_of_literal`: one to four decimal parts, the last filling the bytes left, fifteen
+characters at most — `999.999.999.999` matched the host-name pattern); and a CA bundle **typed** is refused when a
+`-----BEGIN` line was skipped by the reader (`PinnedCa::parse_pasted`, `CollectorCa::parse_pasted`), where `parse` and
+`read` stay lenient for a stored bundle, which is read as it was accepted. **The fourth stays, decided**: a port
+written with leading zeros (`00514`) is that port, since a stored endpoint is read again at each delivery and refusing
+it would stop an export that works; `SiemEndpointTest.leadingZeros` and the reference set pin it on both sides.
+The marker is counted in any ASCII case, as Java counts it since: the reader knows only `-----BEGIN`, so a second
+certificate behind `-----begin CERTIFICATE-----` was dropped as silently. Still as Java has it: a header that quotes
+the marker is counted, and the paste refused — a harmless false positive, in the reference set.
+
+Ported, but shaped for Rust: an issue's severity given to a type whose severity is fixed is refused by `build()`,
+where Java throws at the call — either way no event exists. `SecurityEventRaised` and `SecurityEventRaisedApart`
+are Spring events and are not here: the export's crate replaces them with a trait.
+
 ## Differences from Java, known
 
 Decided 2026-10-17 by the 2.4 port; each is outside what any stored value or wire message can reach today.
@@ -52,3 +85,19 @@ Decided 2026-10-17 by the 2.4 port; each is outside what any stored value or wir
 - **`as_text` of an integer beyond `u64`**: `serde_json` reads it as a double, Jackson as a `BigInteger`;
   only an SBOM id or parent of that size would notice.
 - **`cron`, past year 999,999,999**: the search stops (`None`) where Java throws a `DateTimeException`.
+- **A syslog endpoint's IPv6 literal** is read by the standard library, plus the two JDK answers that matter: an
+  IPv4-mapped address is not IPv6, a numeric scope is accepted. An interface-name scope (`%eth0`), which the JDK
+  accepts only on a machine that has the interface, is refused everywhere; a group of more than four digits whose
+  value fits (`01234::1`), which the JDK reads, is refused. Both refuse a spelling Java accepts — the safe side.
+- **`TriageStatus::from_wire_name`** now trims and lowers as Java does (`String.trim`, `toLowerCase(ROOT)`);
+  `cp-issues`' copy used `str::trim` and ASCII lowering, which disagreed on a leading control character and a
+  trailing no-break space.
+- **A pinned CA is read by `x509`, a DER reader of this crate's own** (no new dependency; `der`'s tags stop short of
+  UniversalString, GraphicString and GeneralString, which BouncyCastle renders). It is stricter than BouncyCastle
+  and never looser: a BER length (indefinite, or not in its shortest form), a constructed string, a tag number
+  above 30, a time outside `YYMMDDHHMMSSZ`/`YYYYMMDDHHMMSSZ` or naming a date that does not exist (BouncyCastle's
+  `SimpleDateFormat` rolls one over), an arc beyond 128 bits, a version tagged other than `[0]` — each a certificate
+  Java pins and this refuses as unreadable. Two answers differ otherwise: a PEM object of a known non-certificate
+  type is "something other than certificates" when its body is one well-formed DER element, where BouncyCastle
+  first parses it as that type and says "not readable" if it is not one (both refuse); and a BMPString holding a
+  lone surrogate renders it `?`, where Java keeps the unpaired unit.

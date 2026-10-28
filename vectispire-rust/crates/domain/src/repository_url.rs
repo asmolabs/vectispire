@@ -295,6 +295,9 @@ pub mod java_uri {
         pub host: Option<String>,
         /// The path as `URI.getRawPath` returns it — escapes kept; `None` for an opaque URI.
         pub raw_path: Option<String>,
+        /// The port as `URI.getPort` reads it — any run of ASCII digits that fits an `int`, zero and past 65535
+        /// included; `None` where Java answers -1: no port, an empty one, or a registry-based authority.
+        pub port: Option<i32>,
     }
 
     /// The URI does not parse: the JDK would throw `URISyntaxException`.
@@ -346,13 +349,14 @@ pub mod java_uri {
         scheme: Option<String>,
         host: Option<String>,
         raw_path: Option<String>,
+        port: Option<i32>,
     }
 
     /// Parses as `new URI(text)` does.
     pub fn parse(text: &str) -> Result<Parsed, Syntax> {
-        let mut parser = Parser { input: text.chars().collect(), scheme: None, host: None, raw_path: None };
+        let mut parser = Parser { input: text.chars().collect(), scheme: None, host: None, raw_path: None, port: None };
         parser.parse()?;
-        Ok(Parsed { scheme: parser.scheme, host: parser.host, raw_path: parser.raw_path })
+        Ok(Parsed { scheme: parser.scheme, host: parser.host, raw_path: parser.raw_path, port: parser.port })
     }
 
     impl Parser {
@@ -487,7 +491,10 @@ pub mod java_uri {
             if server_chars {
                 match self.parse_server(start, n) {
                     Ok(end) if end >= n => q = end,
-                    _ => self.host = None,
+                    _ => {
+                        self.host = None;
+                        self.port = None;
+                    }
                 }
             }
             if q < n {
@@ -495,6 +502,7 @@ pub mod java_uri {
                     return Err(Syntax);
                 }
                 self.host = None;
+                self.port = None;
             }
             Ok(n)
         }
@@ -539,7 +547,7 @@ pub mod java_uri {
                 let q = self.scan_until(p, n, "", "/").unwrap_or(n);
                 if q > p {
                     self.check(p, q, DIGITS_ONLY)?;
-                    self.substring(p, q).parse::<i32>().map_err(|_| Syntax)?;
+                    self.port = Some(self.substring(p, q).parse::<i32>().map_err(|_| Syntax)?);
                     p = q;
                 }
             }

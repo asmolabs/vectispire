@@ -392,7 +392,7 @@ public class ForgeConnectionService {
     }
 
     private Optional<PinnedCa> caOf(String pem) {
-        return pem == null || pem.isBlank() ? Optional.empty() : Optional.of(PinnedCa.parse(pem, clock.instant(), CA));
+        return pem == null || pem.isBlank() ? Optional.empty() : Optional.of(PinnedCa.parsePasted(pem, clock.instant(), CA));
     }
 
     private static ForgeEdition editionOf(ForgeConnectionEntity entity) {

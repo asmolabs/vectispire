@@ -129,7 +129,7 @@ public class SiemExporterService {
                     "A collector CA applies to syslog over TLS only: the other protocols do not verify a "
                             + "collector's certificate against it.");
         }
-        CollectorCa pinned = caGiven ? CollectorCa.parse(tlsCaPem, clock.instant()) : null;
+        CollectorCa pinned = caGiven ? CollectorCa.parsePasted(tlsCaPem, clock.instant()) : null;
 
         SiemConfigEntity entity = repository.findById(SiemConfigEntity.SINGLETON_ID)
                 .orElseGet(() -> {
@@ -323,7 +323,10 @@ public class SiemExporterService {
             destination = SiemEndpoint.parse(parsed, endpoint);
             String ca = tlsCaPem != null ? tlsCaPem : getConfig().map(SiemConfigView::tlsCaPem).orElse(null);
             pinned = parsed == SiemProtocol.SYSLOG_TLS && ca != null && !ca.isBlank()
-                    ? Optional.of(CollectorCa.parse(ca, clock.instant()))
+                    // The stored one is read as it was accepted; only a CA typed for this test is a paste.
+                    ? Optional.of(tlsCaPem != null
+                            ? CollectorCa.parsePasted(ca, clock.instant())
+                            : CollectorCa.parse(ca, clock.instant()))
                     : Optional.empty();
         } catch (IllegalArgumentException refused) {
             return new TestResult(false, refused.getMessage(), 0);
