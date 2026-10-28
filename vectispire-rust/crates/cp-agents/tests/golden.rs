@@ -26,7 +26,8 @@ mod support;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use vectispire_cp_access::credentials::{
     CredentialService, ScimToken, SessionPolicy, SystemClock as AccessClock, hash_of, keys, phc,
@@ -44,6 +45,7 @@ use vectispire_cp_contract::recorded::replay::{Outcome, Replayed, Replayer};
 use vectispire_cp_contract::recorded::rows::{self, Schema};
 use vectispire_cp_contract::{Document, Schemas};
 use vectispire_cp_db::{Db, Engine};
+use vectispire_cp_http::buckets::Clock as BucketClock;
 use vectispire_cp_http::credentials::{AccessDenied, Audit, BoxFuture};
 use vectispire_cp_http::routes::Routes;
 use vectispire_cp_http::{Chain, ChainConfig};
@@ -125,6 +127,45 @@ impl Audit for ChainEntries {
     }
 }
 
+/// The limiters' clock, running only while the router answers. Java's suite sends a test's requests back to back; the
+/// replay seeds, snapshots and compares every table between two of them, which takes the throttles' refill period
+/// several times over: sixty refused bearers left a token back before the sixtieth, and the refusals that followed were
+/// 401 instead of 429, or waited two seconds where Java's waited four. Paused between requests, the buckets see about
+/// the time Java's did — less, by Java's own test overhead, which `Retry-After` rounds away.
+#[derive(Debug, Default)]
+struct AnsweringTime(Mutex<(u128, Option<Instant>)>);
+
+impl AnsweringTime {
+    fn start(&self) {
+        self.0.lock().unwrap().1 = Some(Instant::now());
+    }
+
+    fn stop(&self) {
+        let mut state = self.0.lock().unwrap();
+        if let Some(since) = state.1.take() {
+            state.0 += since.elapsed().as_nanos();
+        }
+    }
+}
+
+impl BucketClock for AnsweringTime {
+    fn nanos(&self) -> u128 {
+        let state = self.0.lock().unwrap();
+        state.0 + state.1.map_or(0, |since| since.elapsed().as_nanos())
+    }
+}
+
+async fn answering(
+    axum::extract::State(time): axum::extract::State<Arc<AnsweringTime>>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    time.start();
+    let response = next.run(request).await;
+    time.stop();
+    response
+}
+
 /// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
 /// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
 fn router(db: &Db) -> axum::Router {
@@ -203,8 +244,9 @@ fn router(db: &Db) -> axum::Router {
         routes = routes.route(entry);
     }
     let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
-    let chain = Arc::new(Chain::new(ChainConfig::default(), credentials, Arc::new(entries)));
-    routes.build(&chain, None).unwrap()
+    let time = Arc::new(AnsweringTime::default());
+    let chain = Arc::new(Chain::with_clock(ChainConfig::default(), credentials, Arc::new(entries), time.clone()));
+    routes.build(&chain, None).unwrap().layer(axum::middleware::from_fn_with_state(time, answering))
 }
 
 /// The routes of the issues, gate and inventory modules (Phase 3) this test owes a replay: those whose every recording
