@@ -137,8 +137,9 @@ Names depend only on the tree: two recordings of the same commit have the same f
     as often as not. A request body is shown as `json` only when the compact serialisation of what was
     parsed gave back its exact bytes. Send `json` bodies compact (no whitespace), in the sorted order.
     Anything else is shown as `text` and sent byte for byte. A signed webhook's signature covers bytes.
-- **Text** covers `text/*`, `xml`, `yaml`, `csv`, form bodies and `javascript`, as long as the bytes
-  decode in the declared charset (UTF-8 by default).
+- **Text** covers `text/*`, `xml`, `yaml`, `csv`, form bodies, `javascript` and PEM (`application/x-pem-file`,
+  the signing key's public half, whose block is then hidden as any other), as long as the bytes decode in the
+  declared charset (UTF-8 by default).
 - **Anything else** is binary: its length and SHA-256. A request's bytes are inline in base64, because
   the replay has to send them. A response's bytes are in a gzip sidecar (`file`), for phase 5, which
   compares what a PDF or an xlsx says rather than its digest. Many documents embed when they were

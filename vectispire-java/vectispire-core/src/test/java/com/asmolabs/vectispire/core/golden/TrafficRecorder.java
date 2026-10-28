@@ -638,9 +638,18 @@ public final class TrafficRecorder {
         return trimmed.startsWith("{") || trimmed.startsWith("[");
     }
 
-    private static boolean isTextual(String type) {
+    /**
+     * Whether a body of this type is kept as text, where {@link Placeholders} can hide what changes at every run.
+     *
+     * <p><b>PEM is text.</b> {@code application/x-pem-file} — the signing key's public half — was kept as a binary
+     * sidecar under its digest: the replay compares no binary answer, and the key, generated at every run, was not
+     * hidden, so no other implementation's answer could have matched it. As text, the block is recorded as
+     * {@code «pem:public-key:1»}.
+     */
+    static boolean isTextual(String type) {
         return type.startsWith("text/") || type.contains("json") || type.contains("xml") || type.contains("yaml")
-                || type.contains("csv") || type.contains("x-www-form-urlencoded") || type.contains("javascript");
+                || type.contains("csv") || type.contains("x-www-form-urlencoded") || type.contains("javascript")
+                || type.contains("pem");
     }
 
     private static Charset charsetOf(String encoding) {
