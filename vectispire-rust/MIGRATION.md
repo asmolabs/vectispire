@@ -131,7 +131,7 @@ In Java lines of `vectispire-core`: about 35,000 of 66,000 are ported or in prog
 
 | # | Task | Owns | Notes |
 |---|---|---|---|
-| 1.3 | **MFA and throttles**: TOTP, recovery codes, lockout, login / bearer / webhook rate limits keyed as Bucket4j keys them | `crates/cp-access` (root / `internal` / `persistence` — not a `src/mfa/` directory), `crates/cp-http/src/limits.rs` | TOTP secrets are encrypted at rest: needs 2.3's `Encryption`, or a port stand-in until it lands |
+| 1.3 | **MFA and throttles**: TOTP, recovery codes, lockout, login / bearer / webhook rate limits keyed as Bucket4j keys them | `crates/cp-access` (root / `internal` / `persistence` — not a `src/mfa/` directory), `crates/cp-http/src/limits.rs` | TOTP secrets are encrypted at rest: needs 2.3's `Encryption`, or a port stand-in until it lands. **Pure half done** (2026-10-28, `rust/access-domain`): `totp`, `login_throttle`, `ClientBuckets` in `cp-http`, `TeamRules` in the domain, held to `reference/sign-in/` and `reference/teams/`; the services follow with the routes (1.7) |
 | 1.4 | **OIDC**: openidconnect client, account linking (verified e-mail only, never a privileged link), the hand-off cookie | `crates/cp-access`, outbound calls through `cp-outbound` only | a stub identity provider in tests; the session hand-off already exists in 1.2 |
 | 1.7 | **Access routes**: `auth`, `users`, `teams`, `api-keys`, `admin`, `security`, SCIM — replayed against the recorded Java traffic | `crates/cp-access/src/web/` | after 1.3 and 1.4. Phase 1's exit: every golden of these routes passes |
 | 1.8 | **Phase 1 security review**: the `security-audit` skill on the phase's diff | — | exit: nothing above low |

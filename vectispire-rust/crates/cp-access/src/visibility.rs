@@ -107,10 +107,8 @@ pub struct AccountRef {
     pub role: String,
 }
 
-/// `TeamRules.KIND_*`.
-pub const KIND_REPOSITORY: &str = "repository";
-pub const KIND_CONTAINER: &str = "container";
-pub const KIND_PROJECT: &str = "project";
+/// `TeamRules.KIND_*`, the domain's: the targets module names them too.
+pub use vectispire_domain::team_rules::{KIND_CONTAINER, KIND_PROJECT, KIND_REPOSITORY};
 
 /// What the visibility reads of the settings: the stored or default value of `target_visibility`. The settings
 /// module's store implements it; the value is the effective one, its default (`everyone`) already applied.
