@@ -55,6 +55,18 @@ class TeamRulesTest {
     }
 
     @Test
+    @DisplayName("a description is never cut inside a character")
+    void truncationKeepsSurrogatePairsWhole() {
+        // An emoji is two UTF-16 units: one straddling the limit is dropped whole, never halved.
+        String straddling = "y".repeat(TeamRules.MAX_DESCRIPTION_LENGTH - 1) + "\uD83D\uDE00" + "tail";
+
+        String clipped = TeamRules.trimDescription(straddling);
+
+        assertThat(clipped).isEqualTo("y".repeat(TeamRules.MAX_DESCRIPTION_LENGTH - 1));
+        assertThat(Character.isHighSurrogate(clipped.charAt(clipped.length() - 1))).isFalse();
+    }
+
+    @Test
     @DisplayName("an unknown target kind is refused, never stored")
     void unknownKindsAreRefused() {
         assertThat(TeamRules.validateTargetKind("Repository")).isEqualTo("repository");
