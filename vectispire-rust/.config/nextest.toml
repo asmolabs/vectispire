@@ -1,0 +1,34 @@
+# cargo-nextest, which CI's `rust` job runs the tests with (`cargo nextest run --profile ci`, pinned in
+# security/tools.txt). `cargo test` — what ./check.sh runs — reads nothing here, and runs the same tests.
+#
+# **Why nextest there**: `cargo test` runs the ~190 test binaries one after another, so every container a suite
+# waits on — a forge, the socket proxy, a scanner, the published Java control plane — is waited on alone.
+# nextest runs every test as a process of its own, from every binary at once. A test then shares nothing with
+# the tests of its binary but what it reads from disk; the databases are one per test already (cp-db's
+# `testing`). It does not run doctests: the job runs `cargo test --doc` beside it.
+
+[profile.default]
+# A test that runs for minutes is reported as slow, and killed after half an hour — no single test here takes more
+# than a few minutes; the slowest, the published control plane's start under emulation, about three.
+slow-timeout = { period = "120s", terminate-after = 15 }
+
+[profile.ci]
+# Every failure is reported, not the first one only: a red run says everything that is red.
+fail-fast = false
+failure-output = "immediate-final"
+slow-timeout = { period = "120s", terminate-after = 15 }
+
+# **The longest first**: the suites that start the published Java control plane, or the Rust one's binary, take one
+# to three minutes each where the rest take seconds — started last, they would be the run's tail. (Holding them to
+# one at a time was tried: two minutes longer, since the waits they spend on a container start overlap well.)
+[[profile.default.overrides]]
+filter = "binary(against_a_control_plane) | binary(against_java) | binary(across_the_switch) | binary(worker_runs_a_scan)"
+priority = 100
+
+# Then the suites on both engines, each tens of seconds: whole binaries, and the tests named for an engine elsewhere.
+[[profile.default.overrides]]
+filter = """
+binary(engines) | binary(routes) | binary(credentials_on_both_engines) | binary(authz_on_both_engines)
+| test(/(^|::)on_(mysql|postgresql|both_engines)$/) | test(/_on_(mysql|postgresql)$/)
+"""
+priority = 50

@@ -1,12 +1,11 @@
-//! A throwaway database on each engine, migrated by **`vectispire-migrate`** from the repository's migrations — the
+//! A database of its own on each engine, migrated by **`vectispire-migrate`** from the repository's migrations — the
 //! runner the Rust control plane starts with, itself held to the real Flyway (`crates/migrate/tests/oracle.rs`).
 //!
-//! The engines are the campaign's, by digest (`Engine.java`). Every container is `vs-rs-p1c-*`, removed on drop; a
-//! missing Docker fails the test (AGENTS.md, "Never skip silently").
+//! The database is `vectispire_cp_db::testing`'s: in a throwaway container, or on the shared server
+//! `VECTISPIRE_TEST_MYSQL_URL` / `VECTISPIRE_TEST_POSTGRES_URL` names (see that module).
 
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used)]
 
-use std::process::Command;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -14,71 +13,23 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 use vectispire_cp_access::credentials::{AgentDirectory, AgentRef, Clock, StoreError};
 use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+use vectispire_cp_db::testing::TestDatabase;
 use vectispire_cp_db::{Db, Engine};
 use vectispire_cp_http::credentials::BoxFuture;
 use vectispire_domain::secret::Secret;
-use vectispire_testkit::docker::{Container, docker};
 
-pub const MYSQL_IMAGE: &str = "mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2";
-pub const POSTGRES_IMAGE: &str =
-    "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94";
-
-const PASSWORD: &str = "throwaway-p1c-database"; // gitleaks:allow — invented, for a container removed after the test
-
-/// A database migrated by the Rust runner, and the pool on it.
+/// A database migrated by the Rust runner, and the pool on it. Field order is drop order: the pool, then the database.
 pub struct Migrated {
     pub engine: Engine,
     pub db: Db,
-    server: Container,
+    database: TestDatabase,
 }
 
 impl Migrated {
     pub async fn start(engine: Engine) -> Migrated {
-        let server = match engine {
-            Engine::MySql => Container::run(
-                "p1c-mysql",
-                &[
-                    "-p",
-                    "127.0.0.1::3306",
-                    "-e",
-                    &format!("MYSQL_ROOT_PASSWORD={PASSWORD}"),
-                    "-e",
-                    "MYSQL_DATABASE=vectispire",
-                    "-e",
-                    "MYSQL_USER=vectispire",
-                    "-e",
-                    &format!("MYSQL_PASSWORD={PASSWORD}"),
-                    MYSQL_IMAGE,
-                    "--default-time-zone=+00:00",
-                ],
-            ),
-            Engine::PostgreSql => Container::run(
-                "p1c-postgres",
-                &[
-                    "-p",
-                    "127.0.0.1::5432",
-                    "-e",
-                    &format!("POSTGRES_PASSWORD={PASSWORD}"),
-                    "-e",
-                    "POSTGRES_USER=vectispire",
-                    "-e",
-                    "POSTGRES_DB=vectispire",
-                    POSTGRES_IMAGE,
-                ],
-            ),
-        };
-        wait_until_ready(engine, &server);
-        let (port, jdbc) = match engine {
-            Engine::MySql => (server.host_port("3306/tcp"), "jdbc:mysql"),
-            Engine::PostgreSql => (server.host_port("5432/tcp"), "jdbc:postgresql"),
-        };
-        let db = connect(&format!("{jdbc}://127.0.0.1:{port}/vectispire"), "vectispire", PASSWORD).await;
-        let database = match &db {
-            Db::MySql(pool) => vectispire_migrate::Database::MySql(pool.clone()),
-            Db::PostgreSql(pool) => vectispire_migrate::Database::PostgreSql(pool.clone()),
-        };
-        vectispire_migrate::run(&database, &vectispire_migrate::Options::default()).await.expect("the migrations");
-        Migrated { engine, db, server }
+        let database = TestDatabase::start(engine).await;
+        let db = database.connect().await;
+        Migrated { engine, db, database }
     }
 }
 
@@ -101,41 +52,6 @@ pub async fn connect(url: &str, user: &str, password: &str) -> Db {
             }
             Err(error) => panic!("{url}: {error}"),
         }
-    }
-}
-
-fn wait_until_ready(engine: Engine, server: &Container) {
-    let deadline = Instant::now() + Duration::from_secs(180);
-    loop {
-        // A real query, not `mysqladmin ping`: the MySQL image answers pings from its temporary initialisation
-        // server, which then stops and restarts.
-        let probe = match engine {
-            Engine::MySql => Command::new("docker")
-                .args([
-                    "exec",
-                    &server.name,
-                    "mysql",
-                    "-uvectispire",
-                    &format!("-p{PASSWORD}"),
-                    "-h127.0.0.1",
-                    "-e",
-                    "select 1",
-                    "vectispire",
-                ])
-                .output(),
-            Engine::PostgreSql => Command::new("docker")
-                .args(["exec", &server.name, "psql", "-h", "127.0.0.1", "-U", "vectispire", "-tAc", "select 1"])
-                .output(),
-        };
-        if probe.is_ok_and(|output| output.status.success()) {
-            return;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "{engine} did not start: {}",
-            docker(&["logs", "--tail", "40", &server.name])
-        );
-        std::thread::sleep(Duration::from_millis(500));
     }
 }
 

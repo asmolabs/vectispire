@@ -25,10 +25,11 @@ for tool in "$@"; do
   [ -n "$version" ] || { echo "install-tools.sh: $tool is not pinned in tools.txt" >&2; exit 2; }
   # Run as cargo runs it (`cargo-deny deny --version`) and on its own: the tools differ in which one answers,
   # and in the name they print before the version ("cargo-cyclonedx-cyclonedx 0.5.9"), so the version is
-  # what is compared — the last word of a line naming the tool.
+  # what is compared — the last word of a line naming the tool, or the word before the commit nextest adds
+  # ("cargo-nextest 0.9.150 (d225b1daf 2026-10-26)").
   if [ -x "$root/bin/$tool" ] && { "$root/bin/$tool" "${tool#cargo-}" --version 2>/dev/null
                                    "$root/bin/$tool" --version 2>/dev/null; } \
-      | grep -q "^${tool}[a-z-]* ${version}\$"; then
+      | grep -Eq "^${tool}[a-z-]* ${version}( \([^)]*\))?\$"; then
     continue
   fi
   echo "installing $tool $version into $root" >&2

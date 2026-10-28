@@ -181,11 +181,11 @@ async fn java_and_rust_start_together(engine: Engine) {
     let server = Server::start(engine);
     let database = server.database().await;
     let java = {
-        let jdbc = (server.jdbc_url(), engine);
+        let jdbc = (server.jdbc_url(), engine, server.user(), server.password());
         let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("oracle/oracle.sh");
         std::thread::spawn(move || {
             std::process::Command::new(script)
-                .args(["migrate", &jdbc.0, common::USER, common::PASSWORD, jdbc.1.vendor(), "-"])
+                .args(["migrate", &jdbc.0, &jdbc.2, &jdbc.3, jdbc.1.vendor(), "-"])
                 .output()
                 .unwrap()
         })

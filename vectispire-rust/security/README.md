@@ -3,7 +3,7 @@
 What every change under `vectispire-rust/` passes, where it runs, and what each one is for. They are the
 steps of CI's `rust` and `rust-image` jobs (`.github/workflows/ci.yml`) and of the nightly `rust-fuzz`
 job (`nightly.yml`). `../check.sh` runs the per-push ones locally, in the same order. The cargo
-subcommands among them — cargo-deny, cargo-vet, cargo-cyclonedx, cargo-fuzz — are installed by
+subcommands among them — cargo-deny, cargo-vet, cargo-nextest, cargo-cyclonedx, cargo-fuzz — are installed by
 `install-tools.sh` at the versions `tools.txt` pins, locally and in CI alike, so a version changes in one
 file.
 
@@ -16,7 +16,7 @@ says how, so that the next person can repeat it rather than believe it.
 | clippy, `-D warnings`, with the lints `Cargo.toml` denies | `unwrap`/`expect` in shipped code, `print!`/`eprint!`, `dbg!`, `todo!`, `unimplemented!`, `mem::forget`, an `unsafe` block without `// SAFETY:` | `rust` | a `println!` added to a library crate |
 | `check-unsafe.sh` | `unsafe` — a block, function, impl, trait, extern block or attribute — or an `allow(unsafe_code)` anywhere but `crates/git/src/init.rs` | `rust` | an `unsafe {}` added to `crates/domain` |
 | `lint-ceilings.sh` | a new indexing, slicing, unchecked arithmetic or truncating cast in shipped code, beyond the counts in `lint-ceilings.txt` — one count for the agent's crates and one for the control plane's (`cp-*`, `migrate`) | `rust` | one more `bytes[0]` in either scope |
-| `cargo test`, Docker required | every behaviour pinned so far, including the reference sets and `crates/agent/tests/isolation.rs` (no database client, server framework or test support in the agent's graph — decision 0003) | `rust` | the crates' own mutation checks (README.md) |
+| `cargo test` (`check.sh`), `cargo nextest run` and `cargo test --doc` (CI, on the job's MySQL and PostgreSQL), Docker required | every behaviour pinned so far, including the reference sets and `crates/agent/tests/isolation.rs` (no database client, server framework or test support in the agent's graph — decision 0003) | `rust` | the crates' own mutation checks (README.md) |
 | `cargo deny check` (`../deny.toml`) | an advisory (vulnerable, unsound, unmaintained, yanked), a banned crate, a licence not listed, a registry or git source other than crates.io, a new duplicate version, **a build script not listed**, an executable inside a crate's source | `rust` | a build-script crate dropped from the list; a duplicate unlisted; a licence removed |
 | `cargo vet --locked` (`../supply-chain/`) | a crate neither audited by an imported set (Mozilla, Google, Bytecode Alliance, Zcash, ISRG) nor exempted by name and version | `rust` | a new dependency added |
 | `semgrep.sh` (`semgrep/rust.yml`) | certificate checks switched off, an HTTP client built outside `crates/tls`, a redirect followed, a program started, a `Secret` exposed in a log line, a weak or seeded RNG | `rust` | `danger_accept_invalid_certs(true)` added |

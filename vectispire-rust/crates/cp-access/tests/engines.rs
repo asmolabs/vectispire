@@ -8,7 +8,7 @@
 #[path = "accounts_support/mod.rs"]
 mod support;
 
-use support::{Migrated, RawCredentials};
+use support::{Migrated, RawCredentials, Sql};
 use time::OffsetDateTime;
 use time::macros::datetime;
 use vectispire_cp_access::SqlAccountStore;

@@ -58,6 +58,12 @@ new dependency needs, in the same diff: its licence in `deny.toml` if new, its b
 Every test that pins a guard is mutation-checked: break the guard, see the test fail, restore the file
 (back it up first, restore in a `finally`, put a timeout on each run).
 
+A test that needs a database takes it from `cp-db`'s `testing` (`TestDatabase::start`, dev-dependency feature
+`test-support`) — never a container of its own. In CI it is a database of the test's own on the job's shared MySQL
+and PostgreSQL (`VECTISPIRE_TEST_*_URL`), run by nextest beside every other test: a statement on the server's own
+tables (`pg_stat_activity`, `performance_schema`, a global variable) sees the other tests, so it filters by the
+test's database (`current_database()`, `database()`).
+
 ## Defects already made here
 
 - The first reference sets pinned the Java parsers' "garbage reads as clean" answers, reproduced on

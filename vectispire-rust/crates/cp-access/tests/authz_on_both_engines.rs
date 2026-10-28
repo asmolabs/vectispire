@@ -1,8 +1,8 @@
 //! The access module's statements on both engines, against the schema `vectispire-migrate` builds from the Java
 //! tree's migrations — and the whole Java matrix (`reference/access/allowances.json`) run through them.
 //!
-//! For each engine: a throwaway server (`vs-rs-acc-*`, removed when the test ends; a missing Docker fails the
-//! test), the migrations, the matrix's accounts, teams, grants, projects, targets and backlog seeded as rows, then
+//! For each engine: a database of its own (`vectispire_cp_db::testing`'s, removed when the test ends; a missing
+//! Docker fails the test), the migrations, the matrix's accounts, teams, grants, projects, targets and backlog seeded as rows, then
 //! for every case the real [`VisibilityService`] — its read-only transaction and its two statements (the direct
 //! grants, and the teams' through a join) — and a real [`VisibleSelect`] on `t_issue` with the allowance it produced. Both must equal
 //! what the Java side answered for the same accounts. Then [`TriageApprovers`] counts on the same rows.
@@ -31,7 +31,7 @@ use vectispire_cp_access::visibility::{
 };
 use vectispire_cp_db::Visibility;
 use vectispire_cp_db::query::Issues;
-use vectispire_cp_db::settings::{DatabaseUrl, DbSettings, PoolSettings};
+use vectispire_cp_db::testing::TestDatabase;
 use vectispire_cp_db::{Db, ScanTarget, VisibleSelect};
 use vectispire_cp_http::chain::{Chain, ChainConfig};
 use vectispire_cp_http::credentials::{BoxFuture, RecordingAudit, StaticCredentials};
@@ -39,69 +39,26 @@ use vectispire_cp_http::extract::Scoped;
 use vectispire_cp_http::principal::{Account, ApiKeyScope, Credential, Principal, Role};
 use vectispire_cp_http::routes::{Route, Routes, VisibilityOf};
 use vectispire_cp_http::{Access, Problem};
-use vectispire_domain::secret::Secret;
 use vectispire_migrate::{Database, Engine, Options};
-use vectispire_testkit::docker::Container;
 
-const MYSQL_IMAGE: &str = "mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2";
-const POSTGRES_IMAGE: &str =
-    "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94";
-const USER: &str = "vectispire";
-const PASSWORD: &str = "throwaway-access-test"; // gitleaks:allow — invented, for a container removed after the test
-
+/// A database of its own, `vectispire_cp_db::testing`'s: in a throwaway container, or on the shared server
+/// `VECTISPIRE_TEST_MYSQL_URL` / `VECTISPIRE_TEST_POSTGRES_URL` names.
 struct Server {
     engine: Engine,
-    port: u16,
-    _container: Container,
+    database: TestDatabase,
 }
 
 impl Server {
     fn start(engine: Engine) -> Server {
-        let container = match engine {
-            Engine::MySql => Container::run(
-                "acc-mysql",
-                &[
-                    "-p",
-                    "127.0.0.1::3306",
-                    "-e",
-                    "MYSQL_ROOT_PASSWORD=root-throwaway",
-                    "-e",
-                    "MYSQL_DATABASE=vectispire",
-                    "-e",
-                    &format!("MYSQL_USER={USER}"),
-                    "-e",
-                    &format!("MYSQL_PASSWORD={PASSWORD}"),
-                    MYSQL_IMAGE,
-                    "--default-time-zone=+00:00",
-                ],
-            ),
-            Engine::PostgreSql => Container::run(
-                "acc-pg",
-                &[
-                    "-p",
-                    "127.0.0.1::5432",
-                    "-e",
-                    &format!("POSTGRES_USER={USER}"),
-                    "-e",
-                    &format!("POSTGRES_PASSWORD={PASSWORD}"),
-                    "-e",
-                    "POSTGRES_DB=vectispire",
-                    POSTGRES_IMAGE,
-                ],
-            ),
-        };
-        let port = container.host_port(match engine {
-            Engine::MySql => "3306/tcp",
-            Engine::PostgreSql => "5432/tcp",
+        let database = TestDatabase::empty(match engine {
+            Engine::MySql => vectispire_cp_db::Engine::MySql,
+            Engine::PostgreSql => vectispire_cp_db::Engine::PostgreSql,
         });
-        Server { engine, port, _container: container }
+        Server { engine, database }
     }
 
     fn url(&self) -> String {
-        match self.engine {
-            Engine::MySql => format!("mysql://{USER}:{PASSWORD}@127.0.0.1:{}/vectispire", self.port),
-            Engine::PostgreSql => format!("postgres://{USER}:{PASSWORD}@127.0.0.1:{}/vectispire", self.port),
-        }
+        self.database.url()
     }
 
     /// The migration runner's pools, once a query has succeeded twice a second apart: the images' entrypoints
@@ -138,17 +95,8 @@ impl Server {
 
     /// The control plane's own pool, opened from the `jdbc:` URL as a deployment writes it.
     async fn db(&self) -> Db {
-        let jdbc = match self.engine {
-            Engine::MySql => "jdbc:mysql",
-            Engine::PostgreSql => "jdbc:postgresql",
-        };
-        let settings = DbSettings {
-            url: DatabaseUrl::parse(&format!("{jdbc}://127.0.0.1:{}/vectispire", self.port)).unwrap(),
-            username: USER.into(),
-            password: Secret::new(PASSWORD),
-            pool: PoolSettings { max_connections: 4, min_connections: 1, ..PoolSettings::default() },
-            ca_pem: None,
-        };
+        let mut settings = self.database.settings.clone();
+        settings.pool.max_connections = 4;
         Db::connect(&settings).await.unwrap()
     }
 }

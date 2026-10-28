@@ -25,6 +25,8 @@ pub mod parity;
 pub mod query;
 pub mod settings;
 pub mod store;
+#[cfg(feature = "test-support")]
+pub mod testing;
 pub mod tx;
 pub mod types;
 pub mod visibility;

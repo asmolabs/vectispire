@@ -39,6 +39,8 @@ vectispire-domain.workspace = true
 zeroize = "1"
 
 [dev-dependencies]
+# A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 # The engine test reads the backlog through a real `VisibleSelect`, ordered with cp-db's query vocabulary.
 sea-query = { version = "1", default-features = false, features = ["backend-mysql", "backend-postgres"] }
 # The route test drives a `.scoped()` route through the real chain: the request and the peer address are axum's.

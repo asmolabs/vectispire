@@ -34,7 +34,7 @@ zeroize = "1"
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
-vectispire-cp-db = { path = "../cp-db" }
+vectispire-cp-db = { path = "../cp-db", features = ["test-support"] }
 vectispire-cp-runtime = { path = "../cp-runtime" }
 vectispire-crypto.workspace = true
 vectispire-migrate = { path = "../migrate" }

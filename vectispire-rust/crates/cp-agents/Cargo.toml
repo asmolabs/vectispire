@@ -40,6 +40,8 @@ vectispire-domain.workspace = true
 vectispire-protocol.workspace = true
 
 [dev-dependencies]
+# A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 vectispire-cp-issues = { path = "../cp-issues" }
 vectispire-cp-gate = { path = "../cp-gate" }
 vectispire-cp-rules = { path = "../cp-rules" }

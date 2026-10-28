@@ -30,6 +30,8 @@ vectispire-cp-db = { path = "../cp-db" }
 vectispire-domain.workspace = true
 
 [dev-dependencies]
+# A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 regex.workspace = true
 serde_json.workspace = true
 time = { version = "0.3", features = ["std", "parsing", "formatting"] }

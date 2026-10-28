@@ -70,6 +70,29 @@ These are what the rest of the port follows.
 - **Tests.**
   - Unit tests sit beside the code; tests needing a server go in each crate's `tests/`.
   - Those start throwaway containers named `vs-rs-*` through `testkit` and **fail without Docker**.
+  - **A test that needs a database gets one of its own**, from `cp-db`'s `testing` (feature `test-support`, turned
+    on from `[dev-dependencies]` only): migrated by `vectispire-migrate` (`TestDatabase::start`) or empty
+    (`TestDatabase::empty`), dropped with the value. Without variables it is a throwaway server of the campaign's
+    engine; with `VECTISPIRE_TEST_MYSQL_URL` / `VECTISPIRE_TEST_POSTGRES_URL` (a server URL with no database,
+    `jdbc:mysql://127.0.0.1:3306`, and `…_USER`, `…_PASSWORD` an account that may create databases — the Java
+    suite's `VECTISPIRE_TEST_DB_*` convention) it is a database `vs_rs_<epoch>_<pid>_<n>` on that server. Two tests
+    share the server and nothing else, so a statement on the server's own tables (`pg_stat_activity`,
+    `performance_schema`) filters by the test's database. CI's `rust` job runs one server of each engine as a job
+    service; locally:
+
+    ```sh
+    docker run -d --name vs-rs-shared-mysql -e MYSQL_ROOT_PASSWORD=local -p 127.0.0.1:13306:3306 mysql:9.4.0@sha256:…
+    docker run -d --name vs-rs-shared-postgres -e POSTGRES_PASSWORD=local -p 127.0.0.1:15432:5432 postgres:17.6-alpine@sha256:…
+    VECTISPIRE_TEST_MYSQL_URL=jdbc:mysql://127.0.0.1:13306 VECTISPIRE_TEST_MYSQL_USER=root \
+    VECTISPIRE_TEST_MYSQL_PASSWORD=local VECTISPIRE_TEST_POSTGRES_URL=jdbc:postgresql://127.0.0.1:15432 \
+    VECTISPIRE_TEST_POSTGRES_USER=postgres VECTISPIRE_TEST_POSTGRES_PASSWORD=local cargo test --workspace
+    ```
+
+    (the digests are `testing.rs`'s). A shared MySQL is given the composition's flags at its first use (time zone,
+    packet size, connections); a database a killed run left is dropped by the first run a day later. The suites
+    that start the published Java control plane keep their own MySQL 8.4 on a network with it.
+  - CI runs the tests with **cargo-nextest** (`.config/nextest.toml`): each test a process of its own, every binary
+    at once, then `cargo test --doc`. `./check.sh` runs `cargo test`, the same tests one binary after another.
   - Every test that pins a guard was mutation-checked: the guard was broken, the test went red, and
     the file was restored.
 - **Blocking work.** The clone is blocking (libgit2), so it runs under `spawn_blocking`. Container runs
