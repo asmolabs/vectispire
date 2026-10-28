@@ -123,3 +123,14 @@ deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules
 # A throwaway encryption key in the built-in worker test: the base64 of "reference-scanning-key-32-bytes!".
 # Read and judged not a secret.
 804e8cbd44540da590805d4dcde7603588abdb13:vectispire-rust/crates/cp-scanning/tests/worker_offload.rs:generic-api-key:233
+# The SIEM module's reference set (task 4.2 of the Rust port, second stage) queues an API_KEY_CREATED event
+# whose CEF line carries a fixed test UUID as externalId (0b7e5f0e-…), which the rule reads as a key beside
+# the words "API key". A UUID chosen by the test, no credential. Read and judged not a secret.
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:216
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:238
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:258
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:285
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:311
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:337
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:363
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:382
