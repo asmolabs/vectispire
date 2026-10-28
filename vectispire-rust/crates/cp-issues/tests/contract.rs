@@ -108,7 +108,14 @@ async fn the_routes_are_the_documented_ones() {
     }));
     let scans = vectispire_cp_scanning::ScanCatalog::new(db.clone(), clock.clone());
     let settings = Arc::new(vectispire_cp_settings::Settings::new(db.clone()));
-    let issues = Arc::new(Issues::new(IssuesConfig { db: db.clone(), targets, scans, settings, audit }));
+    let issues = Arc::new(Issues::new(IssuesConfig {
+        db: db.clone(),
+        targets,
+        scans,
+        settings,
+        audit,
+        events: Arc::new(vectispire_cp_outbox::NotExported),
+    }));
 
     let entries = routes(issues);
     assert_eq!(entries.len(), 10);

@@ -14,7 +14,8 @@
 //! - [`SiemEvents::enqueue`] (in the caller's transaction, `MANDATORY` as a type) and [`SiemEvents::publish`] (in one
 //!   of its own, never failing) — for the events with no audit entry behind them: a KEV reclassification, a gate
 //!   refusal. Java's `SecurityEventRaised` and `SecurityEventRaisedApart` are Spring events delivered to these two; the
-//!   modules that raise them (issues, gate, the threat feed) are handed a port in their place when they are composed.
+//!   modules that raise them (issues, gate, the threat feed) are handed this queue as `cp-outbox`'s
+//!   [`SecurityEvents`] port, which these two implement.
 //! - [`ChainBrokenListener`] — the audit log's own alarm, heard rather than called, so that the audit log, which this
 //!   listens to, does not call it back.
 //!
@@ -29,7 +30,7 @@ use serde_json::{Map, Value};
 use time::OffsetDateTime;
 use vectispire_cp_audit::{AuditChainBroken, ChainBrokenListener, Clock, Listener, ListenerError, Record};
 use vectispire_cp_db::{Db, Mode, Tx};
-use vectispire_cp_outbox::Outbox;
+use vectispire_cp_outbox::{Outbox, RaiseError, SecurityEvents};
 use vectispire_domain::instant::Instant;
 use vectispire_domain::java;
 use vectispire_domain::siem::{CefEvent, SecurityEventType, severity_filter, signalled_by};
@@ -331,5 +332,15 @@ impl ChainBrokenListener for SiemEvents {
                 Err(refused) => tracing::error!("The audit chain's alarm could not be built: {refused}"),
             }
         })
+    }
+}
+
+impl SecurityEvents for SiemEvents {
+    fn raise<'a>(&'a self, tx: &'a mut Tx, event: &'a CefEvent) -> BoxFuture<'a, Result<(), RaiseError>> {
+        Box::pin(async move { self.enqueue(tx, event).await.map_err(|failed| Box::new(failed) as RaiseError) })
+    }
+
+    fn raise_apart<'a>(&'a self, event: &'a CefEvent) -> BoxFuture<'a, ()> {
+        Box::pin(self.publish(event))
     }
 }

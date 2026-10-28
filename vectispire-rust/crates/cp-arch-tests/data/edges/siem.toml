@@ -1,4 +1,4 @@
 # The module `siem` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
-status = "pending"
+status = "ported"
 allowed = ["access::security"]
-reason = "Nothing above the foundation for its services: it hears the audit log through `cp-audit`'s `Listener` and `ChainBrokenListener`, queues through `cp-outbox` and sends through `cp-outbound`, all shared. `access::security` for its routes — unused until they are ported (task 4.2, third stage), which is why the module is still pending."
+reason = "Nothing above the foundation for its services: it hears the audit log through `cp-audit`'s `Listener` and `ChainBrokenListener`, queues through `cp-outbox` (whose `SecurityEvents` port it implements for the modules that raise events) and sends through `cp-outbound`, all shared. `access::security` for its routes: `RequestActors`, the name an entry is attributed to."

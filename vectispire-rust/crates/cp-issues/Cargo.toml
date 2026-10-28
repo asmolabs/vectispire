@@ -31,6 +31,8 @@ vectispire-cp-audit = { path = "../cp-audit" }
 vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-cp-http.workspace = true
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
+# `SecurityEvents`, the port the backlog raises its SIEM events through (a shared module: no edge).
+vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-scanning = { path = "../cp-scanning" }
 vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-cp-targets = { path = "../cp-targets" }

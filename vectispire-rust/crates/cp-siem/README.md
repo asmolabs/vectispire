@@ -1,10 +1,9 @@
 # vectispire-cp-siem
 
-The control plane's SIEM module in Rust — `core.siem` (plan, Phase 4 task 4.2, second stage: the services). In
-progress, not shipped: the Java control plane is the product. The domain (event catalogue, CEF line, syslog frame,
-endpoint, collector CA) is `vectispire_domain::siem`, the first stage. **Not here yet**: the three routes
-(`GET`/`PUT /api/v1/siem/config`, `POST /api/v1/siem/test`) and the module's composition in `cp-app` — the third
-stage.
+The control plane's SIEM module in Rust — `core.siem` (plan, Phase 4 task 4.2). Not shipped: the Java control plane is
+the product. The domain (event catalogue, CEF line, syslog frame, endpoint, collector CA) is `vectispire_domain::siem`,
+the first stage; the services the second; the three routes and the module's place in the binary the third. **Not here
+yet**: the replay of the routes' recorded traffic — the fourth stage, with `golden/deferred/siem.txt`.
 
 ## What it does
 
@@ -19,9 +18,46 @@ stage.
 | `SyslogSender` | `internal.SyslogSender` | UDP, TCP, TLS (rustls, TLS 1.3/1.2, hostname verified) to the addresses the guard checked; octet counting on a stream; one deadline over handshake and write |
 | `persistence` | `SiemConfigEntity`, `SiemConfigRepository` | four checked statements per engine, `.sqlx/` kept by `crates/cp-db/scripts/sqlx-prepare.sh` |
 | `Transport` | — | what the services send through: `SiemSender` in the binary, a recording one where the services are held to `SiemModuleReferenceSetTest`'s mocked `SiemSender` |
+| `routes` (`web`) | `web.SiemController` | `GET /api/v1/siem/config` (governance read; the controller's literal — off, `WEBHOOK`, `HIGH`, every other member `null` — before the first save), `PUT /api/v1/siem/config` and `POST /api/v1/siem/test` (security lead); `InvalidInputException` 400, a missing encryption key 412, the KMS's address refused 422, anything else a referenced 500; the actor `RequestActors.of(principal, request, "system")` |
+| `SecurityEvents` for `SiemEvents` | `SecurityEventRaised`, `SecurityEventRaisedApart` and their listeners | the port the issues and the gate raise their events through (below) |
+
+## In the binary
+
+`cp-app/src/siem.rs` composes it, and `main` calls those functions in this order: the sender (the guard built at start,
+reserved endpoints included; `PinnedHttpSender` and `SyslogSender` over the runtime's trust; the private-destination
+switch from the settings; `ProductVersion` as the CEF device version), the delivery and the events — then the audit log,
+with the events as its listener — then the relaying outbox, whose registry holds `SiemDelivery` beside the agents'
+handler — then the configuration's service, which records in that audit log. The events are also the verification's
+chain-broken listener and the issues' and the gate's `SecurityEvents`. `cp-app/tests/siem_composition.rs` exercises
+that composition on both engines: a save's audit entry, an event raised through the port and the chain's alarm reach a
+UDP collector through the relay; a rolled-back raise does not; a collector on a reserved endpoint is refused whatever
+the private switch says.
+
+**Two outboxes, one table**: the audit log needs its listener when it is built, the listener an outbox, and the
+relaying outbox a registry whose agents' handler writes to the audit log. `SiemEvents` only enqueues, which reads no
+handler, so it is handed an outbox with an empty registry over the same `t_outbox_message`.
+
+## Where a module raises an event — decided 2026-10-28
+
+Java's `SecurityEventRaised` (in the raiser's transaction, `MANDATORY`) and `SecurityEventRaisedApart` (a transaction of
+its own, never failing) are records in `common.domain.siem` published as Spring application events, so that `issues`,
+`gate` and `threatintel` raise events without listing the SIEM among their dependencies. Rust has no event bus: the
+publisher becomes a trait, **`vectispire_cp_outbox::SecurityEvents`** (`raise(&mut Tx, …)`, `raise_apart(…)`), which
+`SiemEvents` implements and the binary hands in. Not `vectispire_domain`, which the agent links and which must not name a
+transaction; not `cp-siem`, which would put the export back among the raisers' dependencies. The outbox is the shared
+module the event becomes a row of, in the raiser's transaction — decision 0033's reading of the outbox — and a shared
+module needs no line in a module's edges, exactly as the Java records needed none.
+
+Wired in this stage: the issues' `SECRET_LEAK_DETECTED` (a secret graded high or above, raised in the scan's transaction
+when its issue is created, never again), their `SLA_BREACHED` (raised in the breach sweep's batch transaction with the
+mark that keeps it from being raised twice — the Rust sweep marked deadlines and announced none until now), and the
+gate's `SECURITY_GATE_FAILED` (with its verdict in one transaction, or the verdict alone and the event apart). The threat
+feed's `CRITICAL_KEV_DETECTED` comes with its module.
 
 Module edges: Java's `@ApplicationModule(allowedDependencies = {"access::security"})`. The services use only the
-shared modules (audit, outbox, outbound, settings, crypto), which need no line; `access::security` is for the routes.
+shared modules (audit, outbox, outbound, settings, crypto), which need no line; `access::security` is for the routes —
+the markers are `cp-http`'s in Rust, so what the routes take from it is `RequestActors` (`actor_name`), which Java keeps
+beside the markers.
 
 ## What holds it
 
@@ -47,7 +83,8 @@ absent, they fail rather than skip.
   `InetAddress.getLocalHost().getHostName()`, which may answer a resolved name instead.
 - **The runtime's trust for syslog over TLS** is the agent's and the control plane's one trust (`vectispire-tls`):
   the authorities compiled in, or `VECTISPIRE_TLS_CA_BUNDLE`'s certificates alone, read again from that path once at
-  start because `TlsTrust` keeps reqwest's certificates. Java uses the JVM's truststore.
+  start because `TlsTrust` keeps reqwest's certificates. Java uses the JVM's truststore. The binary reads the variable
+  for the SIEM's two senders and refuses to start on a bundle it cannot read; the webhook goes through the same trust.
 - **The handshake and the write share one deadline**; Java gives the handshake `SO_TIMEOUT` (per read) and the write
   its watchdog. A collector that stalls is given up on either way.
 - **The save writes the row in one transaction**, the read before it apart; Java's `findById` and `save` are two.

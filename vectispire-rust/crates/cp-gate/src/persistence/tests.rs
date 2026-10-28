@@ -79,6 +79,10 @@ fn run(engine: Engine) {
         the_entities_agree_with_the_schema(&db).await.unwrap_or_else(|failure| {
             failures.push(format!("the_entities_agree_with_the_schema: {failure}"));
         });
+        // Last: it commits its verdicts, which the checks above would count.
+        a_refusal_is_raised_with_its_verdict_or_apart_and_a_pass_is_not(&server, &db).await.unwrap_or_else(|failure| {
+            failures.push(format!("a_refusal_is_raised_with_its_verdict_or_apart_and_a_pass_is_not: {failure}"));
+        });
         db.close().await;
         assert!(failures.is_empty(), "{engine}: {} check(s) failed:\n  {}", failures.len(), failures.join("\n  "));
     });
@@ -462,5 +466,128 @@ async fn the_entities_agree_with_the_schema(db: &Db) -> Check {
         ),
         other => return Err(format!("a renamed column: {other:?}")),
     }
+    Ok(())
+}
+
+// ---- the refusal's SIEM event (task 4.2: the gate's emitter) ----
+
+/// What the gate raised, together or apart; refusing the together path when told to, as a queue that cannot write.
+#[derive(Default)]
+struct Raised {
+    together: std::sync::Mutex<Vec<vectispire_domain::siem::CefEvent>>,
+    apart: std::sync::Mutex<Vec<vectispire_domain::siem::CefEvent>>,
+    refuse: std::sync::atomic::AtomicBool,
+}
+
+impl vectispire_cp_outbox::SecurityEvents for Raised {
+    fn raise<'a>(
+        &'a self,
+        _: &'a mut Tx,
+        event: &'a vectispire_domain::siem::CefEvent,
+    ) -> vectispire_cp_http::credentials::BoxFuture<'a, Result<(), vectispire_cp_outbox::RaiseError>> {
+        let refused = self.refuse.load(std::sync::atomic::Ordering::SeqCst);
+        if !refused {
+            self.together.lock().unwrap().push(event.clone());
+        }
+        Box::pin(async move { if refused { Err("the queue could not be written".into()) } else { Ok(()) } })
+    }
+
+    fn raise_apart<'a>(
+        &'a self,
+        event: &'a vectispire_domain::siem::CefEvent,
+    ) -> vectispire_cp_http::credentials::BoxFuture<'a, ()> {
+        self.apart.lock().unwrap().push(event.clone());
+        Box::pin(async {})
+    }
+}
+
+fn gate(db: &Db, events: std::sync::Arc<Raised>) -> crate::service::GateService {
+    use std::sync::Arc;
+    let clock: Arc<dyn vectispire_cp_targets::Clock> = Arc::new(vectispire_cp_targets::SystemClock);
+    let audit = Arc::new(vectispire_cp_audit::AuditLog::new(
+        db.clone(),
+        Arc::new(vectispire_cp_audit::NoMirror),
+        Arc::new(vectispire_cp_audit::SystemClock),
+        Vec::new(),
+    ));
+    let door = vectispire_cp_crypto::VaultDoor {
+        sender: vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+    };
+    let encryption = Arc::new(
+        vectispire_cp_crypto::Encryption::new(&vectispire_cp_crypto::EncryptionConfig::default(), door).unwrap(),
+    );
+    let targets = Arc::new(vectispire_cp_targets::Targets::new(vectispire_cp_targets::TargetsConfig {
+        db: db.clone(),
+        audit: audit.clone(),
+        scans: Arc::new(vectispire_cp_targets::ScanningStandIn),
+        backlog: Arc::new(vectispire_cp_targets::IssuesStandIn),
+        purge: vectispire_cp_targets::PurgeRegistry::stand_ins(),
+        encryption,
+        allowed_hosts: vectispire_domain::git_host_allowlist::GitHostAllowlist::default(),
+        clock: clock.clone(),
+        visibility: None,
+    }));
+    let rules = vectispire_cp_rules::RulesModule::new(
+        db.clone(),
+        Arc::new(vectispire_cp_rules::StandInInventory),
+        Arc::new(vectispire_cp_rules::StandInIssues),
+        audit,
+    );
+    crate::service::GateService::new(
+        db.clone(),
+        Arc::new(vectispire_cp_issues::IssueCatalog::new(db.clone())),
+        Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), clock.clone())),
+        targets,
+        rules.coverage.clone(),
+        clock,
+        events,
+    )
+}
+
+fn verdicts_of(server: &Migrated, repo: i64) -> String {
+    server.sql_as_admin(&format!("select count(*) from t_gate_verdict where repo_id = {repo}"))
+}
+
+async fn a_refusal_is_raised_with_its_verdict_or_apart_and_a_pass_is_not(server: &Migrated, db: &Db) -> Check {
+    use vectispire_domain::siem::SecurityEventType;
+    let raised = std::sync::Arc::new(Raised::default());
+    let gate = gate(db, raised.clone());
+    let caller = crate::service::Caller::new(Some("ci".into()), Some("10.0.0.9".into()));
+    let target = ScanTarget::Repository(REPO_B);
+
+    // Never scanned: refused, and the refusal goes with its verdict.
+    let decision = gate
+        .evaluate_and_record(target, &crate::resolution::RequestedPolicy::default(), &caller)
+        .await
+        .map_err(|e| e.to_string())?;
+    ensure_eq!(decision.verdict.passed, false, "a target never scanned is refused");
+    ensure_eq!(verdicts_of(server, REPO_B), "1", "the verdict recorded");
+    let together = std::mem::take(&mut *raised.together.lock().unwrap());
+    ensure_eq!(together.len(), 1, "the refusal raised in the verdict's transaction");
+    ensure_eq!(together[0].event_type(), SecurityEventType::SecurityGateFailed, "the event");
+    let expected = format!("{} violation(s) against the built_in policy", decision.verdict.violations.len());
+    ensure_eq!(together[0].message(), Some(expected.as_str()), "the message");
+    if !together[0].extensions().iter().any(|(_, value)| value == "repository 102") {
+        return Err(format!("the target: {:?}", together[0].extensions()));
+    }
+
+    // The queue refuses: the verdict is written alone — once, the failed transaction having rolled back — and the
+    // event raised apart. The pipeline still gets its answer.
+    raised.refuse.store(true, std::sync::atomic::Ordering::SeqCst);
+    gate.record(target, &decision, &caller).await;
+    ensure_eq!(verdicts_of(server, REPO_B), "2", "the verdict recorded alone, once");
+    ensure_eq!(raised.apart.lock().unwrap().len(), 1, "the refusal raised apart");
+    raised.refuse.store(false, std::sync::atomic::Ordering::SeqCst);
+
+    // A pass raises nothing.
+    let passed = crate::service::Decision {
+        verdict: crate::verdict::GateVerdict { passed: true, ..decision.verdict.clone() },
+        policy: decision.policy.clone(),
+    };
+    gate.record(target, &passed, &caller).await;
+    ensure_eq!(verdicts_of(server, REPO_B), "3", "the pass recorded");
+    ensure_eq!(raised.together.lock().unwrap().len(), 0, "a pass is no event");
+    ensure_eq!(raised.apart.lock().unwrap().len(), 1, "nor apart");
     Ok(())
 }

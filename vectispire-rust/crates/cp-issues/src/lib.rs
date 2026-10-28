@@ -24,6 +24,7 @@ pub use persistence::{IssueFilters, Lifetime, StoreError};
 pub mod purge;
 pub mod queries;
 pub mod query;
+mod signals;
 pub mod sla;
 pub mod sync;
 pub mod target_backlog;
@@ -37,6 +38,7 @@ use std::sync::Arc;
 
 use vectispire_cp_audit::AuditLog;
 use vectispire_cp_db::Db;
+use vectispire_cp_outbox::SecurityEvents;
 use vectispire_cp_scanning::ScanCatalog;
 use vectispire_cp_settings::Settings;
 use vectispire_cp_targets::Targets;
@@ -68,6 +70,10 @@ pub struct IssuesConfig {
     pub scans: ScanCatalog,
     pub settings: Arc<Settings>,
     pub audit: Arc<AuditLog>,
+    /// Where the backlog's own security events go — a secret leak found, a remediation deadline passed: the SIEM
+    /// export's queue in the binary (`cp-outbox`'s port, which `cp-siem` implements), joined in the transaction that
+    /// caused them.
+    pub events: Arc<dyn SecurityEvents>,
 }
 
 /// The issues module facade bundling all sub-services and adapters.
@@ -90,7 +96,7 @@ pub struct Issues {
 impl Issues {
     pub fn new(config: IssuesConfig) -> Self {
         let sla = Arc::new(SlaService::new(config.db.clone(), config.settings.clone()));
-        let breaches = Arc::new(SlaBreachSignals::new(config.db.clone(), sla.clone()));
+        let breaches = Arc::new(SlaBreachSignals::new(config.db.clone(), sla.clone(), config.events.clone()));
         let triage = Arc::new(IssueTriageService::new(config.db.clone()));
         let queries = Arc::new(IssueQueryService::new(
             config.db.clone(),
@@ -106,7 +112,7 @@ impl Issues {
         let reviews =
             Arc::new(ExceptionReviewService::new(config.db.clone(), (*triage).clone(), (*exceptions).clone()));
         let catalog = Arc::new(IssueCatalog::new(config.db.clone()));
-        let backlog = Arc::new(IssueBacklog::new());
+        let backlog = Arc::new(IssueBacklog::new(config.events.clone()));
         let target_backlog = Arc::new(TargetBacklogFigures::new(config.db.clone()));
 
         Self {
