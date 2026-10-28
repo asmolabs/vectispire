@@ -45,6 +45,17 @@ class TotpTest {
     }
 
     @Test
+    @DisplayName("a secret that decodes to no key matches no code, rather than throwing")
+    void aSecretWithNoKeyMatchesNothing() {
+        Instant now = Instant.parse("2026-08-22T10:00:00Z");
+
+        // Nothing of the Base32 alphabet, or too little of it for a byte: an empty HMAC key.
+        for (String secret : List.of("", "!!!", "A", "1890", "====")) {
+            assertThat(Totp.matchingStep(secret, "123456", now)).as(secret).isEmpty();
+        }
+    }
+
+    @Test
     @DisplayName("generates distinct backup recovery codes")
     void backupCodes() {
         List<String> codes = Totp.generateBackupCodes(8);

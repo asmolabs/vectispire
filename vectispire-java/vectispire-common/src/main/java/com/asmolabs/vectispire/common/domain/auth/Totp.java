@@ -91,12 +91,19 @@ public final class Totp {
             return OptionalLong.empty();
         }
 
+        // A secret with no Base32 letter in it is no key: `SecretKeySpec` throws on an empty one, and
+        // the secret here is the one the caller sends to `/auth/mfa/enable` — "!!!" answered 500.
+        byte[] key = decodeBase32(secret);
+        if (key.length == 0) {
+            return OptionalLong.empty();
+        }
+
         String cleaned = submittedCode.trim();
         long currentStep = instant.getEpochSecond() / TIME_STEP_SECONDS;
 
         // Window: current step, previous step (-30s), next step (+30s)
         for (long step = currentStep - 1; step <= currentStep + 1; step++) {
-            if (cleaned.equals(generateCodeForStep(secret, step))) {
+            if (cleaned.equals(codeForStep(key, step))) {
                 return OptionalLong.of(step);
             }
         }
@@ -104,7 +111,10 @@ public final class Totp {
     }
 
     private static String generateCodeForStep(String secret, long step) {
-        byte[] key = decodeBase32(secret);
+        return codeForStep(decodeBase32(secret), step);
+    }
+
+    private static String codeForStep(byte[] key, long step) {
         byte[] data = ByteBuffer.allocate(8).putLong(step).array();
 
         try {

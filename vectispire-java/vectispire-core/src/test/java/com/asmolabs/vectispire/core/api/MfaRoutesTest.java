@@ -80,4 +80,16 @@ class MfaRoutesTest extends ApiTestBase {
                         .content("{\"code\":\"" + Totp.generateCode(secret, clock.instant().plusSeconds(30)) + "\"}"))
                 .andExpect(status().isTooManyRequests());
     }
+
+    @Test
+    @DisplayName("enrolling a secret that is no key is refused as a wrong code, not a 500")
+    void aSecretWithNoKeyIsABadRequest() throws Exception {
+        String token = asAdmin();
+
+        mvc.perform(authenticated(post("/api/v1/auth/mfa/enable"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"secret\":\"!!!\",\"code\":\"123456\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Invalid TOTP verification code."));
+    }
 }
