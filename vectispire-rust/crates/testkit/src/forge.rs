@@ -35,16 +35,19 @@ impl Forge {
         let variable = format!("FORGE_TOKEN={token}");
         let container =
             Container::run("forge", &["-e", &variable, "-p", "127.0.0.1::22", "-p", "127.0.0.1::443", IMAGE]);
-        for _ in 0..200 {
-            if std::process::Command::new("docker")
+        // Ready means the HTTPS server listens (it writes the file once bound). Past 20 s the forge never came
+        // up: fail here, rather than let the first clone report a network error that names nothing.
+        let ready = (0..200).any(|_| {
+            let up = std::process::Command::new("docker")
                 .args(["exec", &container.name, "test", "-f", "/certs/ready"])
                 .output()
-                .is_ok_and(|output| output.status.success())
-            {
-                break;
+                .is_ok_and(|output| output.status.success());
+            if !up {
+                std::thread::sleep(std::time::Duration::from_millis(100));
             }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
+            up
+        });
+        assert!(ready, "the test forge {} did not come up within 20 s", container.name);
         let read = |path: &str| container.exec(&["cat", path]) + "\n";
         let host_key = container.exec(&["cat", "/etc/ssh/ssh_host_ed25519_key.pub"]);
         let host_key = host_key.split_whitespace().take(2).collect::<Vec<_>>().join(" ");

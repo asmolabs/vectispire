@@ -52,5 +52,5 @@ git config --system --add safe.directory '*'
 
 /usr/sbin/sshd -E /tmp/sshd.log
 touch /tmp/requests.log && chmod 666 /tmp/requests.log
-touch /certs/ready
+# /certs/ready is written by the HTTPS server once it listens (https_forge.py); sshd is up already.
 exec python3 /forge/https_forge.py

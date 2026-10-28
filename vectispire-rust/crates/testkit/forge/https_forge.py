@@ -90,4 +90,7 @@ context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 context.load_cert_chain("/certs/server.pem", "/certs/server.key")
 server = http.server.ThreadingHTTPServer(("0.0.0.0", 443), Forge)
 server.socket = context.wrap_socket(server.socket, server_side=True)
+# Ready once the socket listens, not before: the entrypoint used to mark it ready and only then start this
+# server, and a clone that arrived in between failed with "could not reach its host" (CI, 2026-10-28).
+open("/certs/ready", "w").close()
 server.serve_forever()
