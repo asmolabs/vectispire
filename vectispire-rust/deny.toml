@@ -84,7 +84,7 @@ deny = [
     # agent's closure holds none of it. (sea-query-sqlx is the layer's query-builder binding, a dependent of sqlx;
     # vectispire-cp-contract replays the recorded traffic, seeding and reading every table — no module uses it.
     # sea-orm builds the repositories' statements; its own sqlx connections are never opened, cp-db runs them.)
-    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx", "sea-orm", "vectispire-cp-access", "vectispire-cp-audit", "vectispire-cp-settings", "vectispire-cp-maintenance", "vectispire-cp-outbox", "vectispire-cp-targets", "vectispire-cp-scanning", "vectispire-cp-agents", "vectispire-cp-rules", "vectispire-cp-inventory", "vectispire-cp-issues", "vectispire-cp-gate", "vectispire-cp-contract"], reason = "decision 0003: the agent holds no database connection" },
+    { crate = "sqlx", wrappers = ["vectispire-migrate", "vectispire-cp-db", "sea-query-sqlx", "sea-orm", "vectispire-cp-access", "vectispire-cp-audit", "vectispire-cp-settings", "vectispire-cp-maintenance", "vectispire-cp-outbox", "vectispire-cp-targets", "vectispire-cp-scanning", "vectispire-cp-agents", "vectispire-cp-rules", "vectispire-cp-inventory", "vectispire-cp-issues", "vectispire-cp-gate", "vectispire-cp-siem", "vectispire-cp-contract"], reason = "decision 0003: the agent holds no database connection" },
     { crate = "diesel", reason = "decision 0003: the agent holds no database connection" },
     { crate = "postgres", reason = "decision 0003: the agent holds no database connection" },
     { crate = "tokio-postgres", reason = "decision 0003: the agent holds no database connection" },

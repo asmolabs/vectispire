@@ -1,0 +1,55 @@
+[package]
+name = "vectispire-cp-siem"
+description = "The control plane's SIEM module: the export's configuration, the security events queued in the outbox, their delivery over a webhook or syslog (UDP, TCP, TLS with a pinned collector CA) — core.siem, ported."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Each engine's checked queries are a feature of their own, as in cp-db: the offline cache of one engine is
+# generated while only that engine's database is up (crates/cp-db/scripts/sqlx-prepare.sh, with this crate's name).
+default = ["mysql-queries", "postgres-queries"]
+mysql-queries = []
+postgres-queries = []
+
+[dependencies]
+futures-util.workspace = true
+# `uname`'s node name: the HOSTNAME a syslog header states when the environment names none — what
+# `InetAddress.getLocalHost().getHostName()` answers on the Java side. A feature of a crate already linked.
+rustix = { workspace = true, features = ["system"] }
+# Syslog over TLS: the socket is this module's (`SyslogSender`), as Java's is JSSE's. Every one of these is in the graph
+# already through reqwest's TLS stack; the features are those cp-outbound's tests use.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = { version = "1", features = ["std"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+# The runtime's authorities when no collector CA is pinned and no bundle replaces them — the ones reqwest compiles in.
+webpki-roots = "1"
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tokio = { workspace = true, features = ["net", "time", "io-util", "rt"] }
+tracing.workspace = true
+uuid = { version = "1", features = ["v4"] }
+vectispire-cp-audit = { path = "../cp-audit" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+vectispire-cp-db = { path = "../cp-db" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-outbox = { path = "../cp-outbox" }
+vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-domain.workspace = true
+vectispire-tls.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

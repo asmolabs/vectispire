@@ -32,8 +32,9 @@ listener's failure writes the entry again alone and tells the listeners after th
   runtime, so `Mirror` is the seam and the binary adapts one to the other (`vectispire-cp-app`'s `audit_mirror`,
   held to the line's bytes by its tests). The binary does not open the database yet, so nothing constructs the log
   there today.
-- **The SIEM** hears entries through `Listener` and broken verifications through `ChainBrokenListener`. The
-  security-event vocabulary (`SecurityEventType`) is the SIEM module's; `Signal` carries its wire name until then.
+- **The SIEM** hears entries through `Listener` and broken verifications through `ChainBrokenListener`, both
+  implemented by `vectispire-cp-siem`'s `SiemEvents`. The security-event vocabulary (`SecurityEventType`) is the
+  domain crate's (`vectispire_domain::siem`); `Signal` carries its wire name, which `SiemEvents` reads back into it.
 - **The routes** of the audit-log screen belong to the module that serves them.
 
 ## Running the suites

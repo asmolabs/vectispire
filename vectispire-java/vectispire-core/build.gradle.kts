@@ -546,6 +546,9 @@ tasks.named<Test>("test") {
     // `cp-scanning`'s: the scheduling rule, the queue's rules, the dispatcher's sentences and claims, the columns a scan's
     // page reads back — `ScanningReferenceSetTest`, written before the Rust port of the module.
     inputs.dir(rootProject.file("../vectispire-rust/reference/scanning")).withPropertyName("scanningReferenceSet")
+    // `cp-siem`'s: what the module queues for an audit entry, what a queued row becomes at delivery, what a save and
+    // the connection test answer — `SiemModuleReferenceSetTest`, over the real services and mocked collaborators.
+    inputs.dir(rootProject.file("../vectispire-rust/reference/siem")).withPropertyName("siemReferenceSet")
 }
 
 /**

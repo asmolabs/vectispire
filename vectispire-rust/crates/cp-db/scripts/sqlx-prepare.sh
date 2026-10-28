@@ -31,7 +31,7 @@ mode="${1:-}"
 case "$mode" in prepare | check) ;; *) echo "usage: $0 prepare|check [crate]" >&2; exit 2 ;; esac
 
 # Every crate with checked statements, as its directory under crates/; the package is `vectispire-<crate>`.
-crates_with_queries="cp-db cp-access cp-audit cp-settings cp-maintenance cp-outbox cp-targets cp-scanning cp-issues"
+crates_with_queries="cp-db cp-access cp-audit cp-settings cp-maintenance cp-outbox cp-targets cp-scanning cp-issues cp-siem"
 if [ -n "${2:-}" ]; then
   case " $crates_with_queries " in
     *" $2 "*) selected="$2" ;;

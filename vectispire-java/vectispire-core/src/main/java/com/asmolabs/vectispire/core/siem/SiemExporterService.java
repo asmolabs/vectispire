@@ -153,7 +153,11 @@ public class SiemExporterService {
         }
         entity.setEnabled(enabled);
         entity.setProtocol(parsedProtocol.name());
-        entity.setEndpoint(endpoint);
+        // **Stored as it was checked: trimmed.** The length was checked on the trimmed text and the text as typed was
+        // stored, so an endpoint of 1,024 characters with a space around it passed the check and was refused by the
+        // column, as a 500 — the defect the check exists for. Every reader trims it anyway (the endpoint's parser,
+        // the comparison with the collector being left).
+        entity.setEndpoint(endpoint == null ? null : endpoint.trim());
         // **Blank keeps the stored header.** The screen says so ("leave empty to keep current")
         // and the response never sends the header back, so the form cannot resubmit it: writing
         // what arrived erased the credential on every save that changed anything else, and the
