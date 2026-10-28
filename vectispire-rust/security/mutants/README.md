@@ -30,6 +30,7 @@ The mutant lists are data, one script per task; the shared logic is in `_runner.
 | `p2-8-ingestion.py` | 2.8 ingestion | `cp-scanning`'s `ingestion`: the columns and clipping after the fingerprint, the low-confidence downgrade, the secrets' deduplication, a plugin's scope, the end-of-life conditions, the licences read per scan, the exploited flag, a `null` element refused in every list; the ingestor `cp-app` composes |
 | `p2-7-scanning.py` | 2.7 scanning | `cp-scanning`: the claim's conditions, the attempts, the leader lease, the scheduler, retention, the dispatcher's sealing and refusals, the result's write, the routes' visibility; `domain`'s `schedules` and `scan_queue` |
 | `p4-2a-siem-domain.py` | 4.2 SIEM, domain layer | `crates/domain`'s `siem` (the collector CA included), `pinned_ca` and `x509`, `triage_status` and `Instant`'s calendar; `cp-audit`'s guards between the audit operations and the SIEM's placements and signals |
+| `p4-2b-siem-module.py` | 4.2 SIEM, the module's services | `cp-siem`: what is queued and when, the queued payload, delivery's gone-or-retried answers and the CA checked current, every check of the save, the stop notice, the connection test's outcomes, the private switch, the webhook's header and statuses, the syslog transport (framing, the pinned CA replacing the trust, the name verified, the deadline) |
 
 ## Running
 
