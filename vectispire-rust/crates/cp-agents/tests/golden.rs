@@ -52,7 +52,7 @@ use vectispire_cp_scanning::ports::{BundledRules, IngestionStandIn, NoPlugins};
 use vectispire_cp_scanning::{Scanning, ScanningConfig};
 use vectispire_cp_settings::{Setting, Settings};
 use vectispire_cp_targets::deletion::PurgeRegistry;
-use vectispire_cp_targets::{IssuesStandIn, SystemClock, Targets, TargetsConfig, TargetsForAccess};
+use vectispire_cp_targets::{SystemClock, Targets, TargetsConfig, TargetsForAccess};
 use vectispire_domain::git_host_allowlist::GitHostAllowlist;
 
 use support::Migrated;
@@ -133,7 +133,7 @@ fn router(db: &Db) -> axum::Router {
         db: db.clone(),
         audit: audit.clone(),
         scans: vectispire_cp_scanning::target_scans(db.clone(), Arc::new(SystemClock)),
-        backlog: Arc::new(IssuesStandIn),
+        backlog: Arc::new(vectispire_cp_issues::TargetBacklogFigures::new(db.clone())),
         purge: PurgeRegistry::stand_ins().with(vectispire_cp_scanning::purge::listeners()),
         encryption: support::encryption(),
         allowed_hosts: GitHostAllowlist::default(),
