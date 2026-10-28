@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptEntity;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
@@ -569,11 +570,12 @@ public class AuthService {
         return attempt;
     }
 
-    private static String clip(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 255 ? value : value.substring(0, 255);
+    /**
+     * A User-Agent cut to its column, on a character boundary: a {@code substring} could leave half
+     * a surrogate pair, which is no character in any encoding.
+     */
+    static String clip(String value) {
+        return BoundedText.clip(value, 255);
     }
 
     /**
