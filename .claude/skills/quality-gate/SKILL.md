@@ -115,7 +115,9 @@ The toolchain is `rust-toolchain.toml`'s. Docker is required: the clone and cont
 throwaway `vs-rs-*` containers and fail without a daemon — never skip them. `check.sh` runs fmt, clippy
 with `-D warnings` (and the lints `Cargo.toml` denies), the tests, `cargo deny`, `security/check-unsafe.sh`,
 `security/lint-ceilings.sh`, `cargo vet --locked` and `security/semgrep.sh`; CI's `rust` job runs the same
-steps (`vectispire-rust/security/README.md` lists what each refuses).
+steps (`vectispire-rust/security/README.md` lists what each refuses). cargo-deny and cargo-vet come from
+`security/install-tools.sh`, which `check.sh` calls: the versions `security/tools.txt` pins — CI installs
+through the same script —, built once into `~/.cache/vectispire/rust-tools` and shared by every worktree.
 
 **A new dependency is reviewed in three places in the same diff**: its licence in `deny.toml` if it is
 new, its build script in `[bans.build]` if it has one (with what it builds), and an audit or a named

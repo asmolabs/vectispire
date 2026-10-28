@@ -7,6 +7,11 @@
 # (README.md, "The reference sets").
 set -eu
 cd "$(dirname "$0")"
+# cargo-deny and cargo-vet at the versions CI runs, built once per machine (security/install-tools.sh):
+# a worktree without them used to stop the gate halfway, or be run without its last steps.
+./security/install-tools.sh cargo-deny cargo-vet
+PATH="$(./security/install-tools.sh --bin):$PATH"
+export PATH
 
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings

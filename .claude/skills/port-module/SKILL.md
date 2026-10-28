@@ -102,7 +102,8 @@ Each of these was a real divergence from Java, found by replaying recorded traff
   `security/mutants/`. Restoring a file from a backup keeps its old modification time and cargo reuses
   the mutant's build: `touch` the file after restoring, or the next run tests the mutant.
 - `./check.sh`, then what it does not run (quality-gate §4b): the Flyway oracle, `sqlx-prepare.sh check`,
-  the contract summary, and the replay as CI runs it.
+  the contract summary, and the replay as CI runs it. `check.sh` installs cargo-deny and cargo-vet itself
+  (`security/install-tools.sh`, once per machine): a run that stopped before them has not passed.
 
 ## 7. Deliver
 
