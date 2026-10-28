@@ -94,8 +94,10 @@ impl PinnedCa {
     pub fn parse_pasted(pem: Option<&str>, now: Instant, subject: &Subject) -> Result<PinnedCa, Refused> {
         let read = PinnedCa::parse(pem, now, subject)?;
         // Every object the reader returned started at one; one it skipped leaves its marker uncounted. The
-        // marker cannot overlap itself, so counting matches is Java's `indexOf(…, at + 1)` loop.
-        if read.pem.matches("-----BEGIN").count() > read.anchors.len() {
+        // marker cannot overlap itself, so counting matches is Java's `indexOf(…, at + 1)` loop. Counted in any
+        // ASCII case — the reader knows only capitals, so `-----begin` was skipped as silently — and ASCII only,
+        // as Java folds it, so that no other letter folds into the marker.
+        if read.pem.to_ascii_lowercase().matches("-----begin").count() > read.anchors.len() {
             return Err(Refused(format!(
                 "{} has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each \
                  certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line.",

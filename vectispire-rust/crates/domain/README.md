@@ -59,8 +59,9 @@ characters at most — `999.999.999.999` matched the host-name pattern); and a C
 `read` stay lenient for a stored bundle, which is read as it was accepted. **The fourth stays, decided**: a port
 written with leading zeros (`00514`) is that port, since a stored endpoint is read again at each delivery and refusing
 it would stop an export that works; `SiemEndpointTest.leadingZeros` and the reference set pin it on both sides.
-Still as Java has it: the marker count is of the exact text `-----BEGIN`, so a line the reader skips that does not
-spell it (`-----begin CERTIFICATE-----`) is not counted, and a header that quotes it is — both in the reference set.
+The marker is counted in any ASCII case, as Java counts it since: the reader knows only `-----BEGIN`, so a second
+certificate behind `-----begin CERTIFICATE-----` was dropped as silently. Still as Java has it: a header that quotes
+the marker is counted, and the paste refused — a harmless false positive, in the reference set.
 
 Ported, but shaped for Rust: an issue's severity given to a type whose severity is fixed is refused by `build()`,
 where Java throws at the call — either way no event exists. `SecurityEventRaised` and `SecurityEventRaisedApart`

@@ -2190,7 +2190,7 @@
       } ]
     },
     "parse" : "accepted",
-    "parsePasted" : "accepted"
+    "parsePasted" : "The collector CA has a -----BEGIN line that cannot be read, and what follows it would be ignored. Paste each certificate whole, from its -----BEGIN CERTIFICATE----- line to its -----END CERTIFICATE----- line."
   }, {
     "name" : "a marker in a header",
     "read" : {

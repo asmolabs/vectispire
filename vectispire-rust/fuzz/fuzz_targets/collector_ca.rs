@@ -20,7 +20,7 @@ fuzz_target!(|data: &[u8]| {
             let now = Instant::of_epoch_second(1_790_856_000);
             let _ = CollectorCa::parse(Some(text), now);
             if let Ok(pasted) = CollectorCa::parse_pasted(Some(text), now) {
-                assert_eq!(pasted.pem().matches("-----BEGIN").count(), pasted.anchors().len(), "a paste read in part");
+                assert_eq!(pasted.pem().to_ascii_lowercase().matches("-----begin").count(), pasted.anchors().len(), "a paste read in part");
             }
         }
         Err(refused) => assert!(refused.0.starts_with("The collector CA") || refused.0.starts_with('"')),
