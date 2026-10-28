@@ -2,8 +2,8 @@
 
 The control plane's SIEM module in Rust — `core.siem` (plan, Phase 4 task 4.2). Not shipped: the Java control plane is
 the product. The domain (event catalogue, CEF line, syslog frame, endpoint, collector CA) is `vectispire_domain::siem`,
-the first stage; the services the second; the three routes and the module's place in the binary the third. **Not here
-yet**: the replay of the routes' recorded traffic — the fourth stage, with `golden/deferred/siem.txt`.
+the first stage; the services the second; the three routes and the module's place in the binary the third; the replay
+of the routes' recorded traffic the fourth — `golden/deferred/siem.txt` is gone.
 
 ## What it does
 
@@ -70,6 +70,21 @@ beside the markers.
 
 The TLS tests make a CA and a collector certificate per run with the `openssl` command, as `cp-outbound`'s do;
 absent, they fail rather than skip.
+
+## Replayed
+
+The replay's router (`crates/cp-agents/tests/golden.rs`) composes the module as `cp-app/src/siem.rs` does: its listener
+on the routes' audit log and on the chain's (a throttled bearer signals), its events handed to the issues and the gate,
+its three routes owed. 142 of the routes' 146 recordings replay green on both engines; the four left are in
+`golden/deferred/_recording.txt` — a private key pasted as the CA, which the recorder hides, and a connection test to
+the TLS collector the Java test ran. Two things the replay found:
+
+- **The recorder hid certificates** as `«pem:certificate:N»`, so no recording that pins a collector CA could be sent:
+  it now keeps a certificate literal (it is public; an answer states its subject and expiry) and hides keys only
+  (`Placeholders`, `PlaceholdersTest.aCertificateIsKeptAndAKeyIsNot`).
+- **The issues' triage decisions signalled nothing**: `ISSUE_TRIAGED` names no event by its operation, and Java's
+  `IssueDecisionService` signals `TriageSignals.of(previous, result)` on the entry — now the Rust one does too, single
+  and bulk.
 
 ## Differences from Java, on purpose
 

@@ -170,7 +170,8 @@ async fn answering(
 /// The three modules as the binary composes them, and Phase 3's three, behind the real chain: a fresh set per test. Ingestion is the
 /// stand-in: its backlog and inventory are Phase 3's, composed only by `cp-app`.
 fn router(db: &Db) -> axum::Router {
-    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
+    let siem = Siem::over(db);
+    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
     let targets = Arc::new(Targets::new(TargetsConfig {
         db: db.clone(),
         audit: audit.clone(),
@@ -199,7 +200,7 @@ fn router(db: &Db) -> axum::Router {
         runner: None,
         scanned: Vec::new(),
     }));
-    let modules = phase_three(db, targets.clone(), audit.clone());
+    let modules = phase_three(db, targets.clone(), audit.clone(), &siem);
     let credentials = Arc::new(CredentialService::new(
         db.clone(),
         Arc::new(AccessClock),
@@ -244,14 +245,52 @@ fn router(db: &Db) -> axum::Router {
     {
         routes = routes.route(entry);
     }
-    let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
+    // The chain's entries signal too (`BEARER_TOKEN_THROTTLED`): the SIEM hears them as it hears the routes'.
+    let entries = ChainEntries(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
     let time = Arc::new(AnsweringTime::default());
     let chain = Arc::new(Chain::with_clock(ChainConfig::default(), credentials, Arc::new(entries), time.clone()));
     routes.build(&chain, None).unwrap().layer(axum::middleware::from_fn_with_state(time, answering))
 }
 
-/// The issues, gate and inventory modules as the binary composes them, on the scan catalog and the targets above.
-fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vectispire_cp_http::routes::RouteEntry> {
+/// The SIEM export as `cp-app/src/siem.rs` composes it: the real sender (no reserved endpoint, the private switch read
+/// from the settings the recording seeds), the events queued through an enqueue-only outbox over the same table — the
+/// audit log's listener, and the issues' and the gate's `SecurityEvents`. Nothing is relayed: what the replay compares
+/// is the row each request queues.
+struct Siem {
+    events: Arc<vectispire_cp_siem::SiemEvents>,
+    sender: Arc<vectispire_cp_siem::SiemSender>,
+}
+
+impl Siem {
+    fn over(db: &Db) -> Siem {
+        let sender = Arc::new(vectispire_cp_siem::SiemSender::new(
+            vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+            vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+            vectispire_cp_siem::SyslogSender::new(&vectispire_tls::TlsTrust::BuiltIn).unwrap(),
+            Arc::new(Settings::new(db.clone())),
+            None,
+        ));
+        let queue = Arc::new(Outbox::on_database(
+            db.clone(),
+            Registry::new(Vec::new(), Vec::new()),
+            Arc::new(vectispire_cp_maintenance::SystemClock),
+        ));
+        let events = Arc::new(vectispire_cp_siem::SiemEvents::new(db.clone(), queue, Arc::new(AuditClock)));
+        Siem { events, sender }
+    }
+
+    fn listeners(&self) -> Vec<Arc<dyn vectispire_cp_audit::Listener>> {
+        vec![self.events.clone()]
+    }
+}
+
+/// The issues, gate, inventory and SIEM modules as the binary composes them, on the scan catalog and the targets above.
+fn phase_three(
+    db: &Db,
+    targets: Arc<Targets>,
+    audit: Arc<AuditLog>,
+    siem: &Siem,
+) -> Vec<vectispire_cp_http::routes::RouteEntry> {
     let scans = Arc::new(vectispire_cp_scanning::ScanCatalog::new(db.clone(), Arc::new(SystemClock)));
     let issues = Arc::new(vectispire_cp_issues::Issues::new(vectispire_cp_issues::IssuesConfig {
         db: db.clone(),
@@ -259,7 +298,7 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
         scans: (*scans).clone(),
         settings: Arc::new(Settings::new(db.clone())),
         audit: audit.clone(),
-        events: Arc::new(vectispire_cp_outbox::NotExported),
+        events: siem.events.clone(),
     }));
     let rules = vectispire_cp_rules::RulesModule::new(
         db.clone(),
@@ -273,6 +312,13 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
         targets: targets.clone(),
         audit: audit.clone(),
     }));
+    let exporter = Arc::new(vectispire_cp_siem::SiemExporterService::new(
+        db.clone(),
+        siem.sender.clone(),
+        support::encryption(),
+        (*audit).clone(),
+        Arc::new(AuditClock),
+    ));
     let gate = vectispire_cp_gate::GateModule::new(
         db.clone(),
         issues.catalog().clone(),
@@ -281,11 +327,12 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
         rules.coverage.clone(),
         audit,
         Arc::new(SystemClock),
-        Arc::new(vectispire_cp_outbox::NotExported),
+        siem.events.clone(),
     );
     let mut routes = vectispire_cp_issues::routes(issues);
     routes.extend(gate.routes());
     routes.extend(vectispire_cp_inventory::routes(inventory, targets));
+    routes.extend(vectispire_cp_siem::routes(exporter));
     routes
 }
 
@@ -296,8 +343,9 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
 fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
     let db = support::unreachable();
     let composed = support::compose(&db, support::system_clock());
-    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
-    let phase_three = phase_three(&db, composed.targets.clone(), audit);
+    let siem = Siem::over(&db);
+    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), siem.listeners()));
+    let phase_three = phase_three(&db, composed.targets.clone(), audit, &siem);
     vectispire_cp_targets::routes(composed.targets)
         .into_iter()
         .chain(vectispire_cp_scanning::routes(composed.scanning))

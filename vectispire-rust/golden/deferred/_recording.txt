@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 78
+ceiling 87
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--007-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
@@ -85,3 +85,14 @@ golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--013-POST-api_v1
 golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--014-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
 golden api.AgentSealingKeyRoutesTest/withheldPollsCostNoAttempt--015-GET-api_v1_agent_jobs | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
 golden api.RequestBodyLimitRoutesTest/largerCeilingsAreNotClamped--003-POST-api_v1_agent_jobs_1_result | a binary request body, which this replay does not send yet — recording limit
+
+# ── Met by the SIEM routes' replay (task 4.2, fourth stage): the five agents' lines were listed under siem, whose event they now queue; their key is what still keeps them red ──
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--004-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--005-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/aSubstitutedKeyIsRefused--006-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--005-POST-api_v1_agent_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--006-DELETE-api_v1_admin_agents_uuid_3_sealing-key | the recorder hides the agent's sealing key and its signature (secret placeholders): no key its pinned signing key verifies can be rebuilt — recording limit
+golden api.SiemCollectorCaRoutesTest/theSaveRefusesWhatIsNotACurrentCa--002-PUT-api_v1_siem_config | the test pastes a private key where the collector CA goes, to see it refused, and the recorder hides a key (`«pem:private-key»`): the replay cannot send what Java was sent — recording limit
+golden api.SiemCollectorCaRoutesTest/theSaveRefusesWhatIsNotACurrentCa--003-PUT-api_v1_siem_config | the test pastes a private key where the collector CA goes, to see it refused, and the recorder hides a key (`«pem:private-key»`): the replay cannot send what Java was sent — recording limit
+golden api.SiemCollectorCaRoutesTest/theSaveRefusesWhatIsNotACurrentCa--004-PUT-api_v1_siem_config | the test pastes a private key where the collector CA goes, to see it refused, and the recorder hides a key (`«pem:private-key»`): the replay cannot send what Java was sent — recording limit
+golden api.SiemCollectorCaRoutesTest/theTestVerifiesAgainstThePinnedCa--003-POST-api_v1_siem_test | the connection test reaches a TLS collector the Java test ran on a port of its own, with a certificate its CA issued: nothing listens there during the replay — recording limit
