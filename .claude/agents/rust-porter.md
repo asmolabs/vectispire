@@ -46,7 +46,10 @@ against the Java suite's recorded traffic.
 ## Before you commit
 
 Run `./check.sh` (Docker required — the suites fail without it, they never skip). It runs fmt, clippy
-with `-D warnings`, the tests, cargo-deny, the unsafe check, the lint ceilings, cargo-vet and semgrep. A
+with `-D warnings`, the tests, cargo-deny, the unsafe check, the lint ceilings, cargo-vet and semgrep —
+cargo-deny and cargo-vet at CI's versions, which it installs once per machine through
+`security/install-tools.sh` (`security/tools.txt` pins them). Never report the gate green without its last
+steps: a run that stopped at "no such command" has not passed. A
 new dependency needs, in the same diff: its licence in `deny.toml` if new, its build script in
 `[bans.build]` if it has one (say what it builds), and an audit or a named exemption in
 `supply-chain/` (`cargo vet` tells you which). A new parser of untrusted input gets a fuzz target in

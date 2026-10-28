@@ -1445,14 +1445,21 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      # The two tools built once per version instead of on every run (about five minutes): the key is the
+      # file that pins them, so a version bump builds afresh, and install-tools.sh still checks each binary
+      # reports its pinned version before trusting what the cache restored.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/vectispire/rust-tools
+          key: rust-tools-${{ hashFiles('vectispire-rust/security/tools.txt') }}
       - name: the pinned toolchain, and the two supply-chain tools at their versions
         run: |
           rustup show active-toolchain || rustup toolchain install
           rustc --version
           grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
             || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
-          cargo install --locked cargo-deny@0.20.2
-          cargo install --locked cargo-vet@0.10.2
+          ./security/install-tools.sh cargo-deny cargo-vet
+          ./security/install-tools.sh --bin >> "$GITHUB_PATH"
       - name: formatting
         run: cargo fmt --all -- --check
       # The lints Cargo.toml denies (unwrap and expect in shipped code, print!, todo!, undocumented
@@ -1583,7 +1590,8 @@ jobs:
       # below reads, and the two are compared so that one cannot silently be much shorter than the other.
       - name: the CycloneDX SBOM of the agent's crates (cargo-cyclonedx)
         run: |
-          cargo install --locked cargo-cyclonedx@0.5.9
+          ./security/install-tools.sh cargo-cyclonedx
+          PATH="$(./security/install-tools.sh --bin):$PATH"
           cargo cyclonedx --format json --spec-version 1.5 --target x86_64-unknown-linux-musl \
             --no-build-deps --manifest-path crates/agent/Cargo.toml
           mv crates/agent/vectispire-agent.cdx.json ../vectispire-agent-rs.cdx.json

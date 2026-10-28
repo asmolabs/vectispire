@@ -1,0 +1,6 @@
+# The cargo subcommands the Rust gate runs, at the versions CI runs: `install-tools.sh` installs them,
+# and ci.yml and nightly.yml install through it, so a version changes here and nowhere else.
+cargo-deny 0.20.2
+cargo-vet 0.10.2
+cargo-cyclonedx 0.5.9
+cargo-fuzz 0.13.2

@@ -282,7 +282,8 @@ jobs:
         run: |
           rustup show active-toolchain || rustup toolchain install
           rustc --version
-          cargo install --locked cargo-fuzz@0.13.2
+          ../security/install-tools.sh cargo-fuzz
+          ../security/install-tools.sh --bin >> "$GITHUB_PATH"
       - name: every target, 120 seconds each
         run: ./run.sh 120
       - name: Miri on the crates without C (domain, crypto, scanners)

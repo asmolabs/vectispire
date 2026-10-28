@@ -2,7 +2,10 @@
 
 What every change under `vectispire-rust/` passes, where it runs, and what each one is for. They are the
 steps of CI's `rust` and `rust-image` jobs (`.github/workflows/ci.yml`) and of the nightly `rust-fuzz`
-job (`nightly.yml`). `../check.sh` runs the per-push ones locally, in the same order.
+job (`nightly.yml`). `../check.sh` runs the per-push ones locally, in the same order. The cargo
+subcommands among them — cargo-deny, cargo-vet, cargo-cyclonedx, cargo-fuzz — are installed by
+`install-tools.sh` at the versions `tools.txt` pins, locally and in CI alike, so a version changes in one
+file.
 
 Each check was broken on purpose once, and turned red, before it was trusted. The "proved by" column
 says how, so that the next person can repeat it rather than believe it.
