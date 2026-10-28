@@ -230,6 +230,23 @@ class SiemRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("an endpoint is stored as it was checked, trimmed: one that fits once trimmed is not refused by the column")
+    void theEndpointIsStoredTrimmed() throws Exception {
+        // Checked trimmed and stored as typed, 1,024 characters and a space each side passed the check and were
+        // refused by the varchar(1024) at the write, as a 500.
+        String fits = "https://siem.example.com/" + "a".repeat(1_024 - "https://siem.example.com/".length());
+        mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"enabled": true, "protocol": "WEBHOOK", "endpoint": " %s ", "minSeverity": "HIGH"}"""
+                                .formatted(fits)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endpoint").value(fits));
+
+        assertThat(configs.findById(SiemConfigEntity.SINGLETON_ID).orElseThrow().getEndpoint()).isEqualTo(fits);
+    }
+
+    @Test
     @DisplayName("the authorization header is refused for a syslog protocol, which cannot carry it")
     void theHeaderIsWebhookOnly() throws Exception {
         String response = mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
