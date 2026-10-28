@@ -117,6 +117,16 @@ too few crates, since a static binary shows none without cargo-auditable's list.
 `rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each
 check refuses and how it was proved is in `vectispire-rust/security/README.md`.
 
+**A module the port has reached moves on both sides in one pull request, or waits.** Once a module has a
+crate under `vectispire-rust/crates/` (`cp-<module>`), or a domain type the Rust side reproduces against a
+reference set (`vectispire-rust/reference/`), a change to its behaviour in Java — a route, a refusal, a stored
+field, a message — lands in the Rust crate in the same pull request, or is held until it can. The alternative
+is a list of Java changes to replay later, which nobody keeps: on 2026-10-28 three SIEM fixes made the same
+day had to be ported in three more commits. The reference sets enforce part of it already — a Java behaviour
+change fails the Java test in check mode until the answers are regenerated, and then the Rust tests — and
+`golden/deferred.txt` the rest, once the routes are served. Choosing the next modules to port, prefer the ones
+that change least in Java.
+
 A **`v*` tag** runs the `release` workflow in two jobs. `build` validates the Gradle wrapper, runs
 `./gradlew build`, builds the interface, the jar and the three images as archives, and hands them over
 with their checksums — holding **no permission but reading the repository**, since it executes every
