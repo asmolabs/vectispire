@@ -142,7 +142,15 @@ public final class ChecklistReminder {
     /** One line of text: a control may hold line breaks, and a long one is cut where the reader sees it is. */
     private static String shown(String control) {
         String single = ChecklistText.normalize(control);
-        return single.length() <= CONTROL_SHOWN ? single : single.substring(0, CONTROL_SHOWN - 1).strip() + "…";
+        if (single.length() <= CONTROL_SHOWN) {
+            return single;
+        }
+        // Never between the two halves of a pair: a lone surrogate is no character, and the mail would carry one.
+        int end = CONTROL_SHOWN - 1;
+        if (Character.isHighSurrogate(single.charAt(end - 1))) {
+            end--;
+        }
+        return single.substring(0, end).strip() + "…";
     }
 
     private static Optional<String> link(Optional<String> publicUrl, long projectId) {

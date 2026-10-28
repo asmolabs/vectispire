@@ -288,6 +288,13 @@ class RuleEvaluationTest {
                     .as("970 of 1100").isEqualTo(MeasurementOutcome.PASS);
             Measurement noBranch = RuleEvaluation.evaluate(branches, facts.build(), NOW);
             assertThat(noBranch.reason()).contains(NoDataReason.STEP_ABSENT);
+            Measurement weightedBranches = RuleEvaluation.evaluate(ChecklistRule.parse("{\"kind\":\"coverage_threshold\","
+                    + "\"maxAgeDays\":7,\"metric\":\"branch\",\"minimumRatio\":0.9,\"aggregation\":\"project_weighted\"}"),
+                    facts(List.of(2L)).coverage(2L, new CoverageReport(new Look(Source.COVERAGE_IMPORT, 2, FRESH,
+                            Optional.empty()), 70, 100, Optional.of(1L), Optional.of(2L))).build(), NOW);
+            assertThat(weightedBranches.summary()).as("the plural, in a sentence a signed document carries")
+                    .contains("the project's 1 of 2 branches covered is under 90 %");
+            assertThat(weightedBranches.repositories().getFirst().detail()).contains("1 of 2 branches covered");
             assertThat(RuleEvaluation.evaluate(lines, facts(List.of(1L)).coverage(1L, new CoverageReport(
                     new Look(Source.COVERAGE_IMPORT, 1, OLD, Optional.empty()), 1, 1, Optional.empty(), Optional.empty()))
                     .build(), NOW).reason()).contains(NoDataReason.STALE);

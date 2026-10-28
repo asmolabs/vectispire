@@ -244,7 +244,7 @@ class CoverageScopeTest {
         void branches() {
             Measurement measured = measure(scoped("branch", "{\"include\":[\"**/service\"]}"), new Kept(ORDERS));
 
-            assertThat(measured.repositories().getFirst().detail()).contains("1 of 4 packages in the scope; 18 of 20 branchs covered");
+            assertThat(measured.repositories().getFirst().detail()).contains("1 of 4 packages in the scope; 18 of 20 branches covered");
         }
 
         @Test
