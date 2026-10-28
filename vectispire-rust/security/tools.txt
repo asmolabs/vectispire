@@ -4,3 +4,4 @@ cargo-deny 0.20.2
 cargo-vet 0.10.2
 cargo-cyclonedx 0.5.9
 cargo-fuzz 0.13.2
+cargo-nextest 0.9.150

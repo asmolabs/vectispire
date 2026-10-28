@@ -1470,8 +1470,16 @@ jobs:
   #
   # **The toolchain is the one `rust-toolchain.toml` names**, installed by the runner's rustup, which
   # checks every component against the release's signed manifest — the image's own `stable` is never
-  # used. The two cargo tools are installed `--locked` at a written version: crates.io serves one file
+  # used. The cargo tools are installed `--locked` at a written version: crates.io serves one file
   # per version, checked against the index's checksum, and the tool's own lockfile decides its graph.
+  #
+  # **One MySQL and one PostgreSQL for the whole job**, as the `jvm` job has one MySQL: every suite that needs a
+  # database creates one of its own on these servers and drops it when it ends (cp-db's `testing`), instead of
+  # starting a container of each engine per test — a start of ten to thirty seconds, paid some sixty times and one
+  # binary after another. The images are the campaign's, the digests `crates/cp-db/src/testing.rs` pins for the
+  # throwaway servers (`scripts/check-db-pins.py` holds both to `Engine.java`). The host ports are the daemon's
+  # choice, read from the job's context. A server that does not answer fails the suites — the variables are set,
+  # so nothing falls back and nothing skips.
   rust:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
@@ -1480,9 +1488,58 @@ jobs:
     defaults:
       run:
         working-directory: vectispire-rust
+    services:
+      mysql:
+        image: mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2
+        env:
+          MYSQL_ROOT_PASSWORD: vectispire-ci
+        ports:
+          - 3306
+        # As the `jvm` job's: healthy once the real server listens on TCP, and no credential in the arguments.
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+      postgres:
+        image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_PASSWORD: vectispire-ci
+        ports:
+          - 5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
     env:
       CARGO_TERM_COLOR: never
+      # The servers' administrators: cp-db's `testing` creates each test's database (and, on MySQL, its user) with
+      # them, and gives the composition's flags to MySQL, which a job service cannot take on its command line. The
+      # URLs, which carry the ports the daemon chose, are set by the first step: a job's `env` cannot read `job`.
+      VECTISPIRE_TEST_MYSQL_USER: root
+      VECTISPIRE_TEST_MYSQL_PASSWORD: vectispire-ci
+      VECTISPIRE_TEST_POSTGRES_USER: postgres
+      VECTISPIRE_TEST_POSTGRES_PASSWORD: vectispire-ci
+      # No incremental compilation: a CI build starts from what the cache restored, never from its own last run,
+      # so the incremental state is only written, never read — and is a fifth of the target directory. Line tables
+      # only: a panic's backtrace keeps its files and lines, without the full debug information that makes up most
+      # of the rest.
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
     steps:
+      - name: the job's database servers, for every step after this one
+        working-directory: .
+        env:
+          MYSQL_PORT: ${{ job.services.mysql.ports['3306'] }}
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: |
+          if [ -z "$MYSQL_PORT" ] || [ -z "$POSTGRES_PORT" ]; then
+            echo "::error::a database service published no port"; exit 1
+          fi
+          echo "VECTISPIRE_TEST_MYSQL_URL=jdbc:mysql://127.0.0.1:$MYSQL_PORT" >> "$GITHUB_ENV"
+          echo "VECTISPIRE_TEST_POSTGRES_URL=jdbc:postgresql://127.0.0.1:$POSTGRES_PORT" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The whole history: the migration runner is also held to Flyway on the 0.11.1 line's migrations, which
@@ -1508,13 +1565,29 @@ jobs:
         with:
           path: ~/.cache/vectispire/rust-tools
           key: rust-tools-${{ hashFiles('vectispire-rust/security/tools.txt') }}
-      - name: the pinned toolchain, and the two supply-chain tools at their versions
+      # **The dependencies, compiled once per lockfile and toolchain** instead of on every run: the crates.io index
+      # and downloads, and `target/` with the workspace's own crates removed before it is saved (the last step) —
+      # those are rebuilt on every run anyway, since a checkout gives every file a new time. A key moves with
+      # `Cargo.lock` or `rust-toolchain.toml`; a run on a new key starts from the newest older one, and cargo
+      # rebuilds whatever no longer matches, so a stale entry costs time, never a wrong build. The cache is saved
+      # only by a run that succeeded (actions/cache's `post-if`).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            vectispire-rust/target
+          key: rust-target-${{ runner.os }}-${{ hashFiles('vectispire-rust/Cargo.lock', 'vectispire-rust/rust-toolchain.toml') }}
+          restore-keys: |
+            rust-target-${{ runner.os }}-
+      - name: the pinned toolchain, and the cargo tools at their versions
         run: |
           rustup show active-toolchain || rustup toolchain install
           rustc --version
           grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
             || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
-          ./security/install-tools.sh cargo-deny cargo-vet
+          ./security/install-tools.sh cargo-deny cargo-vet cargo-nextest
           ./security/install-tools.sh --bin >> "$GITHUB_PATH"
       - name: formatting
         run: cargo fmt --all -- --check
@@ -1527,9 +1600,14 @@ jobs:
       - name: the lints that panic on input, at their ceilings
         run: ./security/lint-ceilings.sh
       # Includes `crates/agent/tests/isolation.rs`: no database client, server framework or test
-      # support in the agent's resolved graph (decision 0003).
+      # support in the agent's resolved graph (decision 0003). **nextest, not `cargo test`**: every test a process
+      # of its own, from every binary at once, where `cargo test` runs one binary after another and so waits on each
+      # container alone (`.config/nextest.toml`). The tests are the same ones — `cargo test` is what ./check.sh runs
+      # — and the doctests, which nextest does not run, are the next step.
       - name: tests, with Docker
-        run: cargo test --workspace --locked
+        run: cargo nextest run --workspace --locked --profile ci
+      - name: doctests
+        run: cargo test --workspace --locked --doc
       # **The migration runner against the real Flyway**, both engines: a database Java migrated is validated and
       # left alone by Rust, one Rust migrated is accepted by Java with the same schema, Java to V89 then Rust then
       # Java, a Java and a Rust instance starting together (crates/migrate/README.md). Not in `cargo test`: it
@@ -1558,6 +1636,26 @@ jobs:
       - if: failure()
         name: containers left by the suites
         run: docker ps -a --filter name=vs-rs- --format '{{.Names}} {{.Status}}' || true
+      # What the cache above saves: the dependencies' artifacts, not the workspace's. Every target of a workspace
+      # crate — its library, its tests' binaries, its fingerprints and build-script output — is removed by name, as
+      # `cargo metadata` lists them; the next run rebuilds them in any case.
+      - name: the cache keeps the dependencies only
+        run: |
+          cargo metadata --locked --no-deps --format-version 1 | python3 -c '
+          import json, sys
+          for package in json.load(sys.stdin)["packages"]:
+              for name in [package["name"]] + [target["name"] for target in package["targets"]]:
+                  print(name)
+                  print(name.replace("-", "_"))
+          ' | sort -u > "$RUNNER_TEMP/workspace-targets"
+          [ -s "$RUNNER_TEMP/workspace-targets" ] || { echo "::error::cargo metadata listed no workspace target"; exit 1; }
+          while read -r name; do
+            rm -rf target/debug/deps/"$name"-* target/debug/deps/lib"$name"-* \
+              target/debug/.fingerprint/"$name"-* target/debug/build/"$name"-*
+            rm -f target/debug/"$name" target/debug/"$name".d target/debug/lib"$name".*
+          done < "$RUNNER_TEMP/workspace-targets"
+          rm -rf target/debug/incremental target/debug/examples target/tests target/nextest
+          du -sh target
 
   # **The Java suite's HTTP traffic, recorded at this commit and replayed against the Rust control plane.** The
   # recorder (vectispire-java/…/core/golden/) writes one file per request of every HTTP test; the Rust port
