@@ -805,9 +805,10 @@ jobs:
           path: libs
       - name: build the SBOMs of the jars that ship
         run: |
+          syft=anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026
+          ./scripts/pull-pinned-image.sh "$syft"
           for jar in core:vectispire-jvm agent:vectispire-agent; do
-            docker run --rm -v "$PWD/libs:/work:ro" \
-              anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            docker run --rm -v "$PWD/libs:/work:ro" "$syft" \
               scan "file:/work/vectispire-${jar%%:*}.jar" -o cyclonedx-json > "${jar#*:}.cdx.json"
             echo "${jar#*:} components: $(grep -o '"bom-ref"' "${jar#*:}.cdx.json" | wc -l)"
           done
@@ -824,6 +825,11 @@ jobs:
     timeout-minutes: 20
     needs: [sbom]
     steps:
+      # The one file this job runs from the tree: the pull with retries.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/pull-pinned-image.sh
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sbom
@@ -840,11 +846,12 @@ jobs:
       # agent's table behind the control plane's, and the fix for one is rarely the fix for both.
       - name: report, then fail on a fixable high
         run: |
+          grype=anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db
+          ./scripts/pull-pinned-image.sh "$grype"
           failed=0
           for sbom in vectispire-jvm vectispire-agent; do
             echo "::group::$sbom"
-            docker run --rm -v "$PWD:/work:ro" \
-              anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            docker run --rm -v "$PWD:/work:ro" "$grype" \
               "sbom:/work/$sbom.cdx.json" --only-fixed --fail-on high -o table || failed=1
             echo "::endgroup::"
           done
@@ -1521,9 +1528,11 @@ jobs:
         run: |
           set -eu
           cp vectispire-rust/security/recordings.gitleaks.toml "$RUNNER_TEMP/recordings.gitleaks.toml"
+          gitleaks=zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          ./scripts/pull-pinned-image.sh "$gitleaks"
           status=0
           docker run --rm -v "$RUNNER_TEMP/goldens:/recordings:ro" -v "$RUNNER_TEMP/recordings.gitleaks.toml:/gitleaks.toml:ro" \
-            zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            "$gitleaks" \
             detect --no-git --source=/recordings --config /gitleaks.toml --redact > gitleaks.log 2>&1 || status=$?
           cat gitleaks.log
           if grep -q ' ERR ' gitleaks.log; then echo "::error::gitleaks logged an error: the scan cannot be trusted"; exit 1; fi
@@ -1581,8 +1590,10 @@ jobs:
           find crates -name '*.cdx.json' -delete
       - name: report, then fail on a fixable high — and refuse a scan that saw too few crates
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
-            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+          syft=anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026
+          grype=anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db
+          ../scripts/pull-pinned-image.sh "$syft" "$grype"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro "$syft" \
             scan docker:vectispire-agent-rs:verify -o json > syft.json
           python3 - <<'PY'
           import json, sys
@@ -1595,8 +1606,7 @@ jobs:
               print("::error::the scanners see too few crates in the binary: a clean scan would mean nothing")
               sys.exit(1)
           PY
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
-            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro "$grype" \
             vectispire-agent-rs:verify --only-fixed --fail-on high -o table
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

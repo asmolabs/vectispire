@@ -185,6 +185,11 @@ EOF
 umask 022
 password="$(grep '^VECTISPIRE_BOOTSTRAP_PASSWORD=' "$work/.env" | cut -d= -f2-)"
 
+# The matcher this script runs itself, pulled with retries: a registry that times out once is not a
+# composition that cannot scan (pull request #56). The images the scans run are left to the product,
+# which pulls them through the socket proxy — that pull is part of what this check exercises.
+"$root/scripts/pull-pinned-image.sh" "$GRYPE_IMAGE"
+
 echo "── building the fixture's image, and the matcher's database"
 docker build -q -t "$FIXTURE_IMAGE" "$fixture_dir" >/dev/null
 mkdir -p "$work/matcher"
