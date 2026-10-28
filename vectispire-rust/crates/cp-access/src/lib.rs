@@ -3,7 +3,8 @@
 //! account rows and views ([`accounts`]), the rules that keep an administrator from locking everybody out
 //! ([`account_rules`]), and Argon2id as `PasswordHasher` writes it ([`passwords`]); **the credentials** (task 1.2);
 //! and roles and their flags, what a caller may see, the row guards, four-eyes, and who could approve (task 1.5).
-//! MFA and throttles (1.3), single sign-on (1.4) and the routes (1.7) land beside them.
+//! The second factor's codes ([`totp`]) and the sign-in throttle's arithmetic and keys ([`login_throttle`]) are
+//! task 1.3's pure half; its services, single sign-on (1.4) and the routes (1.7) land beside them.
 //!
 //! **A role marker is not authorization** (AGENTS.md, the first trap). The marker half lives in
 //! `vectispire-cp-http` ([`Access`](vectispire_cp_http::Access)), because the chain decides it before any module is
@@ -23,12 +24,14 @@ pub mod approvers;
 pub mod credentials;
 pub mod four_eyes;
 mod internal;
+pub mod login_throttle;
 pub mod passwords;
 mod persistence;
 pub mod roles;
 pub mod rows;
 pub mod security;
 pub mod target_grants;
+pub mod totp;
 pub mod visibility;
 
 pub use approvers::TriageApprovers;

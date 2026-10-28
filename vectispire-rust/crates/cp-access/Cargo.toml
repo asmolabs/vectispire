@@ -21,14 +21,19 @@ postgres-queries = []
 # the `password-hash` crate's own (stricter) parser never decides whether a stored hash verifies.
 argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
 base64.workspace = true
+# HMAC-SHA1 over the time step, RFC 6238 as `Totp` computes it: the workspace's, already linked by the agent (git).
+hmac.workspace = true
 http.workspace = true
 rand_core.workspace = true
+sha1.workspace = true
 sha2.workspace = true
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
 subtle.workspace = true
 thiserror.workspace = true
 time = { version = "0.3", features = ["std"] }
 tracing.workspace = true
+# `Normalizer.normalize(NFKD)` and `\p{M}` in the sign-in throttle's user key. Already in the graph (idna, cp-crypto).
+unicode-normalization = "0.1"
 uuid = { workspace = true, features = ["v4"] }
 # Without its default features: cp-db's own checked statements are not this crate's, and a cache pass for one engine
 # must not compile the other engine's statements of cp-db against it. A workspace build turns them on anyway.

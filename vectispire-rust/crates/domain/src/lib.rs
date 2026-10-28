@@ -35,6 +35,7 @@ pub mod secret;
 pub mod severity;
 pub mod siem;
 pub mod sub_path;
+pub mod team_rules;
 pub mod tool_keys;
 pub mod triage_status;
 pub mod wire;

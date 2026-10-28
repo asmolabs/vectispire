@@ -1,0 +1,1056 @@
+{
+  "base32Encode" : [ {
+    "hex" : "",
+    "base32" : ""
+  }, {
+    "hex" : "00",
+    "base32" : "AA"
+  }, {
+    "hex" : "ff",
+    "base32" : "74"
+  }, {
+    "hex" : "0102",
+    "base32" : "AEBA"
+  }, {
+    "hex" : "010203",
+    "base32" : "AEBAG"
+  }, {
+    "hex" : "01020304",
+    "base32" : "AEBAGBA"
+  }, {
+    "hex" : "0102030405",
+    "base32" : "AEBAGBAF"
+  }, {
+    "hex" : "48656c6c6f21deadbeef",
+    "base32" : "JBSWY3DPEHPK3PXP"
+  }, {
+    "hex" : "3132333435363738393031323334353637383930",
+    "base32" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+  }, {
+    "hex" : "ffffffffffffffffffffffffffffffffffffffff",
+    "base32" : "77777777777777777777777777777777"
+  }, {
+    "hex" : "8000000000000001",
+    "base32" : "QAAAAAAAAAAAC"
+  }, {
+    "hex" : "7f",
+    "base32" : "P4"
+  } ],
+  "base32Decode" : [ {
+    "base32" : "",
+    "hex" : ""
+  }, {
+    "base32" : "A",
+    "hex" : ""
+  }, {
+    "base32" : "AB",
+    "hex" : "00"
+  }, {
+    "base32" : "ABC",
+    "hex" : "00"
+  }, {
+    "base32" : "ABCD",
+    "hex" : "0044"
+  }, {
+    "base32" : "ABCDEFGH",
+    "hex" : "00443214c7"
+  }, {
+    "base32" : "abcdefgh",
+    "hex" : "00443214c7"
+  }, {
+    "base32" : "JBSWY3DP",
+    "hex" : "48656c6c6f"
+  }, {
+    "base32" : "JBSWY3DPEHPK3PXP",
+    "hex" : "48656c6c6f21deadbeef"
+  }, {
+    "base32" : "jbsw y3dp-ehpk 3pxp",
+    "hex" : "48656c6c6f21deadbeef"
+  }, {
+    "base32" : "JBSWY3DP====",
+    "hex" : "48656c6c6f"
+  }, {
+    "base32" : "MFRGG===",
+    "hex" : "616263"
+  }, {
+    "base32" : "0189!",
+    "hex" : ""
+  }, {
+    "base32" : "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",
+    "hex" : "00443214c74254b635cf84653a56d7c675be77df"
+  }, {
+    "base32" : "77777777",
+    "hex" : "ffffffffff"
+  }, {
+    "base32" : "ß",
+    "hex" : "94"
+  }, {
+    "base32" : "ı",
+    "hex" : ""
+  }, {
+    "base32" : "ﬀ",
+    "hex" : "29"
+  }, {
+    "base32" : "ＡＢＣＤ",
+    "hex" : ""
+  }, {
+    "base32" : "İ",
+    "hex" : ""
+  }, {
+    "base32" : "ǆ",
+    "hex" : ""
+  }, {
+    "base32" : "a\u0000b\tc",
+    "hex" : "00"
+  }, {
+    "base32" : "😀AB",
+    "hex" : "00"
+  }, {
+    "base32" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "hex" : "3132333435363738393031323334353637383930"
+  } ],
+  "codes" : [ {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "1970-01-01T00:00:59Z",
+    "code" : "287082"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "2005-03-18T01:58:29Z",
+    "code" : "081804"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "2005-03-18T01:58:31Z",
+    "code" : "050471"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "2009-02-13T23:31:30Z",
+    "code" : "005924"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "2033-05-18T03:33:20Z",
+    "code" : "279037"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "2603-10-11T11:33:20Z",
+    "code" : "353130"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "1970-01-01T00:00:00Z",
+    "code" : "755224"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "1969-12-31T23:59:59.500Z",
+    "code" : "755224"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "1969-12-31T23:59:30Z",
+    "code" : "094451"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "1969-12-31T23:59:29Z",
+    "code" : "094451"
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "instant" : "1969-12-31T23:58:59Z",
+    "code" : "488204"
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "instant" : "2026-10-28T12:00:00Z",
+    "code" : "452248"
+  }, {
+    "seed" : "jbswy3dpehpk3pxp",
+    "instant" : "2026-10-28T12:00:00Z",
+    "code" : "452248"
+  }, {
+    "seed" : "jbsw y3dp-ehpk 3pxp",
+    "instant" : "2026-10-28T12:00:00Z",
+    "code" : "452248"
+  }, {
+    "seed" : "AB",
+    "instant" : "2026-10-28T12:00:00Z",
+    "code" : "161400"
+  }, {
+    "seed" : "ß",
+    "instant" : "2026-10-28T12:00:00Z",
+    "code" : "713987"
+  } ],
+  "matches" : [ {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "452248",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : 59772960
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "266564",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : 59772959
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "601978",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : 59772961
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "479776",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "920069",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "266564",
+    "instant" : "2026-10-28T12:00:29Z",
+    "step" : 59772959
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "920069",
+    "instant" : "2026-10-28T12:00:29Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : " 452248 ",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : 59772960
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "\u0000452248\u001F",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : 59772960
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : " 452248",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "4522480",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "0452248",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "jbswy3dpehpk3pxp",
+    "code" : "452248",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : 59772960
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : null,
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : null,
+    "code" : "123456",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "12345",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "1234567",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "１２３４５６",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "JBSWY3DPEHPK3PXP",
+    "code" : "abcdef",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "",
+    "code" : "123456",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "!!!",
+    "code" : "123456",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "A",
+    "code" : "123456",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "====",
+    "code" : "123456",
+    "instant" : "2026-10-28T12:00:00Z",
+    "step" : null
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "code" : "755224",
+    "instant" : "1969-12-31T23:59:59.500Z",
+    "step" : 0
+  }, {
+    "seed" : "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "code" : "755224",
+    "instant" : "1969-12-31T23:59:29Z",
+    "step" : 0
+  } ],
+  "uris" : [ {
+    "username" : "alice",
+    "issuer" : "Vectispire",
+    "uri" : "otpauth://totp/Vectispire:alice?secret=JBSWY3DPEHPK3PXP&issuer=Vectispire&algorithm=SHA1&digits=6&period=30"
+  }, {
+    "username" : "a b",
+    "issuer" : "Vecti spire",
+    "uri" : "otpauth://totp/Vecti+spire:a+b?secret=JBSWY3DPEHPK3PXP&issuer=Vecti+spire&algorithm=SHA1&digits=6&period=30"
+  }, {
+    "username" : "a+b@c.d",
+    "issuer" : "x&y=z",
+    "uri" : "otpauth://totp/x%26y%3Dz:a%2Bb%40c.d?secret=JBSWY3DPEHPK3PXP&issuer=x%26y%3Dz&algorithm=SHA1&digits=6&period=30"
+  }, {
+    "username" : "é",
+    "issuer" : "Ünïcode",
+    "uri" : "otpauth://totp/%C3%9Cn%C3%AFcode:%C3%A9?secret=JBSWY3DPEHPK3PXP&issuer=%C3%9Cn%C3%AFcode&algorithm=SHA1&digits=6&period=30"
+  }, {
+    "username" : "名前",
+    "issuer" : "😀",
+    "uri" : "otpauth://totp/%F0%9F%98%80:%E5%90%8D%E5%89%8D?secret=JBSWY3DPEHPK3PXP&issuer=%F0%9F%98%80&algorithm=SHA1&digits=6&period=30"
+  }, {
+    "username" : "~*-._",
+    "issuer" : "!'()",
+    "uri" : "otpauth://totp/%21%27%28%29:%7E*-._?secret=JBSWY3DPEHPK3PXP&issuer=%21%27%28%29&algorithm=SHA1&digits=6&period=30"
+  }, {
+    "username" : "a:b/c?d&e=f#g%",
+    "issuer" : "",
+    "uri" : "otpauth://totp/:a%3Ab%2Fc%3Fd%26e%3Df%23g%25?secret=JBSWY3DPEHPK3PXP&issuer=&algorithm=SHA1&digits=6&period=30"
+  } ],
+  "userKeys" : [ {
+    "username" : "alice",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "Alice",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "ALICE",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "  alice  ",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "\u0000alice\u001F",
+    "key" : "login:user:alice"
+  }, {
+    "username" : " alice",
+    "key" : "login:user: alice"
+  }, {
+    "username" : "Àlice",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "àlice",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "Ålice",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "jeßica",
+    "key" : "login:user:jessica"
+  }, {
+    "username" : "JEẞICA",
+    "key" : "login:user:jeßica"
+  }, {
+    "username" : "jessica",
+    "key" : "login:user:jessica"
+  }, {
+    "username" : "æsir",
+    "key" : "login:user:aesir"
+  }, {
+    "username" : "Æsir",
+    "key" : "login:user:aesir"
+  }, {
+    "username" : "œuvre",
+    "key" : "login:user:oeuvre"
+  }, {
+    "username" : "Œuvre",
+    "key" : "login:user:oeuvre"
+  }, {
+    "username" : "søren",
+    "key" : "login:user:soren"
+  }, {
+    "username" : "Søren",
+    "key" : "login:user:soren"
+  }, {
+    "username" : "łukasz",
+    "key" : "login:user:lukasz"
+  }, {
+    "username" : "Łukasz",
+    "key" : "login:user:lukasz"
+  }, {
+    "username" : "đorđe",
+    "key" : "login:user:dorde"
+  }, {
+    "username" : "Đorđe",
+    "key" : "login:user:dorde"
+  }, {
+    "username" : "ðora",
+    "key" : "login:user:dora"
+  }, {
+    "username" : "ħamrun",
+    "key" : "login:user:hamrun"
+  }, {
+    "username" : "Ħamrun",
+    "key" : "login:user:hamrun"
+  }, {
+    "username" : "paŀla",
+    "key" : "login:user:palla"
+  }, {
+    "username" : "Ŀ",
+    "key" : "login:user:l"
+  }, {
+    "username" : "l·l",
+    "key" : "login:user:ll"
+  }, {
+    "username" : "ﬁnn",
+    "key" : "login:user:finn"
+  }, {
+    "username" : "ﬃ",
+    "key" : "login:user:ffi"
+  }, {
+    "username" : "Ǆemal",
+    "key" : "login:user:dzemal"
+  }, {
+    "username" : "ǅemal",
+    "key" : "login:user:dzemal"
+  }, {
+    "username" : "İstanbul",
+    "key" : "login:user:istanbul"
+  }, {
+    "username" : "ıstanbul",
+    "key" : "login:user:istanbul"
+  }, {
+    "username" : "ΟΔΟΣ",
+    "key" : "login:user:οδος"
+  }, {
+    "username" : "ΣΑ Σ",
+    "key" : "login:user:σα σ"
+  }, {
+    "username" : "σ",
+    "key" : "login:user:σ"
+  }, {
+    "username" : "ς",
+    "key" : "login:user:σ"
+  }, {
+    "username" : "Straße",
+    "key" : "login:user:strasse"
+  }, {
+    "username" : "ＡＬＩＣＥ",
+    "key" : "login:user:alice"
+  }, {
+    "username" : "①",
+    "key" : "login:user:1"
+  }, {
+    "username" : "Å",
+    "key" : "login:user:a"
+  }, {
+    "username" : "Å",
+    "key" : "login:user:a"
+  }, {
+    "username" : "ñ",
+    "key" : "login:user:n"
+  }, {
+    "username" : "ñ",
+    "key" : "login:user:n"
+  }, {
+    "username" : "😀",
+    "key" : "login:user:😀"
+  }, {
+    "username" : "á̂",
+    "key" : "login:user:a"
+  }, {
+    "username" : "́",
+    "key" : "login:user:"
+  }, {
+    "username" : "ǰ",
+    "key" : "login:user:j"
+  }, {
+    "username" : "ŉ",
+    "key" : "login:user:ʼn"
+  }, {
+    "username" : "ꭰ",
+    "key" : "login:user:ꭰ"
+  }, {
+    "username" : "Ꭰ",
+    "key" : "login:user:ꭰ"
+  }, {
+    "username" : "ﬆ",
+    "key" : "login:user:st"
+  }, {
+    "username" : "x⃝",
+    "key" : "login:user:x"
+  }, {
+    "username" : "xः",
+    "key" : "login:user:x"
+  }, {
+    "username" : "",
+    "key" : "login:user:"
+  }, {
+    "username" : "   ",
+    "key" : "login:user:"
+  } ],
+  "addresses" : [ {
+    "address" : null,
+    "bucket" : "null",
+    "clientKey" : "login:client:null"
+  }, {
+    "address" : "",
+    "bucket" : "",
+    "clientKey" : "login:client:"
+  }, {
+    "address" : "   ",
+    "bucket" : "   ",
+    "clientKey" : "login:client:   "
+  }, {
+    "address" : "1.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : " 1.2.3.4 ",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "[1.2.3.4]",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "1.2.3",
+    "bucket" : "1.2.0.3",
+    "clientKey" : "login:client:1.2.0.3"
+  }, {
+    "address" : "1.2",
+    "bucket" : "1.0.0.2",
+    "clientKey" : "login:client:1.0.0.2"
+  }, {
+    "address" : "1",
+    "bucket" : "0.0.0.1",
+    "clientKey" : "login:client:0.0.0.1"
+  }, {
+    "address" : "01.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "1.2.3.4.5",
+    "bucket" : "1.2.3.4.5",
+    "clientKey" : "login:client:1.2.3.4.5"
+  }, {
+    "address" : "256.1.1.1",
+    "bucket" : "256.1.1.1",
+    "clientKey" : "login:client:256.1.1.1"
+  }, {
+    "address" : "0x7f.0.0.1",
+    "bucket" : "0x7f.0.0.1",
+    "clientKey" : "login:client:0x7f.0.0.1"
+  }, {
+    "address" : "127.0.0.1",
+    "bucket" : "127.0.0.1",
+    "clientKey" : "login:client:127.0.0.1"
+  }, {
+    "address" : "::1",
+    "bucket" : "0000000000000000::/64",
+    "clientKey" : "login:client:0000000000000000::/64"
+  }, {
+    "address" : "[::1]",
+    "bucket" : "0000000000000000::/64",
+    "clientKey" : "login:client:0000000000000000::/64"
+  }, {
+    "address" : " [::1] ",
+    "bucket" : "0000000000000000::/64",
+    "clientKey" : "login:client:0000000000000000::/64"
+  }, {
+    "address" : "::",
+    "bucket" : "0000000000000000::/64",
+    "clientKey" : "login:client:0000000000000000::/64"
+  }, {
+    "address" : "::ffff:1.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "[::ffff:1.2.3.4]",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "::ffff:0102:0304",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "::1.2.3.4",
+    "bucket" : "0000000000000000::/64",
+    "clientKey" : "login:client:0000000000000000::/64"
+  }, {
+    "address" : "2001:db8::1",
+    "bucket" : "20010db800000000::/64",
+    "clientKey" : "login:client:20010db800000000::/64"
+  }, {
+    "address" : "2001:DB8::1",
+    "bucket" : "20010db800000000::/64",
+    "clientKey" : "login:client:20010db800000000::/64"
+  }, {
+    "address" : "2001:db8:1:2:3:4:5:6",
+    "bucket" : "20010db800010002::/64",
+    "clientKey" : "login:client:20010db800010002::/64"
+  }, {
+    "address" : "2001:0db8:0001:0002::",
+    "bucket" : "20010db800010002::/64",
+    "clientKey" : "login:client:20010db800010002::/64"
+  }, {
+    "address" : "fe80::1%1",
+    "bucket" : "fe80000000000000::/64",
+    "clientKey" : "login:client:fe80000000000000::/64"
+  }, {
+    "address" : "fe80::1%vs-no-such-if",
+    "bucket" : "fe80::1%vs-no-such-if",
+    "clientKey" : "login:client:fe80::1%vs-no-such-if"
+  }, {
+    "address" : "[fe80::1%25vs-no-such-if]",
+    "bucket" : "[fe80::1%25vs-no-such-if]",
+    "clientKey" : "login:client:[fe80::1%25vs-no-such-if]"
+  }, {
+    "address" : "2001:db8::1:80",
+    "bucket" : "20010db800000000::/64",
+    "clientKey" : "login:client:20010db800000000::/64"
+  }, {
+    "address" : "[2001:db8::1]:80",
+    "bucket" : "[2001:db8::1]:80",
+    "clientKey" : "login:client:[2001:db8::1]:80"
+  }, {
+    "address" : "1.2.3.4:80",
+    "bucket" : "1.2.3.4:80",
+    "clientKey" : "login:client:1.2.3.4:80"
+  }, {
+    "address" : "localhost",
+    "bucket" : "localhost",
+    "clientKey" : "login:client:localhost"
+  }, {
+    "address" : "unknown",
+    "bucket" : "unknown",
+    "clientKey" : "login:client:unknown"
+  }, {
+    "address" : "a:b",
+    "bucket" : "a:b",
+    "clientKey" : "login:client:a:b"
+  }, {
+    "address" : "::ffff:1.2.3",
+    "bucket" : "::ffff:1.2.3",
+    "clientKey" : "login:client:::ffff:1.2.3"
+  }, {
+    "address" : "64:ff9b::1.2.3.4",
+    "bucket" : "0064ff9b00000000::/64",
+    "clientKey" : "login:client:0064ff9b00000000::/64"
+  }, {
+    "address" : "2001:db8::",
+    "bucket" : "20010db800000000::/64",
+    "clientKey" : "login:client:20010db800000000::/64"
+  }, {
+    "address" : "1::",
+    "bucket" : "0001000000000000::/64",
+    "clientKey" : "login:client:0001000000000000::/64"
+  }, {
+    "address" : "4294967295",
+    "bucket" : "255.255.255.255",
+    "clientKey" : "login:client:255.255.255.255"
+  }, {
+    "address" : "4294967296",
+    "bucket" : "4294967296",
+    "clientKey" : "login:client:4294967296"
+  }, {
+    "address" : "1.16777215",
+    "bucket" : "1.255.255.255",
+    "clientKey" : "login:client:1.255.255.255"
+  }, {
+    "address" : "1.16777216",
+    "bucket" : "1.16777216",
+    "clientKey" : "login:client:1.16777216"
+  }, {
+    "address" : "1.2.65535",
+    "bucket" : "1.2.255.255",
+    "clientKey" : "login:client:1.2.255.255"
+  }, {
+    "address" : "1.2.65536",
+    "bucket" : "1.2.65536",
+    "clientKey" : "login:client:1.2.65536"
+  }, {
+    "address" : "1.2.3.",
+    "bucket" : "1.2.3.",
+    "clientKey" : "login:client:1.2.3."
+  }, {
+    "address" : ".1.2.3",
+    "bucket" : ".1.2.3",
+    "clientKey" : "login:client:.1.2.3"
+  }, {
+    "address" : "1..2.3",
+    "bucket" : "1..2.3",
+    "clientKey" : "login:client:1..2.3"
+  }, {
+    "address" : "+1.2.3.4",
+    "bucket" : "+1.2.3.4",
+    "clientKey" : "login:client:+1.2.3.4"
+  }, {
+    "address" : "1. 2.3.4",
+    "bucket" : "1. 2.3.4",
+    "clientKey" : "login:client:1. 2.3.4"
+  }, {
+    "address" : "001.002.003.004",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "0001.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "1.2.3.0004",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "000000000001.2",
+    "bucket" : "1.0.0.2",
+    "clientKey" : "login:client:1.0.0.2"
+  }, {
+    "address" : "١.٢.٣.٤",
+    "bucket" : "١.٢.٣.٤",
+    "clientKey" : "login:client:١.٢.٣.٤"
+  }, {
+    "address" : "１.２.３.４",
+    "bucket" : "１.２.３.４",
+    "clientKey" : "login:client:１.２.３.４"
+  }, {
+    "address" : "1.2.3.4\u0000",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : " 1.2.3.4",
+    "bucket" : " 1.2.3.4",
+    "clientKey" : "login:client: 1.2.3.4"
+  }, {
+    "address" : "\u00001.2.3.4\u001F",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "[1.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "1.2.3.4]",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "[[::1]]",
+    "bucket" : "0000000000000000::/64",
+    "clientKey" : "login:client:0000000000000000::/64"
+  }, {
+    "address" : "fe80::1%0",
+    "bucket" : "fe80000000000000::/64",
+    "clientKey" : "login:client:fe80000000000000::/64"
+  }, {
+    "address" : "fe80::1%-1",
+    "bucket" : "fe80::1%-1",
+    "clientKey" : "login:client:fe80::1%-1"
+  }, {
+    "address" : "fe80::1%",
+    "bucket" : "fe80::1%",
+    "clientKey" : "login:client:fe80::1%"
+  }, {
+    "address" : "fe80::1%2147483647",
+    "bucket" : "fe80000000000000::/64",
+    "clientKey" : "login:client:fe80000000000000::/64"
+  }, {
+    "address" : "fe80::1%2147483648",
+    "bucket" : "fe80::1%2147483648",
+    "clientKey" : "login:client:fe80::1%2147483648"
+  }, {
+    "address" : "fe80::1%01",
+    "bucket" : "fe80000000000000::/64",
+    "clientKey" : "login:client:fe80000000000000::/64"
+  }, {
+    "address" : "FE80::ABCD%1",
+    "bucket" : "fe80000000000000::/64",
+    "clientKey" : "login:client:fe80000000000000::/64"
+  }, {
+    "address" : "::ffff:1.2.3.4%1",
+    "bucket" : "::ffff:1.2.3.4%1",
+    "clientKey" : "login:client:::ffff:1.2.3.4%1"
+  }, {
+    "address" : "::ffff:01.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "::ffff:1.2.3.04",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "::ffff:256.2.3.4",
+    "bucket" : "::ffff:256.2.3.4",
+    "clientKey" : "login:client:::ffff:256.2.3.4"
+  }, {
+    "address" : "1:2:3:4:5:6:1.2.3.4",
+    "bucket" : "0001000200030004::/64",
+    "clientKey" : "login:client:0001000200030004::/64"
+  }, {
+    "address" : "1:2:3:4:5:6:7:1.2.3.4",
+    "bucket" : "1:2:3:4:5:6:7:1.2.3.4",
+    "clientKey" : "login:client:1:2:3:4:5:6:7:1.2.3.4"
+  }, {
+    "address" : "1:2:3:4:5:6:7:8",
+    "bucket" : "0001000200030004::/64",
+    "clientKey" : "login:client:0001000200030004::/64"
+  }, {
+    "address" : "1:2:3:4:5:6:7:8:9",
+    "bucket" : "1:2:3:4:5:6:7:8:9",
+    "clientKey" : "login:client:1:2:3:4:5:6:7:8:9"
+  }, {
+    "address" : "1:2:3:4:5:6:7::",
+    "bucket" : "0001000200030004::/64",
+    "clientKey" : "login:client:0001000200030004::/64"
+  }, {
+    "address" : "::2:3:4:5:6:7:8",
+    "bucket" : "0000000200030004::/64",
+    "clientKey" : "login:client:0000000200030004::/64"
+  }, {
+    "address" : "1::2::3",
+    "bucket" : "1::2::3",
+    "clientKey" : "login:client:1::2::3"
+  }, {
+    "address" : ":1::",
+    "bucket" : ":1::",
+    "clientKey" : "login:client::1::"
+  }, {
+    "address" : "1:::2",
+    "bucket" : "1:::2",
+    "clientKey" : "login:client:1:::2"
+  }, {
+    "address" : "00001::",
+    "bucket" : "0001000000000000::/64",
+    "clientKey" : "login:client:0001000000000000::/64"
+  }, {
+    "address" : "0001::",
+    "bucket" : "0001000000000000::/64",
+    "clientKey" : "login:client:0001000000000000::/64"
+  }, {
+    "address" : "12345::",
+    "bucket" : "12345::",
+    "clientKey" : "login:client:12345::"
+  }, {
+    "address" : "g::",
+    "bucket" : "g::",
+    "clientKey" : "login:client:g::"
+  }, {
+    "address" : "::ffff:ffff:ffff",
+    "bucket" : "255.255.255.255",
+    "clientKey" : "login:client:255.255.255.255"
+  }, {
+    "address" : "::FFFF:1.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "0:0:0:0:0:ffff:1.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "::0:ffff:1.2.3.4",
+    "bucket" : "1.2.3.4",
+    "clientKey" : "login:client:1.2.3.4"
+  }, {
+    "address" : "2001:db8:aaaa:bbbb:cccc:dddd:eeee:ffff",
+    "bucket" : "20010db8aaaabbbb::/64",
+    "clientKey" : "login:client:20010db8aaaabbbb::/64"
+  }, {
+    "address" : "[2001:db8::1]",
+    "bucket" : "20010db800000000::/64",
+    "clientKey" : "login:client:20010db800000000::/64"
+  }, {
+    "address" : "[]",
+    "bucket" : "[]",
+    "clientKey" : "login:client:[]"
+  }, {
+    "address" : "[",
+    "bucket" : "[",
+    "clientKey" : "login:client:["
+  }, {
+    "address" : "]",
+    "bucket" : "]",
+    "clientKey" : "login:client:]"
+  }, {
+    "address" : "[ ]",
+    "bucket" : "[ ]",
+    "clientKey" : "login:client:[ ]"
+  }, {
+    "address" : "[[]]",
+    "bucket" : "[[]]",
+    "clientKey" : "login:client:[[]]"
+  }, {
+    "address" : "%",
+    "bucket" : "%",
+    "clientKey" : "login:client:%"
+  }, {
+    "address" : "::%1",
+    "bucket" : "0000000000000000::/64",
+    "clientKey" : "login:client:0000000000000000::/64"
+  }, {
+    "address" : ":%1",
+    "bucket" : ":%1",
+    "clientKey" : "login:client::%1"
+  }, {
+    "address" : "1.2.3.4%1",
+    "bucket" : "1.2.3.4%1",
+    "clientKey" : "login:client:1.2.3.4%1"
+  }, {
+    "address" : "00000000001.2.34",
+    "bucket" : "00000000001.2.34",
+    "clientKey" : "login:client:00000000001.2.34"
+  }, {
+    "address" : "1.2.3.4.0",
+    "bucket" : "1.2.3.4.0",
+    "clientKey" : "login:client:1.2.3.4.0"
+  }, {
+    "address" : "2001:db8::1:",
+    "bucket" : "2001:db8::1:",
+    "clientKey" : "login:client:2001:db8::1:"
+  }, {
+    "address" : "1:2:3:4::5:6:7:8",
+    "bucket" : "1:2:3:4::5:6:7:8",
+    "clientKey" : "login:client:1:2:3:4::5:6:7:8"
+  }, {
+    "address" : " 2001:db8::1 ",
+    "bucket" : "20010db800000000::/64",
+    "clientKey" : "login:client:20010db800000000::/64"
+  }, {
+    "address" : "2001:db8::1 ",
+    "bucket" : "20010db800000000::/64",
+    "clientKey" : "login:client:20010db800000000::/64"
+  }, {
+    "address" : " ::1",
+    "bucket" : " ::1",
+    "clientKey" : "login:client: ::1"
+  } ],
+  "throttle" : [ {
+    "name" : "none",
+    "allowed" : true,
+    "retryAfterSeconds" : 0,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "four user",
+    "allowed" : true,
+    "retryAfterSeconds" : 0,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five user",
+    "allowed" : false,
+    "retryAfterSeconds" : 850,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five user, oldest at the cutoff",
+    "allowed" : true,
+    "retryAfterSeconds" : 0,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five user, oldest a microsecond inside",
+    "allowed" : false,
+    "retryAfterSeconds" : 1,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five user, the last second",
+    "allowed" : false,
+    "retryAfterSeconds" : 1,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five user, oldest a second inside",
+    "allowed" : false,
+    "retryAfterSeconds" : 1,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five user, unsorted",
+    "allowed" : false,
+    "retryAfterSeconds" : 500,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "six user, one outside",
+    "allowed" : true,
+    "retryAfterSeconds" : 0,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five user in the future",
+    "allowed" : false,
+    "retryAfterSeconds" : 910,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "nineteen client",
+    "allowed" : true,
+    "retryAfterSeconds" : 0,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "twenty client",
+    "allowed" : false,
+    "retryAfterSeconds" : 700,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "both, client longer",
+    "allowed" : false,
+    "retryAfterSeconds" : 781,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "both, user longer",
+    "allowed" : false,
+    "retryAfterSeconds" : 800,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "both, equal",
+    "allowed" : false,
+    "retryAfterSeconds" : 400,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "fractional",
+    "allowed" : false,
+    "retryAfterSeconds" : 776,
+    "retryAfterNanos" : 543211000
+  }, {
+    "name" : "oldest a nanosecond inside",
+    "allowed" : false,
+    "retryAfterSeconds" : 1,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "oldest a nanosecond before now's second",
+    "allowed" : false,
+    "retryAfterSeconds" : 1,
+    "retryAfterNanos" : 0
+  } ],
+  "throttleOne" : [ {
+    "name" : "under",
+    "allowed" : true,
+    "retryAfterSeconds" : 0,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "at",
+    "allowed" : false,
+    "retryAfterSeconds" : 897,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "limit one",
+    "allowed" : false,
+    "retryAfterSeconds" : 1,
+    "retryAfterNanos" : 0
+  }, {
+    "name" : "five mfa",
+    "allowed" : false,
+    "retryAfterSeconds" : 895,
+    "retryAfterNanos" : 0
+  } ],
+  "accountKey" : "login:account:42",
+  "secondFactorKey" : "login:mfa:42"
+}

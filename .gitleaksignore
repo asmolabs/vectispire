@@ -134,3 +134,34 @@ deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules
 3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:337
 3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:363
 3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:382
+
+# reference/sign-in/ (access port, stage 1): RFC 6238's published test seed, GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ — the
+# Base32 of "12345678901234567890", Appendix B — under a field then named `secret`. A test vector every TOTP
+# implementation checks against, not a credential; the field is `seed` from the next commit on. Read and judged
+# not a secret.
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:44
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:48
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:52
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:56
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:60
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:64
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:68
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:72
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:76
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:80
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:84
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:243
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:249
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:113
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:117
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:121
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:125
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:129
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:133
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:137
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:141
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:145
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:149
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:153
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:298
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:303

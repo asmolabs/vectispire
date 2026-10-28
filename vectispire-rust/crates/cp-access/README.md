@@ -4,7 +4,8 @@ The control plane's `access` module, `core.access`, being ported (plan, Phase 1)
 plane is the product.** So far it holds **accounts and passwords** (task 1.1); **the credentials** (task 1.2):
 sessions, API keys, agents' keys and the SCIM token, and the bearer filter's decisions behind `cp-http`'s
 `Credentials`; and **roles and their flags, what a caller may see, the row guards, four-eyes, and who could approve**
-(task 1.5). MFA and throttles (1.3) and single sign-on (1.4) land beside these files.
+(task 1.5); and **the second factor's codes and the sign-in throttle's arithmetic** (the pure half of 1.3). The services
+of MFA and throttles (1.3), single sign-on (1.4) and the routes (1.7) land beside these files.
 
 ## Accounts and passwords (task 1.1)
 
@@ -221,3 +222,39 @@ rather than `role in (…)` built from the flags.
   grantees of a project, revoking every grant and key of a deleted target) are administration and target deletion,
   not visibility: they come with those routes.
 - A checklist's author exclusion under four-eyes is the checklists module's; only the role half is here.
+
+## The second factor and the sign-in throttle, pure (task 1.3, first half)
+
+| Here | Java |
+|---|---|
+| `totp` — Base32 both ways, RFC 6238 over HMAC-SHA1, the matching step within ±1, the enrolment URI, secrets and backup codes | `common.domain.auth.Totp` |
+| `login_throttle` — the two counters' decision, the sliding window, the user, account, second-factor and client keys | `common.domain.auth.LoginThrottle` |
+| `vectispire_cp_http::address::client_bucket` | `common.domain.auth.ClientBuckets` |
+| `vectispire_domain::team_rules` (in the domain: the targets module reads the kinds) | `common.domain.teams.TeamRules` |
+
+They sit in this crate rather than in `crates/domain` because no other module uses them — the domain is linked by the
+agent, and the user key's NFKD would have brought `unicode-normalization` into its graph — except `TeamRules`, whose
+kinds the targets module names.
+
+**Held to `reference/sign-in/` and `reference/teams/`** (`SignInReferenceSetTest`, `TeamRulesReferenceSetTest`, in
+`vectispire-common`): `tests/sign_in_reference_set.rs` and `crates/domain/tests/teams_reference_set.rs`. An enrolled
+authenticator must keep working across the switch, so the secret is decoded with Java's leniency (upper-cased by
+`toUpperCase(ROOT)`, everything outside the alphabet dropped); a throttle key is a row the other control plane reads,
+so the user key folds exactly as Java folds (the final sigma by `java::to_lower_root`).
+
+### What porting found
+
+- **`ClientBuckets` reads addresses as `InetAddress.ofLiteral` does, and `cp-http` did not.** `1.2.3` is `1.2.0.3`,
+  `01.2.3.4` is `1.2.3.4`, `00001::` is an IPv6 group and `fe80::1%1` an address; `str::parse` refused each, so the
+  same client counted against one budget on Java and another here. `client_bucket` now follows `IPAddressUtil`'s
+  grammar, 108 addresses pinned. One difference stays: a scope naming an interface (`%eth0`) is refused here, where
+  Java accepts it on a host that has that interface — an answer that depends on the machine, about a value no client
+  address carries.
+- **Two Java defects, fixed on the Java side first** (asmolabs/vectispire#74): `TeamRules.trimDescription` cut a
+  surrogate pair in half at the 255th unit, and `/auth/mfa/enable` answered 500 for a secret with no Base32 letter in
+  it (an empty HMAC key). The reference sets record the fixed behaviour; `totp`'s refusal of an empty key is pinned
+  by a unit test, since HMAC here accepts the key `SecretKeySpec` refused.
+- `LoginThrottle.decide(list, 0, now)` throws on Java (`orElseThrow` with nothing to wait for). No caller passes a
+  limit under five; `decide_one` answers "allowed" instead, and the reference set does not include it.
+- `JEẞICA` and `jeßica` fold to different keys (`jeßica`, `jessica`), though MySQL's collation equates them. It is no
+  oracle: sign-in looks up only names matching `[A-Za-z0-9._-]{2,64}`, so no non-ASCII spelling opens an account.
