@@ -599,7 +599,11 @@ impl<'m> Bindings<'m> {
                 if let Some(bound) = self.bound(Family::Digest, *n) {
                     return Ok(bound.to_owned());
                 }
-                let fresh: String = uuid::Uuid::new_v4().simple().to_string().chars().take(12).collect();
+                // The shortest prefix the recorder names, not a typical one: the recording does not keep the length,
+                // and a prefix may be the one a column cut short — `AuditLogService` truncates a description to 255,
+                // so a checklist's "rule sha256 …" ending a long sentence was stored with eight digits, and twelve
+                // made the played row outgrow the column. Never longer than Java's, it always fits where Java's did.
+                let fresh: String = uuid::Uuid::new_v4().simple().to_string().chars().take(8).collect();
                 self.family(Family::Digest).bind(*n, &fresh);
                 Ok(fresh)
             }
