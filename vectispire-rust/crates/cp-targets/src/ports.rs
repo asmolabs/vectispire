@@ -84,7 +84,7 @@ pub trait TargetBacklog: Send + Sync {
 }
 
 /// `issues`' stand-in until Phase 3: **zero figures** (plan §7, the stand-ins table). The listings' goldens recorded
-/// with open issues wait for Phase 3 (`golden/deferred.txt`).
+/// with open issues wait for Phase 3 (`golden/deferred/`).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IssuesStandIn;
 

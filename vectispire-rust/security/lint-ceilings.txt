@@ -6,5 +6,5 @@
 # set at: the protocol, dependency and IaC/SAST streams landed after that count and added their parsers.
 indexing_slicing          34     50     # agent: domain/repository_url.rs, git/known_hosts.rs; cp: arch-tests, migrate, outbound
 string_slice              11     63     # agent: domain/repository_url.rs; cp: outbound's URL reading, migrate's SQL scanning
-arithmetic_side_effects   75     118    # offsets in the parsers; release builds panic on overflow
+arithmetic_side_effects   75     117    # offsets in the parsers; release builds panic on overflow
 cast_possible_truncation  10     3      # agent: scanners/jackson.rs (Jackson's number model), net.rs, testkit

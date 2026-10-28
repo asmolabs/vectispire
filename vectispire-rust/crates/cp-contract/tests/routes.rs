@@ -7,10 +7,19 @@ mod common;
 
 use axum::routing::{get, post, put};
 use common::{TOY_PUBLISHED, toy_control_plane, toy_document};
+use std::collections::BTreeSet;
+
+use vectispire_cp_contract::shrinking::ListFile;
 use vectispire_cp_contract::{
-    Allowlist, Document, Finding, Published, RecordingRouter, RouteDecl, assert_none, assert_router, check_published,
-    check_routes, probe, render,
+    Allowlist, Document, Finding, Published, RecordingRouter, RouteDecl, assert_none, assert_router, check_module,
+    check_partition, check_published, check_routes, probe, render,
 };
+
+/// A list of routes not ported, in files of the committed layout: `(module, text)`.
+fn files(texts: &[(&str, &str)]) -> Allowlist {
+    let files: Vec<ListFile> = texts.iter().map(|(name, text)| ListFile::new("not-yet-ported", name, text)).collect();
+    Allowlist::parse(&files)
+}
 
 fn ok() -> RecordingRouter {
     toy_control_plane()
@@ -193,11 +202,11 @@ fn the_allowlist_only_shrinks() {
     let partial: Vec<RouteDecl> = ok_routes().into_iter().filter(|route| route.operation_id != "deleteThing").collect();
 
     // The honest list: one route, ceiling one.
-    let list = Allowlist::parse("DELETE /api/v1/things/{id}\n", "1");
+    let list = Allowlist::parse(&[ListFile::new("not-yet-ported", "toy", "ceiling 1\nDELETE /api/v1/things/{id}\n")]);
     assert_none(&check_routes(&document, &partial, &list));
 
     // Served now, still listed: delete the line.
-    let stale = Allowlist::parse("DELETE /api/v1/things/{id}\n", "1");
+    let stale = Allowlist::parse(&[ListFile::new("not-yet-ported", "toy", "ceiling 1\nDELETE /api/v1/things/{id}\n")]);
     let findings = check_routes(&document, &ok_routes(), &stale);
     assert_eq!(
         findings,
@@ -205,39 +214,155 @@ fn the_allowlist_only_shrinks() {
     );
 
     // A route the document does not know cannot be parked there.
-    let unknown = Allowlist::parse("DELETE /api/v1/things/{id}\nGET /api/v1/nope\n", "2");
+    let unknown = Allowlist::parse(&[ListFile::new(
+        "not-yet-ported",
+        "toy",
+        "ceiling 2\nDELETE /api/v1/things/{id}\nGET /api/v1/nope\n",
+    )]);
     let findings = check_routes(&document, &partial, &unknown);
     assert_eq!(findings, vec![Finding::AllowlistUnknownRoute { method: "GET".into(), path: "/api/v1/nope".into() }]);
 
     // More entries than the ceiling: growth.
-    let grown = Allowlist::parse("DELETE /api/v1/things/{id}\nGET /api/v1/things/export\n", "1");
+    let grown = Allowlist::parse(&[ListFile::new(
+        "not-yet-ported",
+        "toy",
+        "ceiling 1\nDELETE /api/v1/things/{id}\nGET /api/v1/things/export\n",
+    )]);
     let fewer: Vec<RouteDecl> = ok_routes()
         .into_iter()
         .filter(|route| route.operation_id != "deleteThing" && route.operation_id != "exportThings")
         .collect();
     let findings = check_routes(&document, &fewer, &grown);
-    assert_eq!(findings, vec![Finding::AllowlistGrew { entries: 2, ceiling: 1 }]);
+    assert_eq!(
+        findings,
+        vec![Finding::AllowlistGrew { file: "not-yet-ported/toy.txt".into(), entries: 2, ceiling: 1 }]
+    );
 
     // Fewer entries than the ceiling: the slack is not for spending on another route.
-    let slack = Allowlist::parse("DELETE /api/v1/things/{id}\n", "2");
+    let slack = Allowlist::parse(&[ListFile::new("not-yet-ported", "toy", "ceiling 2\nDELETE /api/v1/things/{id}\n")]);
     let findings = check_routes(&document, &partial, &slack);
-    assert_eq!(findings, vec![Finding::CeilingNotLowered { entries: 1, ceiling: 2 }]);
+    assert_eq!(
+        findings,
+        vec![Finding::CeilingNotLowered { file: "not-yet-ported/toy.txt".into(), entries: 1, ceiling: 2 }]
+    );
+}
+
+/// The ratchet is per file: one module's file above its ceiling fails even when another's slack would cover it, so
+/// that two ports never lower — or spend — the same number.
+#[test]
+fn each_file_is_held_to_its_own_ceiling() {
+    let document = toy_document();
+    let fewer: Vec<RouteDecl> = ok_routes()
+        .into_iter()
+        .filter(|route| route.operation_id != "deleteThing" && route.operation_id != "exportThings")
+        .collect();
+    let honest =
+        files(&[("a", "ceiling 1\nDELETE /api/v1/things/{id}\n"), ("b", "ceiling 1\nGET /api/v1/things/export\n")]);
+    assert_none(&check_routes(&document, &fewer, &honest));
+    assert_eq!(honest.ceiling(), 2, "the total is the files' sum");
+
+    // The same two routes and the same total, one file raised and the other's slack left: both are findings.
+    let moved =
+        files(&[("a", "ceiling 2\nDELETE /api/v1/things/{id}\n"), ("b", "ceiling 0\nGET /api/v1/things/export\n")]);
+    let findings = check_routes(&document, &fewer, &moved);
+    assert_eq!(
+        findings,
+        vec![
+            Finding::CeilingNotLowered { file: "not-yet-ported/a.txt".into(), entries: 1, ceiling: 2 },
+            Finding::AllowlistGrew { file: "not-yet-ported/b.txt".into(), entries: 1, ceiling: 0 },
+        ]
+    );
+}
+
+#[test]
+fn a_route_in_two_files_a_file_listing_nothing_and_a_missing_or_second_ceiling_are_findings() {
+    let document = toy_document();
+    let partial: Vec<RouteDecl> = ok_routes().into_iter().filter(|route| route.operation_id != "deleteThing").collect();
+    let problems = |list: &Allowlist| -> Vec<String> {
+        check_routes(&document, &partial, list).iter().map(ToString::to_string).collect()
+    };
+    let twice =
+        files(&[("a", "ceiling 1\nDELETE /api/v1/things/{id}\n"), ("b", "ceiling 1\nDELETE /api/v1/things/{id}\n")]);
+    assert_eq!(problems(&twice), ["not-yet-ported/b.txt:2: DELETE /api/v1/things/{id} is listed twice"]);
+
+    let empty = files(&[("a", "ceiling 1\nDELETE /api/v1/things/{id}\n"), ("b", "# nothing left\nceiling 0\n")]);
+    assert_eq!(problems(&empty), ["not-yet-ported/b.txt lists nothing: delete the file"]);
+
+    let no_ceiling = files(&[("a", "DELETE /api/v1/things/{id}\n")]);
+    assert_eq!(problems(&no_ceiling), ["not-yet-ported/a.txt: no `ceiling N` line"]);
+
+    let two_ceilings = files(&[("a", "ceiling 1\nDELETE /api/v1/things/{id}\nceiling 1\n")]);
+    assert_eq!(problems(&two_ceilings), ["not-yet-ported/a.txt:3: a second `ceiling` line"]);
+}
+
+/// A module's own test names none of the other modules' routes: every documented route it does not serve is someone
+/// else's, and what it does hold is that its routes are documented as they are declared and off the committed list.
+#[test]
+fn a_module_is_held_to_its_routes_alone() {
+    let document = toy_document();
+    let mine: Vec<RouteDecl> = ok_routes().into_iter().filter(|route| route.path == "/api/v1/things/{id}").collect();
+    assert_eq!(mine.len(), 2, "the toy's two routes on one path");
+    assert_none(&check_module(&document, &mine, &Allowlist::none()));
+
+    let still_listed = files(&[("toy", "ceiling 1\nDELETE /api/v1/things/{id}\n")]);
+    assert_eq!(
+        check_module(&document, &mine, &still_listed),
+        vec![Finding::AllowlistedButServed { method: "DELETE".into(), path: "/api/v1/things/{id}".into() }]
+    );
+
+    let mut renamed = mine.clone();
+    renamed[0].operation_id = "somethingElse".into();
+    assert!(find(&check_module(&document, &renamed, &Allowlist::none()), |f| matches!(f, Finding::OperationId { .. })));
+
+    // A committed list that cannot be read as it is fails the module's test too: "not listed" must not mean
+    // "the file had no ceiling".
+    let broken = files(&[("toy", "DELETE /api/v1/elsewhere\n")]);
+    assert!(find(&check_module(&document, &mine, &broken), |f| matches!(f, Finding::ListProblem { .. })));
+
+    let undocumented = vec![RouteDecl::new("GET", "/api/v1/elsewhere", "elsewhere")];
+    assert!(find(&check_module(&document, &undocumented, &Allowlist::none()), |f| matches!(
+        f,
+        Finding::NotDocumented { .. }
+    )));
+}
+
+/// The binary's registry and the list are the document, exactly: a route that left the list and that nothing serves,
+/// and one served and still listed, are both findings.
+#[test]
+fn the_registry_and_the_list_partition_the_document() {
+    let document = toy_document();
+    let served: BTreeSet<(String, String)> = ok_routes().into_iter().map(|route| (route.method, route.path)).collect();
+    assert_none(&check_partition(&document, &served, &Allowlist::none()));
+
+    let mut gap = served.clone();
+    gap.remove(&("DELETE".to_owned(), "/api/v1/things/{id}".to_owned()));
+    assert_eq!(
+        check_partition(&document, &gap, &Allowlist::none()),
+        vec![Finding::MethodNotServed { method: "DELETE".into(), path: "/api/v1/things/{id}".into() }]
+    );
+    assert_none(&check_partition(&document, &gap, &files(&[("toy", "ceiling 1\nDELETE /api/v1/things/{id}\n")])));
+    assert_eq!(
+        check_partition(&document, &served, &files(&[("toy", "ceiling 1\nDELETE /api/v1/things/{id}\n")])),
+        vec![Finding::AllowlistedButServed { method: "DELETE".into(), path: "/api/v1/things/{id}".into() }]
+    );
 }
 
 #[test]
 fn a_malformed_allowlist_line_and_a_malformed_ceiling_are_findings() {
-    let list = Allowlist::parse("DELETE\nGET relative\nPOST /a extra\n", "many");
+    let list = Allowlist::parse(&[ListFile::new(
+        "not-yet-ported",
+        "toy",
+        "ceiling many\nDELETE\nGET relative\nPOST /a extra\n",
+    )]);
     let findings = check_routes(&toy_document(), &ok_routes(), &list);
-    assert_eq!(findings.iter().filter(|finding| matches!(finding, Finding::Malformed { .. })).count(), 4);
-}
-
-#[test]
-fn the_text_of_an_allowlist_is_every_route_the_router_does_not_serve() {
-    let document = toy_document();
-    let partial: Vec<RouteDecl> = ok_routes().into_iter().filter(|route| route.operation_id != "deleteThing").collect();
-    let text = Allowlist::text_for(&document, &partial);
-    let lines: Vec<&str> = text.lines().filter(|line| !line.starts_with('#')).collect();
-    assert_eq!(lines, vec!["DELETE /api/v1/things/{id}"]);
+    assert_eq!(findings.iter().filter(|finding| matches!(finding, Finding::Malformed { .. })).count(), 3);
+    assert!(
+        find(
+            &findings,
+            |finding| matches!(finding, Finding::ListProblem { problem } if problem.contains("`ceiling many` is not a number"))
+        ),
+        "{findings:#?}"
+    );
 }
 
 // ---- the published operation ids
@@ -368,7 +493,7 @@ async fn the_probe_reports_a_route_with_no_handler_at_all_and_a_listed_route_tha
     ));
 
     // Listed as not ported, yet answered: the probe says so too.
-    let listed = Allowlist::parse("GET /api/v1/things\n", "1");
+    let listed = Allowlist::parse(&[ListFile::new("not-yet-ported", "toy", "ceiling 1\nGET /api/v1/things\n")]);
     let findings = probe(&partial.router(), &toy_document(), &listed).await;
     assert!(find(
         &findings,
@@ -381,7 +506,11 @@ async fn a_handler_that_answers_404_is_a_route_and_not_a_missing_one() {
     use axum::http::StatusCode;
     let router = RecordingRouter::new()
         .route(RouteDecl::new("GET", "/api/v1/things/{id}", "getThing"), get(|| async { StatusCode::NOT_FOUND }));
-    let not_ported = Allowlist::parse("GET /api/v1/things\nPOST /api/v1/things\nDELETE /api/v1/things/{id}\n", "3");
+    let not_ported = Allowlist::parse(&[ListFile::new(
+        "not-yet-ported",
+        "toy",
+        "ceiling 3\nGET /api/v1/things\nPOST /api/v1/things\nDELETE /api/v1/things/{id}\n",
+    )]);
     let findings = probe(&router.router(), &toy_document(), &not_ported).await;
     // `/things/export` is answered — by `/things/{id}`, as it would be on the wire. That the literal
     // route has no handler of its own is for the declaration table to say, and it does:

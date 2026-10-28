@@ -37,7 +37,7 @@ pub struct Test {
 }
 
 impl Test {
-    /// `class/test--NNN-…` without `.json`: how `deferred.txt` names one recording.
+    /// `class/test--NNN-…` without `.json`: how `golden/deferred/` names one recording.
     #[must_use]
     pub fn golden_name(&self, file: &str) -> String {
         format!("{}/{}", self.directory, file.strip_suffix(".json").unwrap_or(file))

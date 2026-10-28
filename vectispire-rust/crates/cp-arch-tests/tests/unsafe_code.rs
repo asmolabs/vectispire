@@ -74,7 +74,7 @@ fn the_documented_exception_is_one_file_and_two_uses() {
     fixture.write("vectispire-git", "src/init.rs", "pub fn a() { unsafe { 1 }; }\npub fn b() { unsafe { 2 }; }\n");
     fixture.append("vectispire-git", "src/lib.rs", "pub mod init;\n");
     let found = violations(&fixture);
-    assert!(found.is_empty(), "two uses in the file edges.toml names are the exception: {found:#?}");
+    assert!(found.is_empty(), "two uses in the file edges/ names are the exception: {found:#?}");
 
     // A third use is no longer the exception that was written.
     fixture.write(
@@ -82,7 +82,7 @@ fn the_documented_exception_is_one_file_and_two_uses() {
         "src/init.rs",
         "pub fn a() { unsafe { 1 }; }\npub fn b() { unsafe { 2 }; }\npub fn c() { unsafe { 3 }; }\n",
     );
-    assert!(mentions(&violations(&fixture), "3 uses of `unsafe`, and edges.toml allows 2 here"));
+    assert!(mentions(&violations(&fixture), "3 uses of `unsafe`, and edges/ allows 2 here"));
 
     // And the same two uses in another file of the same crate are not it.
     let fixture = Fixture::clean();

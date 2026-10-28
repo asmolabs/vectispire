@@ -1,0 +1,24 @@
+# The recordings not replayed yet that `compliance`'s port ends: its routes, and its stand-ins the served routes meet.
+# README.md beside this file says the format and the rules.
+ceiling 19
+
+# ── Routes not ported: the module, and the phase and task that ports it ──
+route GET /api/v1/compliance/evidence-bundle.zip | compliance — Phase 5
+route GET /api/v1/compliance/export.pdf | compliance — Phase 5
+route GET /api/v1/compliance/frameworks/{framework} | compliance — Phase 5
+route GET /api/v1/compliance/history | compliance — Phase 5
+route GET /api/v1/compliance/scope | compliance — Phase 5
+route GET /api/v1/compliance/soa | compliance — Phase 5
+route GET /api/v1/compliance/soa/reviews/overdue | compliance — Phase 5
+route GET /api/v1/compliance/soa/{framework} | compliance — Phase 5
+route GET /api/v1/compliance/summary | compliance — Phase 5
+route GET /api/v1/owasp/coverage | compliance — Phase 5
+route GET /api/v1/owasp/coverage/weekly | compliance — Phase 5
+route GET /api/v1/projects/{id}/compliance | compliance — Phase 5
+route GET /api/v1/repositories/{id}/owasp-review | compliance — Phase 5
+route GET /api/v1/repositories/{id}/owasp-review/export.pdf | compliance — Phase 5
+route GET /api/v1/solutions/{id}/compliance | compliance — Phase 5
+route POST /api/v1/repositories/{id}/owasp-review | compliance — Phase 5
+route PUT /api/v1/compliance/scope/containers/{id} | compliance — Phase 5
+route PUT /api/v1/compliance/scope/repositories/{id} | compliance — Phase 5
+route PUT /api/v1/compliance/soa/{framework}/{controlId} | compliance — Phase 5

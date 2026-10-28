@@ -1,0 +1,4 @@
+# The module `agents` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "rules", "scanning", "targets"]
+reason = "`access`: an agent key is issued and revoked through `AgentKeys`, and the principal holds `AgentView`. `scanning` and `targets`: the protocol claims scans and hands over their targets. `rules`: a remote agent fetches the rule set a task names by its hash. None of them uses `agents`: `access` and `scanning` reach the agent row through the ports `AgentDirectory` and `AgentClaimLock`, implemented here. `access::security` for its routes."

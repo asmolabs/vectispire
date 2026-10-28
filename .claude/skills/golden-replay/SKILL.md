@@ -1,6 +1,6 @@
 ---
 name: golden-replay
-description: Replaying the Java suite's recorded HTTP traffic against the Rust control plane's routes — recording, measuring a module's routes before they are owed, sorting the red recordings into port defects, missing modules and irreproducible ones, and shrinking golden/deferred.txt and its ceiling without weakening the check. Use when bringing ported routes to green, when the rust-replay job is red, or when asked how far a module is from Java.
+description: Replaying the Java suite's recorded HTTP traffic against the Rust control plane's routes — recording, measuring a module's routes before they are owed, sorting the red recordings into port defects, missing modules and irreproducible ones, and shrinking golden/deferred/ (one file per module, each with its ceiling) without weakening the check. Use when bringing ported routes to green, when the rust-replay job is red, or when asked how far a module is from Java.
 ---
 
 # The golden replay
@@ -11,9 +11,16 @@ replay sends the same requests to the Rust router on MySQL and PostgreSQL and co
 body (as templates: `«t_issue#1»`, `«instant»`…) and the rows changed. **It is the port's main oracle**:
 most defects this port has fixed were invisible to a careful reading and red here.
 
-`golden/deferred.txt` lists what is not replayed yet, and why; it **only shrinks**, and
-`golden/deferred.ceiling` holds its length. A request to a route that is not served is not sent: its
+`golden/deferred/` lists what is not replayed yet, and why — **one file per module whose port ends the line**
+(`<module>.txt`), `_composition.txt` for what composing ends, `_recording.txt` for what the recorder or the replay
+cannot reproduce (its `README.md` says which goes where). It **only shrinks**, and each file's one `ceiling N` line
+holds that file's length, so two ports shrinking different modules never touch the same line;
+`cp-contract replay-plan` prints the total and each file's. A request to a route that is not served is not sent: its
 recorded effect is applied, so later requests of the same test see the state Java left.
+
+**Which routes are owed is derived**, not listed: every route the replay's router composes
+(`crates/cp-agents/tests/golden.rs`), but those a `route` line still covers — their recordings are played in Java's
+place until the line goes. Removing the line is what makes a composed route owed.
 
 ## 1. Record and replay, as CI does
 
@@ -33,8 +40,8 @@ narrowed run fails on purpose, because it checked less than CI does.
 A route counts only once it is in the served set, and then every recording of it must be green or
 listed — so a module is measured first. `measure.patch` (beside this file) adds a local switch to
 `crates/cp-agents/tests/golden.rs`: with `VECTISPIRE_GOLDEN_MEASURE=1` every route of the composed
-modules is served and owed, and `VECTISPIRE_GOLDEN_OUT=<file>.tsv` writes one line per recording —
-`name \t METHOD /route \t green|differs|unreplayable \t detail`.
+modules is served and owed — those a `route` line covers too — and `VECTISPIRE_GOLDEN_OUT=<file>.tsv` writes one
+line per recording of a covered route — `name \t METHOD /route \t green|differs|unreplayable \t detail`.
 
 ```bash
 git -C .. apply .claude/skills/golden-replay/measure.patch  # from vectispire-rust/; never committed
@@ -42,9 +49,9 @@ CARGO_INCREMENTAL=0 VECTISPIRE_GOLDEN_MEASURE=1 VECTISPIRE_GOLDEN_OUT=$SP/m1.tsv
   SQLX_OFFLINE=true cargo test -p vectispire-cp-agents --test golden -- --ignored --nocapture
 ```
 
-The measuring run always ends red — that is the switch, not a result. The patch was written for Phase
-3's modules (`phase_three`); for another phase, point its `all_phase_three` at that phase's composition.
-If it no longer applies, re-create it from the description above rather than editing the real test.
+The measuring run always ends red — that is the switch, not a result. A module not composed by the
+replay's router yet is composed there first (`phase_three`, or the phase's own composition beside it). If the patch
+no longer applies, re-create it from the description above rather than editing the real test.
 Keep each run's TSV and compare two runs **by recording**, not by totals: a fix that turns 40 green can
 hide two that turned red.
 
@@ -81,16 +88,15 @@ count difference — fix the count first.
 
 When every recording of a route is green in the measuring run:
 
-1. add it to the phase's replayed list in `golden.rs` (`PHASE_THREE_REPLAYED`, sorted; the test asserts
-   each listed route is routed and the served count);
-2. remove its `route …` line from `golden/deferred.txt` and lower `golden/deferred.ceiling` by as many
-   lines as left, in the same commit;
-3. revert the measuring patch (`git checkout -- crates/cp-agents/tests/golden.rs`, then re-apply your
+1. remove its `route …` line from its module's file, `golden/deferred/<module>.txt`, and lower that file's
+   `ceiling` by as many lines as left, in the same commit (a file left with no line is deleted) — nothing else: the
+   route is owed because the line is gone;
+2. revert the measuring patch (`git checkout -- crates/cp-agents/tests/golden.rs`, then re-apply your
    real edit) and run the replay **as CI runs it** — no measuring variable, both engines — before
    committing. A route green under measurement can still be red when its neighbours are not served:
    effects are then applied from the recording rather than produced.
 
-**Never edit `deferred.txt` to make a run pass.** A line whose recordings all replay green, or that no
+**Never edit `golden/deferred/` to make a run pass.** A line whose recordings all replay green, or that no
 recording needs, fails the replay — the list cannot rot in the other direction either.
 
 ## 5. When CI's `rust-replay` is red

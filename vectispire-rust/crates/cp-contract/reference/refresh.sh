@@ -16,4 +16,5 @@ git -C "$root" show "$ref:vectispire-angular/openapi.json" >"$here/openapi.json"
 git -C "$root" show "$ref:vectispire-java/vectispire-core/src/test/resources/openapi/published-operation-ids.txt" \
   >"$here/published-operation-ids.txt"
 printf 'contract taken from %s\n' "$(git -C "$root" rev-parse "$ref")"
-printf 'now regenerate the allowlist with: cargo run -p vectispire-cp-contract -- allowlist-write\n'
+printf 'now add each new operation to reference/not-yet-ported/<its module>.txt (the module whose Java controller serves\n'
+printf 'it), raising that file'"'"'s ceiling, and remove each one the document dropped: cp-app'"'"'s route_authorization test names them\n'

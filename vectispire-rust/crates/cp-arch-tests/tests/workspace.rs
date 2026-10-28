@@ -11,7 +11,7 @@
 use std::path::Path;
 
 use vectispire_cp_arch_tests::graph::Workspace;
-use vectispire_cp_arch_tests::model::{Config, EDGES};
+use vectispire_cp_arch_tests::model::Config;
 use vectispire_cp_arch_tests::sql::{KNOWN, Ownership, TABLES, parse_known, references};
 use vectispire_cp_arch_tests::{edges, isolation, layering, routes, unsafe_code, wire_time};
 
@@ -53,7 +53,7 @@ fn workspace() -> Workspace {
 }
 
 fn config() -> Config {
-    Config::parse(EDGES).unwrap()
+    Config::committed().unwrap()
 }
 
 fn assert_none(what: &str, violations: &[String]) {
@@ -67,7 +67,7 @@ fn the_edge_list_is_the_java_modules_and_has_an_order() {
     let mut expected = JAVA_MODULES.to_vec();
     listed.sort_unstable();
     expected.sort_unstable();
-    assert_eq!(listed, expected, "edges.toml lists the modules ModularityTest lists");
+    assert_eq!(listed, expected, "edges/ lists the modules ModularityTest lists");
 
     let order = config.porting_order().unwrap();
     assert_eq!(order.len(), 28);
@@ -158,7 +158,7 @@ fn the_anonymous_routes_are_the_java_seven() {
     assert_eq!(anonymous.len(), 7);
 }
 
-/// `edges.toml` against the module model Spring Modulith reads, as Java writes it (`ModulesReferenceSetTest`,
+/// `edges/` against the module model Spring Modulith reads, as Java writes it (`ModulesReferenceSetTest`,
 /// `reference/modules/modules.json`): the same modules, the same shared foundation, the same lists, the same named
 /// interfaces, the same open shell. The list was written by hand from the `package-info` files, and nothing compared
 /// the two after that; a line added on one side only would leave the Rust rules enforcing a graph Java no longer has.
@@ -180,7 +180,7 @@ fn the_edge_list_is_the_module_model_java_reads() {
     for module in modules {
         let name = module["name"].as_str().unwrap();
         let Some(entry) = config.module.get(name) else {
-            problems.push(format!("{name}: in Java's model, not in edges.toml"));
+            problems.push(format!("{name}: in Java's model, not in edges/"));
             continue;
         };
         let strings = |key: &str| -> std::collections::BTreeSet<String> {
@@ -188,15 +188,45 @@ fn the_edge_list_is_the_module_model_java_reads() {
         };
         let allowed: std::collections::BTreeSet<String> = entry.allowed.iter().cloned().collect();
         if allowed != strings("allowed") {
-            problems.push(format!("{name}: edges.toml allows {allowed:?}, Java {:?}", strings("allowed")));
+            problems.push(format!("{name}: edges/ allows {allowed:?}, Java {:?}", strings("allowed")));
         }
         let interfaces: std::collections::BTreeSet<String> = entry.interfaces.iter().cloned().collect();
         if interfaces != strings("interfaces") {
-            problems.push(format!("{name}: edges.toml exposes {interfaces:?}, Java {:?}", strings("interfaces")));
+            problems.push(format!("{name}: edges/ exposes {interfaces:?}, Java {:?}", strings("interfaces")));
         }
         if entry.open != module["open"].as_bool().unwrap() {
             problems.push(format!("{name}: open is {} here and {} in Java", entry.open, module["open"]));
         }
     }
-    assert_none("edges.toml against Java's module model", &problems);
+    assert_none("edges/ against Java's module model", &problems);
+}
+
+/// The lists split per module name modules: each file of `golden/deferred/` is a module's or, starting with `_`, what
+/// no module's port ends; each file of `cp-contract`'s `reference/not-yet-ported/` is a module's, since every route is
+/// served by one on the Java side. A misspelt file name would otherwise be a module nobody's port ever finds.
+#[test]
+fn the_files_of_the_lists_that_shrink_are_named_after_modules() {
+    let config = config();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut problems = Vec::new();
+    let mut read = 0;
+    for (dir, underscore) in [("golden/deferred", true), ("crates/cp-contract/reference/not-yet-ported", false)] {
+        for entry in std::fs::read_dir(root.join(dir)).unwrap() {
+            let name = entry.unwrap().file_name().to_string_lossy().into_owned();
+            if name == "README.md" {
+                continue;
+            }
+            read += 1;
+            let Some(stem) = name.strip_suffix(".txt") else {
+                problems.push(format!("{dir}/{name}: not a `.txt` list, nor its README.md"));
+                continue;
+            };
+            let named = config.module.contains_key(stem) || (underscore && stem.starts_with('_') && stem.len() > 1);
+            if !named {
+                problems.push(format!("{dir}/{name}: names no module of edges/"));
+            }
+        }
+    }
+    assert!(read >= 20, "the lists were read ({read} files)");
+    assert_none("the files of the lists that shrink", &problems);
 }

@@ -1,0 +1,5 @@
+# The module `audit` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = []
+shared = true
+reason = "The hash-chained audit log: every administration service writes its record, so every domain uses it."

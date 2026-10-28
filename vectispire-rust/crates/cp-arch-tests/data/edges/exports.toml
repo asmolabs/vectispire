@@ -1,0 +1,4 @@
+# The module `exports` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "gate", "inventory", "issues", "issues::queries", "scanning", "targets"]
+reason = "`gate`: the attestation states the last verdict. `issues` and `issues::queries`: the documents state the backlog, and a VEX document is imported. `scanning`: a document is made for a scan the caller may see. `targets`: a document names its target. `inventory`: the SBOM documents. `access` for its routes only. `access::security` for its routes."

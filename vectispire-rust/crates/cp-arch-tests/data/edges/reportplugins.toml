@@ -1,0 +1,4 @@
+# The module `reportplugins` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "targets", "scanning", "scanning::queries", "gate", "issues", "issues::queries", "inventory", "compliance", "checklists"]
+reason = "The export a plugin receives reads each part from its owner's API: `targets`, `scanning` and `scanning::queries`, `gate`, `issues` and `issues::queries`, `inventory`, `compliance`, `checklists`. `access`: the export is refused for a caller who does not see the whole project. `access::security` for its routes."

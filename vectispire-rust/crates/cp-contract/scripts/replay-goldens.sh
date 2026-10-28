@@ -4,9 +4,12 @@
 # (record-goldens.sh writes one; CI passes the one it just made), then:
 #
 #   1. `cp-contract replay-plan <dir>`: every recording read, and every one of a route not served, or outside the
-#      contract, covered by a line of golden/deferred.txt — no database needed;
-#   2. each served module's replay test on MySQL 9.4 and PostgreSQL 17 (ignored by a plain `cargo test`, since it
-#      needs the recording): every recording of a served route replays green on both engines, or is listed.
+#      contract, covered by a line of golden/deferred/ — no database needed;
+#   2. each replay test on MySQL 9.4 and PostgreSQL 17 (ignored by a plain `cargo test`, since it needs the
+#      recording): every recording of a served route replays green on both engines, or is listed. **The replay tests
+#      are found, not listed**: every `crates/*/tests/golden.rs` that reads VECTISPIRE_GOLDEN_DIR, so that a module
+#      whose replay lives in its own crate adds no line here. Today there is one, cp-agents', which composes every
+#      served module (`targets`, `scanning` and `agents` answer through one another, 2.9; Phase 3's beside them).
 #
 #   crates/cp-contract/scripts/replay-goldens.sh <dir> [--record]     (Docker and, to record, a JDK 25 are required)
 set -eu
@@ -19,6 +22,13 @@ fi
 dir="$(cd "$dir" && pwd)"
 cd "$workspace"
 cargo run --locked -q -p vectispire-cp-contract -- replay-plan "$dir"
-# One line per module whose routes are served; a module that ports routes adds its own.
-# `targets`, `scanning` and `agents` are replayed together, from cp-agents: the agents answer through scanning's dispatcher (2.9).
-VECTISPIRE_GOLDEN_DIR="$dir" cargo test --locked -p vectispire-cp-agents --test golden -- --ignored --nocapture
+replays=0
+for test in crates/*/tests/golden.rs; do
+  grep -q VECTISPIRE_GOLDEN_DIR "$test" || continue
+  crate="vectispire-$(basename "$(dirname "$(dirname "$test")")")"
+  echo "replaying in $crate"
+  VECTISPIRE_GOLDEN_DIR="$dir" cargo test --locked -p "$crate" --test golden -- --ignored --nocapture
+  replays=$((replays + 1))
+done
+# A glob that matched nothing would replay nothing and pass.
+[ "$replays" -gt 0 ] || { echo "no crates/*/tests/golden.rs reads VECTISPIRE_GOLDEN_DIR: nothing was replayed" >&2; exit 1; }
