@@ -127,6 +127,44 @@ impl Instant {
     }
 }
 
+impl Instant {
+    /// `Instant.parse` of what [`to_java_string`](Instant::to_java_string) writes: `2026-10-01T12:00:00Z`, the seconds
+    /// and a fraction of one to nine digits optional, the zone `Z`. `None` for anything else, where Java throws.
+    pub fn parse_java(text: &str) -> Option<Instant> {
+        let body = text.strip_suffix('Z').or_else(|| text.strip_suffix('z'))?;
+        let (date, time) = body.split_once(['T', 't'])?;
+        let mut date_parts = date.splitn(3, '-');
+        let year = number(date_parts.next()?, 4)?;
+        let month = number(date_parts.next()?, 2)?;
+        let day = number(date_parts.next()?, 2)?;
+        let (clock, fraction) = time.split_once('.').map_or((time, None), |(clock, fraction)| (clock, Some(fraction)));
+        let mut clock_parts = clock.splitn(3, ':');
+        let hour = number(clock_parts.next()?, 2)?;
+        let minute = number(clock_parts.next()?, 2)?;
+        let second = clock_parts.next().map_or(Some(0), |second| number(second, 2))?;
+        if fraction.is_some() && clock.matches(':').count() < 2 {
+            return None;
+        }
+        let nano = match fraction {
+            None => 0,
+            Some(digits) if (1..=9).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit()) => {
+                format!("{digits:0<9}").parse().ok()?
+            }
+            Some(_) => return None,
+        };
+        let whole = Instant::of_utc(i64::from(year), month, day, hour, minute, second)?;
+        Some(Instant { epoch_second: whole.epoch_second, nano })
+    }
+}
+
+/// Exactly `width` ASCII digits.
+fn number(text: &str, width: usize) -> Option<u32> {
+    if text.len() != width || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
+}
+
 fn is_leap(year: i64) -> bool {
     year.rem_euclid(4) == 0 && (year.rem_euclid(100) != 0 || year.rem_euclid(400) == 0)
 }
@@ -189,6 +227,32 @@ mod tests {
         let at = Instant { epoch_second: 10, nano: 100 };
         assert_eq!(at.minus(std::time::Duration::new(1, 200)), Some(Instant { epoch_second: 8, nano: 999_999_900 }));
         assert_eq!(at.minus(std::time::Duration::new(1, 100)), Some(Instant { epoch_second: 9, nano: 0 }));
+    }
+
+    #[test]
+    fn what_to_java_string_writes_parses_back() {
+        for written in [
+            "2026-09-28T12:00:00Z",
+            "2026-09-28T12:00:00.000000001Z",
+            "2026-09-28T12:00:00.100Z",
+            "0001-01-01T00:00:00Z",
+        ] {
+            let parsed = Instant::parse_java(written).unwrap();
+            assert_eq!(parsed.to_java_string().as_deref(), Some(written));
+        }
+        assert_eq!(
+            Instant::parse_java("2026-09-28T12:00Z").and_then(Instant::to_java_string).as_deref(),
+            Some("2026-09-28T12:00:00Z")
+        );
+        for refused in [
+            "2026-09-28T12:00:00",
+            "2026-09-28 12:00:00Z",
+            "2026-02-30T12:00:00Z",
+            "2026-09-28T12:00:00.Z",
+            "2026-09-28T12:00:00.1234567890Z",
+        ] {
+            assert_eq!(Instant::parse_java(refused), None, "{refused}");
+        }
     }
 
     #[test]

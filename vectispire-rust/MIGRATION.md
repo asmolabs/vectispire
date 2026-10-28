@@ -438,6 +438,18 @@ Java lines: ~18,000 lines across 7 vertical domains. Broken down into isolated c
 | **5. Documents & Compliance** | checklists 6,882 · compliance 4,615 · reportplugins 3,593 · posture 2,454 · exports 1,400 · reporting 284 | xlsx byte for byte; PDF text-equal & structure-equal to Java | Starts with a 2-week spike on headless PDF generation (typst / printpdf / krilla) |
 | **6. Cut-over & Hardening** | — | Every oracle green on both engines; 14-day nightly parity | Staging run side-by-side with production DB snapshot |
 
+**Checklists (wave 1), `crates/cp-checklists`** — 10,100 lines of `core.checklists` and 7,700 of
+`common.domain.checklists`; 35 routes, 101 deferred recordings at the start (59 after stage 0, the replay's
+digest-prefix fix). One pull request per stage:
+
+| Stage | What | State |
+|---|---|---|
+| 1a | The vocabulary: text, answers, items and pairing, contacts, reminders, rules and their canonical form, the evaluation and its evidence; the facts, a forge's review reading, Maven's order and ranges in `domain` | done, held to `reference/checklists/` |
+| 1b | The workbook: the hand-written xlsx reader (`WorkbookReader`, `XmlCursor`, fuzzed), the layout and its proposal, the template version, the renderer and `DocumentZip` byte for byte, `ChecklistStatement` | next |
+| 2 | The services and persistence; the `RepositoryScanned` listener, the `checklist_answer` handler, the reminders' maintenance task, the `ProjectDeleted` purge | needs `AccountDirectory` and `AccountNames` in `cp-access`; the plugins' import catalogue and the mail channel behind ports with absent-answering stand-ins until wave 2 and 3 |
+| 3 | The 35 routes | |
+| 4 | The replay of their recordings | |
+
 ---
 
 ### 5.6 The agent — finishing `feat/rust-agent`

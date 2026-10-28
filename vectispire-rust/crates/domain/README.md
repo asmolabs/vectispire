@@ -67,6 +67,17 @@ Ported, but shaped for Rust: an issue's severity given to a type whose severity 
 where Java throws at the call — either way no event exists. `SecurityEventRaised` and `SecurityEventRaisedApart`
 are Spring events and are not here: the export's crate replaces them with a trait.
 
+## The checklists' shared vocabulary (Phase 5, checklists stage 1a)
+
+`checklists` is the part of `common.domain.checklists` other modules build: `MeasurementFacts` and `Look` — what the
+owners of the evidence hand the rules — and `ChangeReviewEvidence`, the forge reading `forges` writes and the rules
+read back (its stored form is a digest's input, written member by member as Jackson writes it). The rules themselves
+are `vectispire-cp-checklists`'. `maven_version` is `common.domain.dependencies.MavenVersion` and `MavenVersionRange`
+(Maven's `ComparableVersion` order, its qualifiers and Unicode digits; the range syntax and its refusals),
+`plugin_manifest::require_id` the plugin id's rule, and `language` the `Language` vocabulary, moved down from
+`vectispire-protocol` (which re-exports `LANGUAGES`) so that a set of languages is typed. `Instant::parse_java` reads
+back what `to_java_string` writes. All of it is held to `reference/checklists/`.
+
 ## Differences from Java, known
 
 Decided 2026-10-17 by the 2.4 port; each is outside what any stored value or wire message can reach today.
