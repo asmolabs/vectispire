@@ -48,6 +48,11 @@ dependencies {
     // architecture suite forbids `domain` from depending on anything, and this is exactly the
     // kind of dependency that would make the calculations untestable without a daemon.
     implementation(libs.docker.java.core)
+    // docker-java-core's guava, raised for the advisory the catalogue names; a constraint, so it
+    // raises the version without making guava a dependency anything here may start calling.
+    constraints {
+        implementation(libs.guava) { because("GHSA-xxph-c9ww-hj94") }
+    }
     // **Raised for named advisories, not for freshness.** docker-java's transport brings
     // Apache's client, and the versions it and the Spring Boot BOM agree on carry fixable High
     // findings that Vectispire's own SBOM scan reports (see `supply-chain` in CI). Declared here
