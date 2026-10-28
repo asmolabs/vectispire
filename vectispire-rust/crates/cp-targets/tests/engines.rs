@@ -379,9 +379,16 @@ async fn one_twin_wins_the_other_is_told(database: &Migrated, db: &Db) {
     let second = tokio::spawn(async move {
         racer.create_repository(&changes("git@gitlab.example.org:Team/Raced"), &Visibility::Everything, &actor()).await
     });
+    // A wait in this test's database only: on a shared server, another test's sessions wait on their own locks.
     let waiting = match database.engine {
-        Engine::PostgreSql => "select count(*) from pg_stat_activity where wait_event_type = 'Lock'",
-        Engine::MySql => "select count(*) from performance_schema.data_lock_waits",
+        Engine::PostgreSql => {
+            "select count(*) from pg_stat_activity where wait_event_type = 'Lock' and datname = current_database()"
+        }
+        Engine::MySql => {
+            "select count(*) from performance_schema.data_lock_waits waits \
+             join performance_schema.data_locks wanted on wanted.engine_lock_id = waits.requesting_engine_lock_id \
+             where wanted.object_schema = database()"
+        }
     };
     let deadline = Instant::now() + Duration::from_secs(60);
     loop {

@@ -52,6 +52,17 @@ impl Container {
         full.extend_from_slice(command);
         docker(&full)
     }
+
+    /// `docker exec` in the container, answering whether the command succeeded — for a readiness probe,
+    /// whose failures are expected until the server answers.
+    pub fn succeeds(&self, command: &[&str]) -> bool {
+        Command::new("docker")
+            .arg("exec")
+            .arg(&self.name)
+            .args(command)
+            .output()
+            .is_ok_and(|output| output.status.success())
+    }
 }
 
 impl Drop for Container {

@@ -2,7 +2,8 @@
 //!
 //! **The servers are the images the repository pins** — those `scripts/upgrade-drill.sh` and CI's job
 //! services run (`scripts/check-db-pins.py` holds them to `Engine.java`): MySQL 9.4 and PostgreSQL 17.
-//! Each test starts its own, named `vs-rs-mig-*`, removed when it ends.
+//! Each test has a database of its own, `vectispire_cp_db::testing`'s — in a throwaway container, or on the shared
+//! server `VECTISPIRE_TEST_MYSQL_URL` / `VECTISPIRE_TEST_POSTGRES_URL` names — removed when it ends.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, dead_code)]
 
@@ -11,78 +12,40 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use sqlx::{AssertSqlSafe, Row as _};
+use vectispire_cp_db::testing::TestDatabase;
 use vectispire_migrate::{Database, Engine};
-use vectispire_testkit::docker::Container;
 
-pub const MYSQL_IMAGE: &str = "mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b814cb52805af7ddeea83bfcaf157d05a6b2";
-pub const POSTGRES_IMAGE: &str =
-    "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94";
-pub const USER: &str = "vectispire";
-pub const PASSWORD: &str = "throwaway-test-only";
-
-/// A database server for one test.
+/// A database of its own for one test: `vectispire_cp_db::testing`'s.
 #[derive(Debug)]
 pub struct Server {
     pub engine: Engine,
-    pub container: Container,
-    pub port: u16,
+    pub database: TestDatabase,
 }
 
 impl Server {
     pub fn start(engine: Engine) -> Server {
-        let container = match engine {
-            Engine::MySql => Container::run(
-                "mig-mysql",
-                &[
-                    "-p",
-                    "127.0.0.1::3306",
-                    "-e",
-                    "MYSQL_ROOT_PASSWORD=root-throwaway",
-                    "-e",
-                    "MYSQL_DATABASE=vectispire",
-                    "-e",
-                    &format!("MYSQL_USER={USER}"),
-                    "-e",
-                    &format!("MYSQL_PASSWORD={PASSWORD}"),
-                    MYSQL_IMAGE,
-                ],
-            ),
-            Engine::PostgreSql => Container::run(
-                "mig-pg",
-                &[
-                    "-p",
-                    "127.0.0.1::5432",
-                    "-e",
-                    &format!("POSTGRES_USER={USER}"),
-                    "-e",
-                    &format!("POSTGRES_PASSWORD={PASSWORD}"),
-                    "-e",
-                    "POSTGRES_DB=vectispire",
-                    POSTGRES_IMAGE,
-                ],
-            ),
-        };
-        let port = container.host_port(match engine {
-            Engine::MySql => "3306/tcp",
-            Engine::PostgreSql => "5432/tcp",
+        let database = TestDatabase::empty(match engine {
+            Engine::MySql => vectispire_cp_db::Engine::MySql,
+            Engine::PostgreSql => vectispire_cp_db::Engine::PostgreSql,
         });
-        Server { engine, container, port }
+        Server { engine, database }
     }
 
     pub fn url(&self) -> String {
-        match self.engine {
-            Engine::MySql => format!("mysql://{USER}:{PASSWORD}@127.0.0.1:{}/vectispire", self.port),
-            Engine::PostgreSql => format!("postgres://{USER}:{PASSWORD}@127.0.0.1:{}/vectispire", self.port),
-        }
+        self.database.url()
     }
 
     pub fn jdbc_url(&self) -> String {
-        match self.engine {
-            Engine::MySql => {
-                format!("jdbc:mysql://127.0.0.1:{}/vectispire?allowPublicKeyRetrieval=true&useSSL=false", self.port)
-            }
-            Engine::PostgreSql => format!("jdbc:postgresql://127.0.0.1:{}/vectispire", self.port),
-        }
+        self.database.jdbc_url()
+    }
+
+    /// The application's account, as the Java oracle connects with it.
+    pub fn user(&self) -> String {
+        self.database.username().to_owned()
+    }
+
+    pub fn password(&self) -> String {
+        self.database.password().to_owned()
     }
 
     /// A pool once the server answers; the entrypoints restart the server once during initialisation,
@@ -123,8 +86,8 @@ impl Server {
         let mut args = vec![
             command.to_owned(),
             self.jdbc_url(),
-            USER.to_owned(),
-            PASSWORD.to_owned(),
+            self.user(),
+            self.password(),
             self.engine.vendor().to_owned(),
             root.map_or("-".to_owned(), |root| root.display().to_string()),
         ];

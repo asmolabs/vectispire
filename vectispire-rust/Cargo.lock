@@ -4227,7 +4227,9 @@ dependencies = [
  "tracing",
  "trybuild",
  "uuid",
+ "vectispire-cp-db",
  "vectispire-domain",
+ "vectispire-migrate",
  "vectispire-testkit",
 ]
 
@@ -4671,6 +4673,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "vectispire-cp-db",
  "vectispire-testkit",
 ]
 

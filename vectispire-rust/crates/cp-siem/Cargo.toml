@@ -44,6 +44,8 @@ vectispire-domain.workspace = true
 vectispire-tls.workspace = true
 
 [dev-dependencies]
+# A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 futures-util.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

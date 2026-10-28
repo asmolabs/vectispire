@@ -14,6 +14,10 @@ publish.workspace = true
 default = ["mysql-queries", "postgres-queries"]
 mysql-queries = []
 postgres-queries = []
+# The tests' databases (`testing`): one per test, in a throwaway container or on a shared server. Only ever turned on
+# from `[dev-dependencies]` — this crate's own, below, and each crate whose tests need a database — so no build that
+# ships compiles it, nor links the migration runner or the test kit through it.
+test-support = ["dep:vectispire-migrate", "dep:vectispire-testkit"]
 
 [dependencies]
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "mysql", "postgres", "macros", "time"] }
@@ -26,8 +30,13 @@ tokio.workspace = true
 vectispire-domain.workspace = true
 tracing.workspace = true
 uuid.workspace = true
+vectispire-migrate = { path = "../migrate", optional = true }
+vectispire-testkit = { path = "../testkit", optional = true }
 
 [dev-dependencies]
+# Itself, with the tests' databases: Cargo allows a dev-dependency on the package being tested, which is how its own
+# integration tests turn a feature on.
+vectispire-cp-db = { path = ".", features = ["test-support"] }
 tokio = { workspace = true, features = ["test-util"] }
 trybuild = "1"
 vectispire-testkit = { path = "../testkit" }

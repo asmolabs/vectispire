@@ -16,7 +16,7 @@ mod support;
 
 use std::sync::Arc;
 
-use support::{Migrated, plain_log};
+use support::{Migrated, Oracle, plain_log};
 use vectispire_cp_audit::{AuditLog, AuditLogQuery, AuditOperation, Record, StoredEntry, SystemClock};
 use vectispire_cp_db::Engine;
 

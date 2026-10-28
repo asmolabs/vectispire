@@ -95,7 +95,19 @@ What types cannot see — a table named as a string in `Alias::new("t_issue")` o
 - Unit tests: URL parsing and refusals, pool validation, the retry policy, the SQL written for each
   visibility, the parity comparison.
 
-Containers and networks are `vs-rs-db-*` (`vs-rs-sqlx-*` for the cache script), removed on drop.
+Containers and networks are `vs-rs-db-*` (`vs-rs-sqlx-*` for the cache script), removed on drop. The server is
+`testing`'s (below): with `VECTISPIRE_TEST_MYSQL_URL` / `VECTISPIRE_TEST_POSTGRES_URL` set, Flyway migrates a
+database of the test's own on that server instead, reached from its container through the host's gateway.
+
+### `testing` — every crate's test databases
+
+Behind the `test-support` feature, which only `[dev-dependencies]` turn on. `TestDatabase::start(engine)` is a
+database of the test's own migrated by `vectispire-migrate`, `TestDatabase::empty(engine)` one with nothing in it; the
+value's drop removes it. `sql_as_admin` runs a statement as the server's administrator and prints the rows as
+`mysql -N` and `psql -tA` print them, which is what the suites read when they arrange or break something behind the
+pool's back. Where the database lives — a throwaway container, or the shared server the variables name — is the
+module's documentation; the crates' `tests/support` modules re-export it rather than starting servers of their own,
+as each of them did before (fifteen copies of one container start, with the images pinned in each).
 
 ## Not here yet
 

@@ -16,6 +16,8 @@ vectispire-cp-db = { path = "../cp-db" }
 vectispire-cp-settings = { path = "../cp-settings" }
 
 [dev-dependencies]
+# A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
+vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
 tokio = { workspace = true, features = ["test-util"] }
 vectispire-domain.workspace = true
 vectispire-migrate = { path = "../migrate" }
