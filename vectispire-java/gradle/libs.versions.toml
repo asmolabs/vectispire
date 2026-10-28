@@ -1,11 +1,11 @@
 # Versions in one place, so that "which Spring Boot is this?" has exactly one answer.
 [versions]
-springBoot = "4.1.1"
+springBoot = "4.1.2"
 archunit = "1.5.1"
 junit = "6.1.3"
 assertj = "3.27.7"
-postgresql = "42.7.13"
-mysql = "26.7.0"
+postgresql = "42.7.14"
+mysql = "26.10.0"
 bouncycastle = "1.86"
 dockerJava = "3.7.1"
 # The version docker-java already brings in; the agent compiles against it for the Kubernetes executor's
@@ -18,7 +18,7 @@ commonsCompress = "1.28.0"
 # constraint, so naming them here is what raises them. Drop these two lines when the BOM
 # catches up: an override kept past its usefulness is how a dependency silently stops
 # following upstream.
-apacheHttpClient5 = "5.6.4"
+apacheHttpClient5 = "5.6.5"
 apacheHttpCore5 = "5.4.4"
 # **Jackson, raised above the Spring Boot BOM for named advisories, both lines at once.**
 # GHSA-q4xh-88c3-wmh7 (High), GHSA-gx83-3vf8-gh7j and GHSA-wjgm-6hv5-3cvf reach jackson-databind
@@ -26,8 +26,8 @@ apacheHttpCore5 = "5.4.4"
 # no 4.1.x after it exists yet. The BOMs rather than databind alone: core, annotations and the
 # datatype modules are released together, and raising one leaves a skew nothing reconciles.
 # Drop both lines when the Spring Boot BOM catches up.
-jackson2 = "2.22.3"
-jackson3 = "3.1.7"
+jackson2 = "2.22.4"
+jackson3 = "3.1.8"
 jgit = "7.8.0.202609011348-r"
 # **Raised above what docker-java-core asks for, for a named advisory.** docker-java 3.7.1 brings
 # guava 33.4.8-jre, against which GHSA-xxph-c9ww-hj94 (High, fixed in 33.7.2) made the
@@ -42,13 +42,13 @@ guava = "33.7.2-jre"
 immutables = "2.10.1"
 pdfbox = "3.0.8"
 bucket4j = "8.10.1"
-springdoc = "3.1.1"
+springdoc = "3.2.0"
 # Jib builds the container images from the build itself — no Dockerfile, no daemon.
 jib = "3.5.4"
 # **The module boundaries' verification, and its annotations** (decision 0030). The 2.1 line is the
 # one built against Spring Boot 4.1; the Spring Boot BOM does not manage Modulith, so its own BOM
 # below is the one authority for every `spring-modulith-*` version. Apache-2.0, like the rest.
-springModulith = "2.1.1"
+springModulith = "2.1.2"
 # **A JSON Schema validator, for the tests alone.** The project export's schema (decision 0035) is
 # held to the code by validating every export the suite builds against it; a hand-written check
 # would test the schema against the reader's idea of draft 2020-12. Apache-2.0, like its two
