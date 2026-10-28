@@ -63,4 +63,20 @@ class PlaceholdersTest {
                 .at("/effect/t_agent/updated/0/changed/signing_public_key/to").asText();
         assertThat(shown).matches("«secret:\\d+»");
     }
+
+    @Test
+    @DisplayName("a certificate stays literal, its body untouched, and a key is still a placeholder")
+    void aCertificateIsKeptAndAKeyIsNot() throws Exception {
+        // Invented bodies, not real material: what matters is that a base64 run with a digit and both cases inside a
+        // certificate is not read as a token, and that a key's block is hidden whole.
+        String certificate = "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAKHBfpegPjMCMA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBkxhcHNlZA==\n-----END CERTIFICATE-----";
+        String key = "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIKnzQ7mZ9x2Wb8yT4uR1sV3pL6dE0fG5hJ7kM2nC9aB4\n-----END PRIVATE KEY-----"; // gitleaks:allow
+        JsonNode record = MAPPER.readTree("{\"request\":{\"method\":\"PUT\",\"path\":\"/api/v1/siem/config\",\"body\":"
+                + "{\"tlsCaPem\":" + MAPPER.writeValueAsString(certificate) + ",\"key\":" + MAPPER.writeValueAsString(key) + "}}}");
+        Placeholders placeholders = new Placeholders();
+        placeholders.collect(record, null);
+        JsonNode body = placeholders.render(record).at("/request/body");
+        assertThat(body.path("tlsCaPem").asText()).isEqualTo(certificate);
+        assertThat(body.path("key").asText()).isEqualTo("«pem:private-key:1»");
+    }
 }
