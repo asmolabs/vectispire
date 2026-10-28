@@ -1568,7 +1568,8 @@ jobs:
   # carry no credential but the one invented value the export test plants, allowed by name.
   rust-replay:
     runs-on: ubuntu-24.04
-    # Recording (~10 min), the build, and the replay on two engines (~10 min).
+    # Recording (16 min, skipped when the Java tree is unchanged), the build, and the replay on two engines
+    # (34 min) — measured on develop on 2026-10-28.
     timeout-minutes: 90
     needs: [rust-changes]
     if: needs.rust-changes.outputs.touched == 'true'
@@ -1584,9 +1585,29 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      # **Recorded once per Java tree, not once per run.** Recording took 16 of this job's 50 minutes, and
+      # most pull requests through here change only `vectispire-rust/`: their recording is the one the
+      # previous run made of the same Java. The key is everything the recording is a function of — the
+      # Java tree (sources, migrations, build, lockfiles), the recorder's script and its list of expected
+      # failures — so a change to any of them records afresh. What is restored is scanned for credentials
+      # below exactly as a fresh recording is. A pull request's cache is its own; `develop`'s is the one a
+      # new pull request starts from.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: goldens
+        with:
+          path: ${{ runner.temp }}/goldens
+          key: goldens-${{ hashFiles('vectispire-java/**', 'vectispire-rust/crates/cp-contract/scripts/record-goldens.sh', 'vectispire-rust/crates/cp-contract/reference/recording-known-failures.txt') }}
       # Two tests are expected to fail under the recorder, and no others (reference/recording-known-failures.txt).
       - name: the suite, recorded
+        if: steps.goldens.outputs.cache-hit != 'true'
         run: vectispire-rust/crates/cp-contract/scripts/record-goldens.sh "$RUNNER_TEMP/goldens"
+      # A restored recording is only usable whole: the replay re-records when `manifest.json` is missing, which
+      # would hide a truncated cache behind sixteen silent minutes.
+      - name: the restored recording is complete
+        if: steps.goldens.outputs.cache-hit == 'true'
+        run: |
+          test -f "$RUNNER_TEMP/goldens/manifest.json" || { echo "::error::the cached recording has no manifest"; exit 1; }
+          echo "recording restored: $(find "$RUNNER_TEMP/goldens" -type f | wc -l) files"
       - name: the recordings hold no credential but the one invented value
         run: |
           set -eu
