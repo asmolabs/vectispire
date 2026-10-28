@@ -300,6 +300,11 @@ class ForgeConnectionsRoutesTest extends ApiTestBase {
         assertThat(detailOf(create(github, asAdmin()).andExpect(status().isBadRequest()).andReturn()))
                 .contains("organisation or user");
 
+        Map<String, Object> cutShort = gitlabConnection(true);
+        cutShort.put("caPem", gitlab.caPem + gitlab.caPem.replaceFirst("-----BEGIN CERTIFICATE-----", "-----BEGIN CERTIFICATE"));
+        assertThat(detailOf(create(cutShort, asAdmin()).andExpect(status().isBadRequest()).andReturn()))
+                .contains("-----BEGIN line that cannot be read");
+
         create(gitlabConnection(true), asAdmin()).andExpect(status().isCreated());
         assertThat(detailOf(create(gitlabConnection(true), asAdmin()).andExpect(status().isBadRequest()).andReturn()))
                 .contains("already exists");

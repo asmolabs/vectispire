@@ -204,6 +204,11 @@ class TicketTrackerCaTest {
         assertThatThrownBy(() -> service.caToPin("not a certificate"))
                 .isInstanceOf(InvalidInputException.class)
                 .hasMessageStartingWith("The tracker CA");
+        // A marker the reader cannot read ends the bundle silently: refused rather than pinned in part.
+        assertThatThrownBy(() -> service.caToPin(tracker.caPem
+                        + tracker.caPem.replaceFirst("-----BEGIN CERTIFICATE-----", "-----BEGIN CERTIFICATE")))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessageContaining("-----BEGIN line that cannot be read");
     }
 
     @Test

@@ -63,7 +63,19 @@ public record CollectorCa(String pem, List<Anchor> anchors) {
      * @throws InvalidInputException when the text is not a bundle of CA certificates
      */
     public static CollectorCa read(String pem) {
-        PinnedCa read = PinnedCa.read(pem, SUBJECT);
+        return of(PinnedCa.read(pem, SUBJECT));
+    }
+
+    /**
+     * Reads a bundle somebody has just pasted, refusing one that would be read in part ({@link PinnedCa#parsePasted}).
+     *
+     * @throws InvalidInputException worded for the person who pasted it
+     */
+    public static CollectorCa parsePasted(String pem, Instant now) {
+        return of(PinnedCa.parsePasted(pem, now, SUBJECT));
+    }
+
+    private static CollectorCa of(PinnedCa read) {
         return new CollectorCa(read.pem(), read.anchors().stream()
                 .map(anchor -> new Anchor(anchor.subject(), anchor.notBefore(), anchor.notAfter(), anchor.der()))
                 .toList());

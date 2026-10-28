@@ -141,6 +141,12 @@ class SiemCollectorCaRoutesTest extends ApiTestBase {
         assertThat(detailOf(save(Map.of("protocol", "SYSLOG_TCP", "endpoint", "c.example.com:514",
                         "tlsCaPem", pki.caPem)).andExpect(status().isBadRequest()).andReturn()))
                 .contains("syslog over TLS only");
+        // A second certificate whose marker lost its dashes: the reader stopped there and pinned the first alone.
+        String damaged = pki.caPem + CollectorPki.create("Corp Issuing").caPem
+                .replaceFirst("-----BEGIN CERTIFICATE-----", "-----BEGIN CERTIFICATE");
+        assertThat(detailOf(save(Map.of("protocol", "SYSLOG_TLS", "endpoint", "c.example.com:6514",
+                        "tlsCaPem", damaged)).andExpect(status().isBadRequest()).andReturn()))
+                .contains("-----BEGIN line that cannot be read");
         assertThat(configs.findById(SiemConfigEntity.SINGLETON_ID)).isEmpty();
     }
 

@@ -62,6 +62,37 @@ class SiemEndpointTest {
     }
 
     @Test
+    @DisplayName("a webhook's port is one a connection can use")
+    void webhookPort() {
+        assertThat(SiemEndpoint.parse(SiemProtocol.WEBHOOK, "https://siem.example.com:65535/cef"))
+                .isEqualTo(new SiemEndpoint.Webhook("https://siem.example.com:65535/cef"));
+        for (String endpoint : new String[] {"https://siem.example.com:99999/cef", "https://siem.example.com:0/cef"}) {
+            assertThatThrownBy(() -> SiemEndpoint.parse(SiemProtocol.WEBHOOK, endpoint))
+                    .hasMessage("The webhook endpoint's port must be a number between 1 and 65535.");
+        }
+    }
+
+    @ParameterizedTest(name = "reads \"{0}\" as the address the resolver reaches")
+    @ValueSource(strings = {"10.1:514", "010.0.0.1:514", "16909060:514", "1.2.3.4.:514", "255.255.255.255:514"})
+    void numericHostsTheResolverReads(String endpoint) {
+        assertThat(SiemEndpoint.parse(SiemProtocol.SYSLOG_UDP, endpoint)).isInstanceOf(SiemEndpoint.Syslog.class);
+    }
+
+    @ParameterizedTest(name = "refuses \"{0}\": digits that are no address")
+    @ValueSource(strings = {"999.999.999.999:514", "256.0.0.1:514", "1.2.3.4.5:514", "1.2.3.4..:514", "4294967296:514"})
+    void numericHostsThatAreNoAddress(String endpoint) {
+        assertThatThrownBy(() -> SiemEndpoint.parse(SiemProtocol.SYSLOG_UDP, endpoint))
+                .hasMessageEndingWith("is not a host name or an IPv4 address.");
+    }
+
+    @Test
+    @DisplayName("a port written with leading zeros is that port: a stored one keeps working")
+    void leadingZeros() {
+        assertThat(SiemEndpoint.parse(SiemProtocol.SYSLOG_TCP, "collector.example.com:00514"))
+                .isEqualTo(new SiemEndpoint.Syslog(SiemProtocol.SYSLOG_TCP, "collector.example.com", 514));
+    }
+
+    @Test
     @DisplayName("an empty endpoint is refused for every protocol")
     void emptyIsRefused() {
         for (SiemProtocol protocol : SiemProtocol.values()) {
