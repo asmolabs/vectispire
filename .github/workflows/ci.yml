@@ -33,10 +33,16 @@ name: verify
 # **The side effect is intended.** A commit reaching `main` without having gone through `develop`
 # would have no checks to show, and the rule would refuse it. That is exactly the flow we want, and
 # it is now held by the mechanism rather than by discipline.
+#
+# **`merge_group`: the merge queue's runs.** A pull request is tested again on top of the ones queued ahead
+# of it, and merged only if that combination is green; without the trigger the queue would wait for checks
+# that never start. The change detectors read the group's base (`merge_group.base_sha`), and a group is
+# judged as `develop` is — every fixable high in `vulnerabilities`, not only the new ones.
 on:
   push:
     branches: [develop]
   pull_request:
+  merge_group:
 
 # Least privilege by default. The release workflow raises what it needs, where it needs it.
 permissions:
@@ -114,11 +120,18 @@ jobs:
       # 2026-10-03 passed a secrets check that examined no commit. Trusting the workspace is the fix;
       # refusing a run that scanned nothing, or logged an error, is what keeps the next silent
       # failure from looking like a pass (AGENTS.md: never skip silently).
+      #
+      # **The history of what is checked, not of every branch.** With `fetch-depth: 0` the checkout holds
+      # every branch pushed to the repository, and gitleaks reads `--all`: on 2026-10-28 a false positive in
+      # an open pull request's reference file turned `secrets` red on three *other* pull requests, whose
+      # trees could not carry its fingerprints. `HEAD` is the whole history of the commit under test — on a
+      # pull request the merge with its base, on `develop` the branch — so nothing that can be merged
+      # escapes the scan, and a branch is judged when it is proposed.
       - name: scan the whole history, and refuse a scan that read nothing
         run: |
           git config --global --add safe.directory "$PWD"
           status=0
-          gitleaks detect --source=. --config .gitleaks.toml --verbose > gitleaks.log 2>&1 || status=$?
+          gitleaks detect --source=. --config .gitleaks.toml --log-opts=HEAD --verbose > gitleaks.log 2>&1 || status=$?
           cat gitleaks.log
           # The log is coloured even off a terminal: read it without the escape sequences.
           sed "s/$(printf '\033')\[[0-9;]*m//g" gitleaks.log > gitleaks.txt
@@ -387,7 +400,7 @@ jobs:
       - id: detect
         env:
           # Through the environment rather than interpolated into the script, like `migration-changes`.
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           # **Undetermined means "run"**, as for the other two detections below.
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
@@ -824,6 +837,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [sbom]
+    # `actions: read` to fetch the base branch's SBOMs from its own last run (below); nothing is written.
+    permissions:
+      contents: read
+      actions: read
     steps:
       # The one file this job runs from the tree: the pull with retries.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -844,16 +861,55 @@ jobs:
       #
       # Both SBOMs are scanned before the verdict: stopping at the first failure would hide the
       # agent's table behind the control plane's, and the fix for one is rarely the fix for both.
+      #
+      # **A pull request answers for what it adds, `develop` for everything.** An advisory published
+      # against a dependency `develop` already ships turned this job red on every open pull request at
+      # once on 2026-10-28 (guava, GHSA-xxph-c9ww-hj94): none of them could go green until a sixth pull
+      # request fixed `develop`, and each then needed `develop` merged in and its forty minutes again. So
+      # on a pull request, a finding the base branch's last SBOMs also have is reported as a warning and
+      # does not fail; a finding they do not have fails as before. On a push to `develop` every fixable
+      # high fails, so the advisory is still red where it has to be fixed. When the base's SBOMs cannot
+      # be fetched, the pull request is judged on everything — never on less than before.
+      - name: the base branch's SBOMs, on a pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          mkdir -p base
+          for run in $(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch "$BASE" --event push \
+                         --limit 10 --json databaseId --jq '.[].databaseId'); do
+            if gh run download "$run" -R "$GITHUB_REPOSITORY" -n sbom -D base 2>/dev/null; then
+              echo "base SBOMs from run $run"; exit 0
+            fi
+          done
+          echo "::warning::no SBOM of $BASE could be fetched: every finding counts"
       - name: report, then fail on a fixable high
         run: |
           grype=anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db
           ./scripts/pull-pinned-image.sh "$grype"
+          # One line per fixable high or critical: the advisory and the package it is against.
+          highs() { jq -r '.matches[] | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")
+                           | "\(.vulnerability.id) \(.artifact.name)"' "$1" | sort -u; }
           failed=0
           for sbom in vectispire-jvm vectispire-agent; do
             echo "::group::$sbom"
-            docker run --rm -v "$PWD:/work:ro" "$grype" \
-              "sbom:/work/$sbom.cdx.json" --only-fixed --fail-on high -o table || failed=1
+            docker run --rm -v "$PWD:/work" "$grype" "sbom:/work/$sbom.cdx.json" --only-fixed -o table \
+              -o "json=/work/$sbom.grype.json" || failed=1
             echo "::endgroup::"
+            highs "$sbom.grype.json" > "$sbom.highs"
+            if [ -f "base/$sbom.cdx.json" ]; then
+              docker run --rm -v "$PWD:/work" "$grype" "sbom:/work/base/$sbom.cdx.json" --only-fixed -q \
+                -o "json=/work/base/$sbom.grype.json" || failed=1
+              highs "base/$sbom.grype.json" > "base/$sbom.highs"
+              comm -12 "$sbom.highs" "base/$sbom.highs" | while read -r finding; do
+                echo "::warning::$sbom: $finding is on the base branch too; fix it there"
+              done
+              comm -23 "$sbom.highs" "base/$sbom.highs" > "$sbom.new"
+            else
+              cp "$sbom.highs" "$sbom.new"
+            fi
+            while read -r finding; do echo "::error::$sbom: $finding (fixable, high or critical)"; failed=1; done < "$sbom.new"
           done
           exit $failed
 
@@ -1136,7 +1192,7 @@ jobs:
         env:
           # Through the environment rather than interpolated into the script: these values come
           # from GitHub and not from a contributor, but the rule takes no local exception.
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           # **Undetermined means "run".** A range that cannot be resolved — a new branch, a force
           # push, a truncated history — is not evidence that no migration changed. The fallback
@@ -1249,7 +1305,7 @@ jobs:
       - id: detect
         env:
           # Through the environment rather than interpolated into the script, like `migration-changes`.
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           # **Undetermined means "run"**, for the reason given above: a range that cannot be
           # resolved is not evidence that the interface has not moved.
@@ -1385,7 +1441,7 @@ jobs:
           fetch-depth: 0
       - id: detect
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
              || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then

@@ -12,6 +12,15 @@ Read [`vectispire-java/README.md`](../../vectispire-java/README.md) first — it
 graph, what each guarantee is enforced by, and an index of defects that were found and fixed.
 Each entry has a reason you should not undo by accident.
 
+## A module the Rust port has reached changes on both sides
+
+Before changing a module's behaviour, look for `vectispire-rust/crates/cp-<module>` and for the module in
+`vectispire-rust/reference/`. If either exists, the same pull request changes the Rust side too (the
+`rust-porter` agent), or the change waits (AGENTS.md, "A module the port has reached moves on both sides"). A reference set's
+Java test fails in check mode when a behaviour it pins changes: regenerate it on purpose
+(`-Dvectispire.rust.reference.write=true`) and make the Rust side agree in the same diff, never to make the
+Java build pass alone.
+
 ## The module graph is a security boundary
 
 ```
