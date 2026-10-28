@@ -640,6 +640,11 @@ impl<'m> Bindings<'m> {
             Placeholder::HttpDate => hidden("«http-date»"),
             Placeholder::Stamp => hidden("«stamp»"),
             Placeholder::OneTimeCode => hidden("«one-time-code»"),
+            // In a row played in Java's place (a webhook's hit in `t_rate_window`), the epoch's window: one that ended
+            // long ago, so a served route counting the same subject starts a window of its own instead of finding
+            // Java's hit — a count off by the seeded hits, which differs, never one that agrees by luck. A request
+            // naming a window has to name the live one, which the recorder hid.
+            Placeholder::Window if context == Context::Row => Ok("0".to_owned()),
             Placeholder::Window => hidden("«window»"),
             Placeholder::ClockStep => hidden("«clock-step»"),
             // In a row played in Java's place (a forge connection's CA, a stored key), a block of the same label

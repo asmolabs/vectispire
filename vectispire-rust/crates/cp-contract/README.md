@@ -82,7 +82,7 @@ Java's recorded answer has too is the document's, not reported.
 
 **Credentials are minted with `cp-access`'s code** (`Minting`, implemented by the caller since this crate uses no
 module): session tokens and their hashes, API keys (when the test ever shows the key's prefix), Argon2id hashes of the
-fixture or a minted secret. Nothing is hard-coded. Two choices of the replay's own, each a reason a difference could be
+fixture or a minted secret. Nothing is hard-coded. Three choices of the replay's own, each a reason a difference could be
 missed, so they are narrow:
 
 - **a clock value seeded** is the wall clock, a microsecond after the previous one; a column named for an expiry
@@ -91,7 +91,10 @@ missed, so they are narrow:
   that file, not the earlier files, so a session seeded in file 3 and presented in file 5 shows as a bare
   `«sha256:K»` in `t_session.token_hash`. Its token is minted when seeded and handed to the first unbound
   `«secret:N»` an `Authorization` header presents. A wrong pick is a refusal or another account's answer — a
-  difference, never a green.
+  difference, never a green;
+- **a rate window seeded** (`«window»` in `t_rate_window.window_key`, a webhook's hit played in Java's place) is the
+  epoch's, `0`: a window long over, so a served route counting the same subject starts its own and its count differs
+  from Java's rather than agreeing by luck. A request naming a window is still not replayable.
 
 ## The golden file (the first fixtures' format)
 
