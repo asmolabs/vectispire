@@ -181,6 +181,16 @@ fn a_secret_hash_and_a_prefix_are_the_secrets() {
 }
 
 #[test]
+fn a_fresh_digest_prefix_is_no_longer_than_any_the_recorder_names() {
+    // Java's audit description is cut at 255 characters, which can leave a "rule sha256 …" with eight digits: a
+    // longer fresh prefix made the played row outgrow its column (ChecklistAutomaticAnswersRoutesTest).
+    let mut b = bindings();
+    let prefix = b.concrete("rule sha256 «sha256-prefix:7»", "description", Context::Row).unwrap();
+    assert_eq!(prefix.len(), "rule sha256 ".len() + 8, "{prefix}");
+    assert!(b.match_text("«sha256-prefix:7»", prefix.trim_start_matches("rule sha256 "), "description").is_ok());
+}
+
+#[test]
 fn a_password_hash_holds_the_password_it_names() {
     let mut b = bindings();
     let fixture = b.concrete("«password-hash(correct horse battery staple)»", "password", Context::Row).unwrap();
