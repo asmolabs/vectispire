@@ -47,4 +47,20 @@ class PlaceholdersTest {
         String shown = rendered("{\"request\":{\"method\":\"GET\",\"path\":\"/api/v1/scorecards/badges/" + token + ".svg\"}}");
         assertThat(shown).startsWith("/api/v1/scorecards/badges/").endsWith(".svg").doesNotContain(token);
     }
+
+    @Test
+    @DisplayName("a padded key without a digit is still masked in the row it is stored in")
+    void aPaddedKeyWithoutADigitIsMasked() throws Exception {
+        // Invented: base64 of 32 bytes, an Ed25519 public key's shape, with no digit — one generated key in about
+        // 1,300 is. It stayed literal in t_agent.signing_public_key, the replay's own key could not match it, and
+        // rust-replay went red on a run that drew one.
+        String key = "QwErTyUiOpAsDfGhJkLzXcVbNm+wErTyUiOpAsDfGhJ="; // gitleaks:allow
+        JsonNode record = MAPPER.readTree("{\"effect\":{\"t_agent\":{\"updated\":[{\"changed\":"
+                + "{\"signing_public_key\":{\"from\":null,\"to\":\"" + key + "\"}}}]}}}");
+        Placeholders placeholders = new Placeholders();
+        placeholders.collect(record, null);
+        String shown = placeholders.render(record)
+                .at("/effect/t_agent/updated/0/changed/signing_public_key/to").asText();
+        assertThat(shown).matches("«secret:\\d+»");
+    }
 }

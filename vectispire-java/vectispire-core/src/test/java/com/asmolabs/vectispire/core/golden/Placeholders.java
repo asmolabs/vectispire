@@ -483,9 +483,13 @@ final class Placeholders {
         return !first.isEmpty() && first.chars().allMatch(c -> (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'));
     }
 
-    /** Mixed case and a digit: base64url of random bytes nearly always is, a 43-letter word never. */
+    /**
+     * Mixed case and a digit: base64url of random bytes nearly always is, a 43-letter word never. "Nearly" was one
+     * key in about 1,300 with no digit, which stayed literal where it was stored and failed the replay of whichever
+     * run drew it — so base64's padding counts as the digit would: no word, path or name ends in {@code =}.
+     */
     private static boolean looksRandom(String token) {
-        boolean upper = false, lower = false, digit = false;
+        boolean upper = false, lower = false, digit = token.endsWith("=");
         for (int i = 0; i < token.length(); i++) {
             char c = token.charAt(i);
             upper |= Character.isUpperCase(c);
