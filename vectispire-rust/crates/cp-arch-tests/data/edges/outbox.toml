@@ -1,0 +1,5 @@
+# The module `outbox` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["maintenance"]
+shared = true
+reason = "The relay (decision 0033): a domain's reaction leaves through a message enqueued in the caller's transaction. `maintenance`: the relay and the purge of delivered messages are the outbox's contributions to the periodic tick; `maintenance` uses nothing, so no cycle can close."

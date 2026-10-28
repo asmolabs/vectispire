@@ -6,8 +6,8 @@ the port's plan (`docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md
 
 | rule | where | Java |
 |---|---|---|
-| A crate depends only on what `data/edges.toml` allows, the shared foundation unlisted; no cycle; the pure crates stay pure; nothing the agent links is control-plane code | `src/edges.rs`, `src/graph.rs` | `ModularityTest`, `domainIsPure`, `configSitsUnderEveryModule` |
-| `data/edges.toml` is the module model Modulith reads: the modules, their lists, the shared ones, the named interfaces | `tests/workspace.rs` against `reference/modules/modules.json` | `ModulesReferenceSetTest` writes it |
+| A crate depends only on what `data/edges/` allows, the shared foundation unlisted; no cycle; the pure crates stay pure; nothing the agent links is control-plane code | `src/edges.rs`, `src/graph.rs` | `ModularityTest`, `domainIsPure`, `configSitsUnderEveryModule` |
+| `data/edges/` is the module model Modulith reads: the modules, their lists, the shared ones, the named interfaces | `tests/workspace.rs` against `reference/modules/modules.json` | `ModulesReferenceSetTest` writes it |
 | The layers inside a module crate; the places are closed; `web`, `internal`, `persistence` are not `pub` | `src/layering.rs`, `src/facts.rs` | `ArchitectureTest` |
 | A statement naming another module's table is on a list that only shrinks | `src/sql.rs` | `CrossModuleQueriesTest` |
 | `unsafe` is forbidden, with one named exception | `src/unsafe_code.rs` | — |
@@ -16,10 +16,12 @@ the port's plan (`docs/analysis/en/2026-10-16_rust_control_plane_port_plan.en.md
 
 ## What is data, and what a change to it means
 
-- **`data/edges.toml`** — the twenty-eight modules and their `allowedDependencies`, read from the Java `package-info.java`
-  files on the 0.11.1 line (b8bd7e8d0), with the infrastructure crates (`db`, `http`, `contract`, `runtime`, `app`). **A
-  line in it is a decision for the review.** A new module crate is a line here first (`status = "pending"`); when its
-  port is finished it becomes `"ported"`, and from then on a listed edge its crate does not use fails (Modulith's "a line
+- **`data/edges/`** — the twenty-eight modules and their `allowedDependencies`, read from the Java `package-info.java`
+  files on the 0.11.1 line (b8bd7e8d0), **one file per module** (`<module>.toml`, so that two ports running at once
+  never edit the same file), with the settings and the infrastructure crates (`db`, `http`, `contract`, `runtime`,
+  `app`) and the header saying what each key means in `_workspace.toml`. Any other file there is refused, not skipped.
+  **A line in it is a decision for the review.** Every module has its file from the start (`status = "pending"`); when
+  its port is finished it becomes `"ported"`, and from then on a listed edge its crate does not use fails (Modulith's "a line
   nothing uses"). `platform` is `open`: the shell composes several domains, and the port writes its list when it lands.
   **Seven modules are `shared`** — Java's foundation, `@Modulithic(sharedModules)` on `VectispireApplication`: settings,
   outbound, crypto, audit, outbox, reporting, maintenance. Every module that is not shared uses them without a line, as

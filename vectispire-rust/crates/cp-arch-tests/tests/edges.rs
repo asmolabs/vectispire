@@ -34,7 +34,7 @@ fn a_dependency_the_list_does_not_allow_fails() {
     );
     let found = violations(&fixture);
     assert!(
-        mentions(&found, "issues depends on inventory, which its allowedDependencies in edges.toml do not list"),
+        mentions(&found, "issues depends on inventory, which its allowedDependencies in edges/ do not list"),
         "{found:#?}"
     );
 }
@@ -44,10 +44,7 @@ fn a_module_that_edges_toml_does_not_list_fails() {
     let mut fixture = Fixture::clean();
     fixture.module("newcomer", &[]);
     let found = violations(&fixture);
-    assert!(
-        mentions(&found, "vectispire-cp-newcomer: a control-plane crate that edges.toml does not list"),
-        "{found:#?}"
-    );
+    assert!(mentions(&found, "vectispire-cp-newcomer: a control-plane crate that edges/ does not list"), "{found:#?}");
 }
 
 #[test]
@@ -89,7 +86,7 @@ fn a_cycle_in_the_edge_list_itself_is_refused() {
         "[module.access]\nstatus = \"pending\"\nallowed = [\"issues\"]",
     );
     let error = Config::parse(&cycle).unwrap_err();
-    assert!(error.contains("a cycle in edges.toml"), "{error}");
+    assert!(error.contains("a cycle in edges/"), "{error}");
 }
 
 #[test]
@@ -120,10 +117,7 @@ fn a_ported_module_with_a_line_nothing_uses_fails() {
     fixture.depends("vectispire-cp-scanning", &["vectispire-cp-access", "vectispire-cp-db"]);
     let found = check(&config, &fixture.workspace());
     assert!(
-        mentions(
-            &found,
-            "scanning lists targets in edges.toml and its crate does not depend on it: a line nothing uses"
-        ),
+        mentions(&found, "scanning lists targets in edges/ and its crate does not depend on it: a line nothing uses"),
         "{found:#?}"
     );
     // A pending module is held to the ceiling only.
@@ -139,7 +133,7 @@ fn a_ported_module_without_its_crate_fails() {
     let text = text.replace("[module.platform]\nstatus = \"pending\"", "[module.platform]\nstatus = \"ported\"");
     let found = check(&Config::parse(&text).unwrap(), &Fixture::clean().workspace());
     assert!(
-        mentions(&found, "platform is `ported` in edges.toml and the workspace has no crate vectispire-cp-platform"),
+        mentions(&found, "platform is `ported` in edges/ and the workspace has no crate vectispire-cp-platform"),
         "{found:#?}"
     );
     assert!(check(&config, &Fixture::clean().workspace()).is_empty());
@@ -245,7 +239,7 @@ fn an_inconsistent_edge_list_is_refused() {
         "[module.access]\nstatus = \"pending\"\nallowed = [\"targets\"]",
     );
     let error = Config::parse(&cycle).unwrap_err();
-    assert!(error.contains("a cycle in edges.toml"), "{error}");
+    assert!(error.contains("a cycle in edges/"), "{error}");
 
     let missing =
         common::CONFIG.replace("allowed = [\"access\", \"access::security\"]", "allowed = [\"access\", \"nowhere\"]");
@@ -282,12 +276,12 @@ fn a_domain_uses_a_shared_module_without_listing_it() {
     // The rule, and nothing else, admits them: the same workspace with audit no longer shared fails on targets.
     let found = check(&unshared("audit"), &fixture.workspace());
     assert!(
-        mentions(&found, "targets depends on audit, which its allowedDependencies in edges.toml do not list"),
+        mentions(&found, "targets depends on audit, which its allowedDependencies in edges/ do not list"),
         "{found:#?}"
     );
     let found = check(&unshared("settings"), &fixture.workspace());
     assert!(
-        mentions(&found, "scanning depends on settings, which its allowedDependencies in edges.toml do not list"),
+        mentions(&found, "scanning depends on settings, which its allowedDependencies in edges/ do not list"),
         "{found:#?}"
     );
 }
@@ -302,7 +296,7 @@ fn a_shared_module_using_another_unlisted_fails() {
     assert!(
         mentions(
             &found,
-            "audit depends on settings, which its allowedDependencies in edges.toml do not list: both are shared"
+            "audit depends on settings, which its allowedDependencies in edges/ do not list: both are shared"
         ),
         "{found:#?}"
     );
@@ -323,7 +317,7 @@ fn a_shared_module_using_a_domain_unlisted_fails() {
     fixture.module("inventory", &["vectispire-cp-access", "vectispire-cp-targets"]);
     let found = violations(&fixture);
     assert!(
-        mentions(&found, "settings depends on inventory, which its allowedDependencies in edges.toml do not list"),
+        mentions(&found, "settings depends on inventory, which its allowedDependencies in edges/ do not list"),
         "{found:#?}"
     );
 }
@@ -336,7 +330,7 @@ fn a_shared_module_listing_a_domain_closes_a_cycle_and_is_refused() {
         "[module.audit]\nstatus = \"pending\"\nallowed = [\"targets\"]",
     );
     let error = Config::parse(&text).unwrap_err();
-    assert!(error.contains("a cycle in edges.toml"), "{error}");
+    assert!(error.contains("a cycle in edges/"), "{error}");
     // The cycle goes through the unlisted edge: without the sharing, the same list has none.
     let text = text.replace("allowed = [\"targets\"]\nshared = true\n", "allowed = [\"targets\"]\n");
     assert!(Config::parse(&text).is_ok());
@@ -392,4 +386,49 @@ fn a_list_or_a_sharing_without_its_reason_is_refused() {
     // A module that lists nothing and is not shared has nothing to justify.
     assert!(!common::CONFIG.contains("[module.access]\nstatus = \"pending\"\nallowed = []\nreason"));
     assert!(Config::parse(common::CONFIG).is_ok());
+}
+
+/// The committed layout, one file per module: read as one model, and a file that is neither a module's nor
+/// `_workspace.toml` refused rather than skipped — skipped, a misnamed module file would drop the module's edges.
+#[test]
+fn the_directory_is_read_as_one_model_and_a_stray_file_is_refused() {
+    let committed = Config::committed().unwrap();
+    assert_eq!(committed.module.len(), 28, "a file per Java module");
+    assert!(committed.infrastructure.contains_key("app"), "the infrastructure is read from _workspace.toml");
+
+    let copy = |extra: &[(&str, &str)], without: &[&str]| -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        for entry in std::fs::read_dir(vectispire_cp_arch_tests::model::edges_dir()).unwrap() {
+            let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            if !without.contains(&name.as_str()) {
+                std::fs::copy(&path, dir.path().join(&name)).unwrap();
+            }
+        }
+        for (name, text) in extra {
+            std::fs::write(dir.path().join(name), text).unwrap();
+        }
+        dir
+    };
+    assert!(Config::load_dir(copy(&[], &[]).path()).is_ok());
+
+    let stray = Config::load_dir(copy(&[("_notes.toml", "")], &[]).path()).unwrap_err();
+    assert!(stray.contains("edges/_notes.toml: not `<module>.toml` nor `_workspace.toml`"), "{stray}");
+    let readme = Config::load_dir(copy(&[("README.md", "")], &[]).path()).unwrap_err();
+    assert!(readme.contains("edges/README.md"), "{readme}");
+    let unknown_key =
+        Config::load_dir(copy(&[("gate.toml", "status = \"ported\"\nallowed = []\nlevel = 3\n")], &[]).path())
+            .unwrap_err();
+    assert!(unknown_key.contains("edges/gate.toml"), "{unknown_key}");
+    let no_workspace = Config::load_dir(copy(&[], &["_workspace.toml"]).path()).unwrap_err();
+    assert!(no_workspace.contains("_workspace.toml"), "{no_workspace}");
+    // A module's file removed: the module is gone from the model, and every module that lists it is refused.
+    let no_targets = Config::load_dir(copy(&[], &["targets.toml"]).path()).unwrap_err();
+    assert!(no_targets.contains("no module targets"), "{no_targets}");
+    // A module's file that lists a module that does not exist.
+    let unlisted = Config::load_dir(
+        copy(&[("tickets.toml", "status = \"pending\"\nallowed = [\"nowhere\"]\nreason = \"a reason\"\n")], &[]).path(),
+    )
+    .unwrap_err();
+    assert!(unlisted.contains("tickets lists nowhere: no module nowhere"), "{unlisted}");
 }

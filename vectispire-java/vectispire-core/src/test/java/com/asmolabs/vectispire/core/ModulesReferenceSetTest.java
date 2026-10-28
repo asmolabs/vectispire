@@ -13,9 +13,9 @@ import org.springframework.modulith.core.NamedInterface;
 
 /**
  * The module model as Spring Modulith reads it — the Rust control plane's {@code cp-arch-tests} holds its {@code
- * data/edges.toml} to it ({@code vectispire-rust/reference/modules/modules.json}).
+ * data/edges/} (one file per module) to it ({@code vectispire-rust/reference/modules/modules.json}).
  *
- * <p>{@code edges.toml} was written by hand from the {@code package-info} files, and nothing compared the two after
+ * <p>The edge list was written by hand from the {@code package-info} files, and nothing compared the two after
  * that: a line added on one side only would have left the Rust rules enforcing a graph Java no longer has. So the
  * answers here are Modulith's own — the shared modules {@code @Modulithic} declares, as {@code ApplicationModules}
  * resolves them, and each module's named interfaces as it detects them — and each module's {@code

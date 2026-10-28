@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mutation check of Phase 2 task 2.1: the shared-module rule of cp-arch-tests (model.rs, edges.rs, edges.toml against
+"""Mutation check of Phase 2 task 2.1: the shared-module rule of cp-arch-tests (model.rs, edges.rs, data/edges/ against
 Java's module model) and cp-maintenance (the slots, the turns, the composition check, the one-shot jobs).
 A mutant that removes a turn's guard may hang: that is a red test, killed with its process group. See README.md.
 """
@@ -9,7 +9,7 @@ import _runner
 
 MODEL = "crates/cp-arch-tests/src/model.rs"
 EDGES = "crates/cp-arch-tests/src/edges.rs"
-TOML = "crates/cp-arch-tests/data/edges.toml"
+TOML = "crates/cp-arch-tests/data/edges/"
 TASK = "crates/cp-maintenance/src/task.rs"
 TURNS = "crates/cp-maintenance/src/turns.rs"
 COMP = "crates/cp-maintenance/src/composition.rs"
@@ -42,11 +42,11 @@ MUTANTS = [
     ("a sharing needs no reason", MODEL, "if !justified && entry.shared {", "if false {", ARCH),
     ("a blank reason is a reason", MODEL, "is_some_and(|reason| !reason.trim().is_empty())", "is_some()", ARCH),
     ("the foundation's violation is not told apart", EDGES, "if config.is_shared(module) && config.is_shared(&other) {", "if false {", ARCH),
-    ("reporting is not shared", TOML, '[module.reporting]\nstatus = "pending"\nallowed = []\nshared = true\n',
-     '[module.reporting]\nstatus = "pending"\nallowed = []\n', ARCH),
-    ("agents loses a line Java has", TOML, 'allowed = ["access", "access::security", "rules", "scanning", "targets"]',
+    ("reporting is not shared", TOML + "reporting.toml", 'status = "pending"\nallowed = []\nshared = true\n',
+     'status = "pending"\nallowed = []\n', ARCH),
+    ("agents loses a line Java has", TOML + "agents.toml", 'allowed = ["access", "access::security", "rules", "scanning", "targets"]',
      'allowed = ["access", "access::security", "scanning", "targets"]', ARCH),
-    ("crypto loses its foundation edge", TOML, 'allowed = ["outbound", "settings"]', 'allowed = ["settings"]', ARCH),
+    ("crypto loses its foundation edge", TOML + "crypto.toml", 'allowed = ["outbound", "settings"]', 'allowed = ["settings"]', ARCH),
     # ── the slots ──
     ("an order value moves", TASK, 'slot("TRIAGE_EXPIRY", 500,', 'slot("TRIAGE_EXPIRY", 505,', MAINT),
     ("a slot on the wrong turn", TASK, 'slot("REPORT_RUN_SWEEP", 40, "reportplugins", "ReportRunSweepTask", Scheduling)',

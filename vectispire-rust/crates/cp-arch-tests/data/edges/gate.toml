@@ -1,0 +1,4 @@
+# The module `gate` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "ported"
+allowed = ["access", "access::security", "issues", "issues::queries", "rules", "scanning", "scanning::queries", "targets"]
+reason = "`issues` and `issues::queries`, `scanning` and `scanning::queries`, `targets`: a verdict is computed over the open issues and the latest scans of the targets. `rules`: the verdict weighs rule coverage. `access` for its routes only. `access::security` for its routes."

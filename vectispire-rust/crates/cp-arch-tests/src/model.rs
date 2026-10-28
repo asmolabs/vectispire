@@ -1,16 +1,32 @@
 //! The edge list, read: which crate is which, and what each module may use.
 //!
-//! `data/edges.toml` is Spring Modulith's `@ApplicationModule(allowedDependencies)` of the Java control plane
+//! `data/edges/` is Spring Modulith's `@ApplicationModule(allowedDependencies)` of the Java control plane
 //! (decision 0030), written once for all twenty-eight modules and checked in, so that a new dependency
 //! between two modules is a line in a reviewed file and not a `[dependencies]` entry nobody noticed.
+//!
+//! One file per module, `<module>.toml`, so that two ports running at once never edit the same file; `_workspace.toml`
+//! holds the settings and the infrastructure, and the header saying what each key means. [`Config::parse`] reads the
+//! same model written as one document (`[settings]`, `[infrastructure.x]`, `[module.x]`), which the tests' fixtures use.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-/// The checked-in file, as the tests read it.
-pub const EDGES: &str = include_str!("../data/edges.toml");
+/// The checked-in directory.
+#[must_use]
+pub fn edges_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("data/edges")
+}
+
+/// `_workspace.toml`: what is not a module.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WorkspaceFile {
+    settings: Settings,
+    #[serde(default)]
+    infrastructure: BTreeMap<String, Infrastructure>,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -108,14 +124,41 @@ pub enum Kind {
 
 impl Config {
     pub fn parse(text: &str) -> Result<Self, String> {
-        let config: Self = toml::from_str(text).map_err(|error| format!("edges.toml: {error}"))?;
+        let config: Self = toml::from_str(text).map_err(|error| format!("edges/: {error}"))?;
         config.validate()?;
         Ok(config)
     }
 
-    pub fn load(path: &Path) -> Result<Self, String> {
-        let text = std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
-        Self::parse(&text)
+    /// The checked-in model: every file of `data/edges/`.
+    pub fn committed() -> Result<Self, String> {
+        Self::load_dir(&edges_dir())
+    }
+
+    /// `_workspace.toml` and one `<module>.toml` per module, read and validated as one model. A file whose name
+    /// starts with `_` other than `_workspace.toml`, or anything but `.toml`, is refused rather than skipped: a module
+    /// file misnamed would otherwise drop its module, and its edges with it, without a word.
+    pub fn load_dir(dir: &Path) -> Result<Self, String> {
+        let read = |path: &Path| std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()));
+        let workspace: WorkspaceFile = toml::from_str(&read(&dir.join("_workspace.toml"))?)
+            .map_err(|error| format!("edges/_workspace.toml: {error}"))?;
+        let mut module = BTreeMap::new();
+        let entries = std::fs::read_dir(dir).map_err(|error| format!("{}: {error}", dir.display()))?;
+        for entry in entries {
+            let path = entry.map_err(|error| format!("{}: {error}", dir.display()))?.path();
+            let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+            if name == "_workspace.toml" {
+                continue;
+            }
+            let Some(stem) = name.strip_suffix(".toml").filter(|stem| !stem.starts_with('_') && !stem.is_empty())
+            else {
+                return Err(format!("edges/{name}: not `<module>.toml` nor `_workspace.toml`"));
+            };
+            let parsed: Module = toml::from_str(&read(&path)?).map_err(|error| format!("edges/{name}: {error}"))?;
+            module.insert(stem.to_owned(), parsed);
+        }
+        let config = Config { settings: workspace.settings, infrastructure: workspace.infrastructure, module };
+        config.validate()?;
+        Ok(config)
     }
 
     /// The crate of a module.
@@ -230,7 +273,7 @@ impl Config {
                 Some(2) => return Ok(()),
                 Some(1) => {
                     stack.push(module.to_owned());
-                    return Err(format!("a cycle in edges.toml: {}", stack.join(" -> ")));
+                    return Err(format!("a cycle in edges/: {}", stack.join(" -> ")));
                 }
                 _ => {}
             }
@@ -317,10 +360,6 @@ impl Config {
         if let Err(cycle) = self.porting_order() {
             problems.push(cycle);
         }
-        if problems.is_empty() {
-            Ok(())
-        } else {
-            Err(format!("edges.toml is inconsistent:\n  {}", problems.join("\n  ")))
-        }
+        if problems.is_empty() { Ok(()) } else { Err(format!("edges/ is inconsistent:\n  {}", problems.join("\n  "))) }
     }
 }

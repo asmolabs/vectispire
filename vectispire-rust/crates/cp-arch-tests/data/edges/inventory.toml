@@ -1,0 +1,4 @@
+# The module `inventory` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "ported"
+allowed = ["access", "access::security", "scanning", "scanning::queries", "targets"]
+reason = "`scanning` and `scanning::queries`: the inventory reads scans and findings through `ScanCatalog` and `PackageImpact`, while a scan's components reach it through `ScanIngestor.InventorySink`, a port `scanning` declares. `targets`: a component is named by its target. `access` for its routes only. `access::security` for its routes."
