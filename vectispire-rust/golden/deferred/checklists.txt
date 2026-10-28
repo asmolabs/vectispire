@@ -1,0 +1,110 @@
+# The recordings not replayed yet that `checklists`'s port ends: its routes, and its stand-ins the served routes meet.
+# README.md beside this file says the format and the rules.
+ceiling 101
+
+# ── Routes not ported: the module, and the phase and task that ports it ──
+route DELETE /api/v1/projects/{projectId}/checklists/contacts/{profile} | checklists — Phase 5
+route GET /api/v1/checklist-templates | checklists — Phase 5
+route GET /api/v1/checklist-templates/{slug} | checklists — Phase 5
+route GET /api/v1/checklist-templates/{slug}/versions/{ordinal} | checklists — Phase 5
+route GET /api/v1/checklist-templates/{slug}/versions/{ordinal}/preview | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/contacts | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/contacts/candidates | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/context | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/offered | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/{revision} | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/{revision}/document | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/file | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/history | checklists — Phase 5
+route GET /api/v1/projects/{projectId}/checklists/{revision}/measurements | checklists — Phase 5
+route POST /api/v1/checklist-templates/{slug}/versions | checklists — Phase 5
+route POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/derive | checklists — Phase 5
+route POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish | checklists — Phase 5
+route POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/retire | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/answers/as-measured | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/withdrawal | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/answers | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/confirmation | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/evidence/files | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/evidence/links | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/reopen | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/return | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/sign-off | checklists — Phase 5
+route POST /api/v1/projects/{projectId}/checklists/{revision}/submission | checklists — Phase 5
+route PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence | checklists — Phase 5
+route PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/layout | checklists — Phase 5
+route PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/pairs | checklists — Phase 5
+route PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules | checklists — Phase 5
+route PUT /api/v1/projects/{projectId}/checklists/contacts/{profile} | checklists — Phase 5
+
+# ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
+golden api.ChecklistContactsRoutesTest/aDeletedProjectTakesItsLinks--013-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s checklists listener is a stand-in until Phase 5: the checklists it deletes stay
+golden api.ProjectChecklistsRoutesTest.TheDocument/theStoredBytes--027-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s checklists listener is a stand-in until Phase 5: the checklists it deletes stay
+golden api.ProjectChecklistsRoutesTest/deletingTheProjectPurges--019-DELETE-api_v1_projects_t_project_1_ | ProjectDeleted’s checklists listener is a stand-in until Phase 5: the checklists it deletes stay
+
+# ── The agents' routes (task 2.9, replayed with targets and scanning since 2026-10-22): stand-ins and recording limits ──
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aChangedMeasurementReplacesItsOwnAnswer--017-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aLanguageNobodyReadWithdrawsTheYes--017-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aNewScanMeasuringTheSame--016-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--019-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--020-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aSubmittedRevision--021-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aUserNamedVectispire--013-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aUserNamedVectispire--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/aUserNamedVectispire--015-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--015-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/anUnstatedVersionWithdrawsTheNo--017-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--017-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/changedFiguresReplaceTheComment--018-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/idempotent--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/idempotent--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/idempotent--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/passFailAndNoData--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/passFailAndNoData--012-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/passFailAndNoData--013-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--013-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--015-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--019-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--020-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/peopleFirst--021-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/theSettingOff--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/theSettingOff--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest.WhenAScanCompletes/theSettingOff--012-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--010-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--011-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--012-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--016-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--017-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/aPresenceLineOnAManagedVersion--018-POST-api_v1_agent_jobs_t_scan_2_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/theDocumentMarksThem--013-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/theDocumentMarksThem--014-GET-api_v1_agent_jobs | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)
+golden api.ChecklistAutomaticAnswersRoutesTest/theDocumentMarksThem--015-POST-api_v1_agent_jobs_t_scan_1_result | a checklist request played in Java's place: its audit entry outgrows the column once its placeholders are bound (checklists — Phase 5)

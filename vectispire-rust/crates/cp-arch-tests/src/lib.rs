@@ -11,7 +11,7 @@
 //!
 //! | file | rule | Java |
 //! |---|---|---|
-//! | `edges.rs` | a crate depends only on what `data/edges.toml` allows; no cycle; the pure crates stay pure; nothing the agent links is control-plane code | `ModularityTest`, `domainIsPure`, `configSitsUnderEveryModule` |
+//! | `edges.rs` | a crate depends only on what `data/edges/` allows; no cycle; the pure crates stay pure; nothing the agent links is control-plane code | `ModularityTest`, `domainIsPure`, `configSitsUnderEveryModule` |
 //! | `layering.rs` | the layers inside a module crate; the places are closed | `ArchitectureTest` |
 //! | `sql.rs` | a statement naming another module's table is on a list that only shrinks | `CrossModuleQueriesTest` |
 //! | `unsafe_code.rs` | `unsafe` is forbidden, with one named exception | — (the JVM has none) |

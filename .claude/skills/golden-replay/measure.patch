@@ -1,60 +1,45 @@
 diff --git a/vectispire-rust/crates/cp-agents/tests/golden.rs b/vectispire-rust/crates/cp-agents/tests/golden.rs
-index 2e46707be..5900b2e00 100644
+index afbd6b678..d88cbd954 100644
 --- a/vectispire-rust/crates/cp-agents/tests/golden.rs
 +++ b/vectispire-rust/crates/cp-agents/tests/golden.rs
-@@ -290,6 +290,22 @@ fn phase_three_replayed() -> BTreeSet<(String, String)> {
-         .collect()
- }
- 
-+/// MEASUREMENT ONLY (local, never pushed): every route of the three Phase 3 modules owed, and the outcomes written to
-+/// `VECTISPIRE_GOLDEN_OUT`, while their routes are brought to green.
+@@ -291,6 +291,12 @@ fn phase_three(db: &Db, targets: Arc<Targets>, audit: Arc<AuditLog>) -> Vec<vect
+ /// `golden/deferred/` still covers — their recordings are played in Java's place, as for a route not served, until the
+ /// line is removed in the commit that makes them replay green. Derived, so that a module's port that brings its
+ /// routes to green edits its own file of the list and not a list here.
++/// MEASUREMENT ONLY (local, never pushed): every route the router composes owed, those a `route` line covers too, and
++/// the outcomes of the covered ones written to `VECTISPIRE_GOLDEN_OUT`, while they are brought to green.
 +fn measuring() -> bool {
 +    std::env::var("VECTISPIRE_GOLDEN_MEASURE").is_ok()
 +}
 +
-+fn all_phase_three() -> BTreeSet<(String, String)> {
-+    let db = support::unreachable();
-+    let composed = support::compose(&db, support::system_clock());
-+    let audit = Arc::new(AuditLog::new(db.clone(), Arc::new(NoMirror), Arc::new(AuditClock), Vec::new()));
-+    phase_three(&db, composed.targets, audit)
-+        .into_iter()
-+        .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
-+        .collect()
-+}
-+
- fn served() -> BTreeSet<(String, String)> {
+ fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
      let db = support::unreachable();
      let composed = support::compose(&db, support::system_clock());
-@@ -298,7 +314,7 @@ fn served() -> BTreeSet<(String, String)> {
-         .chain(vectispire_cp_scanning::routes(composed.scanning))
+@@ -302,7 +308,7 @@ fn served(deferred: &Deferred) -> BTreeSet<(String, String)> {
          .chain(vectispire_cp_agents::routes(composed.agents))
+         .chain(phase_three)
          .map(|entry| (entry.decl().method.clone(), entry.decl().path.clone()))
--        .chain(phase_three_replayed())
-+        .chain(if measuring() { all_phase_three() } else { phase_three_replayed() })
+-        .filter(|route| !deferred.routes.contains_key(route))
++        .filter(|route| measuring() || !deferred.routes.contains_key(route))
          .collect()
  }
  
-@@ -345,17 +361,28 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
+@@ -349,7 +355,7 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
          Some("postgresql") => vec![Engine::PostgreSql],
          _ => vec![Engine::MySql, Engine::PostgreSql],
      };
 -    let narrowed = only.is_some() || engines.len() < 2;
 +    let narrowed = only.is_some() || engines.len() < 2 || measuring();
-+    let measured = if measuring() { all_phase_three() } else { BTreeSet::new() };
  
      let recording = Recording::open(&dir).unwrap();
      let document = Document::embedded();
-     let schemas = Schemas::of(&document).admitting_null_in_nullable_enums(true);
-     let served = served();
--    assert_eq!(served.len(), 49 + PHASE_THREE_REPLAYED.len(), "the three modules' routes and Phase 3's replayed ones");
-+    if !measuring() {
-+        assert_eq!(
-+            served.len(),
-+            49 + PHASE_THREE_REPLAYED.len(),
-+            "the three modules' routes and Phase 3's replayed ones"
-+        );
-+    }
-     let deferred = Deferred::embedded();
+@@ -357,9 +363,16 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
+     let deferred = Deferred::committed();
+     let served = served(&deferred);
+     println!("{} routes owed a replay: every route composed, but those a `route` line still covers", served.len());
++    // What is measured: the composed routes a `route` line still covers.
++    let measured: BTreeSet<(String, String)> =
++        served.iter().filter(|route| deferred.routes.contains_key(*route)).cloned().collect();
      let all = listed(&recording, &document, &served).unwrap();
 -    let owing: BTreeSet<&str> =
 -        all.iter().filter(|listed| listed.served).filter_map(|listed| listed.name.split('/').next()).collect();
@@ -67,7 +52,7 @@ index 2e46707be..5900b2e00 100644
      let tests: Vec<_> = recording
          .tests
          .iter()
-@@ -399,6 +426,24 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
+@@ -403,6 +416,24 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
          let listed = deferred.goldens.get(&replayed.name).map_or("", |_| " [listed]");
          println!("{}{listed}: {}", replayed.name, describe(&replayed.outcome));
      }

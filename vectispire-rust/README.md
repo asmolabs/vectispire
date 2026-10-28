@@ -285,6 +285,24 @@ shared crates (`domain`, `crypto`, …) still may not name the key.
 | `cp-maintenance` (Phase 2) | the periodic jobs' port and their one global order, every Java slot reserved; the three turns (thirty seconds' initial delay, a fixed delay, a guard per cadence, a failing or panicking task ends its own run, not the turn); the composition check against Java's twenty-eight tasks with a deferred list that only shrinks; the one-shot jobs of `t_one_shot_job` | `reference/maintenance/` (`MaintenanceReferenceSetTest`); `MaintenanceJobsTest`'s cases; both engines, two instances claiming at once |
 | `cp-platform` (Phase 1) | the settings screen's rules: what each reader sees of the catalog, every refusal of a save, the audit entry and its SOC signal — the modules it consults that are not ported yet are seams | `SettingsAdministrationService`'s sentences; both engines |
 
+**The lists that only shrink are one file per module**, so that two or three module ports can run at once without
+editing the same file:
+
+| List | Files | Read by |
+|---|---|---|
+| routes of `openapi.json` not served yet | `crates/cp-contract/reference/not-yet-ported/<module>.txt` | each module's `tests/contract.rs` (`check_module`: its routes off the list, no other module's named), `cp-app`'s `tests/route_authorization.rs` (`check_partition`: the registry and the list are the document, exactly), `cp-contract replay-plan` and `summary` |
+| recordings of the Java suite not replayed yet | `golden/deferred/<module>.txt`, `_composition.txt`, `_recording.txt` | `cp-contract replay-plan`, the golden replay (`crates/cp-agents/tests/golden.rs`) |
+| what each module may use, and whether it is ported | `crates/cp-arch-tests/data/edges/<module>.toml`, `_workspace.toml` | `cp-arch-tests` |
+
+Each list file carries its own `ceiling N` — the number of its lines, lowered in the commit that removes lines, a file
+above or below it failing — so two ports never lower the same number; the totals (218 routes, 438 recordings on the
+day of the split) are printed by `cp-contract summary` and `replay-plan`. The `README.md` of each directory says the
+rules. The crate lists a new module used to join by hand are found instead: the workspace members (`crates/*`), the
+replay tests (`replay-goldens.sh`: every `crates/*/tests/golden.rs` reading `VECTISPIRE_GOLDEN_DIR`), the crates with
+checked queries (`sqlx-prepare.sh`: every `crates/*/.sqlx/`) and the mutation scripts (`security/mutants/p*.py`).
+`deny.toml`'s `wrappers` stay written by hand — who may link a driver or a server is a review decision — one crate per
+line. What a port still edits in common is in `.claude/skills/port-module/SKILL.md` §5b.
+
 **Where the Rust side differs from the Java one, on purpose** (each is in the code beside the reason):
 
 - **`figment` is not used.** A property's variable is not derived from its key (`vectispire.worker.max-concurrent` ← `VECTISPIRE_SCAN_MAX_CONCURRENT`,

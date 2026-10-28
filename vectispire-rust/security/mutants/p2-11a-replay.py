@@ -9,6 +9,7 @@ import _runner
 
 S = "crates/cp-contract/src/recorded/"
 PH, RP, RW, DF = S + "placeholders.rs", S + "replay.rs", S + "rows.rs", S + "deferred.rs"
+SH = "crates/cp-contract/src/shrinking.rs"
 
 T = ["-p", "vectispire-cp-contract", "--test", "recorded", "--lib"]
 
@@ -84,8 +85,11 @@ MUTANTS = [
     ("a stale route line kept", DF, "            None => problems.push(format!(\"route {} {} ({reason}): no recording needs this line\", route.0, route.1)),", "            None => {}", T),
     ("a stale golden line kept", DF, "        if !used_goldens.contains(name.as_str()) {", "        if false && !used_goldens.contains(name.as_str()) {", T),
     ("a stale outside line kept", DF, "        if !used_outside.contains(key) {", "        if false && !used_outside.contains(key) {", T),
-    ("the list above its ceiling", DF, "        Ok(ceiling) if deferred.len() > ceiling => problems.push(format!(", "        Ok(ceiling) if false && deferred.len() > ceiling => problems.push(format!(", T),
-    ("the ceiling never lowered", DF, "        Ok(ceiling) if deferred.len() < ceiling => problems.push(format!(", "        Ok(ceiling) if false && deferred.len() < ceiling => problems.push(format!(", T),
+    ("a file above its ceiling", SH, "    } else if entries > ceiling {\n        Some(", "    } else if false && entries > ceiling {\n        Some(", T),
+    ("a file's ceiling never lowered", SH, "    } else if entries < ceiling {\n        Some(", "    } else if false && entries < ceiling {\n        Some(", T),
+    ("a file that lists nothing kept", SH, "    if entries == 0 {\n        Some(", "    if false && entries == 0 {\n        Some(", T),
+    ("a file without its ceiling", SH, '        [] => Err(format!("{}: no `ceiling N` line", file.label)),', "        [] => Ok(0),", T),
+    ("a second ceiling ignored", SH, '        [_, (at, _), ..] => Err(format!("{}:{at}: a second `ceiling` line", file.label)),', "        [(_, value), ..] => Ok(value.parse().unwrap_or(0)),", T),
     ("a line listed twice", DF, "            if repeated {", "            if false && repeated {", T),
     ("a digest's case told apart", PH, "ordinal(Family::Digest, *n, text.to_ascii_lowercase(), proposed)", "ordinal(Family::Digest, *n, text.to_owned(), proposed)", T),
     ("the fixture's hash unverified", PH, 'Err("does not hold the fixture\'s passphrase".to_owned())', "Ok(())", T),
@@ -102,7 +106,7 @@ MUTANTS = [
 # - a table keyed by its identity compared as a set rather than in order: both lists are in id order and every row's
 #   id is pinned by its rank, so a recorded row can match one made row only, the one at its own place — the set match
 #   finds the same pairs. Kept ordered for the messages, which point at the row by its place.
-# - an empty reason in deferred.txt: the line is trimmed before it is split on ` | `, so a reason of white space alone
+# - an empty reason in golden/deferred/: the line is trimmed before it is split on ` | `, so a reason of white space alone
 #   leaves nothing to split and is refused as "no reason"; the separate check was removed as dead.
 # - the `(?i:…)` around a pinned secret hash: `Minting::sha256_hex` writes lower case on both sides, so no answer can
 #   tell the two apart.

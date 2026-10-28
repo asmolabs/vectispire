@@ -1,7 +1,7 @@
 //! `unsafe` is forbidden, once, with one exception that has a reason.
 //!
 //! The plan's §6.1: `unsafe_code = "forbid"` in every control-plane crate, and the only `unsafe` in the
-//! workspace is libgit2's two process-wide calls in the agent's `git` crate, which `edges.toml` names with
+//! workspace is libgit2's two process-wide calls in the agent's `git` crate, which `edges/` names with
 //! their file and their count. The workspace lint is `deny`, so that the exception can be allowed where it is
 //! made; this is the check that the exception stays one: it reads the sources, so an `unsafe` block, function,
 //! impl, trait or `extern` block anywhere else — in a test, in a build script, inside a macro's tokens — fails,
@@ -33,7 +33,7 @@ pub fn check(config: &Config, workspace: &Workspace) -> (Vec<String>, usize) {
             match allowed {
                 Some(allowed) if file.facts.unsafes.len() <= allowed.max => {}
                 Some(allowed) => violations.push(format!(
-                    "{}: {}: {} uses of `unsafe`, and edges.toml allows {} here: the exception stays what it was written for",
+                    "{}: {}: {} uses of `unsafe`, and edges/ allows {} here: the exception stays what it was written for",
                     package.name,
                     file.rel,
                     file.facts.unsafes.len(),

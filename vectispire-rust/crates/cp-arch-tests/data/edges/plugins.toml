@@ -1,0 +1,4 @@
+# The module `plugins` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["access", "access::security", "inventory", "issues", "scanning", "targets"]
+reason = "`scanning`: a scan asks which plugins a repository runs through `ScanPlugins`, a port `scanning` declares and this module implements. `issues`: an import folds its findings into the backlog by the same reconciliation. `targets`: an activation names a project or a repository. `inventory`: build SBOMs. `access`: activations are refused by the whole-project guard. `access::security` for its routes."

@@ -1,0 +1,5 @@
+# The module `crypto` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = ["outbound", "settings"]
+shared = true
+reason = "Encryption at rest and the signing key: targets store clone credentials encrypted, the dispatcher seals them to agents, the exports are signed. `outbound`: Vault is reached through the guard like any other destination. `settings`: the signing key is kept in a `t_setting` row. Neither uses `crypto`, so no cycle can close."

@@ -6,20 +6,22 @@
 //! declaration is not a lie — that the router really answers what was declared — is the other half,
 //! checked by [`crate::probe`], which sends each documented request to the router itself.
 //!
-//! Routes not yet ported are listed in `reference/not-yet-ported.txt`. The list **only shrinks**: an
-//! entry for a route that is now served fails, an entry the document does not know fails, a list
-//! longer than `reference/not-yet-ported.ceiling` fails, and so does a list *shorter* than it — the
-//! ceiling is lowered in the commit that ports the route, so that nobody can spend the slack on a
-//! route they have not ported.
+//! Routes not yet ported are listed in `reference/not-yet-ported/`, one file per module ([`crate::shrinking`]). The
+//! list **only shrinks**: an entry for a route that is now served fails, an entry the document does not know fails,
+//! a file longer than its `ceiling` fails, and so does a file *shorter* than it — the ceiling is lowered in the
+//! commit that ports the route, so that nobody can spend the slack on a route they have not ported.
+//!
+//! A module's own contract test holds its routes to the document with [`check_module`], which needs no knowledge of
+//! the other modules' routes; the binary's test (`cp-app`'s `tests/route_authorization.rs`) holds the whole registry to
+//! the committed list with [`check_partition`], so that the routes served and the routes listed are the document,
+//! exactly, without either a gap or an overlap.
 
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::document::{Document, In, Operation, Parameter, path_parameters};
 use crate::finding::Finding;
-
-const ALLOWLIST: &str = include_str!("../reference/not-yet-ported.txt");
-const CEILING: &str = include_str!("../reference/not-yet-ported.ceiling");
+use crate::shrinking::{ListFile, count, not_yet_ported_dir, read_dir};
 
 /// A parameter a route reads.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -128,54 +130,68 @@ impl RouteSource for [RouteDecl] {
 #[derive(Clone, Debug)]
 pub struct Allowlist {
     entries: BTreeSet<(String, String)>,
-    ceiling: usize,
+    /// Each file's label, entries and ceiling, for the ratchet; none for a list made in a test.
+    files: Vec<(String, usize, usize)>,
     malformed: Vec<Finding>,
 }
 
 impl Allowlist {
-    /// The committed list and its ceiling.
+    /// The committed list: every file of `reference/not-yet-ported/`.
     #[must_use]
-    pub fn embedded() -> Allowlist {
-        Allowlist::parse(ALLOWLIST, CEILING)
+    pub fn committed() -> Allowlist {
+        match read_dir(&not_yet_ported_dir()) {
+            Ok(files) => Allowlist::parse(&files),
+            Err(problem) => Allowlist {
+                entries: BTreeSet::new(),
+                files: Vec::new(),
+                malformed: vec![Finding::ListProblem { problem }],
+            },
+        }
     }
 
-    /// An empty list with a ceiling of zero: every documented route must be served.
+    /// An empty list: every documented route must be served.
     #[must_use]
     pub fn none() -> Allowlist {
-        Allowlist { entries: BTreeSet::new(), ceiling: 0, malformed: Vec::new() }
+        Allowlist { entries: BTreeSet::new(), files: Vec::new(), malformed: Vec::new() }
     }
 
-    /// Reads a list (`METHOD /path` per line, `#` comments) and its ceiling.
+    /// Every documented route but `served`'s, held to no ceiling: what a module's own contract test hands
+    /// [`check_routes`] and [`crate::probe`] for the routes that are not its own — another module's, ported or not.
     #[must_use]
-    pub fn parse(text: &str, ceiling: &str) -> Allowlist {
+    pub fn all_but(document: &Document, served: &BTreeSet<(String, String)>) -> Allowlist {
+        let entries = document.routes().into_iter().filter(|route| !served.contains(route)).collect();
+        Allowlist { entries, files: Vec::new(), malformed: Vec::new() }
+    }
+
+    /// Reads the files of a list (`METHOD /path` per line, `#` comments, one `ceiling N`).
+    #[must_use]
+    pub fn parse(files: &[ListFile]) -> Allowlist {
         let mut entries = BTreeSet::new();
         let mut malformed = Vec::new();
-        for (index, line) in text.lines().enumerate() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let mut parts = line.split_whitespace();
-            match (parts.next(), parts.next(), parts.next()) {
-                (Some(method), Some(path), None) if path.starts_with('/') => {
-                    entries.insert((method.to_ascii_uppercase(), path.to_owned()));
+        let mut counted = Vec::new();
+        for file in files {
+            let read = count(file);
+            let mut in_file = 0_usize;
+            for (line, text) in read.lines {
+                let mut parts = text.split_whitespace();
+                match (parts.next(), parts.next(), parts.next()) {
+                    (Some(method), Some(path), None) if path.starts_with('/') => {
+                        in_file = in_file.saturating_add(1);
+                        if !entries.insert((method.to_ascii_uppercase(), path.to_owned())) {
+                            malformed.push(Finding::ListProblem {
+                                problem: format!("{}:{line}: {method} {path} is listed twice", file.label),
+                            });
+                        }
+                    }
+                    _ => malformed.push(Finding::Malformed { file: file.label.clone(), line, text: text.to_owned() }),
                 }
-                _ => malformed.push(Finding::Malformed {
-                    file: "not-yet-ported.txt",
-                    line: index + 1,
-                    text: line.to_owned(),
-                }),
+            }
+            match read.ceiling {
+                Ok(ceiling) => counted.push((file.label.clone(), in_file, ceiling)),
+                Err(problem) => malformed.push(Finding::ListProblem { problem }),
             }
         }
-        let ceiling_value = ceiling.trim().parse::<usize>();
-        if ceiling_value.is_err() {
-            malformed.push(Finding::Malformed {
-                file: "not-yet-ported.ceiling",
-                line: 1,
-                text: ceiling.trim().to_owned(),
-            });
-        }
-        Allowlist { entries, ceiling: ceiling_value.unwrap_or(0), malformed }
+        Allowlist { entries, files: counted, malformed }
     }
 
     /// The routes listed.
@@ -184,31 +200,16 @@ impl Allowlist {
         &self.entries
     }
 
-    /// How many routes the list may hold.
+    /// How many routes the files may hold, together: the total the summary prints.
     #[must_use]
     pub fn ceiling(&self) -> usize {
-        self.ceiling
+        self.files.iter().fold(0_usize, |total, (_, _, ceiling)| total.saturating_add(*ceiling))
     }
 
-    /// The text of a list covering every route of `document` that `served` does not answer — what
-    /// `allowlist-write` commits at the start, and never again to make a check pass.
+    /// Each file's label, entries and ceiling.
     #[must_use]
-    pub fn text_for(document: &Document, served: &dyn RouteSource) -> String {
-        let answered: BTreeSet<(String, String)> =
-            served.routes().into_iter().map(|route| (route.method, route.path)).collect();
-        let mut out = String::from(
-            "# The routes of openapi.json the Rust control plane does not answer yet: `METHOD /path`.\n\
-             #\n\
-             # This list only shrinks. A route that is served must be deleted from it, a route the document\n\
-             # does not list cannot be added, and `not-yet-ported.ceiling` is lowered in the same commit.\n\
-             # Never edited to make a check pass.\n",
-        );
-        for (method, path) in document.routes() {
-            if !answered.contains(&(method.clone(), path.clone())) {
-                out.push_str(&format!("{method} {path}\n"));
-            }
-        }
-        out
+    pub fn files(&self) -> &[(String, usize, usize)] {
+        &self.files
     }
 
     fn contains(&self, method: &str, path: &str) -> bool {
@@ -216,47 +217,37 @@ impl Allowlist {
     }
 }
 
-/// Compares what is served with the document, both ways, and the allowlist with both.
+/// The partition, by method and path alone: every documented route is served or listed, never both; nothing served
+/// or listed is undocumented; each file of the list is at its ceiling. What the binary's test holds the whole
+/// registry to — the operation ids, parameters and security of each route are its module's own test's.
 #[must_use]
-pub fn check_routes(document: &Document, served: &dyn RouteSource, allowlist: &Allowlist) -> Vec<Finding> {
+pub fn check_partition(
+    document: &Document,
+    served: &BTreeSet<(String, String)>,
+    allowlist: &Allowlist,
+) -> Vec<Finding> {
     let mut findings = allowlist.malformed.clone();
-
-    let mut by_route: BTreeMap<(String, String), RouteDecl> = BTreeMap::new();
-    for route in served.routes() {
-        let key = (route.method.clone(), route.path.clone());
-        match by_route.entry(key) {
-            Entry::Occupied(_) => findings.push(Finding::DuplicateRoute { method: route.method, path: route.path }),
-            Entry::Vacant(slot) => {
-                slot.insert(route);
-            }
-        }
-    }
-
     let documented = document.routes();
     for operation in document.operations() {
         let key = (operation.method.clone(), operation.path.clone());
-        match by_route.get(&key) {
-            Some(route) => {
-                if allowlist.contains(&operation.method, &operation.path) {
-                    findings.push(Finding::AllowlistedButServed {
-                        method: operation.method.clone(),
-                        path: operation.path.clone(),
-                    });
-                }
-                compare_route(document, operation, route, &mut findings);
-            }
-            None if allowlist.contains(&operation.method, &operation.path) => {}
-            None => {
-                let path_is_routed = by_route.keys().any(|(_, path)| *path == operation.path);
-                findings.push(if path_is_routed {
-                    Finding::MethodNotServed { method: operation.method.clone(), path: operation.path.clone() }
-                } else {
-                    Finding::NotServed { method: operation.method.clone(), path: operation.path.clone() }
+        let listed = allowlist.contains(&operation.method, &operation.path);
+        if served.contains(&key) {
+            if listed {
+                findings.push(Finding::AllowlistedButServed {
+                    method: operation.method.clone(),
+                    path: operation.path.clone(),
                 });
             }
+        } else if !listed {
+            let path_is_routed = served.iter().any(|(_, path)| *path == operation.path);
+            findings.push(if path_is_routed {
+                Finding::MethodNotServed { method: operation.method.clone(), path: operation.path.clone() }
+            } else {
+                Finding::NotServed { method: operation.method.clone(), path: operation.path.clone() }
+            });
         }
     }
-    for (method, path) in by_route.keys() {
+    for (method, path) in served {
         if !documented.contains(&(method.clone(), path.clone())) {
             findings.push(Finding::NotDocumented { method: method.clone(), path: path.clone() });
         }
@@ -266,11 +257,58 @@ pub fn check_routes(document: &Document, served: &dyn RouteSource, allowlist: &A
             findings.push(Finding::AllowlistUnknownRoute { method: method.clone(), path: path.clone() });
         }
     }
-    let entries = allowlist.entries().len();
-    if entries > allowlist.ceiling() {
-        findings.push(Finding::AllowlistGrew { entries, ceiling: allowlist.ceiling() });
-    } else if entries < allowlist.ceiling() {
-        findings.push(Finding::CeilingNotLowered { entries, ceiling: allowlist.ceiling() });
+    for (label, entries, ceiling) in &allowlist.files {
+        let (file, entries, ceiling) = (label.clone(), *entries, *ceiling);
+        if entries == 0 {
+            findings.push(Finding::ListProblem { problem: format!("{file} lists nothing: delete the file") });
+        } else if entries > ceiling {
+            findings.push(Finding::AllowlistGrew { file, entries, ceiling });
+        } else if entries < ceiling {
+            findings.push(Finding::CeilingNotLowered { file, entries, ceiling });
+        }
+    }
+    findings
+}
+
+/// A module's own routes against the document — operation ids, parameters, security, nothing undocumented, nothing
+/// registered twice — and against the committed list, which none of them may still be on. Knows nothing of the other
+/// modules' routes, so that a port does not edit every other module's test.
+#[must_use]
+pub fn check_module(document: &Document, served: &dyn RouteSource, committed: &Allowlist) -> Vec<Finding> {
+    let routes: BTreeSet<(String, String)> =
+        served.routes().into_iter().map(|route| (route.method, route.path)).collect();
+    let mut findings = check_routes(document, served, &Allowlist::all_but(document, &routes));
+    findings.extend(committed.malformed.iter().cloned());
+    for (method, path) in &routes {
+        if committed.contains(method, path) {
+            findings.push(Finding::AllowlistedButServed { method: method.clone(), path: path.clone() });
+        }
+    }
+    findings
+}
+
+/// Compares what is served with the document, both ways, and the allowlist with both: [`check_partition`], then each
+/// served route's operation id, parameters and security.
+#[must_use]
+pub fn check_routes(document: &Document, served: &dyn RouteSource, allowlist: &Allowlist) -> Vec<Finding> {
+    let mut duplicates = Vec::new();
+    let mut by_route: BTreeMap<(String, String), RouteDecl> = BTreeMap::new();
+    for route in served.routes() {
+        let key = (route.method.clone(), route.path.clone());
+        match by_route.entry(key) {
+            Entry::Occupied(_) => duplicates.push(Finding::DuplicateRoute { method: route.method, path: route.path }),
+            Entry::Vacant(slot) => {
+                slot.insert(route);
+            }
+        }
+    }
+    let keys: BTreeSet<(String, String)> = by_route.keys().cloned().collect();
+    let mut findings = check_partition(document, &keys, allowlist);
+    findings.extend(duplicates);
+    for operation in document.operations() {
+        if let Some(route) = by_route.get(&(operation.method.clone(), operation.path.clone())) {
+            compare_route(document, operation, route, &mut findings);
+        }
     }
     findings
 }

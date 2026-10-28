@@ -5,12 +5,14 @@
 #   crates/cp-db/scripts/sqlx-prepare.sh check [crate]     regenerate into a scratch directory and fail if any differs
 #                                             from the committed one, then compile offline with both engines on
 #
-# `crate` is a directory under crates/ named in `crates_with_queries` below; without it, every crate there is
-# prepared or checked, against one database per engine. **One script for every module crate**, not a copy in each:
-# a module's persistence declares its own checked queries (README.md of cp-db), and the way they are described —
-# the engines by digest, the real Flyway, one engine's feature at a time — is the same for all of them. A module
-# crate opts in with the same two features, `mysql-queries` and `postgres-queries`, and its line in the list: a
-# crate left out of it has a cache nobody checks.
+# `crate` is a directory under crates/ whose manifest declares the `mysql-queries` feature; without it, every crate
+# with a committed cache (`crates/*/.sqlx/`) is prepared or checked, against one database per engine. **One script for
+# every module crate**, not a copy in each: a module's persistence declares its own checked queries (README.md of
+# cp-db), and the way they are described — the engines by digest, the real Flyway, one engine's feature at a time — is
+# the same for all of them. A module crate opts in with the same two features, `mysql-queries` and
+# `postgres-queries`, and its first `prepare <crate>` commits its cache — **the list is found, not written**: a crate
+# with a cache is checked, and a crate with checked queries and no cache does not compile offline, so none can be left
+# out the way a crate missing from a hand-written list was.
 #
 # **Why a script and not `cargo sqlx prepare`.** The tool describes every query against *one*
 # DATABASE_URL, and this crate has queries for two engines: pointed at MySQL, the PostgreSQL statements
@@ -31,12 +33,14 @@ mode="${1:-}"
 case "$mode" in prepare | check) ;; *) echo "usage: $0 prepare|check [crate]" >&2; exit 2 ;; esac
 
 # Every crate with checked statements, as its directory under crates/; the package is `vectispire-<crate>`.
-crates_with_queries="cp-db cp-access cp-audit cp-settings cp-maintenance cp-outbox cp-targets cp-scanning cp-issues cp-siem"
+crates_with_queries="$(for cache in crates/*/.sqlx; do if [ -d "$cache" ]; then basename "$(dirname "$cache")"; fi; done | tr '\n' ' ')"
+[ -n "$crates_with_queries" ] || { echo "no crates/*/.sqlx: nothing to prepare or check" >&2; exit 2; }
 if [ -n "${2:-}" ]; then
-  case " $crates_with_queries " in
-    *" $2 "*) selected="$2" ;;
-    *) echo "crates/$2 is not in this script's crates_with_queries ($crates_with_queries)" >&2; exit 2 ;;
-  esac
+  if grep -q '^mysql-queries' "crates/$2/Cargo.toml" 2>/dev/null; then
+    selected="$2"
+  else
+    echo "crates/$2 declares no mysql-queries feature: it has no checked queries to prepare" >&2; exit 2
+  fi
 else
   selected="$crates_with_queries"
 fi

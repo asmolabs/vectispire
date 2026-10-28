@@ -1,0 +1,5 @@
+# The module `maintenance` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = []
+shared = true
+reason = "The periodic tick's port (`MaintenanceTask`) and the jobs that run once per database: every module with periodic work contributes a task beside the service it calls, and this module names none of them (decision 0029)."

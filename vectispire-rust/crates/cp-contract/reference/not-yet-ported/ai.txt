@@ -1,0 +1,5 @@
+# The routes of `ai` the Rust control plane does not serve yet — README.md beside this file says the rules.
+ceiling 3
+GET /api/v1/ai-advisor/status
+POST /api/v1/ai-advisor/explain/cve/{cveId}
+POST /api/v1/ai-advisor/explain/issue/{issueId}

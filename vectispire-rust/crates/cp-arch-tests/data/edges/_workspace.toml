@@ -1,0 +1,85 @@
+# The modules of the control plane and what each may use — `@ApplicationModule(allowedDependencies)` of the
+# 0.11.1 line (b8bd7e8d0), module by module, which Spring Modulith's `verify()` enforces on the Java side
+# (decision 0030) and `edges.rs` enforces here, on `cargo metadata`.
+#
+# One module = one crate, `vectispire-cp-<module>`, and **one file here, `<module>.toml`**, holding the keys below at
+# its top level — so that two ports running at once never edit the same file: each flips its own `status` and
+# reviews its own list. This file holds the rest: the settings and the crates that are not modules. A line in a
+# module's file is a decision for the review, with its reason beside it, exactly as in `package-info.java`: an edge is
+# added there first, or the build fails. A module without its file, or a file naming no Java module, fails
+# `tests/workspace.rs` against Java's module model.
+#
+#   allowed    "x" is x's root (its API: the crate's `pub` items); "x::y" is x's named interface `y`, a `pub mod y`
+#              of x's crate. Modulith lists both when both are used, and so do we.
+#   interfaces the named interfaces a module exposes besides its root — `access::security` is the guard types
+#              every route marks itself with, `queries` the read-side catalogues. Anything else a crate holds is
+#              `web`, `internal` or `persistence`, which are private modules (`layering.rs` checks it).
+#   status     "pending" while the crate is being ported; "ported" once it is. A ported module's listed edges must
+#              all be used (Modulith's "a line nothing uses"), and its entries in `sql-known.toml` must still be
+#              there. A pending module is held to the ceiling only.
+#   open       the module may use any module: Modulith's reading of a bare `@ApplicationModule`. Only `platform`,
+#              the shell that composes several domains for one screen (decision 0029, step 5), is declared so;
+#              the port writes its list when the crate lands, and that is a review decision.
+#   shared     one of the seven foundation modules `@Modulithic(sharedModules)` declares on `VectispireApplication`
+#              (decision 0028): settings, outbound, crypto, audit, outbox, reporting, maintenance. Every module that is
+#              not shared may use them **without a line**, as Modulith allows; a domain listing one is refused, as
+#              `ModularityTest.eachModuleDeclaresExactlyWhatItUses` refuses it. Between two shared modules the edge is
+#              listed like any other: Modulith would allow it wholesale, and that test is what holds the foundation's
+#              own lists to the code. A shared module stays closed (not `open`) — its `web`, `internal` and
+#              `persistence` are as private as any module's — and takes part in the cycle check: the unlisted edges
+#              into the foundation are edges of the graph, so a foundation module listing a domain is a cycle.
+#              Without this, every Phase 2 crate would need seven lines that each read as a decision nobody took.
+#   reason     why the module may use what it lists, or why it is shared: the paragraph its `package-info` writes
+#              beside `allowedDependencies`, shortened. Required wherever `allowed` is not empty and on every shared
+#              module. A line without its reason is the edit that turned the build green, not a decision.
+
+[settings]
+module_prefix = "vectispire-cp-"
+# What a module crate may depend on besides other modules. The agent port's crates: the same domain, crypto,
+# protocol and transport code serves both programs, which is why none of them may depend on a `cp-*` crate.
+shared = ["vectispire-domain", "vectispire-crypto", "vectispire-protocol", "vectispire-tls", "vectispire-container", "vectispire-scanners", "vectispire-git", "vectispire-migrate", "vectispire-runner"]
+# The crates that must stay free of frameworks and drivers: Java's `common.domain` (`domainIsPure`).
+pure = ["vectispire-domain"]
+# The one place `unsafe` may appear outside a control-plane crate, and how many times: libgit2's two process-wide calls.
+unsafe_allowed = [{ crate = "vectispire-git", file = "src/init.rs", max = 2 }]
+
+# The crates that are not modules. `uses_modules` is what they may depend on, `used_by_modules` whether a module crate
+# may depend on them. Java's `core.config` — "it uses no module and no module uses it" — is the ancestor of this
+# table: the infrastructure sits under every module and decides nothing a domain owns, so none of these uses a
+# module, and only the binary uses what it composes.
+
+[infrastructure.db]
+crate = "vectispire-cp-db"
+uses_modules = []
+used_by_modules = true
+# the pool per engine, `Engine`, transactions and the query helpers that take a `Visibility`
+
+[infrastructure.http]
+crate = "vectispire-cp-http"
+uses_modules = []
+used_by_modules = true
+# the filter chain and the route builder that will not register a route without its requirement
+
+[infrastructure.contract]
+crate = "vectispire-cp-contract"
+uses_modules = []
+used_by_modules = false
+# the embedded openapi.json and the router-versus-document check
+
+[infrastructure.runtime]
+crate = "vectispire-cp-runtime"
+uses_modules = []
+used_by_modules = false
+# configuration, tracing, metrics, the audit mirror writer, graceful shutdown
+
+[infrastructure.app]
+crate = "vectispire-cp-app"
+uses_modules = "all"
+used_by_modules = false
+# the binary: composes every module and starts the server
+
+[infrastructure.arch-tests]
+crate = "vectispire-cp-arch-tests"
+uses_modules = []
+used_by_modules = false
+# this crate

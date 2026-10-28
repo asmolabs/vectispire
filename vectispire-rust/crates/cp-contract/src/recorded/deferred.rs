@@ -1,4 +1,6 @@
-//! `vectispire-rust/golden/deferred.txt`: every recording not replayed yet, and why — **a list that only shrinks**.
+//! `vectispire-rust/golden/deferred/`: every recording not replayed yet, and why — **a list that only shrinks**, one
+//! file per module whose port ends its lines (`<module>.txt`), and `_<name>.txt` for what no module's port ends
+//! ([`crate::shrinking`]: each file's own `ceiling N`).
 //!
 //! One line per reason a recording waits, in three forms:
 //!
@@ -11,19 +13,16 @@
 //! A `route` line covers every recording of that operation, a `golden` line one recording of a route the router
 //! serves, an `outside` line a request no operation answers. Every recording of a test that passed when recorded
 //! must be replayed green or covered; a line that covers nothing, or only recordings that now replay green, is
-//! stale and fails, so the list cannot keep a reason that has gone. `deferred.ceiling` holds its length: lowered in
-//! the commit that removes lines, never raised to make room.
+//! stale and fails, so the list cannot keep a reason that has gone. Each file's `ceiling` holds its length: lowered
+//! in the commit that removes lines, never raised to make room. A line is one line of the whole list: the same line in
+//! two files is listed twice.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::document::Document;
 use crate::recorded::format::Recording;
 use crate::recorded::replay::{Outcome, Replayed};
-
-/// The committed list.
-pub const DEFERRED: &str = include_str!("../../../../golden/deferred.txt");
-/// Its length, which only goes down.
-pub const CEILING: &str = include_str!("../../../../golden/deferred.ceiling");
+use crate::shrinking::{ListFile, against_ceiling, count, deferred_dir, read_dir};
 
 /// The list, read.
 #[derive(Clone, Debug, Default)]
@@ -31,30 +30,55 @@ pub struct Deferred {
     pub routes: BTreeMap<(String, String), String>,
     pub goldens: BTreeMap<String, String>,
     pub outside: BTreeMap<(String, String), String>,
+    /// Each file's label, lines and ceiling — or what is wrong with its ceiling.
+    pub files: Vec<(String, usize, Result<usize, String>)>,
 }
 
 impl Deferred {
-    /// The committed list.
+    /// The committed list: every file of `golden/deferred/`.
     ///
     /// # Panics
-    /// When the committed file is malformed — which `tests/deferred.rs` shows first.
+    /// When a committed file is malformed or the directory cannot be read — which `tests/recorded.rs` shows first.
     #[must_use]
-    pub fn embedded() -> Deferred {
-        Deferred::parse(DEFERRED).unwrap_or_else(|problems| panic!("golden/deferred.txt: {}", problems.join("; ")))
+    pub fn committed() -> Deferred {
+        read_dir(&deferred_dir())
+            .map_err(|problem| vec![problem])
+            .and_then(|files| Deferred::parse_files(&files))
+            .unwrap_or_else(|problems| panic!("golden/deferred/: {}", problems.join("; ")))
     }
 
-    /// Reads the list; every malformed or repeated line is a problem.
+    /// Reads one text of lines, without a ceiling — a test's.
     pub fn parse(text: &str) -> Result<Deferred, Vec<String>> {
         let mut out = Deferred::default();
         let mut problems = Vec::new();
-        for (number, line) in text.lines().enumerate() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let at = number.saturating_add(1);
+        let lines: Vec<(usize, &str)> = text
+            .lines()
+            .enumerate()
+            .map(|(index, line)| (index.saturating_add(1), line.trim()))
+            .filter(|(_, line)| !line.is_empty() && !line.starts_with('#'))
+            .collect();
+        out.read_lines("line", &lines, &mut problems);
+        if problems.is_empty() { Ok(out) } else { Err(problems) }
+    }
+
+    /// Reads the files of the list, each with its ceiling; every malformed or repeated line is a problem.
+    pub fn parse_files(files: &[ListFile]) -> Result<Deferred, Vec<String>> {
+        let mut out = Deferred::default();
+        let mut problems = Vec::new();
+        for file in files {
+            let read = count(file);
+            let before = out.len();
+            out.read_lines(&file.label, &read.lines, &mut problems);
+            out.files.push((file.label.clone(), out.len().saturating_sub(before), read.ceiling));
+        }
+        if problems.is_empty() { Ok(out) } else { Err(problems) }
+    }
+
+    fn read_lines(&mut self, label: &str, lines: &[(usize, &str)], problems: &mut Vec<String>) {
+        for (at, line) in lines {
+            let at = format!("{label} {at}");
             let Some((what, reason)) = line.split_once(" | ") else {
-                problems.push(format!("line {at}: no ` | reason`"));
+                problems.push(format!("{at}: no ` | reason`"));
                 continue;
             };
             // The line is trimmed first: a reason of white space alone leaves no ` | ` to split on, and is refused above.
@@ -62,24 +86,22 @@ impl Deferred {
             let mut words = what.split_whitespace();
             let repeated = match (words.next(), words.next(), words.next(), words.next()) {
                 (Some("route"), Some(method), Some(path), None) => {
-                    out.routes.insert((method.to_owned(), path.to_owned()), reason).is_some()
+                    self.routes.insert((method.to_owned(), path.to_owned()), reason).is_some()
                 }
                 (Some("outside"), Some(method), Some(path), None) => {
-                    out.outside.insert((method.to_owned(), path.to_owned()), reason).is_some()
+                    self.outside.insert((method.to_owned(), path.to_owned()), reason).is_some()
                 }
-                (Some("golden"), Some(name), None, None) => out.goldens.insert(name.to_owned(), reason).is_some(),
+                (Some("golden"), Some(name), None, None) => self.goldens.insert(name.to_owned(), reason).is_some(),
                 _ => {
-                    problems.push(format!(
-                        "line {at}: not `route METHOD /path`, `golden class/file` or `outside METHOD /path`"
-                    ));
+                    problems
+                        .push(format!("{at}: not `route METHOD /path`, `golden class/file` or `outside METHOD /path`"));
                     continue;
                 }
             };
             if repeated {
-                problems.push(format!("line {at}: listed twice"));
+                problems.push(format!("{at}: listed twice"));
             }
         }
-        if problems.is_empty() { Ok(out) } else { Err(problems) }
     }
 
     /// How many lines the list holds.
@@ -106,9 +128,9 @@ impl Deferred {
     }
 }
 
-/// The list against the contract: a `route` line names a documented operation, and the length is the ceiling.
+/// The list against the contract: a `route` line names a documented operation, and each file is at its ceiling.
 #[must_use]
-pub fn check_list(deferred: &Deferred, document: &Document, ceiling: &str) -> Vec<String> {
+pub fn check_list(deferred: &Deferred, document: &Document) -> Vec<String> {
     let mut problems = Vec::new();
     let routes = document.routes();
     for route in deferred.routes.keys() {
@@ -116,17 +138,11 @@ pub fn check_list(deferred: &Deferred, document: &Document, ceiling: &str) -> Ve
             problems.push(format!("route {} {}: not an operation of openapi.json", route.0, route.1));
         }
     }
-    match ceiling.trim().parse::<usize>() {
-        Ok(ceiling) if deferred.len() > ceiling => problems.push(format!(
-            "golden/deferred.txt holds {} lines, above its ceiling {ceiling}: the list only shrinks",
-            deferred.len()
-        )),
-        Ok(ceiling) if deferred.len() < ceiling => problems.push(format!(
-            "golden/deferred.txt holds {} lines and its ceiling says {ceiling}: lower deferred.ceiling in this commit",
-            deferred.len()
-        )),
-        Ok(_) => {}
-        Err(_) => problems.push("golden/deferred.ceiling is not a number".to_owned()),
+    for (label, lines, ceiling) in &deferred.files {
+        match ceiling {
+            Ok(ceiling) => problems.extend(against_ceiling(label, *lines, *ceiling)),
+            Err(problem) => problems.push(problem.clone()),
+        }
     }
     problems
 }
@@ -227,7 +243,7 @@ pub fn coverage(deferred: &Deferred, listed: &[Listed], outcomes: Option<&[Repla
                         problems.push(format!("{}: of a served route, and the replay did not run it", recording.name))
                     }
                     Some(Outcome::Green) if golden_line => problems.push(format!(
-                        "{}: replays green — remove its line from golden/deferred.txt and lower the ceiling",
+                        "{}: replays green — remove its line from golden/deferred/ and lower that file's ceiling",
                         recording.name
                     )),
                     Some(Outcome::Green | Outcome::NotAnOracle) => {}

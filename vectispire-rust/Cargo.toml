@@ -8,7 +8,11 @@
 resolver = "3"
 # fuzz/ is a workspace of its own, on a nightly compiler: none of it ships (fuzz/Cargo.toml).
 exclude = ["fuzz"]
-members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/runner", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db", "crates/cp-http", "crates/cp-contract", "crates/cp-outbound", "crates/cp-runtime", "crates/cp-app", "crates/cp-arch-tests", "crates/cp-audit", "crates/cp-settings", "crates/cp-platform", "crates/cp-access", "crates/cp-maintenance", "crates/cp-crypto", "crates/cp-outbox", "crates/cp-targets", "crates/cp-scanning", "crates/cp-agents", "crates/cp-rules", "crates/cp-inventory", "crates/cp-issues", "crates/cp-gate", "crates/cp-siem"]
+# Every directory under crates/ is a member: a module port adds its crate without editing this line, which every
+# port used to. Membership decides nothing a review must: what a crate may link is deny.toml's (its wrappers) and
+# cp-arch-tests' (data/edges/, which refuses a `vectispire-cp-*` crate it does not list), and cargo refuses a
+# directory there without a Cargo.toml.
+members = ["crates/*"]
 
 [workspace.package]
 version = "0.12.0-dev"

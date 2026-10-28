@@ -141,11 +141,11 @@ crates/cp-contract/scripts/record-goldens.sh /tmp/vs-recordings    # the Java su
 cargo run -p vectispire-cp-contract -- replay-plan /tmp/vs-recordings
 ```
 
-A route ported to the control plane leaves `crates/cp-contract/reference/not-yet-ported.txt` (the list, and its
-ceiling, only shrink) in the same commit — and its recordings are then owed a replay, which `replay-plan` refuses
-to let pass (exit 3). `cp-arch-tests` holds the module edges, the layers, `unsafe`, the agent's isolation and the
-route-authorization rules; a new module crate adds its edges to `crates/cp-arch-tests/data/edges.toml` with their
-reason.
+A route ported to the control plane leaves its module's file, `crates/cp-contract/reference/not-yet-ported/<module>.txt`
+(each file, and its own `ceiling`, only shrink) in the same commit — and its recordings are then owed a replay,
+which `replay-plan` refuses to let pass (exit 3), unless its module's file in `golden/deferred/` says why it waits.
+`cp-arch-tests` holds the module edges, the layers, `unsafe`, the agent's isolation and the route-authorization
+rules; a module's edges are its own file, `crates/cp-arch-tests/data/edges/<module>.toml`, each with its reason.
 
 ## 5. Contract — when a route's shape changed
 

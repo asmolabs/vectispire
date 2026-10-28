@@ -29,14 +29,22 @@ with test doubles and without an authentication layer.
 - `reference/openapi.json` — the document the Java control plane serves, **as of the 0.11.1 line**
   (`b8bd7e8d0`), the line the port targets. Embedded, so no check can be pointed at another file.
 - `reference/published-operation-ids.txt` — the Java side's list, which moves by hand.
-- `reference/not-yet-ported.txt` and `.ceiling` — every route not ported yet: **311 today, and the list only
-  shrinks**. A route that is now served must be deleted from it, a route the document does not list cannot be
-  added, a list above its ceiling fails, and so does one *below* it — the ceiling is lowered in the commit that
-  ports the route, so that nobody spends the slack on a route they have not ported.
+- `reference/not-yet-ported/` — every route not ported yet, **one file per module** (`<module>.txt`, the module whose
+  Java controller serves it), each with its own `ceiling N`: 311 at the start, and **the list only shrinks**. A route
+  that is now served must be deleted from its module's file, a route the document does not list cannot be added, a
+  file above its ceiling fails, and so does one *below* it — the ceiling is lowered in the commit that ports the
+  route, so that nobody spends the slack on a route they have not ported; a file that lists nothing is deleted. One
+  file per module so that two ports running at once never edit the same file (`src/shrinking.rs`; the directory's
+  `README.md` says who reads it). `cargo run -p vectispire-cp-contract -- summary` prints the total and each file's.
 
-`reference/refresh.sh <commit>` moves the first two, by hand, in a commit that says why; then
-`cargo run -p vectispire-cp-contract -- allowlist-write` regenerates the allowlist for a router that serves
-nothing. It is never run to make a check pass.
+A module's own `tests/contract.rs` holds its routes with `check_module` — documented as declared, and off the list —
+without naming any other module's; `cp-app`'s `tests/route_authorization.rs` holds the binary's whole registry with
+`check_partition`: the routes served and the routes listed are the document, exactly.
+
+`reference/refresh.sh <commit>` moves the first two, by hand, in a commit that says why; a new operation of the
+document is then added by hand to its module's file, with that file's ceiling raised in the same commit — the
+partition check names every operation the files and the registry do not account for. Never edited to make a check
+pass.
 
 ## The recorder's goldens (`recorded`, task 2.11)
 
@@ -44,7 +52,8 @@ The Java suite's traffic as `TrafficRecorder` writes it (`vectispire-java/…/co
 file per request with its `seed`, `response` and `effect`, identities as ranks (`«t_repository#1»`), credentials and
 clock values as placeholders. **Generated, not committed**; `scripts/replay-goldens.sh <dir>` records the suite at the
 commit (or takes a recording already there) and runs, in order, `cp-contract replay-plan` (every recording of a route
-not served, or outside the contract, covered by `golden/deferred.txt`) and each served module's `golden` test on MySQL
+not served, or outside the contract, covered by `golden/deferred/`, one file per module whose port ends its lines)
+and each served module's `golden` test on MySQL
 9.4 and PostgreSQL 17. That test is `#[ignore]`d by a plain `cargo test`, which reports it as ignored.
 
 How a test is replayed (`recorded::replay`):

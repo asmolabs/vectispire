@@ -1,0 +1,5 @@
+# The module `outbound` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
+status = "pending"
+allowed = []
+shared = true
+reason = "The one door out (`PinnedHttpSender` and its guard): every module that calls a forge, a tracker, a feed or Vault goes through it, which is the point of it being one."

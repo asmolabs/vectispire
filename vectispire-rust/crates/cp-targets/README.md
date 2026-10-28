@@ -87,6 +87,6 @@ the same callers: no hidden target in `/repositories`, `/containers` or the solu
 - **The recorded Java traffic is replayed** by `cp-agents/tests/golden.rs` since task 2.9's audit (it was this crate's,
   task 2.11a, then `cp-scanning`'s from 2.7): the 29 routes with scanning's three and the agents' seventeen, composed as the binary composes them, since the listings answer
   with scanning's `TargetScans`. `crates/cp-contract/scripts/replay-goldens.sh` runs it; what is not green is named
-  in `golden/deferred.txt`. The replay found no difference in this crate.
+  in `golden/deferred/`. The replay found no difference in this crate.
 - `GrantableTargets` in Rust declares `targets_in` only; Java's port also names grants, checks a project or a target
   exists and labels targets — `naming`, `catalog` and `TargetsForAccess` hold those for 1.7's access routes.

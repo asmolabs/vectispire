@@ -47,7 +47,7 @@ pub fn check(config: &Config, workspace: &Workspace) -> Vec<String> {
 
         match &kind {
             Kind::UnknownControlPlane => violations.push(format!(
-                "{}: a control-plane crate that edges.toml does not list. A new module is a decision for the review: \
+                "{}: a control-plane crate that edges/ does not list. A new module is a decision for the review: \
                  add it there, with its allowed edges, before its crate",
                 package.name
             )),
@@ -63,13 +63,13 @@ pub fn check(config: &Config, workspace: &Workspace) -> Vec<String> {
                             if !config.allows_module(module, &other) {
                                 violations.push(if config.is_shared(module) && config.is_shared(&other) {
                                     format!(
-                                        "{module} depends on {other}, which its allowedDependencies in edges.toml do \
+                                        "{module} depends on {other}, which its allowedDependencies in edges/ do \
                                          not list: both are shared, and sharing says nothing about the edges between \
                                          foundation modules"
                                     )
                                 } else {
                                     format!(
-                                        "{module} depends on {other}, which its allowedDependencies in edges.toml do not list"
+                                        "{module} depends on {other}, which its allowedDependencies in edges/ do not list"
                                     )
                                 });
                             }
@@ -85,13 +85,13 @@ pub fn check(config: &Config, workspace: &Workspace) -> Vec<String> {
                             }
                         }
                         Kind::UnknownControlPlane => {
-                            violations.push(format!("{module} depends on {}, which edges.toml does not list", dependency.name));
+                            violations.push(format!("{module} depends on {}, which edges/ does not list", dependency.name));
                         }
                         Kind::Agent => violations.push(format!("{module} depends on the agent's binary")),
                         Kind::Testkit => violations
                             .push(format!("{module} depends on test support through a normal dependency: it belongs in [dev-dependencies]")),
                         Kind::Other => violations.push(format!(
-                            "{module} depends on {}, a workspace crate that is not in `shared` in edges.toml",
+                            "{module} depends on {}, a workspace crate that is not in `shared` in edges/",
                             dependency.name
                         )),
                         Kind::Shared => {}
@@ -103,7 +103,7 @@ pub fn check(config: &Config, workspace: &Workspace) -> Vec<String> {
                     for allowed in config.allowed_modules(module) {
                         if !used.contains(&allowed) {
                             violations.push(format!(
-                                "{module} lists {allowed} in edges.toml and its crate does not depend on it: a line nothing uses"
+                                "{module} lists {allowed} in edges/ and its crate does not depend on it: a line nothing uses"
                             ));
                         }
                     }
@@ -161,14 +161,14 @@ pub fn check(config: &Config, workspace: &Workspace) -> Vec<String> {
                 violations.push(format!("{pure} is a pure crate and links {found:?}: no framework, driver or runtime"));
             }
         } else {
-            violations.push(format!("{pure} is listed as pure in edges.toml and is not in the workspace"));
+            violations.push(format!("{pure} is listed as pure in edges/ and is not in the workspace"));
         }
     }
 
     for (module, entry) in &config.module {
         let name = config.crate_of(module);
         if entry.status == Status::Ported && workspace.member(&name).is_none() {
-            violations.push(format!("{module} is `ported` in edges.toml and the workspace has no crate {name}"));
+            violations.push(format!("{module} is `ported` in edges/ and the workspace has no crate {name}"));
         }
     }
 
