@@ -1,0 +1,26 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select count(id) as \"count!: i64\" from t_scan where status = ? and container_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "38a006a79a219bbf542d71ec3a47da904e4b71f6fb444c5960cb1ba43b31dbf8"
+}

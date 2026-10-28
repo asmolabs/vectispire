@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_scan set status = ?, findings_count = ?, new_issues_count = ?, resolved_issues_count = ?, duration_ms = ?, sbom = coalesce(?, sbom), project_type = case when ? then ? else project_type end, version = case when ? then ? else version end, error = ?, plugin_steps = ?, detected_languages = ?, examined_types = coalesce(?, examined_types), claimed_by = null, claimed_at = null, lease_expires_at = null where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 15
+    },
+    "nullable": []
+  },
+  "hash": "1ca4badf286c09a89eb8952df1d77b145c8189abab440f2470aa333aaed5df5a"
+}

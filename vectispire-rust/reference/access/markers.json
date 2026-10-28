@@ -1,0 +1,27 @@
+{
+  "markers" : [ {
+    "marker" : "OpenToAnonymous",
+    "expression" : null
+  }, {
+    "marker" : "RequiresAccount",
+    "expression" : "isAuthenticated()"
+  }, {
+    "marker" : "RequiresAdministrator",
+    "expression" : "hasAnyRole('SUPERUSER', 'ADMIN')"
+  }, {
+    "marker" : "RequiresAgentKey",
+    "expression" : null
+  }, {
+    "marker" : "RequiresGovernanceRead",
+    "expression" : "hasAnyRole('SUPERUSER', 'ADMIN', 'CISO', 'AUDITOR')"
+  }, {
+    "marker" : "RequiresPlatformGovernor",
+    "expression" : "hasAnyRole('SUPERUSER')"
+  }, {
+    "marker" : "RequiresSecurityLead",
+    "expression" : "hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')"
+  }, {
+    "marker" : "RequiresWriteAccount",
+    "expression" : "hasAnyRole('ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER')"
+  } ]
+}

@@ -260,3 +260,42 @@ jobs:
           for c in drill-app-origin drill-app-restored drill-app-blind drill-db-origin drill-db-restored; do
             echo "═══ $c"; docker logs --tail 80 "$c" 2>&1 || echo "  (absent)"
           done
+
+  # **The Rust agent's parsers, fuzzed** (vectispire-rust/fuzz/): every reader of something the agent
+  # does not control — a repository URL, a scanner's report, a sealed credential, a signature, a
+  # known-hosts file — for two minutes each, from a corpus seeded with the reference sets. A crash, a
+  # failed assertion, a timeout or a leak is a red job, and the input that did it is kept as an artifact
+  # (`cargo fuzz run <target> <file>` replays it). Then Miri over the crates that call no C library,
+  # which finds undefined behaviour the compiler accepted, in the dependencies' `unsafe` too.
+  #
+  # Nightly only: libFuzzer needs a nightly compiler, pinned in fuzz/rust-toolchain.toml, and ten
+  # minutes of fuzzing on every push is the cost that teaches people to route around CI.
+  rust-fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: vectispire-rust/fuzz
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the pinned nightly, and cargo-fuzz at its version
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustc --version
+          cargo install --locked cargo-fuzz@0.13.2
+      - name: every target, 120 seconds each
+        run: ./run.sh 120
+      - name: Miri on the crates without C (domain, crypto, scanners)
+        working-directory: vectispire-rust
+        run: |
+          rustup component add miri --toolchain "$(sed -n 's/^channel = "\(.*\)"/\1/p' fuzz/rust-toolchain.toml)"
+          toolchain="+$(sed -n 's/^channel = "\(.*\)"/\1/p' fuzz/rust-toolchain.toml)"
+          for crate in vectispire-domain vectispire-crypto vectispire-scanners; do
+            cargo "$toolchain" miri test -p "$crate" --lib
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: rust-fuzz-artifacts
+          path: vectispire-rust/fuzz/artifacts/
+          retention-days: 30

@@ -1,0 +1,52 @@
+[
+  {
+    "candidate": "an invented passphrase",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$JwZp+5BvK3wJnDcB1sK1pA$b7c2CQcnZCdX5NymhKNbYPKBrPtISvFs/GmAZUFDE/o",
+    "needsRehash": false
+  },
+  {
+    "candidate": "Invented-Passphrase-2026!",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$4Qsuo+/gYt4/j3cU1WiugQ$jbDQR3r5IcQOOwP1RU5szX03+1FiKIbQFYhpE3wrhG0",
+    "needsRehash": false
+  },
+  {
+    "candidate": "",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$3wlZ6T43R8dHY8pS+HPsZQ$BDgZLPAu2q4uiNSo1sQrC21c8HIbEhUmUGWChF1g75I",
+    "needsRehash": false
+  },
+  {
+    "candidate": " leading and trailing ",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$34FRVSqShkXuoRUXpiyJXw$9+svjPl9CFPS4HmMzZhVrCrv0KcgBoFCef9ctYqM0K0",
+    "needsRehash": false
+  },
+  {
+    "candidate": "accentué et café crème",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$ilsTgkakxbZgizEPuxdJEA$eyjsfJz1NLTF2Q/zL+NnBXEBRyo3icy6PKupu7C9A08",
+    "needsRehash": false
+  },
+  {
+    "candidate": "日本語のパスフレーズです",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$rmoP3oGEh37l/IU6hGACpQ$ljzlc/BhCIzNlA20oqKNxC++giFCZFQfUIebr2fPuaE",
+    "needsRehash": false
+  },
+  {
+    "candidate": "emoji 🙂🙂🙂🙂🙂🙂 inside",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$PtG7yt63giuz6ZSFvfuEIQ$/PbdBgkN5C+LKqoqVWGXPnUfvXB/3Jcpcyay++fF1ZQ",
+    "needsRehash": false
+  },
+  {
+    "candidate": "tab\tand\nnewline inside it",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=1$ZyeZ+qnPLNa2bJ2FO/NWHw$g0MyLLgeoQyWqNQ4klJ/8D8/qFU0u4y6U8PIlJfOGvs",
+    "needsRehash": false
+  },
+  {
+    "candidate": "an invented passphrase",
+    "phc": "$argon2id$v=19$m=4096,t=1,p=1$16vcw/8vUCv/G1v2nJseLQ$gojsuCs2MTJpGOKdLmtONEkJ5Ccd3pM9M9SNUlpa+AQ",
+    "needsRehash": true
+  },
+  {
+    "candidate": "Invented-Passphrase-2026!",
+    "phc": "$argon2id$v=19$m=19456,t=2,p=4$+cVZ6AwgLiGNS7wnUnyjdw$O5ngeHcuGxz5RCOBM/Nlbeh3n/Pa13lM5BbL2YDn/1c",
+    "needsRehash": false
+  }
+]

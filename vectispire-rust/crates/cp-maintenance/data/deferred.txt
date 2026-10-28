@@ -1,0 +1,22 @@
+# The slots of MaintenanceTask.Sequence that no Rust task fills yet — one line each, `SLOT | who fills it, and when`.
+#
+# **Exactly the slots still missing** (src/composition.rs): a slot neither filled nor listed fails the composition
+# check, as a Java task without its @Component would have run nowhere; a slot filled and still listed fails too. So
+# the list only shrinks, by one line in the commit that registers the task in the binary's composition
+# (crates/cp-app/src/maintenance.rs). Twenty-eight on the day cp-maintenance landed (task 2.1 of Phase 2).
+REPORT_RUN_SWEEP | reportplugins, a later phase
+TICKET_SWEEP | tickets, a later phase
+TICKET_TOKEN_CHECK | tickets, a later phase
+FORGE_TOKEN_WATCH | forges, a later phase
+WEEKLY_DIGEST | posture, a later phase
+CHECKLIST_REMINDERS | checklists, a later phase
+COMPLIANCE_HISTORY | compliance, a later phase
+OWASP_WEEKLY_COVERAGE | compliance, a later phase
+SESSION_CLEANUP | access, ported in Phase 1 without its task: SessionCleanupService.prune's purges (cp-access holds the sessions' purge_expired) wait for cp-access to register them
+COMPLIANCE_SNAPSHOTS | compliance, a later phase
+OWASP_WEEKLY_RETENTION | compliance, a later phase
+REPORT_EVIDENCE_RETENTION | reportplugins, a later phase
+ABANDONED_REVIEWS | compliance, a later phase
+KEV_CATALOGUE | threatintel, a later phase
+EPSS_SCORES | threatintel, a later phase
+CHANGE_REVIEWS | forges, a later phase

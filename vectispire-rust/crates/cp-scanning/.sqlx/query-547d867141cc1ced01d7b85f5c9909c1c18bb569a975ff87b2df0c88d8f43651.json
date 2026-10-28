@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id, attempts from t_scan where status = $1 and (lease_expires_at is null or lease_expires_at < $2) order by id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_scan",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "t_scan",
+            "name": "attempts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "547d867141cc1ced01d7b85f5c9909c1c18bb569a975ff87b2df0c88d8f43651"
+}

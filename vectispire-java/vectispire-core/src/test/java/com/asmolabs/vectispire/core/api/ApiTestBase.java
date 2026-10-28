@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.golden.TrafficRecorder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
@@ -108,7 +109,11 @@ abstract class ApiTestBase extends VectispireContextTest {
 
     @BeforeEach
     void buildMockMvc() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
+        // Through the recorder first, so its filter precedes the chain: it returns the builder untouched
+        // unless the golden files are being written (README.md beside TrafficRecorder).
+        mvc = TrafficRecorder.wire(MockMvcBuilders.webAppContextSetup(context), context)
+                .addFilters(securityFilterChain)
+                .build();
         rateLimit.reset();
         bearerRateLimit.reset();
         webhookRateLimit.reset();

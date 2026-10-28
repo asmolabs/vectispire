@@ -1,0 +1,26 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select count(id) as \"count!: i64\" from t_finding where scan_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a641443d6c95416f2a20c677e5611048af396ab990bd39fda1cb29691c86663e"
+}

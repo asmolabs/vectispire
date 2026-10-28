@@ -105,6 +105,46 @@ the release image's signature with cosign before pulling it and stops if that fa
 the network to ghcr.io and Sigstore, and there is no switch to skip it; `FROM_IMAGE` must be a
 digest and comes with its `FROM_TAG`.
 
+## 4b. Rust port — when `vectispire-rust/` changed
+
+```bash
+cd vectispire-rust && ./check.sh
+```
+
+The toolchain is `rust-toolchain.toml`'s. Docker is required: the clone and container suites start
+throwaway `vs-rs-*` containers and fail without a daemon — never skip them. `check.sh` runs fmt, clippy
+with `-D warnings` (and the lints `Cargo.toml` denies), the tests, `cargo deny`, `security/check-unsafe.sh`,
+`security/lint-ceilings.sh`, `cargo vet --locked` and `security/semgrep.sh`; CI's `rust` job runs the same
+steps (`vectispire-rust/security/README.md` lists what each refuses).
+
+**A new dependency is reviewed in three places in the same diff**: its licence in `deny.toml` if it is
+new, its build script in `[bans.build]` if it has one (with what it builds), and an audit or a named
+exemption in `supply-chain/` (`cargo vet` says which is missing). Never `cargo vet regenerate
+exemptions` to make a red run green without reading what it adds. A parser of untrusted input gets a
+fuzz target in `fuzz/` (`fuzz/run.sh 60 <target>` runs it). A ceiling in `security/lint-ceilings.txt` is
+lowered when a use goes away, never raised.
+
+When the image changed: `security/reproducible-image.sh linux/arm64` (or `linux/amd64`, as CI) must say
+`reproducible`.
+
+**The control plane's crates (`cp-*`, `migrate`) are held to the Java side by suites `check.sh` does not run**,
+because they need a JDK 25 and Gradle beside Docker; CI's `rust` and `rust-replay` jobs run them, and so should
+you when you touch those crates or a Flyway migration:
+
+```bash
+cd vectispire-rust
+./crates/migrate/oracle/check-oracle.sh             # the migration runner against the real Flyway, both engines
+./crates/cp-db/scripts/sqlx-prepare.sh check        # every crate's checked-query cache is current (both engines)
+crates/cp-contract/scripts/record-goldens.sh /tmp/vs-recordings    # the Java suite's traffic, recorded
+cargo run -p vectispire-cp-contract -- replay-plan /tmp/vs-recordings
+```
+
+A route ported to the control plane leaves `crates/cp-contract/reference/not-yet-ported.txt` (the list, and its
+ceiling, only shrink) in the same commit — and its recordings are then owed a replay, which `replay-plan` refuses
+to let pass (exit 3). `cp-arch-tests` holds the module edges, the layers, `unsafe`, the agent's isolation and the
+route-authorization rules; a new module crate adds its edges to `crates/cp-arch-tests/data/edges.toml` with their
+reason.
+
 ## 5. Contract — when a route's shape changed
 
 `ClientContractSpecTest` fails with the command. Regenerate, then the client types, and commit both:

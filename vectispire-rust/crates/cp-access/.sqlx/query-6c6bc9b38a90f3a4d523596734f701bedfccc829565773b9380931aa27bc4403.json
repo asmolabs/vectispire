@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_api_key (id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, target_id, expires_at, owner_user_id) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bpchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Timestamptz",
+        "Timestamptz",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6c6bc9b38a90f3a4d523596734f701bedfccc829565773b9380931aa27bc4403"
+}

@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select key, value from t_setting",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_setting",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_setting",
+            "name": "value"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "544512a9abe1b82745b98677865153f5612be9178ec03c7968680f3ea6e90d6e"
+}

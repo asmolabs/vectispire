@@ -1,7 +1,9 @@
 package com.asmolabs.vectispire.core;
 
+import com.asmolabs.vectispire.core.golden.TrafficRecorder;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -21,9 +23,13 @@ import org.springframework.test.context.DynamicPropertySource;
  * MANDATORY}, the audit log writes with {@code REQUIRES_NEW}, and the scan queue deliberately
  * runs outside any transaction. A suite that rewrote those boundaries would be green about
  * behaviour production does not have — which is the one thing worse than no suite.
+ *
+ * <p>The {@link TrafficRecorder.Extension} tells the traffic recorder which test runs; it does nothing
+ * unless {@value TrafficRecorder#PROPERTY} is set (README.md beside the recorder).
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @ActiveProfiles("apitest")
+@ExtendWith(TrafficRecorder.Extension.class)
 public abstract class VectispireContextTest {
 
     /**

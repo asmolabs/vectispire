@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select count(id) as \"count!\" from t_scan where status in ($1, $2) and repo_id = $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5b57d241ef095ebc284636547ff14ebb99212e741b4d449f08ed54bde4fb6c8f"
+}

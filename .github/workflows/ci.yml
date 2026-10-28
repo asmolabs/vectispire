@@ -353,6 +353,14 @@ jobs:
             }
             END { n = 0; for (f in checked) n++; printf "%d Dockerfile(s) read\n", n; exit bad }'
 
+      # **The Rust agent's Dockerfile by name**, besides the directory walk above that already reads it:
+      # it is the one image built from `scratch` with a static binary, and a `--skip-path` widened one
+      # day for the walk must not drop it silently. No file is a red step, not a pass.
+      - name: the Rust agent's Dockerfile, named
+        run: |
+          test -f vectispire-rust/Dockerfile.agent
+          checkov --quiet --compact --framework dockerfile --file vectispire-rust/Dockerfile.agent
+
   # **The Dockerfiles are built on push when what they read moved**, not only by the nightly.
   #
   # `images` builds with Jib, which reads none of these files: on 2026-10-04 both `Dockerfile` and
@@ -1355,3 +1363,243 @@ jobs:
             vectispire-angular/playwright-report/
             vectispire-angular/test-results/
           retention-days: 7
+
+  # **The Rust port — the agent and the control plane's foundations — on any change under `vectispire-rust/`**
+  # (the port is not shipped yet; README.md there). Detected like `engines` and `e2e`: this file is in the list so that a change to the
+  # job runs the job, and a range that cannot be resolved counts as changed.
+  rust-changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      touched: ${{ steps.detect.outputs.touched }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "plage non résoluble — les contrôles Rust sont exécutés par défaut"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Beyond the Rust tree: the migrations the Rust runner must keep reading as Flyway does, and the
+          # recorder whose output the replay reads. (The Java parsers' answers the Rust ones are held to are
+          # read by the `jvm` job's tests from vectispire-rust/reference/, which this job's paths already cover.)
+          RUST_PATHS='^\.github/workflows/ci\.yml$|^vectispire-rust/|^vectispire-java/vectispire-core/src/main/resources/db/migration/|^vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/golden/'
+          changed=$(git diff --name-only "$BASE" HEAD | grep -E "$RUST_PATHS" || true)
+          if [ -n "$changed" ]; then
+            echo "le code Rust a changé — ses contrôles sont exécutés :"
+            echo "$changed"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rien sous vectispire-rust/ n'a changé — ses contrôles ne sont pas exécutés"
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # **Every check the Rust code passes, as separate steps so a red one says which** — the same list as
+  # `vectispire-rust/check.sh`, which is what a developer runs. On the runner rather than in a job
+  # container: the clone and container suites start throwaway containers (vs-rs-*) on its daemon, and
+  # they fail without one rather than skipping (AGENTS.md, "Never skip silently").
+  #
+  # **The toolchain is the one `rust-toolchain.toml` names**, installed by the runner's rustup, which
+  # checks every component against the release's signed manifest — the image's own `stable` is never
+  # used. The two cargo tools are installed `--locked` at a written version: crates.io serves one file
+  # per version, checked against the index's checksum, and the tool's own lockfile decides its graph.
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    needs: [rust-changes]
+    if: needs.rust-changes.outputs.touched == 'true'
+    defaults:
+      run:
+        working-directory: vectispire-rust
+    env:
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history: the migration runner is also held to Flyway on the 0.11.1 line's migrations, which
+          # `crates/migrate/tests/oracle.rs` reads by commit (`git ls-tree`). A shallow clone has no such commit, and
+          # the four `*_on_0111` cases failed with "not in this repository" the first time the step ran here.
+          fetch-depth: 0
+      # A JDK for the suites that run Flyway itself — the migration runner is held to it, and the checked
+      # queries' schema is the one Flyway builds — with the Gradle caches the `jvm` job keeps.
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      - name: the pinned toolchain, and the two supply-chain tools at their versions
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustc --version
+          grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
+            || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
+          cargo install --locked cargo-deny@0.20.2
+          cargo install --locked cargo-vet@0.10.2
+      - name: formatting
+        run: cargo fmt --all -- --check
+      # The lints Cargo.toml denies (unwrap and expect in shipped code, print!, todo!, undocumented
+      # unsafe…) plus every warning, on the tests too.
+      - name: clippy, warnings denied
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: unsafe in its one file
+        run: ./security/check-unsafe.sh
+      - name: the lints that panic on input, at their ceilings
+        run: ./security/lint-ceilings.sh
+      # Includes `crates/agent/tests/isolation.rs`: no database client, server framework or test
+      # support in the agent's resolved graph (decision 0003).
+      - name: tests, with Docker
+        run: cargo test --workspace --locked
+      # **The migration runner against the real Flyway**, both engines: a database Java migrated is validated and
+      # left alone by Rust, one Rust migrated is accepted by Java with the same schema, Java to V89 then Rust then
+      # Java, a Java and a Rust instance starting together (crates/migrate/README.md). Not in `cargo test`: it
+      # needs the JDK above and Gradle's cache.
+      - name: the migration runner, held to Flyway
+        run: ./crates/migrate/oracle/check-oracle.sh
+      # **The checked queries' offline caches** are the committed ones, for both engines: regenerated against
+      # throwaway servers and compared, then compiled offline (crates/cp-db/README.md). One script for every crate
+      # with checked statements — cp-db and each module's persistence, its `crates_with_queries` — each crate's
+      # cache beside it.
+      - name: the queries' caches are current
+        run: ./crates/cp-db/scripts/sqlx-prepare.sh check
+      # **The contract the control plane is held to**: its routes against `openapi.json` in both directions
+      # (a `cargo test` of cp-contract) and what is not yet ported, which only shrinks. The summary is printed
+      # so a run can be read for how far the port is.
+      - name: the contract and what is not yet ported
+        run: cargo run --locked -q -p vectispire-cp-contract -- summary
+      - name: advisories, bans, licences, sources, build scripts (cargo-deny)
+        run: cargo deny --locked check
+      # `--locked`: the audits imported in supply-chain/imports.lock, not today's — a crate not
+      # audited by an imported set nor exempted by name fails.
+      - name: every crate audited or exempted (cargo-vet)
+        run: cargo vet --locked
+      - name: the workspace's own semgrep rules
+        run: ./security/semgrep.sh
+      - if: failure()
+        name: containers left by the suites
+        run: docker ps -a --filter name=vs-rs- --format '{{.Names}} {{.Status}}' || true
+
+  # **The Java suite's HTTP traffic, recorded at this commit and replayed against the Rust control plane.** The
+  # recorder (vectispire-java/…/core/golden/) writes one file per request of every HTTP test; the Rust port
+  # is to answer every one as Java did. Every recording is read (a format that drifted fails), each of a route
+  # not served yet is covered by a line of vectispire-rust/golden/deferred.txt saying why, and each of a served
+  # route is replayed — seed, request, answer and rows — on both engines (`replay-goldens.sh`). The recordings
+  # are generated here, not committed (66 MB, 7,000 files), kept as an artifact for a few days, and scanned: they
+  # carry no credential but the one invented value the export test plants, allowed by name.
+  rust-replay:
+    runs-on: ubuntu-24.04
+    # Recording (~10 min), the build, and the replay on two engines (~10 min).
+    timeout-minutes: 90
+    needs: [rust-changes]
+    if: needs.rust-changes.outputs.touched == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
+      # Two tests are expected to fail under the recorder, and no others (reference/recording-known-failures.txt).
+      - name: the suite, recorded
+        run: vectispire-rust/crates/cp-contract/scripts/record-goldens.sh "$RUNNER_TEMP/goldens"
+      - name: the recordings hold no credential but the one invented value
+        run: |
+          set -eu
+          cp vectispire-rust/security/recordings.gitleaks.toml "$RUNNER_TEMP/recordings.gitleaks.toml"
+          status=0
+          docker run --rm -v "$RUNNER_TEMP/goldens:/recordings:ro" -v "$RUNNER_TEMP/recordings.gitleaks.toml:/gitleaks.toml:ro" \
+            zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --no-git --source=/recordings --config /gitleaks.toml --redact > gitleaks.log 2>&1 || status=$?
+          cat gitleaks.log
+          if grep -q ' ERR ' gitleaks.log; then echo "::error::gitleaks logged an error: the scan cannot be trusted"; exit 1; fi
+          if ! grep -Eq 'scanned ~[0-9]+ bytes' gitleaks.log; then echo "::error::gitleaks scanned nothing"; exit 1; fi
+          [ "$status" -eq 0 ] || { echo "::error::a recording holds a credential the recorder let through"; exit 1; }
+      - name: the pinned toolchain
+        working-directory: vectispire-rust
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
+            || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
+      # The plan (every recording of a route not served covered by golden/deferred.txt), then each served module's
+      # replay on MySQL and PostgreSQL: a recording of a served route replays green on both, or is listed with why.
+      - name: the recordings replayed against the served routes
+        working-directory: vectispire-rust
+        run: crates/cp-contract/scripts/replay-goldens.sh "$RUNNER_TEMP/goldens"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: java-recordings
+          path: ${{ runner.temp }}/goldens
+          retention-days: 3
+
+  # **The Rust agent's image: reproducible, inventoried, scanned.** Built twice from nothing with the
+  # commit's time as SOURCE_DATE_EPOCH, and refused if the two differ (security/reproducible-image.sh);
+  # then once more into the daemon for grype, which finds the crates through what cargo-auditable wrote
+  # into the binary — a static binary otherwise shows no package, and "no vulnerability" would mean
+  # "nothing looked at" (the step refuses a scan that saw fewer packages than the lockfile holds). The
+  # policy is `vulnerabilities`': a fixable high fails, at the digest `ScannerImages` pins.
+  rust-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    needs: [rust-changes]
+    if: needs.rust-changes.outputs.touched == 'true'
+    defaults:
+      run:
+        working-directory: vectispire-rust
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # SOURCE_DATE_EPOCH is the commit's time, read from the history.
+          fetch-depth: 1
+      - name: built twice, the same image
+        run: ./security/reproducible-image.sh linux/amd64
+      - name: the image, for the scans
+        run: docker buildx build --load -f Dockerfile.agent -t vectispire-agent-rs:verify .
+      # The lockfile's view: every crate the agent's build resolves for the image's target, build-time
+      # crates aside. It is the artifact kept; the binary's own list (cargo-auditable) is what the scan
+      # below reads, and the two are compared so that one cannot silently be much shorter than the other.
+      - name: the CycloneDX SBOM of the agent's crates (cargo-cyclonedx)
+        run: |
+          cargo install --locked cargo-cyclonedx@0.5.9
+          cargo cyclonedx --format json --spec-version 1.5 --target x86_64-unknown-linux-musl \
+            --no-build-deps --manifest-path crates/agent/Cargo.toml
+          mv crates/agent/vectispire-agent.cdx.json ../vectispire-agent-rs.cdx.json
+          find crates -name '*.cdx.json' -delete
+      - name: report, then fail on a fixable high — and refuse a scan that saw too few crates
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            scan docker:vectispire-agent-rs:verify -o json > syft.json
+          python3 - <<'PY'
+          import json, sys
+          seen = sum(1 for a in json.load(open("syft.json"))["artifacts"] if a.get("type") == "rust-crate")
+          resolved = len(json.load(open("../vectispire-agent-rs.cdx.json"))["components"])
+          print(f"crates the scanners see in the binary: {seen}; crates the build resolves: {resolved}")
+          # The binary links fewer crates than the lockfile resolves (optional features, the target's
+          # cfgs), never a small fraction of them: that is cargo-auditable's list gone missing.
+          if seen < 0.8 * resolved:
+              print("::error::the scanners see too few crates in the binary: a clean scan would mean nothing")
+              sys.exit(1)
+          PY
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+            vectispire-agent-rs:verify --only-fixed --fail-on high -o table
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-agent-rs
+          path: vectispire-agent-rs.cdx.json
+          retention-days: 30

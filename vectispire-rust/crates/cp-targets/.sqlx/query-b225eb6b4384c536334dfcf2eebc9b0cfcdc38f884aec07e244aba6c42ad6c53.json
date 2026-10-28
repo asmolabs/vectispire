@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select id as \"id: TextUuid\", name, host, username, token, created_at as \"created_at: UtcInstant\" from t_git_token where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: TextUuid",
+        "type_info": "Bpchar",
+        "origin": {
+          "Table": {
+            "table": "t_git_token",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_git_token",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "host",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_git_token",
+            "name": "host"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "username",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_git_token",
+            "name": "username"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "token",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "t_git_token",
+            "name": "token"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at: UtcInstant",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "t_git_token",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "b225eb6b4384c536334dfcf2eebc9b0cfcdc38f884aec07e244aba6c42ad6c53"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_container set registry = ?, image_name = ?, tag = ?, scan_interval_minutes = ?, scan_cron = ?, scan_manual_only = ?, required_agent_label = ?, last_scheduled_scan_at = ?, tier = ?, in_certified_scope = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "bd04b69a0abfadf4ba99de0fd3a3ed9db14fb4280d4200e5ecd2ae05b234b887"
+}

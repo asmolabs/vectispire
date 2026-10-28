@@ -1,0 +1,545 @@
+[ {
+  "hex" : "7f000001",
+  "text" : "127.0.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : true,
+  "global" : false
+}, {
+  "hex" : "7f000002",
+  "text" : "127.0.0.2",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : true,
+  "global" : false
+}, {
+  "hex" : "7fffffff",
+  "text" : "127.255.255.255",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : true,
+  "global" : false
+}, {
+  "hex" : "00000000",
+  "text" : "0.0.0.0",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : true,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "00ffffff",
+  "text" : "0.255.255.255",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : true,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "01000000",
+  "text" : "1.0.0.0",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "0a000001",
+  "text" : "10.0.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "ac100001",
+  "text" : "172.16.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "ac1f0001",
+  "text" : "172.31.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "ac200001",
+  "text" : "172.32.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "c0a80001",
+  "text" : "192.168.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "a9fea9fe",
+  "text" : "169.254.169.254",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "a9fe0001",
+  "text" : "169.254.0.1",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "a9ff0001",
+  "text" : "169.255.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "a9fd0001",
+  "text" : "169.253.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "64400001",
+  "text" : "100.64.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "647f0001",
+  "text" : "100.127.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "64800001",
+  "text" : "100.128.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "646464c8",
+  "text" : "100.100.100.200",
+  "link_local" : false,
+  "metadata" : true,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "c00000c0",
+  "text" : "192.0.0.192",
+  "link_local" : false,
+  "metadata" : true,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "c0000001",
+  "text" : "192.0.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "c0000201",
+  "text" : "192.0.2.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "a83f8110",
+  "text" : "168.63.129.16",
+  "link_local" : false,
+  "metadata" : true,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "c6120001",
+  "text" : "198.18.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "c6130001",
+  "text" : "198.19.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "c6140001",
+  "text" : "198.20.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "c6336401",
+  "text" : "198.51.100.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "c6336501",
+  "text" : "198.51.101.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "cb007101",
+  "text" : "203.0.113.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "cb000001",
+  "text" : "203.0.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "e0000001",
+  "text" : "224.0.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "f0000001",
+  "text" : "240.0.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "ffffffff",
+  "text" : "255.255.255.255",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "08080808",
+  "text" : "8.8.8.8",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "5db8d822",
+  "text" : "93.184.216.34",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "00000000000000000000000000000000",
+  "text" : "0:0:0:0:0:0:0:0",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : true,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "00000000000000000000000000000001",
+  "text" : "0:0:0:0:0:0:0:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : true,
+  "global" : false
+}, {
+  "hex" : "00000000000000000000000000000002",
+  "text" : "0:0:0:0:0:0:0:2",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : true,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "0000000000000000000000000a000001",
+  "text" : "0:0:0:0:0:0:a00:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "00000000000000000000ffff7f000001",
+  "text" : "127.0.0.1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : true,
+  "global" : false
+}, {
+  "hex" : "00000000000000000000ffffa9fea9fe",
+  "text" : "169.254.169.254",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "00000000000000000000ffff08080808",
+  "text" : "8.8.8.8",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "00000000000000000000ffff00000000",
+  "text" : "0.0.0.0",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : true,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "00000000000000000000ffff0000ffff",
+  "text" : "0.0.255.255",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : true,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "0064ff9b0000000000000000a9fea9fe",
+  "text" : "64:ff9b:0:0:0:0:a9fe:a9fe",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "0064ff9b00000000000000007f000001",
+  "text" : "64:ff9b:0:0:0:0:7f00:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : true,
+  "global" : false
+}, {
+  "hex" : "0064ff9b000000000000000008080808",
+  "text" : "64:ff9b:0:0:0:0:808:808",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "0064ff9b0001000000000000a9fea9fe",
+  "text" : "64:ff9b:1:0:0:0:a9fe:a9fe",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "0064ff9b0001000000000000c0a80001",
+  "text" : "64:ff9b:1:0:0:0:c0a8:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "2002a9fea9fe00000000000000000000",
+  "text" : "2002:a9fe:a9fe:0:0:0:0:0",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "20027f00000100000000000000000000",
+  "text" : "2002:7f00:1:0:0:0:0:0",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : true,
+  "global" : false
+}, {
+  "hex" : "20020808080800000000000000000000",
+  "text" : "2002:808:808:0:0:0:0:0",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "200100000000000000000000563e5601",
+  "text" : "2001:0:0:0:0:0:563e:5601",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "20010000000000000000000058c156fe",
+  "text" : "2001:0:0:0:0:0:58c1:56fe",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "200100000000000000000000f6c15ffe",
+  "text" : "2001:0:0:0:0:0:f6c1:5ffe",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "fe800000000000000000000000000001",
+  "text" : "fe80:0:0:0:0:0:0:1",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "febf0000000000000000000000000001",
+  "text" : "febf:0:0:0:0:0:0:1",
+  "link_local" : true,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "fec00000000000000000000000000001",
+  "text" : "fec0:0:0:0:0:0:0:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "fc000000000000000000000000000001",
+  "text" : "fc00:0:0:0:0:0:0:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "fd123456789a0000000000000000abcd",
+  "text" : "fd12:3456:789a:0:0:0:0:abcd",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "fd000ec2000000000000000000000254",
+  "text" : "fd00:ec2:0:0:0:0:0:254",
+  "link_local" : false,
+  "metadata" : true,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "fd000ec2000000000000000000000255",
+  "text" : "fd00:ec2:0:0:0:0:0:255",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "20010db8000000000000000000000001",
+  "text" : "2001:db8:0:0:0:0:0:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "20010db7000000000000000000000001",
+  "text" : "2001:db7:0:0:0:0:0:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "ff020000000000000000000000000001",
+  "text" : "ff02:0:0:0:0:0:0:1",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "26064700000000000000000000001111",
+  "text" : "2606:4700:0:0:0:0:0:1111",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+}, {
+  "hex" : "20010db8ffffffffffffffffffffffff",
+  "text" : "2001:db8:ffff:ffff:ffff:ffff:ffff:ffff",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : false
+}, {
+  "hex" : "3fffffffffffffffffffffffffffffff",
+  "text" : "3fff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+  "link_local" : false,
+  "metadata" : false,
+  "unspecified" : false,
+  "loopback" : false,
+  "global" : true
+} ]

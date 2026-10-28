@@ -1,0 +1,211 @@
+[ {
+  "case" : "the hash itself",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "null password",
+  "candidate" : null,
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "null hash",
+  "candidate" : "an invented passphrase",
+  "phc" : null,
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "empty hash",
+  "candidate" : "an invented passphrase",
+  "phc" : "",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "blank hash",
+  "candidate" : "an invented passphrase",
+  "phc" : " \t\n",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "one trailing dollar",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4$",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "three trailing dollars",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4$$$",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "an extra part",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4$extra",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "no leading dollar",
+  "candidate" : "an invented passphrase",
+  "phc" : "argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "argon2i",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2i$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "upper-case algorithm",
+  "candidate" : "an invented passphrase",
+  "phc" : "$ARGON2ID$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "version 16, not read",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=16$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "no version",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "parameters reordered",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$t=2,p=1,m=19456$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "plus sign",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=+19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "leading zeros",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=019456,t=02,p=01$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "a parameter twice, first wins",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,m=1,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "missing t",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "t not a number",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=two,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "m overflows int",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=2147483648,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "a space before m",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$ m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "t zero",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=0,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "throws IllegalStateException",
+  "needsRehash" : true
+}, {
+  "case" : "p zero",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=0$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "throws IllegalStateException",
+  "needsRehash" : false
+}, {
+  "case" : "m below 8 lanes",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=4,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "m negative",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=-1,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : true
+}, {
+  "case" : "another memory cost",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19457,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "salt padded",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA==$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "digest padded",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4=",
+  "verify" : "true",
+  "needsRehash" : false
+}, {
+  "case" : "url-safe alphabet",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo_yX7aF41WA$BdVdE9--riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "salt with a space",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLk Ye7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "salt one character short",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$PLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "salt cut to 8 characters",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7L$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "digest cut to 16 bytes",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVkt",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "empty salt",
+  "candidate" : "an invented passphrase",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+}, {
+  "case" : "empty password against its hash",
+  "candidate" : "",
+  "phc" : "$argon2id$v=19$m=19456,t=2,p=1$fPLkYe7Ldgfo/yX7aF41WA$BdVdE9++riawHwGDkKqVktgmkqrTD1F8LzkASEMEJi4",
+  "verify" : "false",
+  "needsRehash" : false
+} ]

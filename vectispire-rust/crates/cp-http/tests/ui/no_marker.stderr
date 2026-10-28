@@ -1,0 +1,7 @@
+error[E0599]: no method named `handler` found for struct `RouteSpec<Unset, Declared>` in the current scope
+ --> tests/ui/no_marker.rs:7:48
+  |
+7 |     let _ = Route::get("/x").names_no_target().handler(handler);
+  |                                                ^^^^^^^ method not found in `RouteSpec<Unset, Declared>`
+  |
+  = note: the method was found for `RouteSpec<Declared, Declared>`

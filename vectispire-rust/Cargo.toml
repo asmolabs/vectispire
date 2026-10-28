@@ -1,0 +1,133 @@
+# The Rust port of the remote agent — in progress, not shipped (see README.md).
+#
+# **The workspace holds the agent and nothing of the control plane.** That is decision 0003's
+# property restated for Cargo: no crate here can reach a database or `ENCRYPTION_KEY`, because no
+# crate here depends on one — `deny.toml` bans the drivers and `crates/agent/tests/isolation.rs`
+# reads the resolved graph to prove it.
+[workspace]
+resolver = "3"
+# fuzz/ is a workspace of its own, on a nightly compiler: none of it ships (fuzz/Cargo.toml).
+exclude = ["fuzz"]
+members = ["crates/agent", "crates/domain", "crates/container", "crates/git", "crates/crypto", "crates/protocol", "crates/runner", "crates/scanners", "crates/testkit", "crates/tls", "crates/migrate", "crates/cp-db", "crates/cp-http", "crates/cp-contract", "crates/cp-outbound", "crates/cp-runtime", "crates/cp-app", "crates/cp-arch-tests", "crates/cp-audit", "crates/cp-settings", "crates/cp-platform", "crates/cp-access", "crates/cp-maintenance", "crates/cp-crypto", "crates/cp-outbox", "crates/cp-targets", "crates/cp-scanning", "crates/cp-agents", "crates/cp-rules", "crates/cp-inventory", "crates/cp-issues", "crates/cp-gate"]
+
+[workspace.package]
+version = "0.12.0-dev"
+edition = "2024"
+rust-version = "1.99"
+license = "Apache-2.0"
+publish = false
+
+[workspace.lints.rust]
+# Denied, not forbidden: libgit2's global options and transport registry are reached through two
+# `unsafe` calls, each allowed where it is made, with the reason beside it (crates/git/src/init.rs).
+unsafe_code = "deny"
+# An `unsafe fn`'s body is not one big unsafe block: each operation in it is marked and justified.
+unsafe_op_in_unsafe_fn = "deny"
+missing_debug_implementations = "warn"
+
+# **Denied, not warned**: `check.sh` and CI run clippy with `-D warnings`, so a warning already fails —
+# but a lint at `deny` also fails a plain `cargo build`, where nobody passes the flag. The set is what
+# matters for an agent that reads hostile input and holds credentials (security/README.md):
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+# A panic on a scanner's output ends that scan: on input the agent does not control, an unwrap is a
+# denial of service waiting for its report. Tests may: clippy.toml allows them there.
+unwrap_used = "deny"
+expect_used = "deny"
+# Unfinished code does not ship: `todo!()` is a panic with a plan.
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+# The agent writes through `tracing`, whose fields are typed — a `println!` of a request, a credential
+# or a scanner's stderr would bypass the one place that knows what a `Secret` is.
+print_stdout = "deny"
+print_stderr = "deny"
+# The libgit2 calls in crates/git/src/init.rs are the only `unsafe`; each says why it is sound.
+undocumented_unsafe_blocks = "deny"
+mem_forget = "deny"
+# Indexing, slicing (of a `str` too, which panics inside a character) and arithmetic are not denied:
+# the URL and known-hosts parsers use them on bounds they check first, and rewriting them is the
+# owning stream's work. They are held to a ceiling that only goes down (security/lint-ceilings.txt),
+# and the parsers that carry them are fuzzed every night (fuzz/).
+
+[workspace.dependencies]
+# The control plane's crates (Phase 0 of docs/analysis/…_rust_control_plane_port_plan): they live in the same
+# workspace as the agent, and the agent's graph never reaches them — deny.toml's `wrappers` say who may link
+# the server stack, and crates/agent/tests/isolation.rs proves the agent does not.
+vectispire-cp-http = { path = "crates/cp-http" }
+vectispire-cp-rules = { path = "crates/cp-rules" }
+vectispire-cp-inventory = { path = "crates/cp-inventory" }
+vectispire-cp-issues = { path = "crates/cp-issues" }
+vectispire-cp-gate = { path = "crates/cp-gate" }
+vectispire-domain = { path = "crates/domain" }
+vectispire-crypto = { path = "crates/crypto" }
+vectispire-git = { path = "crates/git" }
+vectispire-container = { path = "crates/container" }
+vectispire-scanners = { path = "crates/scanners" }
+vectispire-protocol = { path = "crates/protocol" }
+vectispire-runner = { path = "crates/runner" }
+vectispire-tls = { path = "crates/tls" }
+
+aes-gcm = "0.10"
+base64 = "0.22"
+bollard = { version = "0.19", default-features = false, features = ["http", "pipe"] }
+ed25519-dalek = "2"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+git2 = { version = "0.21", default-features = false, features = ["ssh", "vendored-libgit2", "vendored-openssl"] }
+hkdf = "0.12"
+hmac = "0.12"
+rand_core = { version = "0.6", features = ["getrandom"] }
+regex = { version = "1", default-features = false, features = ["std", "unicode-perl"] }
+# `fcntl` record locks, the ones Java's `FileChannel.lock` takes: the vulnerability database's lock has
+# to exclude a Java agent on the same cache directory, and an `flock` lock would not.
+rustix = { version = "1", default-features = false, features = ["std", "fs"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+# `preserve_order`, for the whole workspace: Jackson keeps an object's members in document order. A
+# parser iterating an object's values (checkov's `failed_checks` written as one) reads them in that
+# order, and the SBOM the agent forwards keeps the cataloguer's member order. Cargo unifies features
+# across one binary anyway, so a crate-level switch would have applied everywhere without saying so.
+serde_json = { version = "1", features = ["preserve_order"] }
+sha1 = "0.10"
+sha2 = "0.10"
+# Parsing only — ECDSA needs its curves to be read; no `rsa` feature, which would link a crate with an open timing advisory
+# (RUSTSEC-2023-0071) for nothing, since libssh2 does the signing.
+ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ecdsa", "p256", "p384", "p521"] }
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal", "net", "io-util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "json", "env-filter", "std"] }
+uuid = "1"
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query"] }
+bytes = "1"
+http = "1"
+http-body = "1"
+http-body-util = "0.1"
+httpdate = "1"
+ipnet = "2"
+percent-encoding = "2"
+subtle = "2"
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tower-http = { version = "0.6", default-features = false, features = ["fs"] }
+trybuild = "1"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+
+# scrypt at N = 2^15 is a hundred milliseconds optimised and seconds without: the tests derive a passphrase
+# key a few dozen times, and only these two crates' loops are worth compiling for speed.
+[profile.dev.package.scrypt]
+opt-level = 3
+[profile.dev.package.salsa20]
+opt-level = 3
+
+[profile.release]
+# Small and reproducible rather than fast to build: the binary is what an agent host pulls. Unwinding
+# stays on: one scan's panic must end that scan, not every other scan the agent is running.
+codegen-units = 1
+lto = "fat"
+opt-level = "s"
+strip = "symbols"
+# **An overflow panics in the shipped binary too**, rather than wrapping. Release builds wrap by
+# default, and a length or an offset computed from a scanner's output that wraps is a wrong answer
+# given silently; a panic ends that one scan, which reports a failure — absent, never wrong.
+overflow-checks = true

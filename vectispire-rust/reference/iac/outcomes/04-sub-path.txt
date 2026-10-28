@@ -1,0 +1,2 @@
+findings
+[{"checkId":"CKV_AWS_189","checkName":"Ensure EBS Volume is encrypted by KMS using a customer managed Key (CMK)","file":"main.tf","line":1,"guideline":null,"resource":"aws_ebs_volume.data"},{"checkId":"CKV_AWS_3","checkName":"Ensure all data stored in the EBS is securely encrypted","file":"main.tf","line":1,"guideline":null,"resource":"aws_ebs_volume.data"}]

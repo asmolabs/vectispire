@@ -1,0 +1,1 @@
+{"results": {"failed_checks": [{"check_id": "CKV_1", "check_name": "raw	tab", "file_path": "/a.tf"}]}}

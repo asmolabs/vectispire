@@ -42,7 +42,10 @@ class AgentResultAttestationTest extends ApiTestBase {
     private Enrolled declareAgent() throws Exception {
         String body = mvc.perform(authenticated(post("/api/v1/admin/agents"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"scanner-" + System.nanoTime() + "\"}"))
+                        // Fifteen digits, whatever the machine's uptime: the audit text naming the agent is cut at its column's
+                        // length, and a nanoTime as long as the uptime made the cut — and the recording the Rust
+                        // control plane is replayed against, which mints fifteen-digit numbers — move with it.
+                        .content("{\"name\":\"scanner-" + String.format("%015d", System.nanoTime() % 1_000_000_000_000_000L) + "\"}"))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()

@@ -96,6 +96,27 @@ not mean portability was checked** — a service that hands an existing query ne
 touches none of the engine paths, and a renamed response field touches no front-end file. Those are the nightly's, and a
 release should not go out on a nightly that has not been green.
 
+**The Rust port (`vectispire-rust/`, not shipped — the agent, and the control plane's foundations) has jobs
+of its own, run when anything under it, `ci.yml`, a Flyway migration or the Java traffic recorder changed**
+(`rust-changes`, a range that cannot be resolved counting as changed). `rust` runs
+fmt, clippy with `-D warnings` over the lints `Cargo.toml` denies (`unwrap`/`expect` and `print!` in
+shipped code, undocumented `unsafe`), `security/check-unsafe.sh` (`unsafe` in `crates/git/src/init.rs`
+only), `security/lint-ceilings.sh` (indexing, slicing and unchecked arithmetic held to counts that only
+go down), the tests with Docker — the isolation test among them —, `cargo deny` (advisories, bans,
+licences, crates.io only, no new duplicate, **build scripts only for the crates listed**), `cargo vet
+--locked` (every crate audited by an imported set or exempted by name) and semgrep with the workspace's
+own rules — and, with a JDK, the suites that hold the port to the Java side: `vectispire-migrate` against the
+real Flyway in both directions on both engines (`crates/migrate/oracle/check-oracle.sh`), the checked queries'
+offline caches regenerated and compared (`crates/cp-db/scripts/sqlx-prepare.sh check`), and the contract summary.
+`rust-replay` records the Java suite's HTTP traffic at the commit (`crates/cp-contract/scripts/record-goldens.sh`:
+two tests are expected to fail under the recorder, and no others), scans the recordings for credentials, and
+reads them with `cp-contract replay-plan` — a recording of a route that has left the list of routes not yet
+ported, with nothing replaying it, fails the step. `rust-image` builds the image twice from nothing and refuses two different digests, writes
+the CycloneDX SBOM, and runs grype on the image at `ScannerImages`' digest — refusing a scan that saw
+too few crates, since a static binary shows none without cargo-auditable's list. The nightly's
+`rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each
+check refuses and how it was proved is in `vectispire-rust/security/README.md`.
+
 A **`v*` tag** runs the `release` workflow in two jobs. `build` validates the Gradle wrapper, runs
 `./gradlew build`, builds the interface, the jar and the three images as archives, and hands them over
 with their checksums — holding **no permission but reading the repository**, since it executes every
@@ -116,16 +137,19 @@ first tag and not after.
 
 ## Agents and skills
 
-Three agents and two skills live in [`.claude/`](.claude/), tracked with the code so the rules they
+Four agents and four skills live in [`.claude/`](.claude/), tracked with the code so the rules they
 carry move with it:
 
 | | Use it for |
 |---|---|
 | [`jvm-porter`](.claude/agents/jvm-porter.md) | any change to the control plane or the agent in `vectispire-java/` |
 | [`angular-frontend`](.claude/agents/angular-frontend.md) | any change to `vectispire-angular/` — screens, API clients, tests, Playwright |
+| [`rust-porter`](.claude/agents/rust-porter.md) | any change to the Rust port in `vectispire-rust/` — the invariants it keeps identical to the Java side, and its security checks |
 | [`security-reviewer`](.claude/agents/security-reviewer.md) | a read-only review of one security area or of a diff |
 | [`quality-gate`](.claude/skills/quality-gate/SKILL.md) | the checks a change passes before it is committed and pushed, and the develop → CI → main flow |
 | [`security-audit`](.claude/skills/security-audit/SKILL.md) | a four-area review in parallel, verified and deduplicated into one ranked report |
+| [`port-module`](.claude/skills/port-module/SKILL.md) | porting one module or task of the Java control plane to Rust, end to end — placement, the parity rules the replay keeps catching, persistence, wiring, delivery |
+| [`golden-replay`](.claude/skills/golden-replay/SKILL.md) | bringing ported routes to green against the Java suite's recorded traffic, and shrinking `golden/deferred.txt` without weakening it |
 
 Each carries the defects already made here, so that the next change does not make them again. When a
 new class of defect is found, add it to the agent or skill that should have caught it.

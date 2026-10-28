@@ -1,0 +1,10 @@
+# lint                    agent  control-plane   — counted by security/lint-ceilings.sh over --lib --bins
+# Two scopes, each held to its own count: the agent's crates, and the control plane's (crates/cp-*, crates/migrate).
+# Lower a ceiling in the commit that removes a use; never raise one to make the check pass.
+#
+# Measured 2026-10-16 on the integrated branch. The agent's column is higher than the 29/7/44/9 it was first
+# set at: the protocol, dependency and IaC/SAST streams landed after that count and added their parsers.
+indexing_slicing          34     50     # agent: domain/repository_url.rs, git/known_hosts.rs; cp: arch-tests, migrate, outbound
+string_slice              11     63     # agent: domain/repository_url.rs; cp: outbound's URL reading, migrate's SQL scanning
+arithmetic_side_effects   75     118    # offsets in the parsers; release builds panic on overflow
+cast_possible_truncation  10     3      # agent: scanners/jackson.rs (Jackson's number model), net.rs, testkit

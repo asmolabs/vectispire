@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select s.id from t_scan s where (s.container_id is not null and s.container_id not in (select c.id from t_container c)) or (s.repo_id is not null and s.repo_id not in (select r.id from t_repository r)) order by s.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_scan",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9ddeddde46998fd3b78a2462bc3fd4ad0ff0f3bd06baa0339706a2c925a37534"
+}

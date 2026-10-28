@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_scan (status, created_at, repo_id, container_id, branch, sub_path, required_agent_label, not_before, findings_count, new_issues_count, resolved_issues_count, attempts) values ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0, 0) returning id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "t_scan",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Timestamptz",
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "aed879cec2d84132e12ffdaa46279a7f43b9b68ddf778419159d2fdbe4cf8b5f"
+}

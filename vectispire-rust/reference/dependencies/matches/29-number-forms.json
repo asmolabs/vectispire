@@ -1,0 +1,1 @@
+{"matches": [{"vulnerability": {"id": 1E2}, "artifact": {"name": 0.1, "version": 1e-7}}, {"vulnerability": {"id": 12345678.9}, "artifact": {"name": -5, "version": 1.0}}, {"vulnerability": {"id": 2.5e-3}, "artifact": {"name": 1e7, "version": 9999999.0}}, {"vulnerability": {"id": 0.30000000000000004}, "artifact": {"name": 123456789012345678, "version": -9223372036854775808}}]}

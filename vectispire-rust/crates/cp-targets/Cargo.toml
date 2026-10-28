@@ -1,0 +1,54 @@
+[package]
+name = "vectispire-cp-targets"
+description = "The control plane's targets module: solutions, projects, repositories and container images, their clone credentials, schedules, identity and duplicates, the two routes' families, and a target's deletion with the purge every owner of its rows runs."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Each engine's checked statements are a feature, as in cp-db: the offline cache (`.sqlx/`) is generated one engine at
+# a time against a server of that engine (crates/cp-db/scripts/sqlx-prepare.sh cp-targets). Both are on in every build.
+default = ["mysql-queries", "postgres-queries"]
+mysql-queries = []
+postgres-queries = []
+
+[dependencies]
+axum.workspace = true
+http.workspace = true
+percent-encoding.workspace = true
+regex.workspace = true
+# `Order` for the visible selects; the statements themselves are cp-db's `VisibleSelect`.
+sea-query = { version = "1", default-features = false, features = ["backend-mysql", "backend-postgres"] }
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+vectispire-cp-access = { path = "../cp-access" }
+vectispire-cp-audit = { path = "../cp-audit" }
+vectispire-cp-crypto = { path = "../cp-crypto" }
+# Without its default features, as cp-access: a cache pass for one engine must not compile cp-db's statements of the
+# other against it. A workspace build turns them on anyway.
+vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-cp-http.workspace = true
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
+vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-domain.workspace = true
+
+[dev-dependencies]
+http-body-util.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
+tower.workspace = true
+# The router held to the contract it serves (tests/contract.rs).
+vectispire-cp-contract = { path = "../cp-contract" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-migrate = { path = "../migrate" }
+vectispire-testkit = { path = "../testkit" }
+vectispire-tls.workspace = true
+
+[lints]
+workspace = true

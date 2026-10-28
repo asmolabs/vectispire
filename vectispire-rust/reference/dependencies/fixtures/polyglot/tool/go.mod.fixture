@@ -1,0 +1,8 @@
+module example.org/tool
+
+go 1.16
+
+require (
+	golang.org/x/text v0.3.5
+	golang.org/x/net v0.0.0-20230105222935-3f7f9a6e1f0d
+)

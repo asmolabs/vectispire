@@ -1,0 +1,39 @@
+[package]
+name = "vectispire-cp-contract"
+description = "The control plane's contract kept identical: its routes and schemas against openapi.json, and recorded Java traffic replayed against it."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# The one place besides the control plane's own crates that links a server framework: the agent's
+# graph must not, and deny.toml names who may (see its `axum` ban).
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+http = "1"
+# Schemas are resolved inside the one embedded document: no `resolve-http`, no `resolve-file`, so a
+# `$ref` can never make the check reach for the network or the disk.
+jsonschema = { version = "0.59", default-features = false }
+regex.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# The replay of the recorder's goldens (`recorded`) seeds and reads every table on both engines: the statements are
+# built at run time from the schema the database reports, so none of them can be a checked `query!`.
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "time"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["std"] }
+tokio.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+# Infrastructure under infrastructure (`edges.toml`: the contract uses no module): the pool and the engine.
+vectispire-cp-db = { path = "../cp-db", default-features = false }
+vectispire-domain.workspace = true
+tower = { version = "0.5", default-features = false, features = ["util"] }
+
+[dev-dependencies]
+# The recorded-format tests mint session hashes as cp-access does: SHA-256 hex.
+sha2.workspace = true
+
+[lints]
+workspace = true

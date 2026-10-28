@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_finding (\n                    scan_id, issue_id, type, source, tool, tool_name, tool_version,\n                    identifier, severity, package_name, package_version, purl, file_path, line,\n                    is_direct_dependency, owasp_category, epss_score, cvss_score, cvss_vector,\n                    fix_state, fix_versions, link, is_kev, description, created_at, reachability\n                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNKNOWN')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 25
+    },
+    "nullable": []
+  },
+  "hash": "c4d4217f38248f1e981eac00598cfded6d4797c0e8bacb72d6c023ddf1077eb0"
+}

@@ -1,0 +1,1 @@
+{"matches": [{"vulnerability": {"id": "CVE-FIRST"}}], "matches": [{"vulnerability": {"id": "CVE-2026-0005", "id": "CVE-2026-0006", "severity": "Low", "severity": "High"}, "artifact": {"name": "a", "name": "b"}}]}

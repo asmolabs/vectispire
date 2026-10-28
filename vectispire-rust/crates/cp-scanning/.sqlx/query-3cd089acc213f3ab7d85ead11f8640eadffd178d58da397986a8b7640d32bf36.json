@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_scan set status = ?, error = null, claimed_by = null, claimed_at = null, lease_expires_at = null, not_before = null, attempts = case when attempts > 0 then attempts - 1 else 0 end where id = ? and status = ? and claimed_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "3cd089acc213f3ab7d85ead11f8640eadffd178d58da397986a8b7640d32bf36"
+}

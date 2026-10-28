@@ -1,0 +1,1 @@
+{"matches": [{"vulnerability": {"id": "CVE-2026-0007", "description": "ctl\u0001\u001f\u007f tab\there nl\n cr\r q\" bs\\ sl\/ ls\u2028 \u00e9 \ud83d\ude00 raw-é-😀", "dataSource": "https://example.org/a?b=1&c=<d>"}, "artifact": {"name": "@scope/pk\u00e9", "version": "1.0.0-r\u00e9", "purl": "pkg:npm/%40scope/pk%C3%A9@1.0.0?arch=x86_64&distro=alpine-3.12#sub/path"}}]}

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_outbox_message set attempts = $1, last_error = $2, status = $3, next_attempt_at = $4 where id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Varchar",
+        "Timestamptz",
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3b2c0603c411805e9f1cd5141796b8fb07ee4b684b0d128b5b7da275906f1b96"
+}

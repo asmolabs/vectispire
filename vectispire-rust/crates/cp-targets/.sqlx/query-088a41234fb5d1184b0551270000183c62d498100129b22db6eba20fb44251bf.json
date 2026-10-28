@@ -1,0 +1,43 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select ssh_key_id as \"key!: TextUuid\", count(id) as \"count!: i64\" from t_repository where ssh_key_id is not null group by ssh_key_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key!: TextUuid",
+        "type_info": {
+          "type": "String",
+          "flags": "MULTIPLE_KEY",
+          "collation": 255,
+          "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_repository",
+            "name": "ssh_key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "count!: i64",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "collation": 63,
+          "max_size": 21
+        },
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "088a41234fb5d1184b0551270000183c62d498100129b22db6eba20fb44251bf"
+}

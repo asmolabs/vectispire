@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_scan set status = $1, error = $2, claimed_by = null, claimed_at = null, lease_expires_at = null, not_before = $3 where id = $4 and status = $5 and (lease_expires_at is null or lease_expires_at < $6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "137f3b5d36242977d93fdb08cdfc2fd788bdbf0cc395a04f08f6ba963fd10164"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_outbox_message set next_attempt_at = ? where id = ? and status = ? and (next_attempt_at is null or next_attempt_at <= ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "ed94d91882217b2bc43291f1526d3dd74cbf51606ec29e54cbb1076c107535b8"
+}

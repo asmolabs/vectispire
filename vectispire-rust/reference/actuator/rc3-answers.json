@@ -1,0 +1,69 @@
+{
+ "recorded_from": "ghcr.io/asmolabs/vectispire@sha256:453aedcefc981ff9e91298c38db74138b027f5b1cac5e284fa889d1e264e1d46 (0.11.0-rc.3), started with VECTISPIRE_EMBEDDED_WORKER=false on a throwaway MySQL 8.4, read on 2026-10-16 by an administrator's session (the anonymous routes without one); host http://localhost:3180",
+ "not_recorded": "/actuator/metrics (the list: it holds the JVM's, Hikari's and Spring's meters, which this binary does not have) and the Content-Disposition header Spring adds to a metric whose path ends in a dotted name (the HTTP stack's)",
+ "base_url": "http://localhost:3180",
+ "build": {
+  "artifact": "vectispire-core",
+  "name": "vectispire-core",
+  "version": "0.11.0-rc.3",
+  "group": "vectispire"
+ },
+ "cases": [
+  {
+   "path": "/actuator/health",
+   "query": "",
+   "status": 200,
+   "content_type": "application/vnd.spring-boot.actuator.v3+json",
+   "body": "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}"
+  },
+  {
+   "path": "/actuator/health/liveness",
+   "query": "",
+   "status": 200,
+   "content_type": "application/vnd.spring-boot.actuator.v3+json",
+   "body": "{\"status\":\"UP\"}"
+  },
+  {
+   "path": "/actuator/health/readiness",
+   "query": "",
+   "status": 200,
+   "content_type": "application/vnd.spring-boot.actuator.v3+json",
+   "body": "{\"status\":\"UP\"}"
+  },
+  {
+   "path": "/actuator/health/nope",
+   "query": "",
+   "status": 404,
+   "content_type": null,
+   "body": ""
+  },
+  {
+   "path": "/actuator",
+   "query": "",
+   "status": 200,
+   "content_type": "application/vnd.spring-boot.actuator.v3+json",
+   "body": "{\"_links\":{\"self\":{\"href\":\"http://localhost:3180/actuator\",\"templated\":false},\"info\":{\"href\":\"http://localhost:3180/actuator/info\",\"templated\":false},\"health-path\":{\"href\":\"http://localhost:3180/actuator/health/{*path}\",\"templated\":true},\"health\":{\"href\":\"http://localhost:3180/actuator/health\",\"templated\":false},\"metrics\":{\"href\":\"http://localhost:3180/actuator/metrics\",\"templated\":false},\"metrics-requiredMetricName\":{\"href\":\"http://localhost:3180/actuator/metrics/{requiredMetricName}\",\"templated\":true}}}"
+  },
+  {
+   "path": "/actuator/info",
+   "query": "",
+   "status": 200,
+   "content_type": "application/vnd.spring-boot.actuator.v3+json",
+   "body": "{\"build\":{\"artifact\":\"vectispire-core\",\"name\":\"vectispire-core\",\"version\":\"0.11.0-rc.3\",\"group\":\"vectispire\"}}"
+  },
+  {
+   "path": "/actuator/metrics/vectispire.scans.queued",
+   "query": "",
+   "status": 200,
+   "content_type": "application/vnd.spring-boot.actuator.v3+json",
+   "body": "{\"availableTags\":[{\"tag\":\"application\",\"values\":[\"vectispire\"]}],\"description\":\"Scans waiting for a worker or an agent to claim them\",\"measurements\":[{\"statistic\":\"VALUE\",\"value\":0.0}],\"name\":\"vectispire.scans.queued\"}"
+  },
+  {
+   "path": "/actuator/metrics/nope",
+   "query": "",
+   "status": 404,
+   "content_type": null,
+   "body": ""
+  }
+ ]
+}

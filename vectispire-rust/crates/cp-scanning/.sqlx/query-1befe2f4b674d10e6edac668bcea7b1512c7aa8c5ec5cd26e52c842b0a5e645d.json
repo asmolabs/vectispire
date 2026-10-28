@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ select required_agent_label as \"label!\", count(id) as \"count!\" from t_scan where status = $1 and required_agent_label is not null group by required_agent_label order by required_agent_label",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "label!",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "t_scan",
+            "name": "required_agent_label"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "1befe2f4b674d10e6edac668bcea7b1512c7aa8c5ec5cd26e52c842b0a5e645d"
+}
