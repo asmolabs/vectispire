@@ -19,7 +19,8 @@ import {
 } from '@/app/core/testing/checklists.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 import { PLUGIN, SOURCE } from '@/app/core/testing/plugins.fixtures';
-import { ChecklistTemplates, ruleChangesOf } from './checklist-templates';
+import { ChecklistTemplates } from './checklist-templates';
+import { ruleChangesOf } from './templates-model';
 
 /**
  * Binding the rule a template line is measured by (decision 0032 §6), through the DOM.

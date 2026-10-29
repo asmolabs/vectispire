@@ -1,0 +1,78 @@
+@if (page.preview(); as current) {
+    <!-- The sheet as the reader sees it, with the layout on screen drawn over it. -->
+    <h3 class="text-base font-semibold mb-2">{{ 'checklist_templates.sheet_title' | translate }}</h3>
+    <div class="flex flex-wrap items-center gap-3 mb-2">
+        <label for="checklist-sheet" class="font-medium text-sm">{{
+            'checklist_templates.field_sheet' | translate
+        }}</label>
+        <p-select
+            inputId="checklist-sheet"
+            [options]="sheetOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="current.sheet"
+            (ngModelChange)="page.showSheet($event)"
+            appendTo="body"
+        />
+        @if (current.proposal.columnHeaderRow !== null) {
+            <span class="text-sm text-muted-color" data-testid="column-header-row">
+                {{ 'checklist_templates.column_header_row' | translate: { row: current.proposal.columnHeaderRow } }}
+            </span>
+        }
+    </div>
+    <p class="text-xs text-muted-color mt-0">{{ 'checklist_templates.grid_legend' | translate }}</p>
+    @if (current.cellsTruncated) {
+        <p-message severity="info" [closable]="false" styleClass="mb-2 w-full">
+            {{ 'checklist_templates.cells_truncated' | translate }}
+        </p-message>
+    }
+    <div class="overflow-auto max-h-[28rem] border border-surface rounded-border mb-4">
+        <table class="text-xs border-collapse" data-testid="sheet-grid">
+            <caption class="sr-only">
+                {{
+                    'checklist_templates.grid_caption' | translate: { sheet: current.sheet }
+                }}
+            </caption>
+            <thead class="sticky top-0 bg-surface-100 dark:bg-surface-800">
+                <tr>
+                    <th scope="col" class="px-2 py-1 border border-surface"></th>
+                    @for (head of heads(); track head.letters) {
+                        <th
+                            scope="col"
+                            class="px-2 py-1 border border-surface text-left whitespace-nowrap"
+                            [class.text-primary]="head.named"
+                            [attr.data-testid]="'grid-column-' + head.letters"
+                        >
+                            {{ head.text }}
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @for (line of rows(); track line.row) {
+                    <tr [class.font-semibold]="line.headerRow" [attr.data-testid]="'grid-row-' + line.row">
+                        <th
+                            scope="row"
+                            class="px-2 py-1 border border-surface text-right font-mono"
+                            [class]="line.itemRow ? 'bg-blue-100 dark:bg-blue-950/40' : ''"
+                        >
+                            {{ line.row }}
+                        </th>
+                        @for (cell of line.cells; track cell.letters) {
+                            <td
+                                class="px-2 py-1 border border-surface align-top max-w-64 truncate"
+                                [class]="cell.class"
+                                [attr.title]="cell.title"
+                            >
+                                {{ cell.text }}
+                                @if (cell.formula) {
+                                    <span class="text-muted-color font-mono">ƒ</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
