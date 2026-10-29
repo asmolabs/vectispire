@@ -1,5 +1,26 @@
 # Notes de version
 
+## Comment un retrait est annoncé {#deprecations}
+
+À partir de la 1.0, `/api/v1` ne change que par ajout : une version peut ajouter des routes, des champs
+de requête facultatifs, des champs de réponse et des valeurs d'énumération, et ne retire ni ne renomme
+jamais l'un d'eux, ne restreint pas ce qu'une requête accepte et ne change pas le sens d'un champ
+([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md) §1).
+Un retrait se fait en trois temps :
+
+1. **Déprécié dans le contrat.** L'opération ou le champ est marqué `deprecated` dans `openapi.json`, et
+   continue de fonctionner.
+2. **Nommé dans ces notes**, dans la version qui le déprécie, avec son remplaçant, sous un intertitre
+   *Déprécié*.
+3. **Retiré deux versions mineures plus tard** — déprécié en 1.2, disparu en 1.4 — et nommé de nouveau
+   dans les notes de la version qui le retire.
+
+Un changement impossible à faire ainsi va dans `/api/v2`. La CI compare le contrat de chaque pull
+request à celui de la dernière version et échoue sur un changement qui casse un client, sauf si le retrait
+figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
+couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
+encore rompre, et le dit sous *Avant la mise à jour*.
+
 ## 0.11.2 — 27 octobre 2026
 
 La 0.11.2 exécute les scans sur un cluster Kubernetes sans Docker. Avec `agents.executor: kubernetes`,

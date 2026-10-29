@@ -1,5 +1,25 @@
 # Release notes
 
+## How a removal is announced {#deprecations}
+
+From 1.0, `/api/v1` changes only by addition: a release may add routes, optional request fields,
+response fields and enum values, and never removes or renames one, narrows what a request accepts, or
+changes what a field means ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md) §1).
+A removal takes three steps:
+
+1. **Deprecated in the contract.** The operation or field is marked `deprecated` in `openapi.json`, and
+   keeps working.
+2. **Named in these notes**, in the release that deprecates it, with its replacement, under a
+   *Deprecated* heading.
+3. **Removed two minor releases later** — deprecated in 1.2, gone in 1.4 — and named again in the
+   notes of the release that removes it.
+
+A change that cannot be made this way goes to `/api/v2`. CI compares each pull request's contract with
+the last release's and fails on a change that breaks a client, unless the removal is listed with its
+reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
+calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
+upgrade*.
+
 ## 0.11.2 — 2026-10-27
 
 0.11.2 runs scans on a Kubernetes cluster that has no Docker. With `agents.executor: kubernetes`, the
