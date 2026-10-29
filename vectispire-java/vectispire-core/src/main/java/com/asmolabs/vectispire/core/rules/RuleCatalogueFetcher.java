@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.rules;
 
+import com.asmolabs.vectispire.common.scanning.Directories;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
 import com.asmolabs.vectispire.common.scanning.SourceFiles;
@@ -7,12 +8,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -131,7 +129,7 @@ public class RuleCatalogueFetcher {
         } finally {
             // Deleted whatever happened: a failed clone leaves a partial tree, and a temporary
             // directory nobody removes is how a disk fills over months without a single error.
-            deleteRecursively(checkout);
+            Directories.deleteRecursively(checkout);
         }
     }
 
@@ -234,31 +232,6 @@ public class RuleCatalogueFetcher {
             return Files.createTempDirectory("vectispire-rules-");
         } catch (IOException failed) {
             throw new FetchFailureException("Could not create a working directory for the fetch.", failed);
-        }
-    }
-
-    private static void deleteRecursively(Path root) {
-        if (!Files.exists(root)) {
-            return;
-        }
-        try {
-            Files.walkFileTree(root, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
-                    Files.deleteIfExists(file);
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult postVisitDirectory(Path directory, IOException failed) throws IOException {
-                    Files.deleteIfExists(directory);
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException ignored) {
-            // Logged nowhere and thrown nowhere: the fetch either succeeded or already failed for
-            // a reason the caller is being told about, and "could not delete a temp directory"
-            // would replace that reason with a worse one.
         }
     }
 
