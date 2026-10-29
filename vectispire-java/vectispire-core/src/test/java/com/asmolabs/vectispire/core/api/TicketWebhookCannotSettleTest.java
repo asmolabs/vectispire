@@ -44,6 +44,9 @@ class TicketWebhookCannotSettleTest extends ApiTestBase {
     @Autowired
     private SettingsService settings;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository auditLogs;
+
     private static final String FALSE_POSITIVE = """
             {"issue":{"key":"%s","fields":{
                 "status":{"name":"Closed"},
@@ -87,6 +90,32 @@ class TicketWebhookCannotSettleTest extends ApiTestBase {
         assertThat(after.getTriagedBy()).isEqualTo("JIRA_webhook");
         // It stays written, because it helps whoever investigates — but as reported data.
         assertThat(after.getTriageComment()).contains("Responsable Securite");
+    }
+
+    @Test
+    @DisplayName("a status update that triages nothing names the integration as its actor too")
+    void aPlainUpdateNamesTheIntegration() throws Exception {
+        // The triage branch named the integration; the plain update still sealed the payload's user
+        // name as the actor of the audit entry.
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, "s3cr3t-partage");
+        critical("plain-webhook-author", "SEC-1236");
+
+        mvc.perform(post("/api/v1/tickets/webhook/jira")
+                        .header("X-Vectispire-Token", "s3cr3t-partage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"issue":{"key":"SEC-1236","fields":{"status":{"name":"In Progress"}}},
+                                 "user":{"displayName":"Somebody Else"},
+                                 "webhookEvent":"jira:issue_updated"}"""))
+                .andExpect(status().isOk());
+
+        assertThat(auditLogs.findAll())
+                .filteredOn(entry -> entry.getDescription() != null && entry.getDescription().contains("SEC-1236"))
+                .singleElement()
+                .satisfies(entry -> {
+                    assertThat(entry.getUserId()).isEqualTo("JIRA_webhook");
+                    assertThat(entry.getDescription()).contains("reported by the tracker as: Somebody Else");
+                });
     }
 
     @Test

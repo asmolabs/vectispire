@@ -39,6 +39,9 @@ public class TicketingWebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(TicketingWebhookService.class);
 
+    /** How much of the user name a tracker reports is kept in an audit description. */
+    static final int CLAIMED_AUTHOR_LENGTH = 200;
+
     /**
      * The review date proposed with a tracker's refusal: an accepted risk carries one, and a tracker states
      * none. A proposal only — the request waits for a person, who grants it with the date they choose.
@@ -282,11 +285,18 @@ public class TicketingWebhookService {
                     origin.userAgent()));
         } else {
             actionTaken = "Ticket updated on " + provider.name() + " (status: " + event.status() + ")";
+            // **The integration is the actor here too.** This branch still sealed the payload's user
+            // name as the entry's actor — a name the sender chooses, written into the trail as the
+            // person who acted. As above, the claim is kept, bounded, as reported data.
+            String claimed = event.author() != null && !event.author().isBlank()
+                    ? " (reported by the tracker as: " + BoundedText.clip(event.author(), CLAIMED_AUTHOR_LENGTH) + ")"
+                    : "";
             audit.record(new AuditLogService.Record(
                     AuditOperation.TICKET_SYNCED,
                     String.valueOf(issue.id()),
-                    "Ticket update received from " + provider.name() + " for " + event.ticketRef() + " (status: " + event.status() + ")",
-                    event.author(),
+                    "Ticket update received from " + provider.name() + " for " + event.ticketRef() + " (status: "
+                            + event.status() + ")" + claimed,
+                    provider.name() + "_webhook",
                     origin.ipAddress(),
                     origin.userAgent()));
         }
