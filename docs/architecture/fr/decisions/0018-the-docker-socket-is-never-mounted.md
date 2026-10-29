@@ -58,6 +58,12 @@ pour la même raison : un conteneur qui parle au démon n'est pas un endroit pou
 qui comptent sont nommés explicitement dans le fichier compose plutôt que laissés au défaut :
 `EXEC`, `SECRETS`, `VOLUMES`, `NETWORKS`, `SWARM`, `BUILD`, `COMMIT`, `SYSTEM`.
 
+*Amendé pour 0.5.0.* Deux de ces affirmations dépendaient de la configuration de l'image elle-même. La
+valeur par défaut de `EVENTS` y est `1` : « tout le reste est refusé » n'était vrai qu'une fois
+`EVENTS: 0` nommé dans le fichier compose, ce qui est désormais le cas. Et `CONTAINERS` est reconnu
+comme un préfixe : il admet toute route `/containers/…` — stop, kill, pause, unpause — et les
+interrupteurs `ALLOW_*` ne peuvent qu'ouvrir un tel chemin, jamais le fermer.
+
 **Mesuré contre un proxy qui tourne plutôt que lu dans la documentation**, parce que l'un d'eux ne
 se comporte pas comme le nom de la variable le laisse croire :
 
