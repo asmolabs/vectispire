@@ -149,7 +149,7 @@ class KubernetesExecutorTest {
                 .isInstanceOf(ScannerFailureException.TimedOut.class);
     }
 
-    @Test
+    @org.junit.jupiter.api.RepeatedTest(20)
     void aScannerOutOfMemoryIsAFailure() {
         KubernetesExecutor small = executorWith(new ScannerLimits(48L * 1024 * 1024, 512, Duration.ofMinutes(2), 500_000_000L, 1024 * 1024));
         // Either sentence: whether the runtime reports `OOMKilled` or only the kill's 137 is containerd's race
@@ -159,7 +159,7 @@ class KubernetesExecutorTest {
                 .hasMessageContaining("out of memory (its limit is 48 MiB)");
     }
 
-    @Test
+    @org.junit.jupiter.api.RepeatedTest(10)
     void aScannerKilledWithoutAReasonIsAFailure() {
         // What the runtime reports when its out-of-memory event loses the race to the exit: `Error`, exit 137 —
         // measured on CI's k3s. A child takes the SIGKILL, because the scanner's shell is its container's init and
