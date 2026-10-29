@@ -18,7 +18,8 @@
 #      workflow before it is pulled) migrates an empty schema and serves.
 #   2. Through its API, rows that migrations will meet: the bootstrap account's password changed,
 #      a second account, a solution and a project, a repository target, settings, the webhook
-#      signing secret, an API key, and the audit trail all of that writes.
+#      signing secret, an API key, a control declared in the statement of applicability, and the
+#      audit trail all of that writes.
 #   3. The image built from this commit starts on that database and becomes healthy. That is the
 #      schema proof: Flyway applies what is new and validates the checksums of what is not, and
 #      Hibernate runs with `ddl-auto: validate` — any disagreement between the entities and the
@@ -250,6 +251,7 @@ snapshot() {
     printf ',"api_keys":'; get "$token" /api/v1/api-keys
     printf ',"users":'; get "$token" /api/v1/users
     printf ',"solutions":'; get "$token" /api/v1/solutions
+    printf ',"soa_eu_cra":'; get "$token" /api/v1/compliance/soa/EU_CRA
     printf '}'
   } > "$out"
 }
@@ -332,6 +334,16 @@ API_KEY=$(send POST "$TOKEN" /api/v1/api-keys \
 [ -n "$API_KEY" ] || fail "the API key was issued without its secret"
 get "$API_KEY" /api/v1/repositories >/dev/null
 echo "  an API key with the read scope, which authenticates"
+
+# The control is found by its title rather than named by its code: a code is what a migration may
+# rewrite (V92 renumbered the CRA's, decision 0046), and the drill has to declare it under the name
+# the previous release knows.
+SBOM_CONTROL=$(get "$TOKEN" /api/v1/compliance/soa/EU_CRA | python3 -c 'import json,sys
+print(next(l["control"]["id"] for l in json.load(sys.stdin)["lines"] if "SBOM" in l["control"]["title"]))')
+[ -n "$SBOM_CONTROL" ] || fail "the CRA has no SBOM control to declare"
+send PUT "$TOKEN" "/api/v1/compliance/soa/EU_CRA/$SBOM_CONTROL" \
+  '{"applicability":"APPLICABLE","implementation":"IMPLEMENTED","evidence_source":"VECTISPIRE","owner":"upgrade-drill","justification":"Declared by the previous release"}' >/dev/null
+echo "  a declaration of the CRA's $SBOM_CONTROL"
 
 AUDIT_BEFORE=$(get "$TOKEN" /api/v1/audit-log/verify)
 [ -z "$(printf '%s' "$AUDIT_BEFORE" | json broken)" ] || fail "the audit chain is broken before the upgrade: $AUDIT_BEFORE"
@@ -467,6 +479,20 @@ for section, (field, names) in OWNED.items():
             problems.append(f"{section}[{k}]: written by the previous release, absent after the upgrade"); continue
         compare(f"{section}[{k}]", i, a_items[k])
     print(f"  {section:<13} {len(b_items)} object(s) read back")
+
+# The declaration is the drill's by its owner, not by its control: the control's code is what a
+# migration may rewrite, and keying on it would turn a rewrite into a disappearance.
+def declared(doc):
+    return [l["declaration"] for l in doc.get("lines", [])
+            if l.get("declaration") and l["declaration"].get("owner") == "upgrade-drill"]
+b_decl, a_decl = declared(before["soa_eu_cra"]), declared(after["soa_eu_cra"])
+if len(b_decl) != 1:
+    problems.append(f"declarations: {len(b_decl)} of the drill's 1 in the first read — it would compare less than it wrote")
+elif len(a_decl) != 1:
+    problems.append(f"declarations[upgrade-drill]: written by the previous release, {len(a_decl)} read after the upgrade")
+else:
+    compare("declarations[upgrade-drill]", b_decl[0], a_decl[0])
+print(f"  {'declarations':<13} {len(b_decl)} object(s) read back")
 
 if compared == 0:
     problems.append("no field was compared")

@@ -47,6 +47,22 @@ que deux versions mineures après une annonce.
   cause, la cause elle-même. Un pipeline décide sur lui plutôt que sur de l'anglais
   ([erreurs de l'API](errors.md#les-codes)). Ajout seul : rien d'autre ne change dans un refus. Le
   verdict de la barrière nommait déjà la `rule` de chaque violation.
+- **Les codes des contrôles CRA suivent le règlement (UE) 2024/2847 tel qu'adopté** (décision 0046).
+  Ils nommaient les articles de la proposition de 2022 alors que leurs titres citaient le texte adopté :
+
+  | Jusqu'à 0.11.2 | À partir de cette version |
+  |---|---|
+  | `CRA-ART11-NOTIF` | `CRA-ART14-NOTIF` |
+  | `CRA-ART10-SBOM` | `CRA-ANNEX1-SBOM` |
+  | `CRA-ART10-LIFECYCLE` | `CRA-ART13-LIFECYCLE` |
+  | `CRA-ART10-VULN` | `CRA-ANNEX1-VULN` |
+
+  Ils changent partout où un contrôle est nommé : les réponses de conformité et de déclaration
+  d'applicabilité, la route de déclaration `PUT /api/v1/compliance/soa/EU_CRA/{controlId}`, le rapport
+  PDF et le paquet de preuves. Un pipeline ou un modèle qui reconnaît un ancien code reconnaît le
+  nouveau à sa place. La migration V92 réécrit les déclarations déjà enregistrées ; les entrées du journal
+  d'audit écrites avant la mise à jour gardent le code qu'elles ont consigné. Les titres, les scores et
+  les codes des autres référentiels ne changent pas.
 - **Les images tierces de la composition avancent**, chacune toujours par étiquette et empreinte d'index :
   MySQL 8.4.11 → 8.4.13 (même ligne LTS, même volume de données), le proxy du socket Docker 0.3.0 → 0.5.0
   (HAProxy 3 dessous ; les mêmes points d'accès ouverts, les nouveaux pause et unpause laissés fermés), et
