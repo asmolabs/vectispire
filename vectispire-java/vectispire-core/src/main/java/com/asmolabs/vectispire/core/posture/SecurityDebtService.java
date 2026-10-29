@@ -148,17 +148,16 @@ public class SecurityDebtService {
      *
      * <p>It used to call {@link #calculateDebt} and keep the last field — so a page showing ten
      * upgrade suggestions counted the entire backlog by severity first, and discarded it.
-     */
-    @Transactional(readOnly = true)
-    public List<HighImpactFix> highImpactFixes(Long repoId, Long containerId, Visibility allowed) {
-        return highImpactFixes(repoId, containerId, MOST_LEVERAGE, allowed);
-    }
-
-    /**
+     *
+     * <p><b>The transaction is on this method, the one the route calls.</b> A three-argument form
+     * carried it and called this one through {@code this}, past the proxy; the route called this one
+     * directly, and read the ranking and its detail rows outside any transaction.
+     *
      * @param wanted how many lines the caller wants to see, clamped into
      *     {@code [1, MOST_LEVERAGE_EVER]} — an absurd value is corrected rather than refused,
      *     because a work order is no place to answer 400
      */
+    @Transactional(readOnly = true)
     public List<HighImpactFix> highImpactFixes(
             Long repoId, Long containerId, int wanted, Visibility allowed) {
         int bounded = Math.clamp(wanted, 1, MOST_LEVERAGE_EVER);

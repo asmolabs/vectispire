@@ -1415,8 +1415,7 @@ export type OllamaCheck = Refine<
     Schema<'OllamaCheck'>,
     {
         model: string;
-        /** `null` unless the caller is an administrator: the endpoint is a secret setting. */
-        url: string | null;
+        url: string;
         models: string[];
         detail: string;
         /** `ollama` or `openai` — which wire protocol was spoken. */

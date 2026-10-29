@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { AppLayout } from './app/layout/component/app.layout';
 import { requires } from './app/core/role.guard';
 import { hasSession, signedIn } from './app/core/auth.guard';
 
@@ -28,8 +29,7 @@ import { hasSession, signedIn } from './app/core/auth.guard';
 export const appRoutes: Routes = [
     {
         path: '',
-        // Lazy like the screens: the sign-in page, the first one a reload reaches, has no use for it.
-        loadComponent: () => import('./app/layout/component/app.layout').then((m) => m.AppLayout),
+        component: AppLayout,
         canActivate: [signedIn],
         canActivateChild: [signedIn],
         children: [

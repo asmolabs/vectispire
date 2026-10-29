@@ -468,7 +468,7 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
         long forTheWholeReport = statistics.getQueryExecutionCount();
 
         statistics.clear();
-        debt.highImpactFixes(null, null, Visibility.everything());
+        debt.highImpactFixes(null, null, 10, Visibility.everything());
         long forTheFixesAlone = statistics.getQueryExecutionCount();
 
         assertThat(forTheFixesAlone)

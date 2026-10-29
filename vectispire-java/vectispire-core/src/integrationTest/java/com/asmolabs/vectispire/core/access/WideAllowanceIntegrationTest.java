@@ -249,7 +249,7 @@ class WideAllowanceIntegrationTest {
         assertThat(apiInventory.globalAttackSurface(allowed)).isNotNull();
         assertThat(epss.getFleetSummary(allowed)).isNotNull();
         assertThat(debt.calculateDebt(null, null, allowed)).isNotNull();
-        assertThat(debt.highImpactFixes(null, null, allowed)).isNotNull();
+        assertThat(debt.highImpactFixes(null, null, 10, allowed)).isNotNull();
     }
 
     @Test

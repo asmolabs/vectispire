@@ -6,24 +6,17 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { $t, updatePreset, updateSurfacePalette } from '@openng/optimus-ui-themes';
 import Aura from '@openng/optimus-ui-themes/aura';
-import type Lara from '@openng/optimus-ui-themes/lara';
-import type Nora from '@openng/optimus-ui-themes/nora';
+import Lara from '@openng/optimus-ui-themes/lara';
+import Nora from '@openng/optimus-ui-themes/nora';
 import { Optimus } from '@openng/optimus-ui/config';
 import { SelectButtonModule } from '@openng/optimus-ui/selectbutton';
 import { LayoutService } from '@/app/layout/service/layout.service';
 
-type ThemePreset = typeof Aura | typeof Lara | typeof Nora;
-
-/**
- * Aura is the theme the application starts in (`app.config.ts`), so it is in the first download
- * whatever this file does. Lara and Nora are fetched the first time someone picks one: most sessions
- * never do, and imported here they travelled with the shell to every signed-in page.
- */
-export const PRESETS: Record<'Aura' | 'Lara' | 'Nora', () => Promise<ThemePreset>> = {
-    Aura: () => Promise.resolve(Aura),
-    Lara: () => import('@openng/optimus-ui-themes/lara').then((module) => module.default),
-    Nora: () => import('@openng/optimus-ui-themes/nora').then((module) => module.default)
-};
+const presets = {
+    Aura,
+    Lara,
+    Nora
+} as const;
 
 declare type KeyOfType<T> = keyof T extends infer U ? U : never;
 
@@ -133,10 +126,7 @@ export class AppConfigurator implements OnInit {
 
     platformId = inject(PLATFORM_ID);
 
-    presets = Object.keys(PRESETS);
-
-    /** The preset whose palettes the swatches show: the one chosen, once it has arrived. */
-    private readonly preset = signal<ThemePreset>(Aura);
+    presets = Object.keys(presets);
 
     showMenuModeButton = signal(!this.router.url.includes('auth'));
 
@@ -152,7 +142,7 @@ export class AppConfigurator implements OnInit {
 
     ngOnInit() {
         if (isPlatformBrowser(this.platformId)) {
-            void this.onPresetChange(this.layoutService.layoutConfig().preset);
+            this.onPresetChange(this.layoutService.layoutConfig().preset);
         }
     }
 
@@ -306,7 +296,7 @@ export class AppConfigurator implements OnInit {
     menuMode = computed(() => this.layoutService.layoutConfig().menuMode);
 
     primaryColors = computed<SurfacesType[]>(() => {
-        const presetPalette = this.preset().primitive;
+        const presetPalette = presets[this.layoutService.layoutConfig().preset as KeyOfType<typeof presets>].primitive;
         const colors = [
             'emerald',
             'green',
@@ -485,12 +475,9 @@ export class AppConfigurator implements OnInit {
         }
     }
 
-    async onPresetChange(event: string) {
+    onPresetChange(event: string) {
         this.layoutService.layoutConfig.update((state) => ({ ...state, preset: event }));
-        const preset = await PRESETS[event as KeyOfType<typeof PRESETS>]();
-        // Another preset chosen while this one was on its way wins: applying this one now would undo it.
-        if (this.layoutService.layoutConfig().preset !== event) return;
-        this.preset.set(preset);
+        const preset = presets[event as KeyOfType<typeof presets>];
         const surfacePalette = this.surfaces.find((s) => s.name === this.selectedSurfaceColor())?.palette;
         // `$t` is typed `any` by the theme package; the chain is its documented builder.
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
