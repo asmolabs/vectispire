@@ -553,7 +553,10 @@ listées, l'agent les atteint et chaque pod de scan en est exclu.
 **L'agent prouve l'isolation avant de scanner.** Au démarrage, il lance deux pods de sonde, hors ligne et
 en ligne, qui tentent de joindre le serveur d'API ; si l'un y parvient — un CNI qui ignore les
 NetworkPolicies, ou des politiques absentes —, l'agent ne démarre pas et dit pourquoi dans son journal.
-Une sonde qui ne peut pas tourner arrête aussi le démarrage. Seulement là où `agents.networkPolicy.enabled`
+Une sonde qui ne peut pas tourner arrête aussi le démarrage. Un CNI peut appliquer les politiques à un
+nouveau pod un instant après son démarrage : chaque sonde essaie donc jusqu'au refus, 30 secondes au plus,
+et **chaque pod d'analyse vérifie la même chose avant que son scanner démarre** ; un pod qui joint encore le
+serveur d'API passé ce délai fait échouer son étape. Seulement là où `agents.networkPolicy.enabled`
 vaut false, avec son acquittement, la chart dit à l'agent de ne pas vérifier.
 
 La base de vulnérabilités, quelque 3 Go, est conservée pour les pods de scan sur une revendication de

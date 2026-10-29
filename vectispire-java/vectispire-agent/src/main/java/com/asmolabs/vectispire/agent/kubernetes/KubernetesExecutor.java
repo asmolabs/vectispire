@@ -58,14 +58,27 @@ public final class KubernetesExecutor implements ContainerExecutor {
      *     {@code tolerations} and {@code affinity}, and nothing else, copied into each pod's spec
      * @param cache where the matcher's database generations are kept for scan pods, or {@code null} to copy
      *     each into its pod like any mount
+     * @param cutOffFrom the {@code address:port} every scan pod must be refused before its scanner starts — the
+     *     isolation probe's target — or {@code null} where isolation is not required
      */
     public record Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
-            ScannerLimits limits, ObjectNode placement, MatcherCache cache) {
+            ScannerLimits limits, ObjectNode placement, MatcherCache cache, String cutOffFrom) {
 
         /** Without a matcher cache: every mount is copied. */
         public Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
                 ScannerLimits limits, ObjectNode placement) {
             this(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, null);
+        }
+
+        /** Without isolation required: no scan pod checks its own before its scanner starts. */
+        public Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
+                ScannerLimits limits, ObjectNode placement, MatcherCache cache) {
+            this(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, null);
+        }
+
+        /** These settings, every scan pod refused {@code target} before its scanner starts. */
+        public Settings cutOffFrom(String target) {
+            return new Settings(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, target);
         }
 
         /** What placement may set: where the pod goes, never what it may do. */
@@ -80,6 +93,9 @@ public final class KubernetesExecutor implements ContainerExecutor {
                 }
             }
             agent = ScanPods.labelValue(agent);
+            if (cutOffFrom != null) {
+                address(cutOffFrom);
+            }
         }
     }
 
@@ -112,6 +128,15 @@ public final class KubernetesExecutor implements ContainerExecutor {
             "busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092";
 
     private static final Duration POLL = Duration.ofMillis(500);
+    /**
+     * **How long a new pod may take to come under its namespace's policies.** A CNI that enforces NetworkPolicy
+     * may still do it a moment after the pod has its address: kube-router, k3s's, adds a pod's own chains when it
+     * hears of the pod, and until then lets it through. Measured on k3s 1.34 under a deny-all policy applied a
+     * minute earlier: 20 of 20 new pods reached the API server for their first 0.3 to 0.7 s, and on a loaded CI
+     * runner the probe's one attempt, a second in, once still did. Waited for rather than slept through: the
+     * first refusal ends the wait, and a pod still reaching its target past it is not cut off.
+     */
+    static final Duration ISOLATION_SETTLES = Duration.ofSeconds(30);
     /** A metadata answer, a df: small. */
     private static final long SMALL = 64 * 1024;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -213,12 +238,14 @@ public final class KubernetesExecutor implements ContainerExecutor {
         }
         // **A connection on the pod's own loopback first, which must succeed**: without it, an image whose `nc`
         // is missing or broken would fail every connection and read as "blocked" (review of 2026-10-26, L1).
+        // Then the target, until refused: a policy in force reaches a new pod a moment late (ISOLATION_SETTLES).
         ContainerRun probe = ContainerRun.of(settings.helperImage(), List.of("sh", "-c",
                 "nc -l -p 7777 -s 127.0.0.1 >/dev/null 2>&1 & sleep 1; "
                         + "if ! nc -w 2 127.0.0.1 7777 </dev/null >/dev/null 2>&1; then echo NO-CONTROL; exit 0; fi; "
-                        + "if nc -w 5 " + host + " " + port + " </dev/null >/dev/null 2>&1; then echo REACHED; else echo BLOCKED; fi"),
-                List.of(), "network probe").withEntrypoint(List.of()).withTimeout(Duration.ofMinutes(1));
-        String said = run(online ? probe.withNetwork() : probe).stdout().strip();
+                        + untilRefused(host, port, 5)),
+                List.of(), "network probe").withEntrypoint(List.of()).withTimeout(Duration.ofMinutes(2));
+        // Not gated as a scanner is: whether this pod is cut off is the question, not a precondition.
+        String said = run(online ? probe.withNetwork() : probe, false).stdout().strip();
         return switch (said) {
             case "BLOCKED" -> Isolation.ENFORCED;
             case "REACHED" -> Isolation.NOT_ENFORCED;
@@ -246,8 +273,39 @@ public final class KubernetesExecutor implements ContainerExecutor {
         return new ContainerRunner.RegistryAccess(ContainerRunner.registryOf(reference), false);
     }
 
+    /**
+     * Tries {@code host:port} once a second until the connection is refused, and says {@code BLOCKED}, or
+     * {@code REACHED} when it was still answered after {@link #ISOLATION_SETTLES}. {@code connectSeconds}
+     * bounds one attempt: a policy that drops rather than refuses costs that much once.
+     */
+    static String untilRefused(String host, int port, int connectSeconds) {
+        return "i=0; while nc -w " + connectSeconds + " " + host + " " + port + " </dev/null >/dev/null 2>&1; do "
+                + "i=$((i+1)); if [ $i -ge " + ISOLATION_SETTLES.toSeconds() + " ]; then echo REACHED; exit 0; fi; "
+                + "sleep 1; done; echo BLOCKED";
+    }
+
+    /** {@code address:port}, as the probe's target is written, or an {@link IllegalArgumentException}. */
+    static java.util.Map.Entry<String, Integer> address(String target) {
+        int colon = target.lastIndexOf(':');
+        String host = colon < 0 ? target : target.substring(0, colon).replaceAll("^\\[|]$", "");
+        int port = -1;
+        try {
+            port = colon < 0 ? -1 : Integer.parseInt(target.substring(colon + 1));
+        } catch (NumberFormatException notANumber) {
+            // Refused below with the target as written.
+        }
+        if (!host.matches("[0-9A-Fa-f.:]+") || port <= 0 || port > 65535) {
+            throw new IllegalArgumentException("The probe's target is an address and a port, not \"" + target + "\".");
+        }
+        return java.util.Map.entry(host, port);
+    }
+
     @Override
     public ContainerResult run(ContainerRun request) {
+        return run(request, settings.cutOffFrom() != null);
+    }
+
+    private ContainerResult run(ContainerRun request, boolean gated) {
         String label = request.label();
         Duration timeout = request.timeout() == null ? settings.limits().timeout() : request.timeout();
         if (request.output() != null && request.user() == null) {
@@ -291,6 +349,9 @@ public final class KubernetesExecutor implements ContainerExecutor {
                 } else {
                     copyIn(pod, i, source, label);
                 }
+            }
+            if (gated) {
+                awaitCutOff(pod, label);
             }
             exec(pod, ScanPods.RECEIVE, List.of("touch", ScanPods.RECEIVED), SMALL, label);
 
@@ -469,6 +530,25 @@ public final class KubernetesExecutor implements ContainerExecutor {
             return new long[] {uid, gid};
         } catch (NumberFormatException named) {
             throw ScannerFailureException.of(label, "It runs as \"" + user + "\", and a scan pod runs as a numeric uid:gid.");
+        }
+    }
+
+    /**
+     * **The scanner starts only once its own pod is refused the probe's target.** The probe at start proves the
+     * policies are enforced; it cannot prove they already cover a pod created since, and a CNI may let a new pod
+     * through for a moment (ISOLATION_SETTLES). Asked from the receiving container, which shares the pod's
+     * network and runs the helper image the probe already proved {@code nc} in; the scanner's container does
+     * not start before it ends.
+     */
+    private void awaitCutOff(String pod, String label) {
+        var target = address(settings.cutOffFrom());
+        KubernetesApi.ExecResult result = exec(pod, ScanPods.RECEIVE,
+                List.of("sh", "-c", untilRefused(target.getKey(), target.getValue(), 2)), SMALL, label);
+        String said = new String(result.stdout(), StandardCharsets.UTF_8).strip();
+        if (result.exitCode() != 0 || !"BLOCKED".equals(said)) {
+            throw ScannerFailureException.of(label, "Its pod was not cut off from " + settings.cutOffFrom() + " within "
+                    + ISOLATION_SETTLES.toSeconds() + "s of starting (it said \"" + excerpt(said) + "\"), so the scanner "
+                    + "was not started.");
         }
     }
 
