@@ -72,6 +72,16 @@ the target exists. `AuthorizationCoverageTest` catches a route that forgets.
   `PENDING_APPROVAL` event, not merely against the approver role. An account that requests an
   exemption cannot approve it, even after being granted the role — four eyes means two people, and a
   role gate alone lets one person hold both halves.
+- **What the roles do not separate: acting through an account one administers.** The governor and
+  every administrator administer accounts. With four-eyes off, one of them can create an account
+  holding a role that triages and settles — a CISO, a security champion — or reset the password of an
+  existing one, sign in as it with the temporary password, and act under its name; the governor's
+  "operates nothing" holds for its own account, not for the ones it can create. Four-eyes on narrows
+  this without closing it: the second identity an approval needs can be one the requester's
+  administrator made. What remains is detection, not prevention — each step is in the audit log
+  (`USER_CREATED`, `USER_UPDATED` for a role change or a password reset, then the triage under the
+  other name), and a reset account must change its password at its next sign-in. Read the account
+  administration entries beside the triage approvals when reviewing a dismissal.
 - **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256
   hash-chained audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
 - **USER / SECURITY_CHAMPION**: Posture dashboard inspection and vulnerability triage. A

@@ -77,6 +77,18 @@ que la cible existe. `AuthorizationCoverageTest` attrape la route qui l'oublie.
   l'événement `PENDING_APPROVAL`, et non au seul rôle d'approbation. Un compte qui demande une
   dérogation ne peut pas l'approuver, même après avoir obtenu le rôle — quatre yeux signifie deux
   personnes, et une simple barrière de rôle laisse une seule personne tenir les deux moitiés.
+- **Ce que les rôles ne séparent pas : agir par un compte qu'on administre.** Le super-administrateur
+  et chaque administrateur administrent les comptes. Double validation désactivée, l'un d'eux peut
+  créer un compte doté d'un rôle qui qualifie et clôt — un RSSI, un champion sécurité — ou
+  réinitialiser le mot de passe d'un compte existant, s'y connecter avec le mot de passe temporaire,
+  et agir sous son nom ; le « n'opère rien » du super-administrateur vaut pour son propre compte, pas
+  pour ceux qu'il peut créer. La double validation activée réduit cela sans le fermer : la seconde
+  identité qu'exige une approbation peut être un compte créé par l'administrateur du demandeur. Reste
+  la détection, pas la prévention — chaque étape figure au journal d'audit (`USER_CREATED`,
+  `USER_UPDATED` pour un changement de rôle ou une réinitialisation, puis la qualification sous
+  l'autre nom), et un compte réinitialisé doit changer son mot de passe à sa connexion suivante.
+  Lisez les entrées d'administration des comptes à côté des approbations de qualification quand vous
+  examinez une dérogation.
 - **Audit des Modifications** : Tout changement de l'option de double validation est immédiatement
   consigné dans le journal d'audit chaîné par empreintes SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur
   (`SETTING_UPDATED`).

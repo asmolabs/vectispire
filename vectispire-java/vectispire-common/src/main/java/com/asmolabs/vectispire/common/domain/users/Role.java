@@ -125,6 +125,14 @@ public enum Role {
      * <p>The cost is deliberate and worth stating: on an installation whose only account is the one
      * the bootstrap created, nobody can triage until a working account is made. That is what a
      * root account is for.
+     *
+     * <p><b>What it does not close: acting through an account it administers.</b> A governor is
+     * administrative, and so administers accounts. It can create an account that triages, or reset
+     * the password of one that does, and act under that name: "operates nothing" holds for its own
+     * account, not for those it can make. Any administrator can do the same, and four-eyes narrows it
+     * without closing it, since the second identity can be one the first created. Each step is in the
+     * audit log and a reset account must change its password at its next sign-in, so it is detected,
+     * not prevented — see the security view (02, "What the roles do not separate").
      */
     public boolean governsPlatform() {
         return governsPlatform;
