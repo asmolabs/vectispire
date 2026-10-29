@@ -319,9 +319,9 @@ agents:
     # `rootless.acknowledgeUnreadableWorkspaces: true`.
     variant: privileged
     privileged:
-      image: docker:29.8.2-dind@sha256:7dcdfc4a20246236f558175182ccace1eb15a41bd3eb119dd2284f393498b7c1
+      image: docker:29.9.2-dind@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977
     rootless:
-      image: docker:29.8.2-dind-rootless@sha256:3acba49741f1aedb28125ffb2307faaec8e870ebb9343de41c21ac549bd6abf0
+      image: docker:29.9.2-dind-rootless@sha256:ae083cc7de51e7a8e5a597f8fb774ca7914c408a95fc0f1477826a913479518a
       acknowledgeUnreadableWorkspaces: false
       # What the image needs on most clusters. Docker's own instructions run it privileged — as uid 1000,
       # so not root on the node — to lift seccomp, AppArmor and the masked /proc that rootlesskit needs. A

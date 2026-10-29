@@ -686,7 +686,7 @@ jobs:
   jvm:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    container: eclipse-temurin:25-jdk
+    container: eclipse-temurin:25-jdk@sha256:3ab7fc8d0b4ade8fef96903fb36767c1dbb4fd1535dcfad85b59c17afbbb5857
     # **The context and HTTP suites run on MySQL (decision 0034).** A job service beside the job's
     # container shares its network, so the suite reaches `mysql:3306` with no Docker socket and no
     # Testcontainers; `TestDatabase` takes the server from `VECTISPIRE_TEST_DB_URL`, creates its own
@@ -753,7 +753,7 @@ jobs:
   frontend:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: node:24
+    container: node:24@sha256:e7add2a490bb17d97b485b8641bd88455fff7839ade0f5eba493c3508124d413
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -909,7 +909,7 @@ jobs:
   npm-audit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    container: node:24
+    container: node:24@sha256:e7add2a490bb17d97b485b8641bd88455fff7839ade0f5eba493c3508124d413
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: npm ci --prefer-offline
@@ -1066,7 +1066,7 @@ jobs:
           # nothing like "never came up".
           set +e
           docker run --rm --network container:vectispire-smoke --entrypoint sh \
-            curlimages/curl:8.11.1 -c '
+            curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93 -c '
               deadline=$(( $(date +%s) + 180 ))
               until curl -sf http://localhost:3180/actuator/health > /dev/null 2>&1; do
                 [ "$(date +%s)" -ge "$deadline" ] && exit 1

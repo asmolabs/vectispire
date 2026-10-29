@@ -38,7 +38,7 @@ PORT="${PORT:-8443}"
 CONTROL_PLANE_IMAGE="${CONTROL_PLANE_IMAGE:-}"
 AGENT_IMAGE="${AGENT_IMAGE:-}"
 # A Kubernetes its upstream still supports, as 0045 requires of a target; the one the executor's tests run.
-K3S_IMAGE=rancher/k3s:v1.34.1-k3s1@sha256:5e0707cfd1239b358ef73f3254bc3eadc027dd30cd5ec6ca41e29e47652a1b8c
+K3S_IMAGE=rancher/k3s:v1.34.12-k3s1@sha256:4ea0adb6b0ffedab0c58ffe5c99a49f2f7be871f38636c8baa2692899648d8c5
 HELM_IMAGE=alpine/helm:3.22.0@sha256:70ed3f7b02ab2eee12aa520ad6870305db8a82516b07aff62f5656c657a26e2a
 # The JDK's keytool, for the agent's truststore: the base the agent's own image is built on.
 JDK_IMAGE="$(sed -n 's/^FROM \(eclipse-temurin[^ ]*\) AS build$/\1/p' "$root/Dockerfile.agent")"

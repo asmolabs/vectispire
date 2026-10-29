@@ -61,7 +61,7 @@ PREFIX="vs-up"
 ENGINE="${ENGINE:-mysql}"
 TO_IMAGE="${TO_IMAGE:-vectispire:latest}"
 # By the digest of its multi-architecture index, as `restore-drill.sh` names it.
-CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69}"
+CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93}"
 # Values a migration since the release rewrites on purpose, each with its reason (see the file).
 REWRITES="ci/upgrade/accepted-rewrites.txt"
 # Generous: on a developer's arm64 machine the release image (amd64 only) runs emulated, and a

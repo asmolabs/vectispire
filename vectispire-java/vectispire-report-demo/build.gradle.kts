@@ -57,7 +57,7 @@ jib {
         // gcr.io/distroless/java25-debian13:nonroot, the index digest, resolved with
         // `docker buildx imagetools inspect gcr.io/distroless/java25-debian13:nonroot`. Pinned for the
         // reason `ScannerImages` gives: what renders under the platform's signature is what was reviewed.
-        image = "gcr.io/distroless/java25-debian13@sha256:ca60da1345c0f17b6d019049e6749e15f10fd3c0da86dec938d2b4ec565d0629"
+        image = "gcr.io/distroless/java25-debian13@sha256:5d3177252775d4b01603470fe21c015393019089904f68724bd37242e4bc6e6d"
         platforms {
             platform {
                 architecture = "amd64"

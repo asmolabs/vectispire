@@ -69,7 +69,7 @@ if [ -z "${MYSQL_IMAGE:-}" ]; then
   MYSQL_IMAGE="$(compose_mysql_image)" || exit 1
 fi
 # By the digest of its multi-architecture index: the same bytes on the runner and on arm64.
-CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69}"
+CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93}"
 
 NET="${PREFIX}-net"
 DB_ORIGIN="${PREFIX}-db-origin"
