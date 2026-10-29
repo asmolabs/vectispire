@@ -12,7 +12,6 @@ WEEKLY_DIGEST | posture, a later phase
 CHECKLIST_REMINDERS | checklists, a later phase
 COMPLIANCE_HISTORY | compliance, a later phase
 OWASP_WEEKLY_COVERAGE | compliance, a later phase
-SESSION_CLEANUP | access, ported in Phase 1 without its task: SessionCleanupService.prune's purges (cp-access holds the sessions' purge_expired) wait for cp-access to register them
 COMPLIANCE_SNAPSHOTS | compliance, a later phase
 OWASP_WEEKLY_RETENTION | compliance, a later phase
 REPORT_EVIDENCE_RETENTION | reportplugins, a later phase

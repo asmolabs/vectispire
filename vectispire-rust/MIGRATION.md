@@ -144,7 +144,7 @@ The phases below keep their numbering and task breakdown; the waves decide which
 
 | # | Task | Owns | Notes |
 |---|---|---|---|
-| 1.3 | **MFA and throttles**: TOTP, recovery codes, lockout, login / bearer / webhook rate limits keyed as Bucket4j keys them | `crates/cp-access` (root / `internal` / `persistence` — not a `src/mfa/` directory), `crates/cp-http/src/limits.rs` | TOTP secrets are encrypted at rest: needs 2.3's `Encryption`, or a port stand-in until it lands. **Pure half done** (2026-10-28, `rust/access-domain`): `totp`, `login_throttle`, `ClientBuckets` in `cp-http`, `TeamRules` in the domain, held to `reference/sign-in/` and `reference/teams/`; the services follow with the routes (1.7) |
+| 1.3 | **MFA and throttles**: TOTP, recovery codes, lockout, login / bearer / webhook rate limits keyed as Bucket4j keys them | `crates/cp-access` (root / `internal` / `persistence` — not a `src/mfa/` directory), `crates/cp-http/src/limits.rs` | TOTP secrets are encrypted at rest: needs 2.3's `Encryption`, or a port stand-in until it lands. **Pure half done** (2026-10-28, `rust/access-domain`): `totp`, `login_throttle`, `ClientBuckets` in `cp-http`, `TeamRules` in the domain, held to `reference/sign-in/` and `reference/teams/`. **Services done** (2026-10-28, `rust/access-signin`): the throttle's reservations, `AuthService.login`, `AuthenticationFlowService` without the federated sign-in (1.4), `TotpService` (encrypted under Java's contexts, crossing the switch both ways against 0.11.0-rc.3), `SignInMethodPolicy`, `RateWindows` composed as the chain's shared webhook window, and `SESSION_CLEANUP` composed; every statement checked and run on both engines, the races included (`crates/cp-access/README.md`). The routes are 1.7's. A Java defect found: the MFA challenge's user agent is not clipped (500 for an agent past 255 characters) |
 | 1.4 | **OIDC**: openidconnect client, account linking (verified e-mail only, never a privileged link), the hand-off cookie | `crates/cp-access`, outbound calls through `cp-outbound` only | a stub identity provider in tests; the session hand-off already exists in 1.2 |
 | 1.7 | **Access routes**: `auth`, `users`, `teams`, `api-keys`, `admin`, `security`, SCIM — replayed against the recorded Java traffic | `crates/cp-access/src/web/` | after 1.3 and 1.4. Phase 1's exit: every golden of these routes passes |
 | 1.8 | **Phase 1 security review**: the `security-audit` skill on the phase's diff | — | exit: nothing above low |
@@ -166,9 +166,6 @@ Follow-ups found during Phase 1, small enough to go with 1.7 or before it:
   `/* postgres */` tag. It does not exist: write it or remove the claim.
 - **The Java-oracle suite of `cp-audit` and the mutation checks are not in `check.sh`.** Decide which
   belong in CI.
-- **Session cleanup has no maintenance task.** `cp-access` has `purge_expired`, but Java's
-  `SessionCleanupService.prune` does more; its slot is `SESSION_CLEANUP` in
-  `crates/cp-maintenance/data/deferred.txt`.
 - **The platform routes** (settings, audit log, crypto), the four credential-storing endpoints and the
   AI endpoint check wait for their modules.
 
@@ -282,7 +279,8 @@ What the finished tasks leave to the others:
   read. `crates/cp-crypto/README.md` has the format, the differences and what the reference set pinned.
 - **1.3:** TOTP seeds are encrypted with `Encryption` under `TotpService`'s `TOTP_CONTEXT + ":" + user id` —
   the string is **`user:totp_secret:<user id>`**, not the constant's name. The reference set holds a seed under
-  `user:totp_secret:5` both ways. Add a `totp_context` beside the others rather than formatting it in `cp-access`.
+  `user:totp_secret:5` both ways. Built by `cp-crypto`'s `totp_secret_context` (and `backup_codes_context` for the
+  backup codes), which `cp-access`'s second factor uses (done with 1.3's services).
 - **2.7 and 2.9:** `vectispire_crypto::seal(recipient_public, plain, &SealContext)` seals a deployment key or a
   token to an agent's announced key, byte for byte as `SealedEnvelope.seal` (`crates/crypto/tests/seal.rs`
   reproduces Java's envelopes from Java's randomness). It refuses a key that is not an X25519

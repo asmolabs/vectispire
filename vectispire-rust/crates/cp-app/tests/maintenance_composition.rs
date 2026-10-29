@@ -317,6 +317,27 @@ fn gate(
     ))
 }
 
+/// The access module's session cleanup over a pool that never connects, as the binary composes it.
+fn session_cleanup() -> Arc<dyn vectispire_cp_maintenance::MaintenanceTask> {
+    let settings = vectispire_cp_db::settings::DbSettings {
+        url: vectispire_cp_db::settings::DatabaseUrl::parse("jdbc:mysql://127.0.0.1:9/none").unwrap(),
+        username: "nobody".into(),
+        password: vectispire_domain::secret::Secret::new(""),
+        pool: vectispire_cp_db::settings::PoolSettings::default(),
+        ca_pem: None,
+    };
+    let db = vectispire_cp_db::Db::connect_lazy(&settings).unwrap();
+    let clock: vectispire_cp_access::throttle::SharedClock = Arc::new(vectispire_cp_access::credentials::SystemClock);
+    let credentials = Arc::new(vectispire_cp_access::credentials::CredentialService::new(
+        db.clone(),
+        clock.clone(),
+        vectispire_cp_access::credentials::SessionPolicy::default(),
+        Arc::new(vectispire_cp_agents::AgentDirectoryImpl::new(db.clone())),
+        vectispire_cp_access::credentials::ScimToken::default(),
+    ));
+    vectispire_cp_access::session_cleanup::session_cleanup_task(credentials, db, clock)
+}
+
 #[tokio::test]
 async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
     let targets = targets();
@@ -345,6 +366,7 @@ async fn every_java_maintenance_task_is_composed_or_deferred_by_name() {
         gate,
         settings,
         Arc::new(vectispire_cp_targets::SystemClock),
+        session_cleanup(),
     )
     .unwrap();
     let problems = check(&turns.composition(), DEFERRED);

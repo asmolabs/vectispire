@@ -7,13 +7,18 @@
 //!   authenticate through the Rust credentials, with the account, scopes and agent Java recorded;
 //! - a session the Rust side opened and a key it issued authenticate on the Java control plane, as a bearer token and
 //!   as `X-API-Key`;
-//! - a revocation on one side is a 401 on the other, and a Java sign-out (`DELETE /api/v1/auth/session`) ends the session for Rust.
+//! - a revocation on one side is a 401 on the other, and a Java sign-out (`DELETE /api/v1/auth/session`) ends the session for Rust;
+//! - **a second factor enrolled on one side opens the account on the other**: enabled in Rust, Java asks for the code
+//!   at sign-in, accepts the next one and disables the factor with a Rust backup code; enabled again on Java, Rust
+//!   accepts its next code and one of its backup codes — the contexts, the encryption and the codes' joining agree.
 //!
 //! **Docker is required, and its absence fails the test.** Containers and the network are `vs-rs-p1c-*`, removed on
 //! drop. The image is `VECTISPIRE_E2E_CONTROL_PLANE_IMAGE`, by default the last published release by digest.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+#[path = "accounts_support/mod.rs"]
+mod accounts_support;
 mod support;
 
 use std::process::Command;
@@ -305,10 +310,116 @@ async fn sessions_and_keys_cross_between_the_java_and_the_rust_control_planes() 
         java_status(&http, &base, "/api/v1/auth/me", ("Authorization", &format!("Bearer {java_session}"))).await;
     assert_eq!(status, 401, "Rust closed every session of the account, Java's included");
 
+    // ── The second factor across the switch, under the same key the Java control plane holds.
+    second_factor_both_ways(&http, &base, &db, admin_id).await;
+
     // The stored forms are the same on both sides: each row's hash is the one the other side computes.
     let hashes: Vec<String> = match &db {
         Db::MySql(pool) => sqlx::query_scalar("select key_hash from t_api_key").fetch_all(pool).await.unwrap(),
         Db::PostgreSql(_) => unreachable!("the composition's engine"),
     };
     assert!(hashes.iter().all(|hash| hash.starts_with("$argon2id$v=19$m=19456,t=2,p=1$")), "{hashes:?}");
+}
+
+/// The audit log is not what this test is about.
+#[derive(Clone)]
+struct Nowhere;
+
+impl vectispire_cp_access::accounts::Audit for Nowhere {
+    async fn record(&self, _: vectispire_cp_access::accounts::AuditRecord) {}
+}
+
+async fn second_factor_both_ways(http: &reqwest::Client, base: &str, db: &Db, admin_id: i64) {
+    use vectispire_cp_access::accounts::AccountStore;
+    use vectispire_cp_access::totp;
+    use vectispire_cp_crypto::{Encryption, EncryptionConfig, VaultDoor};
+    use vectispire_domain::secret::Secret;
+
+    let door = VaultDoor {
+        sender: vectispire_cp_outbound::PinnedHttpSender::new(vectispire_tls::TlsTrust::BuiltIn),
+        guard: vectispire_cp_outbound::OutboundUrlGuard::new(Vec::new()),
+    };
+    let config = EncryptionConfig { key: Some(Secret::new(CONTROL_PLANE_KEY)), ..EncryptionConfig::default() };
+    let users = vectispire_cp_access::SqlAccountStore::new(db.clone(), accounts_support::RawCredentials);
+    let factor = vectispire_cp_access::second_factor::SecondFactor::new(
+        users.clone(),
+        Nowhere,
+        vectispire_cp_access::SqlSignInStore::new(db.clone()),
+        Arc::new(Encryption::new(&config, door).unwrap()),
+        Arc::new(SystemClock),
+    );
+    let now = || time::OffsetDateTime::now_utc();
+
+    // Rust enables it.
+    let secret = totp::generate_secret();
+    let codes = factor.enable(admin_id, &secret, &totp::generate_code(&secret, now()).unwrap()).await.unwrap();
+
+    // Java asks for the code, and accepts the next one.
+    let challenge: Value = http
+        .post(format!("{base}/api/v1/auth/login"))
+        .json(&json!({"username": "admin", "password": ROTATED_PASSWORD}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(challenge["mfa_required"], json!(true), "Java sees the factor Rust enabled: {challenge}");
+    let verified: Value = http
+        .post(format!("{base}/api/v1/auth/mfa/verify"))
+        .json(&json!({
+            "mfa_token": challenge["mfa_token"],
+            "code": totp::generate_code(&secret, now() + time::Duration::seconds(30)).unwrap(),
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let session =
+        verified["token"].as_str().unwrap_or_else(|| panic!("Java refused Rust's secret: {verified}")).to_owned();
+
+    // Java spends one of Rust's backup codes to switch it off.
+    let disabled = http
+        .post(format!("{base}/api/v1/auth/mfa/disable"))
+        .bearer_auth(&session)
+        .json(&json!({"code": codes[0].expose()}))
+        .send()
+        .await
+        .unwrap();
+    let status = disabled.status();
+    assert!(status.is_success(), "Java read Rust's backup codes: {status} {}", disabled.text().await.unwrap());
+    assert!(!users.find_by_id(admin_id).await.unwrap().unwrap().mfa_enabled);
+
+    // Java enables a new one; Rust accepts its next code, and one of its backup codes.
+    let setup: Value = http
+        .post(format!("{base}/api/v1/auth/mfa/setup"))
+        .bearer_auth(&session)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let java_secret = setup["secret"].as_str().unwrap_or_else(|| panic!("{setup}")).to_owned();
+    let enabled: Value = http
+        .post(format!("{base}/api/v1/auth/mfa/enable"))
+        .bearer_auth(&session)
+        .json(&json!({"secret": java_secret, "code": totp::generate_code(&java_secret, now()).unwrap()}))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let java_codes = enabled.get("backupCodes").or_else(|| enabled.get("backup_codes")).cloned();
+    let java_code =
+        java_codes.as_ref().and_then(|codes| codes[0].as_str()).unwrap_or_else(|| panic!("{enabled}")).to_owned();
+    let user = users.find_by_id(admin_id).await.unwrap().unwrap();
+    assert!(user.mfa_enabled);
+    let next = totp::generate_code(&java_secret, now() + time::Duration::seconds(30)).unwrap();
+    assert!(factor.verify(&user, Some(&next)).await.unwrap(), "Rust reads the secret Java sealed");
+    let user = users.find_by_id(admin_id).await.unwrap().unwrap();
+    assert!(factor.verify(&user, Some(&java_code)).await.unwrap(), "Rust reads and spends Java's backup codes");
 }
