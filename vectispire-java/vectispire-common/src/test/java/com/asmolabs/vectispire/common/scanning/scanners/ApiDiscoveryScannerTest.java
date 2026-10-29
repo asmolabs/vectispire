@@ -227,6 +227,27 @@ class ApiDiscoveryScannerTest {
     }
 
     @Test
+    @DisplayName("a path's literal characters match themselves, never as a pattern")
+    void pathsAreLiteralBesideTheirParameters() {
+        // The paths were spliced into a regex as written: `.` matched any character, and a route
+        // spelling a group or a quantifier made the comparison mean something else.
+        ApiEndpoint lookalike = new ApiEndpoint(
+                "GET", "/aXb/items", true, "BEARER", ApiVisibility.PUBLIC, "A.java", 1, "SPRING_BOOT", null, null, null);
+        ApiEndpoint anything = new ApiEndpoint(
+                "GET", "/(.*)", true, "BEARER", ApiVisibility.PUBLIC, "B.java", 2, "SPRING_BOOT", null, null, null);
+        ApiEndpoint parameterised = new ApiEndpoint(
+                "GET", "/v1.0/files/:name", true, "BEARER", ApiVisibility.PUBLIC, "C.java", 3, "SPRING_BOOT", null, null, null);
+        ApiContract contract = new ApiContract("openapi.json", "OPENAPI_V3", "Core API", "1.0", 2,
+                List.of("/a.b/items", "/secret/admin", "/v1.0/files/{name}"));
+
+        ShadowApiDiff diff = ShadowApiDiff.compute(List.of(lookalike, anything, parameterised), List.of(contract));
+
+        assertThat(diff.documentedEndpoints()).containsExactly(parameterised);
+        assertThat(diff.shadowEndpoints()).containsExactlyInAnyOrder(lookalike, anything);
+        assertThat(diff.zombieEndpoints()).containsExactlyInAnyOrder("/a.b/items", "/secret/admin");
+    }
+
+    @Test
     @DisplayName("computes Shadow APIs and Attack Surface metrics accurately")
     void computesShadowApisAndAttackSurface() {
         ApiEndpoint documentedEp = new ApiEndpoint(
