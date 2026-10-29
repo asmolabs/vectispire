@@ -161,3 +161,15 @@ Trois autres exports pèsent dans la même conversation, tous couverts sous
 Une preuve de conformité ne vaut que ce que vaut le journal qui la porte. Voir
 [Journal d'audit](../administration/audit-log.md) pour la chaîne d'empreintes, et pour le
 miroir qui place une seconde copie hors de la base de données qu'il surveille.
+
+## OWASP Top 10, édition 2021 {#owasp-edition}
+
+La page de couverture OWASP — la grille par règle, les semaines et le rapport du modèle, sous
+[Analyse de risque](risk-analysis.md#surface-dattaque-et-owasp) — répond à l'**OWASP Top 10, édition
+2021** : `A01` à `A10` avec les intitulés de 2021, dans l'interface, l'API et l'enregistrement
+hebdomadaire. La 1.0 garde cette édition ([décision 0046](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0046-compliance-codes-for-1-0.md) §2) :
+les jeux de règles en usage sont étiquetés avec elle, et les questionnaires d'audit auxquels la page
+répond la demandent encore. L'édition 2025 renumérote et remanie la liste, si bien qu'une catégorie de
+2021 ne correspond pas une à une à une catégorie de 2025 ; elle viendra dans une version 1.x ultérieure
+**à côté** de la vue 2021, jamais à sa place, et un pipeline ou un rapport qui s'appuie sur une
+catégorie de 2021 continue de fonctionner.

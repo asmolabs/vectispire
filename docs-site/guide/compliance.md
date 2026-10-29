@@ -152,3 +152,14 @@ Three other exports carry weight in the same conversation, all covered under
 Compliance evidence is only as good as the log behind it. See
 [Audit log](../administration/audit-log.md) for the hash chain, and for the mirror that
 puts a second copy outside the database it watches.
+
+## OWASP Top 10, 2021 edition {#owasp-edition}
+
+The OWASP coverage page — the grid by rule, the weeks and the model's report, under
+[Risk analysis](risk-analysis.md#attack-surface-and-owasp) — answers the **OWASP Top 10, 2021
+edition**: `A01` to `A10` with the 2021 titles, in the interface, the API and the weekly record. 1.0
+keeps that edition ([decision 0046](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0046-compliance-codes-for-1-0.md) §2):
+the rule sets in use are tagged with it, and the audit questionnaires the page answers still ask about
+it. The 2025 edition renumbers and reshapes the list, so a category of the 2021 edition does not map one to
+one onto one of 2025; it will come in a later 1.x release **beside** the 2021 view, never in its place, so a
+pipeline or a report matching on a category of the 2021 edition keeps working.
