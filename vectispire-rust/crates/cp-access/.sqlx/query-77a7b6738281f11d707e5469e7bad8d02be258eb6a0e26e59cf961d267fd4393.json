@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ insert into t_user_target (user_id, target_kind, target_id) values ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "77a7b6738281f11d707e5469e7bad8d02be258eb6a0e26e59cf961d267fd4393"
+}

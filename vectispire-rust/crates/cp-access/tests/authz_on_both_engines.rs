@@ -27,7 +27,7 @@ use vectispire_cp_access::TriageApprovers;
 use vectispire_cp_access::four_eyes::SwitchOnRefusal;
 use vectispire_cp_access::security::{CallerScope, CallerVisibility, PrincipalDirectory};
 use vectispire_cp_access::visibility::{
-    AccessError, AccessSettings, AccountRef, Allowance, GrantableTargets, VisibilityService,
+    AccessError, AccessSettings, AccountRef, Allowance, Grant, GrantableTargets, Labels, TargetGrant, VisibilityService,
 };
 use vectispire_cp_db::Visibility;
 use vectispire_cp_db::query::Issues;
@@ -153,6 +153,23 @@ impl GrantableTargets for FiledTargets {
             targets.extend(ids(containers).await?.into_iter().map(ScanTarget::Container));
             Ok(targets)
         })
+    }
+
+    // The visibility asks `targetsIn` only; the grant administration's questions are `tests/administration_*`'s.
+    fn named<'a>(&'a self, _: &'a [Grant]) -> BoxFuture<'a, Result<Vec<TargetGrant>, AccessError>> {
+        Box::pin(async { Err(AccessError::Port("not asked by the visibility".to_owned())) })
+    }
+
+    fn project_exists(&self, _: i64) -> BoxFuture<'_, Result<bool, AccessError>> {
+        Box::pin(async { Err(AccessError::Port("not asked by the visibility".to_owned())) })
+    }
+
+    fn exists(&self, _: ScanTarget) -> BoxFuture<'_, Result<bool, AccessError>> {
+        Box::pin(async { Err(AccessError::Port("not asked by the visibility".to_owned())) })
+    }
+
+    fn labels(&self) -> BoxFuture<'_, Result<Labels, AccessError>> {
+        Box::pin(async { Err(AccessError::Port("not asked by the visibility".to_owned())) })
     }
 }
 

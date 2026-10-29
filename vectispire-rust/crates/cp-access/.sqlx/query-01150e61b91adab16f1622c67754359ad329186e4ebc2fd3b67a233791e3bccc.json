@@ -1,0 +1,31 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ select url from t_team_webhook where team_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "url",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
+          "max_size": 2000
+        },
+        "origin": {
+          "Table": {
+            "table": "vectispire.t_team_webhook",
+            "name": "url"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "01150e61b91adab16f1622c67754359ad329186e4ebc2fd3b67a233791e3bccc"
+}

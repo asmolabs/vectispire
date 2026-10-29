@@ -6,8 +6,9 @@ sessions, API keys, agents' keys and the SCIM token, and the bearer filter's dec
 `Credentials`; and **roles and their flags, what a caller may see, the row guards, four-eyes, and who could approve**
 (task 1.5); **the second factor's codes and the sign-in throttle's arithmetic** (the pure half of 1.3); and **the sign-in
 services** (1.3's service half): the throttle's reservations, the password sign-in, the second factor's challenge, TOTP
-enrolment and recovery, the shared rate windows and the hourly cleanup. Single sign-on (1.4) and the routes (1.7) land
-beside these files.
+enrolment and recovery, the shared rate windows and the hourly cleanup; and **the administration services** (stage 2b,
+what 1.7's routes call): an account's grants, teams, API keys, and the names other modules print. Single sign-on (1.4),
+SCIM's service and the routes (1.7) land beside these files.
 
 ## Accounts and passwords (task 1.1)
 
@@ -331,3 +332,67 @@ password was accepted and its counters cleared: the published 0.11.0-rc.3 answer
 300-character agent from an account with a second factor. Fixed on the Java side first (asmolabs/vectispire#84, which
 also cuts on a character boundary), and ported fixed: the challenge's agent is clipped as a session's is
 (`a_user_agent_past_the_column_is_clipped_*`, a surrogate pair at the cut).
+
+## The administration services (stage 2b)
+
+What the users, teams and API keys routes of 1.7 will call. **No route here**: the 42 lines of
+`crates/cp-contract/reference/not-yet-ported/access.txt` stay.
+
+| Here | Java |
+|---|---|
+| `account_targets` — `AccountTargets::{targets, replace_targets}` | `AccountAdministrationService.targets` / `replaceTargets`, `AccountAdminService.replaceTargets` |
+| `teams` — `TeamAdministration::{list, create, rename, delete, members, replace_members, targets, replace_targets, set_webhook}`, `TeamView`, the `WebhookPolicy` port (implemented by `cp-settings`' `Settings`) | `TeamAdministrationService` |
+| `teams::TeamChannels` — `teams_granted`, `with_channel`, `any_team_has_one`, `webhook_url`, in the caller's transaction | `TeamChannels` |
+| `api_key_administration` — `ApiKeyAdministration::{list, issue, key, names, revoke, targets}`, `KeyView`, `TargetOptions` | `ApiKeyAdministrationService` (the issuing itself stays `CredentialService::issue_integration_key`, task 1.2) |
+| `account_names` — `AccountNames::{by_username, by_id}`, `display_name_of`, `AccountDirectory::{active, by_id}` | `AccountNames`, `AccountDirectory` |
+| `internal/grant_targets` — `validate` | `internal/GrantTargets` |
+| `administration` — `AdminError` (400, 400, 404, 422, failure) and the audit entry | the exceptions `ApiExceptionHandler` maps |
+| `persistence/administration.rs` — `t_team`, `t_team_member`, `t_team_target`, `t_team_webhook`, `t_user_target`, and the reads of `t_user` the screens make; `persistence/credentials/api_keys.rs::all_newest_first` | `TeamRepository`, `TeamMemberRepository`, `TeamTargetRepository`, `TeamWebhookRepository`, `UserTargetRepository`, `ApiKeyRepository.findAllByOrderByCreatedAtDescIdDesc` |
+
+**`GrantableTargets` carries Java's five questions** (`visibility.rs`): besides `targets_in`, `named` (in the order
+given, `deleted target` for one that is gone), `project_exists`, `exists` and `labels`. `cp-targets`' `TargetsForAccess`
+answers them from `naming` and its persistence, held by `cp-targets/tests/engines.rs`.
+
+**Every statement is checked** (`sqlx::query!`, cached in `.sqlx/`) and runs on MySQL 9.4 and PostgreSQL 17 in
+`tests/administration_on_both_engines.rs`, which also replays the Java tests that hold these services —
+`GrantTargetsRoutesTest`, `TeamVisibilityTest` (the rows behind each route), `AccountInputRoutesTest`'s grant cases and
+`ApiKeyIntegrationRoutesTest`'s issuing and refusals — with every sentence and audit entry word for word.
+`GrantTargetsTest` is the unit test in `internal/grant_targets.rs`. Mutations: `security/mutants/p1-7c-access-admin.py`.
+
+### Differences from Java, on purpose
+
+- **One transaction per gesture.** `TeamAdministrationService` holds none, so a replacement's delete commits before its
+  inserts and a team's deletion is four commits (reported below). Here each gesture commits together; the answer of a
+  gesture that succeeds is the same.
+- **Read in the primary key's order** where Java's repository has no `order by` (`findByTeamId`, `findByUserId`,
+  `findAll`): a team's members by account id, its grants and an account's by kind then id — MySQL's clustered order,
+  which the recordings show, and one PostgreSQL's heap does not promise.
+- **One lookup per key or name.** `ApiKeyAdministration::names` and `AccountNames::by_username` look each distinct id or name
+  up on its own, where Java binds a thousand per statement: the answer is the same (`by_username` through the
+  sign-in's lookup, under the same collation), and every statement stays checked on both engines. The rows they serve —
+  keys bound to SARIF sources, the people a document names — are few.
+- **A team's channel is not sealed.** The task named a secret sealed under a Java context; there is none. Java stores
+  `t_team_webhook.url` as typed — a webhook URL is `Sensitivity.SECRET` in the settings' sense (a capability, stored as
+  written, never returned), not `ENCRYPTED` — and so does this: sealing it here would make every channel unreadable to
+  the Java control plane on the same database.
+
+### Java defects found while porting, fixed on both sides
+
+Fixed on the Java side first (asmolabs/vectispire#87), and ported fixed:
+
+- **`TeamAdministrationService.replaceTargets` kept repeats**: the same repository sent twice answered 200 with two
+  entries and audited `Targets of …: 2` while one row was stored. De-duplicated now, as the account path is
+  (`targets_are_replaced_wholesale`).
+- **`TeamAdministrationService` had no transaction**: a failure between the delete and the inserts left a team with part
+  of what the administrator submitted, and a deletion failing half-way a team without its members. Each gesture is one
+  transaction on both sides (`TeamWriteAtomicityTest` on the Java side).
+
+Not a defect after all: `replaceTargets` of a team has no null guard of its own, but its route turns a `null` body into
+an empty list before calling it, so no request reaches it with one.
+
+### Not here
+
+- **`ScimProvisioningService`** (users and groups through SCIM, its filters, paging and refusals) is the next stage: too
+  large to review beside these, and its filter grammar and error bodies want a Java-written reference set.
+- `BootstrapService`: no route of the 42 calls it (it runs at start); it comes with the binary's composition of access.
+- The services are not composed by the binary yet: they are composed with their routes (1.7), as the sign-in flows.

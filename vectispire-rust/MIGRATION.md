@@ -146,7 +146,7 @@ The phases below keep their numbering and task breakdown; the waves decide which
 |---|---|---|---|
 | 1.3 | **MFA and throttles**: TOTP, recovery codes, lockout, login / bearer / webhook rate limits keyed as Bucket4j keys them | `crates/cp-access` (root / `internal` / `persistence` — not a `src/mfa/` directory), `crates/cp-http/src/limits.rs` | TOTP secrets are encrypted at rest: needs 2.3's `Encryption`, or a port stand-in until it lands. **Pure half done** (2026-10-28, `rust/access-domain`): `totp`, `login_throttle`, `ClientBuckets` in `cp-http`, `TeamRules` in the domain, held to `reference/sign-in/` and `reference/teams/`. **Services done** (2026-10-28, `rust/access-signin`): the throttle's reservations, `AuthService.login`, `AuthenticationFlowService` without the federated sign-in (1.4), `TotpService` (encrypted under Java's contexts, crossing the switch both ways against 0.11.0-rc.3), `SignInMethodPolicy`, `RateWindows` composed as the chain's shared webhook window, and `SESSION_CLEANUP` composed; every statement checked and run on both engines, the races included (`crates/cp-access/README.md`). The routes are 1.7's. A Java defect found: the MFA challenge's user agent is not clipped (500 for an agent past 255 characters) |
 | 1.4 | **OIDC**: openidconnect client, account linking (verified e-mail only, never a privileged link), the hand-off cookie | `crates/cp-access`, outbound calls through `cp-outbound` only | a stub identity provider in tests; the session hand-off already exists in 1.2 |
-| 1.7 | **Access routes**: `auth`, `users`, `teams`, `api-keys`, `admin`, `security`, SCIM — replayed against the recorded Java traffic | `crates/cp-access/src/web/` | after 1.3 and 1.4. Phase 1's exit: every golden of these routes passes |
+| 1.7 | **Access routes**: `auth`, `users`, `teams`, `api-keys`, `admin`, `security`, SCIM — replayed against the recorded Java traffic | `crates/cp-access/src/web/` | after 1.3 and 1.4. Phase 1's exit: every golden of these routes passes. **Administration services done** (2026-10-29, `rust/access-admin`, stage 2b, no route): an account's grants, `TeamAdministrationService` and `TeamChannels`, `ApiKeyAdministrationService`, `GrantTargets`, `AccountNames` and `AccountDirectory`; `GrantableTargets` carries Java's four other questions, answered by `cp-targets`; every statement checked and run on both engines (36/36 mutants, 3 equivalents removed). **SCIM's service (`ScimProvisioningService`) is not ported yet**: the next stage, before the routes. Two Java defects reported, not reproduced silently (`crates/cp-access/README.md`) |
 | 1.8 | **Phase 1 security review**: the `security-audit` skill on the phase's diff | — | exit: nothing above low |
 
 Follow-ups found during Phase 1, small enough to go with 1.7 or before it:
@@ -323,9 +323,8 @@ What the finished tasks leave to the others:
     every route naming a target, a project or a solution, as an unassigned `USER` and as an administrator's key
     restricted elsewhere, for a hidden and an absent identifier — same bytes, never a success, 404 where admitted.
     Copy its shape for 2.7's and 2.9's routes.
-  - **1.7** gets `GrantableTargets::targets_in` only; Java's port also names grants, checks a project or target exists
-    and labels targets — `naming`, `catalog` and `TargetsForAccess` hold those, to be added to the trait with the
-    access routes.
+  - **1.7**: `GrantableTargets` carries Java's five questions since the access administration (stage 2b) —
+    `TargetsForAccess` answers `named`, `project_exists`, `exists` and `labels` from `naming` and the persistence.
   - `cp-arch-tests/data/edges.toml` still says `targets` is `pending`: flipping it to `ported` requires every listed
     edge to be used, and the crate reaches `access::security` only through `cp-access`'s root re-exports — task 2.1's
     file to decide.

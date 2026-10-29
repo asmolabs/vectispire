@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_team_webhook (team_id, url) values (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "8c8b554defe73f5b52059b6a1104a328f99e5126d7bfbc2c434ef802c6528b0b"
+}

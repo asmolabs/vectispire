@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_team (name, description, created_at) values (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "38380146a27ec5cbc1a06f732893fc374a17f8a9e6cee41c1fdf8cf2855e28e2"
+}

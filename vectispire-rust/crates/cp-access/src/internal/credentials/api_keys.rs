@@ -163,7 +163,9 @@ pub fn normalize_name(name: Option<&str>) -> Result<String, IssueRefusal> {
 
 /// The target a restricted key is issued for, if any — `normalizeTargetKind`: both a kind and an id, or neither.
 pub fn normalize_target(kind: Option<&str>, id: Option<i64>) -> Result<Option<ScanTarget>, IssueRefusal> {
-    let kind = java_trim(kind.unwrap_or("")).to_lowercase();
+    // `toLowerCase(Locale.ROOT)`: the refusal quotes the kind, and Rust's `to_lowercase` places a final sigma by
+    // Unicode's rule where Java's root locale uses its word iterator.
+    let kind = vectispire_domain::java::to_lower_root(java_trim(kind.unwrap_or("")));
     if kind.is_empty() && id.is_none() {
         return Ok(None);
     }
@@ -235,5 +237,7 @@ mod tests {
             Err(IssueRefusal::key("A restricted key needs both a target kind and a target id."))
         );
         assert_eq!(normalize_target(Some("team"), Some(1)), Err(IssueRefusal::key("Unknown target kind: \"team\".")));
+        // Lower-cased in the root locale: Java's word iterator runs across the hyphen, so both sigmas are medial.
+        assert_eq!(normalize_target(Some("ΣΣ-ı"), Some(1)), Err(IssueRefusal::key("Unknown target kind: \"σσ-ı\".")));
     }
 }

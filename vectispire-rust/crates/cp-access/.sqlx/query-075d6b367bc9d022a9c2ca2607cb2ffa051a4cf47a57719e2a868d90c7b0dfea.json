@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_team_target (team_id, target_kind, target_id) values (?, ?, ?) on duplicate key update target_id = target_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "075d6b367bc9d022a9c2ca2607cb2ffa051a4cf47a57719e2a868d90c7b0dfea"
+}

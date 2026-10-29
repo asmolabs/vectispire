@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_team set name = ?, description = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "2483775005144743b8a18e61d7bdf4f258b1ee22480fd3360e160ab48a28113b"
+}

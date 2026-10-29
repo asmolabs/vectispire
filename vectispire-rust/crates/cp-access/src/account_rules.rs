@@ -145,7 +145,7 @@ pub fn java_upper(text: &str) -> String {
 
 /// `String.equalsIgnoreCase`: same length in UTF-16 units, and each unit equal, or equal once upper-cased, or
 /// once lower-cased.
-fn java_equals_ignore_case(next: &str, current: Option<&str>) -> bool {
+pub(crate) fn java_equals_ignore_case(next: &str, current: Option<&str>) -> bool {
     let Some(current) = current else {
         return false;
     };
