@@ -9,7 +9,7 @@ install needs neither the agent nor any agent configuration.
 | Requirement | Why |
 |---|---|
 | **Docker**, running and reachable | Every scanner runs as an ephemeral container that Vectispire asks a Docker daemon to start — through a socket proxy in the composition, see below. This is not optional: there is one scan backend and it is Docker. |
-| **MySQL 8** | The supported engine, exercised by the integration campaign, and the one the composition ships. The engine is read from the JDBC URL; there is no separate dialect setting. PostgreSQL still starts, but is no longer tested and will not be part of 1.0 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md) §3). |
+| **MySQL 8.4 LTS or 9.x** | The supported engine, at the two versions the integration campaign runs — 8.4, the line the composition ships, and 9.x. Another MySQL version may start; nothing checks it. The engine is read from the JDBC URL; there is no separate dialect setting. PostgreSQL still starts, but is no longer tested and will not be part of 1.0 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md) §3). |
 | **Git** | Vectispire clones what it scans. |
 | **Node 24 (LTS)**, **JDK 25** | Only if you build from source rather than running the published images. Node is pinned by `.nvmrc`; Angular 22 refuses Node 25. |
 

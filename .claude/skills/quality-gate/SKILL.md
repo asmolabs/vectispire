@@ -85,8 +85,9 @@ Migrations, any `core/<module>/persistence/`, `core/config/`, `src/integrationTe
 cd vectispire-java && ./gradlew integrationTestAll
 ```
 
-MySQL (Testcontainers, needs Docker) — the one supported engine (decision 0043 §3); PostgreSQL's code is kept and
-run by nothing. A migration is written once under
+MySQL (Testcontainers, needs Docker) — the one supported engine, at its newest and its oldest supported version
+(9.x and 8.4 LTS, `integrationTestMysql` and `integrationTestMysqlOldest`; decision 0043 §3); PostgreSQL's code is
+kept and run by nothing. A migration is written once under
 `db/migration/common` with the type placeholders when only the types differ, or twice, one per
 dialect, when the structure does (decisions 0027, 0034); `MigrationLayoutTest` in `./gradlew build`
 refuses anything in between.

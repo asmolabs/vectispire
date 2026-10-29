@@ -14,12 +14,12 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
 | Frontend | Angular 22, TypeScript 6.0, Optimus UI 2, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
-| Database | MySQL — PostgreSQL's code is kept but untested and outside 1.0 (decision 0043 §3) — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container — kept across runs as `vectispire-test-mysql` where `testcontainers.reuse.enable=true` ([`vectispire-java/README.md`](vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine)) — or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
+| Database | MySQL 8.4 LTS and 9.x, the campaign running both — PostgreSQL's code is kept but untested and outside 1.0 (decision 0043 §3) — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container — kept across runs as `vectispire-test-mysql` where `testcontainers.reuse.enable=true` ([`vectispire-java/README.md`](vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine)) — or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
 cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites (MySQL: needs Docker)
-cd vectispire-java && ./gradlew integrationTestAll   # MySQL (PostgreSQL: integrationTestPostgres, unsupported)
+cd vectispire-java && ./gradlew integrationTestAll   # MySQL 9.x and 8.4 (PostgreSQL: integrationTestPostgres, unsupported)
 
 npm ci                                            # respects the lockfile
 npm run build                                     # the Angular interface

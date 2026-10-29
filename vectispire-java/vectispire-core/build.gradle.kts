@@ -253,6 +253,7 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
     // The suites share one server, so they cannot run against it concurrently.
     maxParallelForks = 1
     systemProperty("vectispire.db.dialect", providers.gradleProperty("dialect").getOrElse("mysql"))
+    systemProperty("vectispire.db.line", providers.gradleProperty("line").getOrElse("newest"))
     shouldRunAfter(tasks.test)
 }
 
@@ -267,24 +268,35 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
  * `integrationTestAll`, which is what CI and the nightly run. `integrationTestPostgres` stays for
  * whoever brings PostgreSQL back: its code is kept, and a task that still runs it is what makes that
  * a matter of checks rather than of writing. Nothing runs it on its own.
+ *
+ * **A supported engine runs on its newest and its oldest version** — MySQL 9.x and 8.4 LTS, the two
+ * the installation guide names. `integrationTestMysql` is the newest, `integrationTestMysqlOldest` the
+ * oldest; `Engine.java` names the versions, these tasks only say which end. The composition ships 8.4
+ * and the campaign ran 9.4 alone, which left the server most installations hold checked by nothing.
  */
 val engines = listOf("postgres", "mysql")
 val supportedEngines = listOf("mysql")
+val lines = mapOf("" to "newest", "Oldest" to "oldest")
 
 engines.forEach { engine ->
-    tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}") {
-        description = "Runs the campaign against $engine."
-        group = "verification"
-        testClassesDirs = integrationTest.output.classesDirs
-        classpath = configurations["integrationTestRuntimeClasspath"] +
-            integrationTest.output +
-            sourceSets.main.get().output
-        maxParallelForks = 1
-        systemProperty("vectispire.db.dialect", engine)
-        // Each engine gets its own results directory: one shared directory means the last run
-        // overwrites the others, and "which engine failed" stops being answerable.
-        reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/integrationTest-$engine")
-        reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/integrationTest-$engine")
+    // PostgreSQL names one version for both ends, so its oldest would run the same server twice.
+    (if (engine in supportedEngines) lines else mapOf("" to "newest")).forEach { (suffix, line) ->
+        val name = engine + suffix.lowercase().let { if (it.isEmpty()) "" else "-$it" }
+        tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}$suffix") {
+            description = "Runs the campaign against the $line version of $engine."
+            group = "verification"
+            testClassesDirs = integrationTest.output.classesDirs
+            classpath = configurations["integrationTestRuntimeClasspath"] +
+                integrationTest.output +
+                sourceSets.main.get().output
+            maxParallelForks = 1
+            systemProperty("vectispire.db.dialect", engine)
+            systemProperty("vectispire.db.line", line)
+            // Each engine and version gets its own results directory: one shared directory means the
+            // last run overwrites the others, and "which one failed" stops being answerable.
+            reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/integrationTest-$name")
+            reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/integrationTest-$name")
+        }
     }
 }
 
@@ -338,9 +350,11 @@ tasks.named<Test>("test") {
 }
 
 tasks.register("integrationTestAll") {
-    description = "Runs the campaign on every supported engine (MySQL; decision 0043 §3)."
+    description = "Runs the campaign on every supported engine at its newest and oldest version (MySQL 9.x and 8.4; decision 0043 §3)."
     group = "verification"
-    dependsOn(supportedEngines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
+    dependsOn(supportedEngines.flatMap { engine ->
+        lines.keys.map { suffix -> "integrationTest${engine.replaceFirstChar { c -> c.uppercase() }}$suffix" }
+    })
 }
 
 /**

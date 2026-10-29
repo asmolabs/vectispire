@@ -45,7 +45,9 @@ services:
     # multi-architecture index digest and not by a tag a registry can republish. `mysql:8` was the
     # tag; on 2026-10-15 it resolved to 8.4.11, the 8.4 LTS line, and that is what is pinned — not a
     # move to another line. Dependabot (`docker-compose`) proposes the next 8.4 patch with its
-    # digest, and never MySQL 9: a server major is a one-way upgrade of the volume below.
+    # digest, and never MySQL 9: a server major is a one-way upgrade of the volume below. 8.4 is
+    # the integration campaign's oldest supported version (decision 0043 §3), and
+    # `scripts/check-db-pins.py` fails CI if this pin leaves the versions `Engine.java` runs.
     image: mysql:8.4.11@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
     container_name: vectispire-db
     # A report's export is kept in one row and the driver sends it hex-encoded, at twice its size: at
