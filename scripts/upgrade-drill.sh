@@ -335,11 +335,11 @@ API_KEY=$(send POST "$TOKEN" /api/v1/api-keys \
 get "$API_KEY" /api/v1/repositories >/dev/null
 echo "  an API key with the read scope, which authenticates"
 
-# The control is found by its title rather than named by its code: a code is what a migration may
+# The control is found by its name rather than named by its code: a code is what a migration may
 # rewrite (V92 renumbered the CRA's, decision 0046), and the drill has to declare it under the name
 # the previous release knows.
 SBOM_CONTROL=$(get "$TOKEN" /api/v1/compliance/soa/EU_CRA | python3 -c 'import json,sys
-print(next(l["control"]["id"] for l in json.load(sys.stdin)["lines"] if "SBOM" in l["control"]["title"]))')
+print(next(l["control"]["id"] for l in json.load(sys.stdin)["lines"] if "SBOM" in l["control"]["name"]))')
 [ -n "$SBOM_CONTROL" ] || fail "the CRA has no SBOM control to declare"
 send PUT "$TOKEN" "/api/v1/compliance/soa/EU_CRA/$SBOM_CONTROL" \
   '{"applicability":"APPLICABLE","implementation":"IMPLEMENTED","evidence_source":"VECTISPIRE","owner":"upgrade-drill","justification":"Declared by the previous release"}' >/dev/null
