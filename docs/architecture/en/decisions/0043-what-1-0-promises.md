@@ -1,6 +1,6 @@
 # 0043 — What 1.0 promises: an additive API, agents one version behind, one engine, one instance, a supported line
 
-**Date:** 2026-10-12 · **Amended:** 2026-10-29 (§3: MySQL only) · **Status:** accepted (2026-10-29) · **Builds on:** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Decider:** Laurent Boucher
+**Date:** 2026-10-12 · **Amended:** 2026-10-29 (§3: MySQL only; §5: one maintainer) · **Status:** accepted (2026-10-29) · **Builds on:** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -23,7 +23,7 @@ Five facts make the question concrete:
   `mysql:8` and has no PostgreSQL case.
 - **Two control planes have never run together.** [0038](0038-deploying-on-kubernetes.md) records that
   no test runs two replicas; the maintenance tasks assume one.
-- **One person can cut a release and answer a security report.** The code of conduct promises that a
+- **One person can cut a release and answer a security report** (still true at 1.0; §5 says how it is handled). The code of conduct promises that a
   maintainer who is the subject of a report stays out of its handling, which one maintainer cannot keep.
 
 ## Decision
@@ -97,7 +97,18 @@ held through one minor release with no unplanned break.
   into the next minor, or its migration takes a version reserved for the line (the numbering rule is
   written before the first 0.11.x patch). [0047](0047-patch-releases-carry-no-migration.md) settles it: a patch release
   carries no migration.
-- **A second maintainer** able to cut a release and to handle a security report exists before 1.0.
+- **One maintainer, said plainly** (amended 2026-10-29; this line first required a second maintainer before
+  1.0). The project looks for its second maintainer through the outreach 1.0 itself opens, so requiring one
+  before 1.0 was a condition that could only wait on itself. What a second person was meant to cover is
+  covered differently, and written down:
+  - **A report about the maintainer** goes outside the project: the code of conduct names GitHub's own
+    reporting as the recourse, and stops promising that "the person concerned stays out", which one
+    maintainer cannot keep.
+  - **Security reports** go through the private channel `SECURITY.md` names, which says the project has one
+    maintainer and keeps response times one person can meet.
+  - **Cutting a release** is written in `CONTRIBUTING.md`, step by step, so the procedure does not live in
+    one head; the tag, build, signature and verification are already a workflow.
+  - **A second maintainer remains a goal of 1.x**, and the condition for applying to OWASP's Incubator.
 - **The repository's final home is settled before 1.0.** The release signatures name the repository,
   its owner and the workflow file; moving it afterwards invalidates every signature a consumer has
   learned to verify.
@@ -126,8 +137,8 @@ are would freeze their defects:
   release's agent image on every build of `develop` — slower CI, and the only way the promise holds.
 - The supported engine list keeps the integration campaign at two servers, both MySQL. An installation on
   PostgreSQL moves to MySQL before 1.0 or stays on 0.x.
-- Security fixes are backported to the previous minor for three months: a cost in maintainer time that
-  the second maintainer is there to share.
+- Security fixes are backported to the previous minor for three months: a cost in one maintainer's time,
+  held down by [0047](0047-patch-releases-carry-no-migration.md) (a patch never carries a migration).
 - Until these hold, the project stays 0.x and says so; nothing here changes what 0.11 promises.
 
 ## Rejected

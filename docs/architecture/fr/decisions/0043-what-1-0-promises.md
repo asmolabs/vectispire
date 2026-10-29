@@ -1,6 +1,6 @@
 # 0043 — Ce que promet 1.0 : une API additive, des agents d'une version en retard, un moteur, une instance, une ligne maintenue
 
-**Date :** 2026-10-12 · **Amendée :** 2026-10-29 (§3 : MySQL seul) · **Statut :** acceptée (2026-10-29) · **S'appuie sur :** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-10-12 · **Amendée :** 2026-10-29 (§3 : MySQL seul ; §5 : un seul mainteneur) · **Statut :** acceptée (2026-10-29) · **S'appuie sur :** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 
@@ -104,8 +104,18 @@ c'est possible, et ont tenu pendant une version mineure sans rupture imprévue.
   une correction qui en exige une va dans la mineure suivante, ou sa migration prend une version réservée
   à la ligne (la règle de numérotation est écrite avant le premier correctif 0.11.x).
   [0047](0047-patch-releases-carry-no-migration.md) la fixe : une version corrective ne porte aucune migration.
-- **Un second mainteneur**, capable de publier une version et de traiter un signalement de sécurité,
-  existe avant 1.0.
+- **Un seul mainteneur, dit clairement** (amendement du 2026-10-29 ; cette ligne exigeait d'abord un second
+  mainteneur avant 1.0). Le projet cherche son second mainteneur par l'ouverture que 1.0 elle-même permet :
+  l'exiger avant 1.0 était une condition qui ne pouvait qu'attendre sur elle-même. Ce qu'une seconde
+  personne devait couvrir l'est autrement, et c'est écrit :
+  - **Un signalement visant le mainteneur** sort du projet : le code de conduite nomme le signalement à
+    GitHub comme recours, et cesse de promettre que « la personne concernée ne participe pas », ce qu'un
+    mainteneur seul ne peut pas tenir.
+  - **Les signalements de sécurité** passent par le canal privé que nomme `SECURITY.md`, qui dit que le projet
+    a un seul mainteneur et garde des délais qu'une personne peut tenir.
+  - **Publier une version** est décrit pas à pas dans `CONTRIBUTING.md`, pour que la procédure ne vive pas
+    dans une seule tête ; le tag, la construction, la signature et la vérification sont déjà un workflow.
+  - **Un second mainteneur reste un objectif de 1.x**, et la condition pour candidater à l'Incubator d'OWASP.
 - **L'emplacement définitif du dépôt est fixé avant 1.0.** Les signatures des versions nomment le dépôt,
   son propriétaire et le fichier de workflow ; le déplacer ensuite invalide toutes les signatures qu'un
   consommateur a appris à vérifier.
@@ -137,7 +147,8 @@ l'état figerait leurs défauts :
 - La liste des moteurs pris en charge garde la campagne d'intégration à deux serveurs, tous deux MySQL.
   Une installation sur PostgreSQL passe à MySQL avant 1.0 ou reste en 0.x.
 - Les corrections de sécurité sont reportées sur la mineure précédente pendant trois mois : un coût en
-  temps de mainteneur que le second mainteneur est là pour partager.
+  temps d'un seul mainteneur, contenu par [0047](0047-patch-releases-carry-no-migration.md) (une version
+  corrective ne porte jamais de migration).
 - Tant que cela ne tient pas, le projet reste en 0.x et le dit ; rien ici ne change ce que promet 0.11.
 
 ## Écarté

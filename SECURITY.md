@@ -35,7 +35,7 @@ an exploit for one that is not.
 | Credit | your name, or none, whichever you prefer |
 
 **These are honest numbers for a project of this size, not a support contract.** Vectispire is
-maintained by a small team. If a deadline slips you will be told it slipped, rather than told
+maintained by **one person**. If a deadline slips you will be told it slipped, rather than told
 nothing — a report that goes quiet is the failure this policy exists to prevent.
 
 ## Supported versions
@@ -141,8 +141,8 @@ mieux qu'un exploit pour un contrôle qui ne l'est pas.
 | Correctif sur `develop` pour quelque chose d'exploitable | aussi vite que le correctif le permet, et on vous dira ce que « aussi vite » aura voulu dire |
 | Attribution | votre nom, ou aucun, à votre choix |
 
-**Ce sont des délais honnêtes pour un projet de cette taille, pas un contrat de support.** Si un
-délai glisse, on vous le dira — un rapport qui reste sans réponse est précisément l'échec que
+**Ce sont des délais honnêtes pour un projet de cette taille, pas un contrat de support.** Vectispire
+est maintenu par **une seule personne**. Si un délai glisse, on vous le dira — un rapport qui reste sans réponse est précisément l'échec que
 cette politique existe pour empêcher.
 
 ## Versions suivies
