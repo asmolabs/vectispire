@@ -46,10 +46,9 @@ public final class ApiDiscoveryScanner {
      * How long the whole discovery may run before it is abandoned as failed.
      *
      * <p>Each file's patterns are bounded by an {@link AnalysisBudget}; this bounds what no single
-     * file decides — the number of files, and the reconciliation of every endpoint against every
-     * ingress path, which grows with the product of the two. Five minutes is far beyond what the
-     * linear passes take on a large repository, and far short of leaving a worker pinned for the
-     * rest of the day. Abandoned means failed, not empty: a partial list would retire the endpoints
+     * file decides — the number of files, and the reconciliation of the endpoints with the ingress
+     * paths. Five minutes is far beyond what the linear passes take on a large repository, and far
+     * short of leaving a worker pinned for the rest of the day. Abandoned means failed, not empty: a partial list would retire the endpoints
      * the discovery did not reach (decision 0007).
      */
     static final Duration DEADLINE = Duration.ofMinutes(5);
@@ -167,7 +166,7 @@ public final class ApiDiscoveryScanner {
             requireTime(nanoClock, giveUpAt, deadline);
             String key = ep.method() + ":" + ep.path();
             if (seen.add(key)) {
-                if (publicIngressPaths.contains(ep.path()) || matchesAnyIngress(ep.path(), publicIngressPaths)) {
+                if (matchesAnyIngress(ep.path(), publicIngressPaths)) {
                     adjusted.add(new ApiEndpoint(
                             ep.method(), ep.path(), ep.authRequired(), ep.authType(),
                             ApiVisibility.PUBLIC, ep.filePath(), ep.lineNumber(),
@@ -379,14 +378,24 @@ public final class ApiDiscoveryScanner {
         } catch (Exception ignored) {}
     }
 
+    /**
+     * Whether an ingress path exposes this endpoint: the path itself, or one of its prefixes ending at
+     * a {@code /} — written with the slash ({@code /api/}) or without ({@code /api}).
+     *
+     * <p><b>Asked of the endpoint's own prefixes, not of every ingress path.</b> The loop over the
+     * ingress paths made the reconciliation grow with endpoints times paths, and only the deadline
+     * bounded it; a path has as many prefixes as slashes, so this is a few lookups per endpoint
+     * whatever the manifests declare. The wildcard forms ({@code /api/*}) that loop also tested cannot
+     * reach it: {@link #INGRESS_PATH} admits no {@code *}.
+     */
     private static boolean matchesAnyIngress(String path, Set<String> publicPaths) {
-        for (String pub : publicPaths) {
-            if (path.equals(pub)) return true;
-            String prefix = pub.endsWith("/") ? pub : pub + "/";
-            if (path.startsWith(prefix)) return true;
-            if (pub.endsWith("/*") || pub.endsWith("/**")) {
-                String p = pub.substring(0, pub.indexOf("/*"));
-                if (path.startsWith(p)) return true;
+        if (publicPaths.contains(path)) {
+            return true;
+        }
+        for (int slash = path.indexOf('/'); slash >= 0; slash = path.indexOf('/', slash + 1)) {
+            if (publicPaths.contains(path.substring(0, slash + 1))
+                    || (slash > 0 && publicPaths.contains(path.substring(0, slash)))) {
+                return true;
             }
         }
         return false;
