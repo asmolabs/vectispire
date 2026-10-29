@@ -104,8 +104,9 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    identifiants aux analyseurs de métadonnées hostiles. Un jeu de référence confronte Syft sur une
    disposition OCI à Syft sur une archive Docker : **les empreintes ne doivent pas bouger**.
 9. **Jamais vide.** Chaque issue Kubernetes est un échec nommant l'étape — une image qui ne se tire pas,
-   un pod que personne ne peut placer, `OOMKilled`, le délai, une éviction, une lecture au-delà de son
-   plafond, un pod supprimé en route — donc l'étape est absente et son backlog reste tel quel (0007).
+   un pod que personne ne peut placer, `OOMKilled` (ou le code 137 du kill, quand le runtime perd cette
+   raison), le délai, une éviction, une lecture au-delà de son plafond, un pod supprimé en route —
+   donc l'étape est absente et son backlog reste tel quel (0007).
 10. **Construit d'abord dans l'agent Java.** L'agent Rust n'est pas prêt à servir une installation ;
     l'exécuteur sera porté avec le reste quand il le sera.
 

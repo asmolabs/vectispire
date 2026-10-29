@@ -152,9 +152,29 @@ class KubernetesExecutorTest {
     @Test
     void aScannerOutOfMemoryIsAFailure() {
         KubernetesExecutor small = executorWith(new ScannerLimits(48L * 1024 * 1024, 512, Duration.ofMinutes(2), 500_000_000L, 1024 * 1024));
-        assertThatThrownBy(() -> small.run(shell("a=$(head -c 200000000 /dev/zero | tr '\\0' a); echo ${#a}")))
+        // Either sentence: whether the runtime reports `OOMKilled` or only the kill's 137 is containerd's race
+        // (containerd#12260), not ours — the next test holds the second case, which this one cannot choose.
+        assertThatThrownBy(() -> returned(small, shell("a=$(head -c 200000000 /dev/zero | tr '\\0' a); echo ${#a}")))
                 .isInstanceOf(ScannerFailureException.class)
-                .hasMessageContaining("ran out of memory");
+                .hasMessageContaining("out of memory (its limit is 48 MiB)");
+    }
+
+    @Test
+    void aScannerKilledWithoutAReasonIsAFailure() {
+        // What the runtime reports when its out-of-memory event loses the race to the exit: `Error`, exit 137 —
+        // measured on CI's k3s. A child takes the SIGKILL, because the scanner's shell is its container's init and
+        // ignores one from inside, and the shell passes its 137 on. `$!`, never `$$`: Kubernetes reads `$$` in a
+        // container's command as an escaped `$`.
+        assertThatThrownBy(() -> returned(executor, shell("sleep 60 & kill -9 $!; wait $!; exit $?")))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageContaining("was killed (exit 137, SIGKILL)");
+    }
+
+    /** Runs it, and says what came back when it should not have: a bare "expected a throwable" told CI nothing. */
+    private static ContainerResult returned(KubernetesExecutor executor, ContainerRun run) {
+        ContainerResult result = executor.run(run);
+        throw new AssertionError("The run returned, exit " + result.exitCode() + ", standard output \""
+                + result.stdout().strip() + "\", errors \"" + result.stderr().strip() + "\".");
     }
 
     @Test

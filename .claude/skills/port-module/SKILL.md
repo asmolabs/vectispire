@@ -96,6 +96,13 @@ Each of these was a real divergence from Java, found by replaying recorded traff
 - Compose the module in the replay's router (`crates/cp-agents/tests/golden.rs`, beside `phase_three`): its routes
   are owed as soon as they are composed, except those a `route` line of `golden/deferred/<module>.txt` still
   covers; remove a line once its recordings replay green — see `golden-replay`.
+- **A ceiling only goes down — with one exception, written down when it is used.** Serving a route makes its
+  recordings owed; one that cannot replay green *for a reason outside this module* (a value the recorder hides, a
+  state another module's unported code wrote) moves to the file of what will clear it — `_recording.txt`, or that
+  module's file — and that file's ceiling rises by as many lines. Allowed only when the PR's whole deferred total
+  goes down, and the PR names each moved line with the reason and what ends it. Never to make a failure of this
+  module's own code go away: that is fixed, or the route waits. (Platform stage 1, #86: three lines moved, the total
+  went from 390 to 387.)
 
 ## 5b. The files a port touches
 

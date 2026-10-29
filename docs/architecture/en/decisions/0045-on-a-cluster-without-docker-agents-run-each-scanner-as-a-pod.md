@@ -96,8 +96,9 @@ Three cheaper shapes were weighed on 2026-10-25 and rejected:
    hostile metadata. A reference set holds Syft on an OCI layout against Syft on a Docker archive:
    **fingerprints must not move**.
 9. **Never empty.** Every Kubernetes outcome is a failure naming the step — an image that cannot be
-   pulled, a pod nobody can schedule, `OOMKilled`, the deadline, an eviction, a read over its ceiling, a pod
-   deleted underneath — so the step is absent and its backlog stays as it was (0007).
+   pulled, a pod nobody can schedule, `OOMKilled` (or the kill's exit 137, when the runtime loses that
+   reason), the deadline, an eviction, a read over its ceiling, a pod deleted underneath —
+   so the step is absent and its backlog stays as it was (0007).
 10. **Built in the Java agent first.** The Rust agent is not ready to serve an installation; the backend
     is ported with the rest when it is.
 
