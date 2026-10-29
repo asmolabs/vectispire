@@ -481,10 +481,9 @@ describe('the accounts screen', () => {
 
             document.querySelector<HTMLButtonElement>('#second-factor-confirm button')!.click();
             await fixture.whenStable();
-            http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/users/5/second-factor').flush({
-                ...ENROLLED.users[1],
-                mfaEnabled: false
-            });
+            http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/users/5/second-factor').flush(
+                asSchema('UserAdminSummary', { ...ENROLLED.users[1], mfaEnabled: false })
+            );
             http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(ENROLLED);
 
             expect(fixture.componentInstance.secondFactorVisible()).toBe(false);
