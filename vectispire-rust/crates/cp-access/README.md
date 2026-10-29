@@ -7,8 +7,9 @@ sessions, API keys, agents' keys and the SCIM token, and the bearer filter's dec
 (task 1.5); **the second factor's codes and the sign-in throttle's arithmetic** (the pure half of 1.3); and **the sign-in
 services** (1.3's service half): the throttle's reservations, the password sign-in, the second factor's challenge, TOTP
 enrolment and recovery, the shared rate windows and the hourly cleanup; and **the administration services** (stage 2b,
-what 1.7's routes call): an account's grants, teams, API keys, and the names other modules print. Single sign-on (1.4),
-SCIM's service and the routes (1.7) land beside these files.
+what 1.7's routes call): an account's grants, teams, API keys, and the names other modules print; and **SCIM's
+provisioning** (stage 2c): users, groups, their filters, pages and refusals. Single sign-on (1.4) and the routes (1.7)
+land beside these files.
 
 ## Accounts and passwords (task 1.1)
 
@@ -392,7 +393,86 @@ an empty list before calling it, so no request reaches it with one.
 
 ### Not here
 
-- **`ScimProvisioningService`** (users and groups through SCIM, its filters, paging and refusals) is the next stage: too
-  large to review beside these, and its filter grammar and error bodies want a Java-written reference set.
+- **`ScimProvisioningService`** is stage 2c, below.
 - `BootstrapService`: no route of the 42 calls it (it runs at start); it comes with the binary's composition of access.
 - The services are not composed by the binary yet: they are composed with their routes (1.7), as the sign-in flows.
+
+## SCIM provisioning (stage 2c)
+
+What the `/scim/v2/Users` and `/scim/v2/Groups` routes of 1.7 will call. **No route here**: they come with stage 3b, and
+`crates/cp-contract/reference/not-yet-ported/access.txt` and `golden/deferred/access.txt` are unchanged.
+
+| Here | Java |
+|---|---|
+| `scim` — `ScimProvisioning::{users, user, create_user, replace_user, patch_user, delete_user, groups, group, create_group, replace_group, patch_group, delete_group}`, `UserAttributes`, `PatchOperation`, `UserCreation`, `UserChange`, `GroupView`, `GroupCreation`, `GroupChange`, `ORIGIN_SCIM` | `ScimProvisioningService` |
+| `scim::ScimError` — `InvalidInput` (400), `InvalidFilter` (400, `scimType` `invalidFilter`), `ProtectedAccount` (403), `Failed` (500) | `InvalidInputException`, `InvalidFilterException`, `ProtectedAccountException`, as `ScimUsersController`'s handlers answer them |
+| `vectispire_domain::scim` — `Page` (1-based `startIndex`, `count` clamped to 500), `user_filter`, `member_ref`, `member_value_text`, `removal`, `INVALID_FILTER`, `UNIQUENESS`; `java::read_long` | `ScimProvisioningService.Page`, `SUPPORTED_FILTER` and `filterUsers`, `resolveUserId`, Jackson 3's `asString()`, `handleRemoveMembers`' path, `Long.parseLong` |
+| `persistence/scim.rs` — the account columns a view carries, the reads by id (and locked, for a write), name and subject, the insert, the directory's columns, the sessions, the memberships with their usernames, the directory's upsert of a membership and the removal of one | `UserRepository`, `SessionRepository.deleteByUserId`, `TeamMemberRepository.findMembershipsOf` / `findAllMemberships` / `save` / `deleteById` |
+
+**SCIM's groups are teams and its users accounts**: the teams' statements are the administration's (`team`,
+`team_named`, `insert_team`, `update_team`, `delete_members`, …), the name rules `team_rules`' and `bounded_text`'s, the
+roles and their flags `roles`'. A membership the directory sets is `scim` (`TeamMemberEntity.Origin.SCIM`), so the OIDC
+claim's reconciliation leaves it alone.
+
+### Held to the Java side
+
+- **`reference/access/scim/`**, written by `vectispire-core`'s `ScimReferenceSetTest` from the service itself, its
+  repositories mocked and recording what they are asked, and checked on every Java build: 82 filters — the lookup each
+  made, or the controller's own 400 body (`status`, `scimType`, `detail`, the filter clipped at 200 units) — straddling
+  `\s` (no Unicode space, `\x0B` yes), `.` (no line terminator after a backslash), `(?i)` (ASCII only: `uſerName` and the
+  Kelvin sign are refused), the root locale's lower case (`ΣΑΣ`, `İ`, `ǅ`); 34 pages, `Integer.MIN_VALUE` to `MAX_VALUE`;
+  55 PATCH member entries (`Long.parseLong`'s `+7`, `٧`, `７`, overflow, Jackson's `asString()` of numbers, booleans and
+  `null`); 34 `remove` paths. `crates/domain/tests/scim_reference_set.rs` replays them.
+- **`tests/scim_on_both_engines.rs`** runs every statement on MySQL 9.4 and PostgreSQL 17 and replays
+  `ScimUsersRoutesTest`, `ScimGroupsRoutesTest`, `ScimPagingRoutesTest` and `ScimUsersControllerTest` case by case, every
+  sentence and audit entry word for word (`resource` `SCIM`, attributed to the account's or the team's name, after the
+  commit) — plus the bindings by flag (a champion by approving triage, an auditor by its scope, an unreadable role), the
+  operator's `link-privileged-accounts`, and the transactions below.
+- **Mutations**: `security/mutants/p1-7d-access-scim.py`.
+
+### Differences from Java, on purpose
+
+- **One transaction per gesture.** Java's group writes are one transaction already; its account writes are not — a
+  replacement saves the row and then closes the sessions, a deletion closes the sessions and then deletes the row, each
+  its own commit. Here an account's row and the sessions its change closes, and an account's deletion with its sessions,
+  commit together; a group's deletion takes its members, grants and channel with it, as the team administration's does.
+  The engine test proves it with a trigger, set as the server's administrator, refusing the second statement: nothing
+  of the gesture is written, and nothing is recorded.
+- **An account's write locks its row from the read** (`for update`): two replacements binding an unbound account to two
+  subjects at once both passed Java's `bindOnce`, and the later write won — a rebinding the rule exists to refuse.
+- **An account's write sets the directory's columns only** (`display_name`, `email`, `keycloak_id`, `is_active`, `role`,
+  `updated_at`), where Java saves the whole entity read at the start: a second factor enrolled or a password changed in
+  between was written back as it was read — the same difference as the rehash's and the second factor's.
+
+### Java defects found while porting, fixed on both sides
+
+Each confirmed through the controllers (a 500 with the correlation id, `ApiExceptionHandler`'s catch-all), fixed on the
+Java side first (asmolabs/vectispire#92), and ported fixed:
+
+- **An `externalId` another account is bound to answered 500**, on `POST /scim/v2/Users` and on a `PUT` binding an unbound
+  account: `ScimProvisioningService.createUser` and `bindOnce` never asked, and the insert or update met
+  `t_user.keycloak_id`'s unique constraint. On both sides now `UserCreation::ExternalIdTaken` / `UserChange::ExternalIdTaken`, for
+  the routes to answer 409 `uniqueness` (RFC 7644 §3.3), with nothing written; asked under the constraint's own
+  comparison (on MySQL, without case).
+- **A PATCH member entry whose `value` is an object or an array answered 500**: `item.get("value").asString()` threw
+  Jackson 3's `JsonNodeException` on a container (`handleAddMembers`, `replaceMembers`). Java reads it with
+  `asString(null)` now, and such an entry names nobody on both sides, as an entry without a `value` does
+  (`scim::member_value_text`); the reference set holds four of them.
+
+### Observed in the Java code (not changed, ported as it is)
+
+- **A PATCH `add` of somebody already in the team makes the row the directory's**: `members.save` merges the pairing and
+  its origin becomes `scim`, where a `replace` keeps a listed member's row and origin. Ported as Java's merge does it (an
+  upsert of the origin).
+- **A user PATCH reads any operation**: `remove` with the path `active` and a boolean sets it, as `replace` does; only a
+  deactivation is recorded.
+- **A user PATCH's display name is not trimmed**, where a replacement's is (the controller trims it); neither are e-mail
+  addresses or subjects.
+- **A number past `u64` in a member's `value`**: Jackson keeps its digits, `serde_json` (without `arbitrary_precision`)
+  reads a float; both name a username no account can hold. Not in the reference set; the routes (3b) decide the parser.
+
+### Not here
+
+- **The routes** (3b) — the DTOs (`ScimUserDto`, `ScimGroupDto`, `ScimListResponse`, `ScimErrorResponse`), the `Location`
+  header, the `uniqueness` and not-found sentences (`ScimRefusal`), the reading of `roles[0]`, `emails[0]` and `name.formatted`
+  into `UserAttributes` — and their composition in the binary.

@@ -515,12 +515,14 @@ tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configure
  */
 /**
  * The reference sets the Rust control plane's `access` crate is held to — `vectispire-rust/reference/access/`,
- * written and checked by `AccessReferenceSetTest` exactly as `vectispire-common`'s are by its own (see
- * `common.rust.ReferenceSet`): checked on every build, regenerated with `-Dvectispire.rust.reference.write=true`.
+ * written and checked by `AccessReferenceSetTest`, and its `scim/` by `ScimReferenceSetTest`, exactly as
+ * `vectispire-common`'s are by its own (see `common.rust.ReferenceSet`): checked on every build, regenerated with
+ * `-Dvectispire.rust.reference.write=true`.
  *
  * Here and not in `vectispire-common` because the answers are `VisibilityService`'s, `RowVisibility`'s, the four-eyes
- * rules of `IssueDecisionService`, `VexIngestorService` and `SettingsAdministrationService` — all of this module. The
- * input is declared so that a changed reference file reruns the suite rather than leaving it up to date and green.
+ * rules of `IssueDecisionService`, `VexIngestorService`, `SettingsAdministrationService` and `ScimProvisioningService`
+ * — all of this module. The input is declared so that a changed reference file reruns the suite rather than leaving it
+ * up to date and green.
  */
 tasks.named<Test>("test") {
     systemProperty("vectispire.rust.reference", rootProject.file("../vectispire-rust/reference").absolutePath)

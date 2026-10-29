@@ -113,7 +113,9 @@ pub struct RequestActor {
 /// The audit operations this module writes — `AuditOperation`'s names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditOperation {
+    UserCreated,
     UserUpdated,
+    UserDeleted,
     ApiKeyCreated,
     ApiKeyDeleted,
     TeamUpdated,
@@ -127,7 +129,9 @@ pub enum AuditOperation {
 impl AuditOperation {
     pub const fn name(self) -> &'static str {
         match self {
+            AuditOperation::UserCreated => "USER_CREATED",
             AuditOperation::UserUpdated => "USER_UPDATED",
+            AuditOperation::UserDeleted => "USER_DELETED",
             AuditOperation::ApiKeyCreated => "API_KEY_CREATED",
             AuditOperation::ApiKeyDeleted => "API_KEY_DELETED",
             AuditOperation::TeamUpdated => "TEAM_UPDATED",

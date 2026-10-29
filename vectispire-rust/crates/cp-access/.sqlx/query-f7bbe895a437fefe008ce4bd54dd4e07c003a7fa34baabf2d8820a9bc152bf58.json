@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ delete from t_team_member where team_id = ? and user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f7bbe895a437fefe008ce4bd54dd4e07c003a7fa34baabf2d8820a9bc152bf58"
+}

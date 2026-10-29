@@ -35,6 +35,7 @@ pub mod scan_queue;
 pub mod scan_status;
 pub mod scan_target;
 pub mod schedules;
+pub mod scim;
 pub mod secret;
 pub mod severity;
 pub mod siem;
