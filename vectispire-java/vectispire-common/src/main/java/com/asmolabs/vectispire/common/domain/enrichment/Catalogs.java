@@ -1,8 +1,5 @@
 package com.asmolabs.vectispire.common.domain.enrichment;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * The public catalogues Vectispire enriches findings from, and the batching their lookups share.
  *
@@ -22,16 +19,4 @@ public final class Catalogs {
      */
     public static final String KEV_CATALOG_URL =
             "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
-
-    /**
-     * Splits a list into batches of at most {@code size} — a local lookup's {@code in} list, kept
-     * under every engine's bind-parameter ceiling.
-     */
-    public static <T> List<List<T>> batches(List<T> items, int size) {
-        List<List<T>> batches = new ArrayList<>();
-        for (int index = 0; index < items.size(); index += size) {
-            batches.add(List.copyOf(items.subList(index, Math.min(index + size, items.size()))));
-        }
-        return batches;
-    }
 }

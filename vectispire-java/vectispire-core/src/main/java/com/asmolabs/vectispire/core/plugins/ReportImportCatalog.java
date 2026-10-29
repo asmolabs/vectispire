@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.plugins;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
@@ -119,8 +120,8 @@ public class ReportImportCatalog {
     private static List<List<Long>> batches(Collection<Long> repositoryIds) {
         List<Long> distinct = new ArrayList<>(new LinkedHashSet<>(repositoryIds));
         List<List<Long>> batches = new ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += BATCH) {
-            batches.add(distinct.subList(from, Math.min(distinct.size(), from + BATCH)));
+        for (List<Long> batch : Batches.of(distinct, BATCH)) {
+            batches.add(batch);
         }
         return batches;
     }

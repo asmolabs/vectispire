@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.util.Collection;
@@ -52,9 +53,8 @@ public class AccountNames {
     public Map<String, Named> byUsername(Collection<String> usernames) {
         List<String> distinct = List.copyOf(new LinkedHashSet<>(usernames.stream().filter(Objects::nonNull).toList()));
         Map<String, Named> named = new HashMap<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            for (UserEntity user : users.findByUsernameIn(distinct.subList(from, Math.min(from + LOOKUP_BATCH,
-                    distinct.size())))) {
+        for (List<String> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            for (UserEntity user : users.findByUsernameIn(batch)) {
                 named.put(user.getUsername(), new Named(user.getId(), displayName(user)));
             }
         }

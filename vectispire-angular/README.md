@@ -97,14 +97,6 @@ a Vitest of another version, so the two move together; raise a floor when the fi
 risen, never lower one to make a change pass. The HTML report lands in
 `coverage/vectispire/index.html`. Dependencies MIT or BSD-3-Clause; development only.
 
-**The first download holds what the sign-in page needs, and the starting theme.** The shell
-(`AppLayout`: top bar, sidebar, configurator) is a lazy route like the screens, and the Lara and
-Nora presets are fetched the first time someone picks one; Aura stays, since the application boots
-in it. That took the initial bundle from 931.5 kB to 612.1 kB (162.7 kB to 133.4 kB transferred) on
-2026-10-29, and the `initial` budget in `angular.json` — 1 MB and 5 MB until then, which nothing
-would ever have reached — now warns at 650 kB and fails at 750 kB, so an eager import that pulls a
-screen or a preset back in turns the build red rather than going unnoticed.
-
 **`mysql2`, exact-pinned, for the browser suite alone.** The Playwright suite runs the control
 plane on MySQL (decision 0034), and two helpers in `e2e/support/fixture.ts` write to that
 database directly — resetting the login throttle and seeding one finding — with the control

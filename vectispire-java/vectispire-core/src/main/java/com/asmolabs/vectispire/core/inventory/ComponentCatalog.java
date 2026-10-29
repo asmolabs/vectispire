@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentOrigin;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import java.util.ArrayList;
@@ -52,8 +53,8 @@ public class ComponentCatalog {
     public Map<Long, List<Component>> componentsOf(Collection<Long> scanIds) {
         List<Long> distinct = new ArrayList<>(new LinkedHashSet<>(scanIds));
         Map<Long, List<Component>> byScan = new HashMap<>();
-        for (int from = 0; from < distinct.size(); from += BATCH) {
-            components.findByScanIdIn(distinct.subList(from, Math.min(distinct.size(), from + BATCH))).forEach(row ->
+        for (List<Long> batch : Batches.of(distinct, BATCH)) {
+            components.findByScanIdIn(batch).forEach(row ->
                     byScan.computeIfAbsent(row.getScanId(), id -> new ArrayList<>())
                             .add(new Component(row.getScanId(), row.getName(), row.getVersion(), row.getPurl(), row.getType(),
                                     ComponentOrigin.ofStored(row.getOrigin()))));

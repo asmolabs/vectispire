@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.compliance.persistence;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
@@ -98,9 +99,9 @@ public class OwaspWeeklyCoverageQueriesImpl implements OwaspWeeklyCoverageQuerie
     private static Predicate literalIn(CriteriaBuilder builder, Path<Long> column, Collection<Long> ids) {
         List<Long> sorted = ids.stream().distinct().sorted().toList();
         List<Predicate> lists = new ArrayList<>();
-        for (int from = 0; from < sorted.size(); from += IN_LIST_BATCH) {
+        for (List<Long> batch : Batches.of(sorted, IN_LIST_BATCH)) {
             CriteriaBuilder.In<Long> list = builder.in(column);
-            sorted.subList(from, Math.min(from + IN_LIST_BATCH, sorted.size())).forEach(id -> list.value(builder.literal(id)));
+            batch.forEach(id -> list.value(builder.literal(id)));
             lists.add(list);
         }
         return lists.size() == 1 ? lists.getFirst() : builder.or(lists.toArray(Predicate[]::new));

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomComponentRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomRepository;
@@ -40,8 +41,7 @@ class BuildSbomPurge {
     public void purge(TargetDeleted deleted) {
         if (deleted.target() instanceof ScanTarget.Repository repository) {
             List<Long> ids = imports.idsOfRepository(repository.id());
-            for (int from = 0; from < ids.size(); from += BATCH) {
-                List<Long> batch = ids.subList(from, Math.min(ids.size(), from + BATCH));
+            for (List<Long> batch : Batches.of(ids, BATCH)) {
                 listed.deleteByImportIds(batch);
                 imports.deleteByIds(batch);
             }

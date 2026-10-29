@@ -1,6 +1,5 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from './i18n.service';
-import { LanguageMemo } from './language-memo';
 
 /**
  * `{{ row.percentageWithinSla | localPercent }}`: a share in percentage points, with its sign as the
@@ -16,7 +15,6 @@ import { LanguageMemo } from './language-memo';
 })
 export class LocalPercentPipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
-    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(value: number, maximumFractionDigits?: number, minimumFractionDigits?: number): string;
     transform(
@@ -27,8 +25,6 @@ export class LocalPercentPipe implements PipeTransform {
     transform(value: number | null | undefined, maximumFractionDigits = 1, minimumFractionDigits = 0): string | null {
         if (value === null || value === undefined) return null;
         if (!Number.isFinite(value)) return '—';
-        return this.memo.get([value, maximumFractionDigits, minimumFractionDigits], () =>
-            this.i18n.percent(value, maximumFractionDigits, minimumFractionDigits)
-        );
+        return this.i18n.percent(value, maximumFractionDigits, minimumFractionDigits);
     }
 }

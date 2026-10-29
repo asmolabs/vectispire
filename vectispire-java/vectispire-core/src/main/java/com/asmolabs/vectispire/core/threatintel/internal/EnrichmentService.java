@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.threatintel.internal;
 
-import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.scanning.ScanIngestor;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -126,7 +126,7 @@ public class EnrichmentService implements ScanIngestor.Enricher {
 
         Set<String> exploited = new HashSet<>();
         List<String> lowerCase = spellings.keySet().stream().map(id -> id.toLowerCase(Locale.ROOT)).toList();
-        for (List<String> batch : Catalogs.batches(lowerCase, KEV_QUERY_BATCH)) {
+        for (List<String> batch : Batches.of(lowerCase, KEV_QUERY_BATCH)) {
             intel.exploitedAmong(batch).forEach(stored ->
                     exploited.addAll(spellings.getOrDefault(stored.toUpperCase(Locale.ROOT), List.of())));
         }

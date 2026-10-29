@@ -502,10 +502,6 @@ class OwaspReportTest extends ApiTestBase {
     @DisplayName("the Ollama connection test")
     class OllamaCheck {
 
-        /** The route's own audience: not an administrator, so the answers below name no host. */
-        private static final com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal SECURITY_LEAD =
-                Mockito.mock(com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal.class);
-
         /**
          * <b>Both branches, against a mocked service, because the real one depends on the
          * machine.</b> A first version asserted "unreachable" over the live host and failed on a
@@ -542,7 +538,7 @@ class OwaspReportTest extends ApiTestBase {
             // `availableModels` never throws and returns suggestions when nothing answered —
             // right for a dropdown, and indistinguishable from success unless the check says so.
             var check = controllerWith(com.asmolabs.vectispire.common.domain.aireview.AiReview.FALLBACK_MODEL_SUGGESTIONS)
-                    .testOllama(SECURITY_LEAD);
+                    .testOllama();
 
             assertThat(check.reachable()).isFalse();
             assertThat(check.detail()).contains("Is Ollama running");
@@ -553,7 +549,7 @@ class OwaspReportTest extends ApiTestBase {
         void reachableButNotInstalled() {
             // The commonest misconfiguration. A single boolean would hide it until the first
             // report failed, on another screen, minutes later.
-            var check = controllerWith(List.of("llama3:8b", "qwen2:7b")).testOllama(SECURITY_LEAD);
+            var check = controllerWith(List.of("llama3:8b", "qwen2:7b")).testOllama();
 
             assertThat(check.reachable()).isTrue();
             assertThat(check.modelInstalled()).isFalse();
@@ -565,7 +561,7 @@ class OwaspReportTest extends ApiTestBase {
         @Test
         @DisplayName("reachable with the model says so plainly")
         void reachableAndInstalled() {
-            var check = controllerWith(List.of("gemma4:12b-it-qat", "llama3:8b")).testOllama(SECURITY_LEAD);
+            var check = controllerWith(List.of("gemma4:12b-it-qat", "llama3:8b")).testOllama();
 
             assertThat(check.reachable()).isTrue();
             assertThat(check.modelInstalled()).isTrue();

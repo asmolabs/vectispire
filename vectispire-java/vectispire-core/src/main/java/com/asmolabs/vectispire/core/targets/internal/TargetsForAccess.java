@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.targets.internal;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
@@ -45,8 +46,7 @@ public class TargetsForAccess implements GrantableTargets {
     public List<ScanTarget> targetsIn(Collection<Long> projectIds) {
         List<Long> distinct = projectIds.stream().distinct().toList();
         List<ScanTarget> targets = new ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += PROJECT_BATCH) {
-            List<Long> batch = distinct.subList(from, Math.min(from + PROJECT_BATCH, distinct.size()));
+        for (List<Long> batch : Batches.of(distinct, PROJECT_BATCH)) {
             repositories.findIdsByProjectIdIn(batch).forEach(id -> targets.add(new ScanTarget.Repository(id)));
             containers.findIdsByProjectIdIn(batch).forEach(id -> targets.add(new ScanTarget.Container(id)));
         }
