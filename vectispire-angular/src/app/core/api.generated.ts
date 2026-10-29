@@ -4933,16 +4933,6 @@ export interface components {
             /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
             purl?: string | null;
             /**
-             * @deprecated
-             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
-             */
-            reachability?: string;
-            /**
-             * @deprecated
-             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
-             */
-            reachableSymbols?: string | null;
-            /**
              * Format: int64
              * @description The repository the issue was found on; null on a container image's issue.
              */
@@ -6756,16 +6746,6 @@ export interface components {
             /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
             purl?: string | null;
             /**
-             * @deprecated
-             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
-             */
-            reachability?: string;
-            /**
-             * @deprecated
-             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
-             */
-            reachableSymbols?: string | null;
-            /**
              * Format: int64
              * @description The repository the issue was found on; null on a container image's issue.
              */
@@ -6914,16 +6894,6 @@ export interface components {
             packageVersion?: string | null;
             /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
             purl?: string | null;
-            /**
-             * @deprecated
-             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
-             */
-            reachability?: string;
-            /**
-             * @deprecated
-             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
-             */
-            reachableSymbols?: string | null;
             /**
              * Format: int64
              * @description The repository the issue was found on; null on a container image's issue.
