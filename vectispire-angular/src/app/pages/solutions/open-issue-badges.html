@@ -1,0 +1,20 @@
+<span class="inline-flex flex-wrap items-center gap-1" data-testid="open-issues">
+    @if (tags().length === 0) {
+        <p-tag severity="success" [value]="'solutions.no_open_issues' | translate" />
+    } @else {
+        @for (tag of tags(); track tag.field) {
+            @if (tag.link) {
+                <a
+                    [routerLink]="['/issues']"
+                    [queryParams]="tag.link"
+                    [attr.aria-label]="tag.aria"
+                    data-testid="open-issues-link"
+                >
+                    <p-tag [severity]="tag.colour" [value]="tag.text" />
+                </a>
+            } @else {
+                <p-tag [severity]="tag.colour" [value]="tag.text" />
+            }
+        }
+    }
+</span>

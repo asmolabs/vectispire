@@ -1,0 +1,72 @@
+<p-card>
+    <section id="unfiled" data-testid="unfiled">
+        <h2 class="text-xl font-semibold m-0 flex items-center gap-2">
+            <i class="pi pi-folder-open text-muted-color" aria-hidden="true"></i>
+            {{ 'solutions.unfiled' | translate }}
+        </h2>
+        <p class="text-muted-color mt-1 mb-0">{{ 'solutions.unfiled_hint' | translate }}</p>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+            <p-tag
+                severity="secondary"
+                [value]="'solutions.repository_count' | translate: { count: page.unfiled()?.repositoryCount ?? 0 }"
+            />
+            <p-tag
+                severity="secondary"
+                data-testid="container-count"
+                [value]="'solutions.container_count' | translate: { count: page.unfiled()?.containerCount ?? 0 }"
+            />
+            <app-open-issue-badges [issues]="page.unfiled()?.openIssues" />
+        </div>
+        @if ((page.unfiled()?.repositories ?? []).length === 0 && (page.unfiled()?.containers ?? []).length === 0) {
+            <p class="text-muted-color text-sm mt-2 mb-0">{{ 'solutions.unfiled_empty' | translate }}</p>
+        }
+        <ul class="list-none p-0 m-0 mt-2">
+            @for (repository of page.unfiled()?.repositories ?? []; track repository.id) {
+                <li class="flex items-center justify-between gap-2 py-1">
+                    <a
+                        [routerLink]="['/issues']"
+                        [queryParams]="{ repository_id: repository.id }"
+                        class="flex items-center gap-2"
+                    >
+                        <i class="pi pi-sitemap text-muted-color" aria-hidden="true"></i>
+                        {{ repository.name }}
+                    </a>
+                    @if (page.isAdmin()) {
+                        <p-button
+                            icon="pi pi-folder-open"
+                            [text]="true"
+                            size="small"
+                            [label]="'solutions.file' | translate"
+                            [ariaLabel]="'solutions.aria_file' | translate: { name: repository.name }"
+                            [disabled]="!page.hasProjects()"
+                            (onClick)="page.openFile({ kind: 'repository', ref: repository })"
+                        />
+                    }
+                </li>
+            }
+            @for (container of page.unfiled()?.containers ?? []; track container.id) {
+                <li class="flex items-center justify-between gap-2 py-1" data-testid="unfiled-image">
+                    <a
+                        [routerLink]="['/issues']"
+                        [queryParams]="{ container_id: container.id }"
+                        class="flex items-center gap-2"
+                    >
+                        <i class="pi pi-box text-muted-color" aria-hidden="true"></i>
+                        {{ container.name }}
+                    </a>
+                    @if (page.isAdmin()) {
+                        <p-button
+                            icon="pi pi-folder-open"
+                            [text]="true"
+                            size="small"
+                            [label]="'solutions.file' | translate"
+                            [ariaLabel]="'solutions.aria_file' | translate: { name: container.name }"
+                            [disabled]="!page.hasProjects()"
+                            (onClick)="page.openFile({ kind: 'container', ref: container })"
+                        />
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+</p-card>
