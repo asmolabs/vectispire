@@ -7085,6 +7085,9 @@
           "output" : {
             "type" : "string"
           },
+          "schema_version" : {
+            "type" : "string"
+          },
           "signature" : {
             "$ref" : "#/components/schemas/PluginSignature"
           },

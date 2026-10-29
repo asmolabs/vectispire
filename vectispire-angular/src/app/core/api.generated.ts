@@ -7386,6 +7386,7 @@ export interface components {
             network: boolean;
             network_justification?: string;
             output?: string;
+            schema_version?: string;
             signature?: components["schemas"]["PluginSignature"];
             /** Format: int32 */
             timeout_seconds?: number;

@@ -66,6 +66,73 @@ class PluginManifestTest {
                 .isNotEqualTo(base);
     }
 
+    static PluginManifest versioned(String schemaVersion) {
+        PluginManifest manifest = manifest();
+        return new PluginManifest(manifest.id(), manifest.name(), manifest.image(), manifest.languages(),
+                manifest.arguments(), manifest.output(), manifest.exitCodes(), manifest.network(),
+                manifest.networkJustification(), manifest.timeoutSeconds(), null, schemaVersion);
+    }
+
+    @Test
+    @DisplayName("a manifest stating no version is read as 1.0, from JSON written before the field existed")
+    void unversioned() throws Exception {
+        String json = new ObjectMapper().writeValueAsString(manifest()).replace(",\"schema_version\":\"1.0\"", "");
+        assertThat(json).doesNotContain("schema_version");
+
+        PluginManifest read = new ObjectMapper().readValue(json, PluginManifest.class);
+
+        assertThat(read.schemaVersion()).isEqualTo("1.0");
+        assertThat(read).isEqualTo(manifest());
+        assertThat(versioned("  ").schemaVersion()).isEqualTo(PluginManifest.UNVERSIONED);
+    }
+
+    @Test
+    @DisplayName("every 1.x manifest hashes as it did before the field existed — the previous agent's digest")
+    void versionOutOfTheDigestForMajorOne() {
+        // The digest the 0.11 agent computes for this manifest: it ignores schema_version and hashes the rest.
+        String before = "fcead9bd3036bf22242a315233a9b9328e4021d583110dafc55d46b9c1968010";
+
+        assertThat(manifest().digest()).isEqualTo(before);
+        assertThat(versioned("1.0").digest()).isEqualTo(before);
+        assertThat(versioned("1.4").digest()).isEqualTo(before);
+        assertThat(versioned("2.0").digest())
+                .as("another major is a new digest, so an agent that cannot read the field still refuses it")
+                .isNotEqualTo(before);
+        assertThat(versioned("1.0.1").digest()).isNotEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("a major other than 1, or a version that is not MAJOR.MINOR, is refused before any field is read")
+    void unreadableVersion() {
+        assertThat(versioned("1.0").validated()).isEqualTo(versioned(null));
+        assertThat(versioned("1.9").validated().schemaVersion()).isEqualTo("1.9");
+        for (String version : List.of("2.0", "0.9", "10.0")) {
+            assertThatThrownBy(() -> versioned(version).validated())
+                    .isInstanceOf(InvalidPluginException.class)
+                    .hasMessageContaining("schema_version " + version)
+                    .hasMessageContaining("major 1 only");
+        }
+        for (String version : List.of("1", "v1.0", "1.0.0", "01.0", "1.x", "1 .0")) {
+            assertThatThrownBy(() -> versioned(version).validated())
+                    .as(version)
+                    .isInstanceOf(InvalidPluginException.class)
+                    .hasMessageContaining("MAJOR.MINOR");
+        }
+    }
+
+    @Test
+    @DisplayName("registration refuses a later minor than this build knows, whose fields it would drop unread")
+    void registrationKnowsEveryField() {
+        assertThat(versioned(null).validatedForRegistration()).isEqualTo(manifest());
+        assertThat(versioned(PluginManifest.SCHEMA_VERSION).validatedForRegistration()).isEqualTo(manifest());
+        assertThatThrownBy(() -> versioned("1.1").validatedForRegistration())
+                .isInstanceOf(InvalidPluginException.class)
+                .hasMessageContaining("knows 1.0");
+        assertThatThrownBy(() -> versioned("2.0").validatedForRegistration())
+                .isInstanceOf(InvalidPluginException.class)
+                .hasMessageContaining("major 1 only");
+    }
+
     @Test
     @DisplayName("the arguments are a list with the two placeholders replaced, never a shell line")
     void command() {

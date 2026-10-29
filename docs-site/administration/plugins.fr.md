@@ -24,6 +24,7 @@ consigne pourquoi ils fonctionnent ainsi.
 
 ```json
 {
+  "schema_version": "1.0",
   "id": "acme-lint",
   "name": "ACME house rules",
   "image": "registry.acme.internal/sec/acme-lint@sha256:4f2d…(64 hex)",
@@ -43,6 +44,7 @@ consigne pourquoi ils fonctionnent ainsi.
 
 | Champ | Ce qu'il signifie |
 |---|---|
+| `schema_version` | Le format du manifeste, `MAJEUR.MINEUR`. Facultatif : absent, il vaut `1.0` — voir [La version du manifeste](#la-version-du-manifeste). |
 | `id` | 2 à 40 lettres minuscules, chiffres et tirets intérieurs. **Il fait partie de chaque issue que le plugin ouvre** : il ne peut jamais être renommé ni réutilisé. |
 | `name` | Ce que montrent les écrans. |
 | `image` | Épinglée **par digest** : `dépôt@sha256:<64 hex>`. Un tag — même à côté du digest — est refusé. |
@@ -54,7 +56,30 @@ consigne pourquoi ils fonctionnent ainsi.
 | `timeout_seconds` | 10 à 900. Il peut raccourcir les quinze minutes des scanners, jamais les allonger. |
 | `signature` | Facultatif : qui doit avoir signé l'image — voir [Signer l'image](#signer-limage). |
 
-### Ce sous quoi le plugin tourne
+### La version du manifeste
+
+`schema_version` dit dans quel format le manifeste est écrit, `MAJEUR.MINEUR`, sur le modèle de l'export
+des plugins de rapport : une version mineure ajoute un champ facultatif et n'en change ni n'en retire
+aucun ; une version majeure peut changer ce qu'un champ signifie. Cette version de Vectispire lit
+**`1.0`**.
+
+- **Absent, il vaut `1.0`.** Tout manifeste écrit avant que le champ n'existe est un manifeste `1.0`, et
+  continue de fonctionner tel quel — enregistré, conservé et exécuté comme avant, sous le même digest. Il
+  reste `1.0` quand viendra une version majeure 2 : un manifeste sans le champ a été écrit pour la 1.
+- **Une autre version majeure est refusée**, à l'enregistrement (400) et par l'exécuteur qui la ferait
+  tourner : le plugin est absent du scan, la version dans la raison, et ses issues restent telles
+  quelles. Un manifeste d'une autre majeure n'est jamais lu champ par champ, puisque le même champ peut
+  y signifier autre chose.
+- **Une version mineure plus récente que celle que connaît le plan de contrôle est refusée à
+  l'enregistrement**, qui sinon laisserait tomber les champs qu'il ne connaît pas et conserverait le
+  manifeste sans eux. Un exécuteur la fait tourner : les champs qu'ajoute une mineure sont facultatifs,
+  et dès qu'ils sont renseignés ils entrent dans le digest, si bien qu'un agent qui en ignore un refuse
+  le manifeste plutôt que de l'ignorer.
+- **La version n'entre pas dans le digest au sein de la majeure 1.** Un manifeste `1.0` se hache comme
+  avant l'existence du champ, si bien qu'un agent de la version précédente, qui ignore le champ, le fait
+  toujours tourner.
+
+
 
 Exactement ce sous quoi tourne chaque scanner livré avec Vectispire — aucune option ne permet de
 l'assouplir :
