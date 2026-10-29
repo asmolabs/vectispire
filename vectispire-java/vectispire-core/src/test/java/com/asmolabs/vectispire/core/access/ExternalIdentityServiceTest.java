@@ -164,6 +164,27 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("with linking by claim off, even a plain account is not bound to whoever claims its name")
+    void linkingByClaimCanBeSwitchedOff() {
+        // A privileged account had an operator's switch; a plain one was bound to any identity
+        // claiming its name, in a realm where users may write their own.
+        UserEntity plain = account("dave");
+        ExternalIdentityService strict = new ExternalIdentityService(
+                users, java.util.Optional.empty(), java.util.Optional.empty(), false, false);
+
+        assertThatThrownBy(() -> strict.resolve("sub-dave", ISSUER, "dave"))
+                .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
+                .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
+                .isEqualTo(ExternalIdentityService.Refusal.NO_ACCOUNT);
+        assertThat(users.findById(plain.getId()).orElseThrow().getKeycloakId()).isNull();
+
+        // A subject provisioning already bound still signs in.
+        plain.setKeycloakId("sub-dave");
+        users.save(plain);
+        assertThat(strict.resolve("sub-dave", ISSUER, "dave").username()).isEqualTo("dave");
+    }
+
+    @Test
     @DisplayName("an account with a local second factor is never bound on a claim, whatever the setting")
     void aLocalSecondFactorIsNotTradedForAClaim() {
         UserEntity account = account("carol");

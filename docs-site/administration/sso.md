@@ -52,6 +52,11 @@ held to four rules:
   sign-on skips the local TOTP — the provider owns the second factor — so binding it on a claim
   would trade the factor its owner enrolled for a name somebody may have written. Its owner signs
   in with password and code, or has it linked through SCIM.
+- **None of this happens with `VECTISPIRE_OIDC_LINK_BY_CLAIM=false`.** Then no account is linked
+  on a claim, plain ones included: accounts are bound to their subject through
+  [SCIM](#provisioning-from-the-directory-scim), and an identity SCIM did not bind is refused as
+  matching no account. Turn it off for a realm whose users can choose or edit their own username;
+  it is on by default, which is how a realm and an existing set of accounts meet.
 
 ## Groups become teams, and leaving one takes it away
 

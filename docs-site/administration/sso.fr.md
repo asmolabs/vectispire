@@ -56,6 +56,12 @@ laisse chacun écrire. Elle obéit donc à quatre règles :
   facteur — et le lier sur une revendication échangerait le facteur que son titulaire a enrôlé contre
   un nom que quelqu'un d'autre a pu écrire. Son titulaire se connecte avec mot de passe et code, ou
   le fait lier par SCIM.
+- **Rien de cela n'a lieu avec `VECTISPIRE_OIDC_LINK_BY_CLAIM=false`.** Aucun compte n'est alors lié
+  sur une revendication, comptes simples compris : les comptes sont liés à leur sujet par
+  [SCIM](#provisioning-from-the-directory-scim), et une identité que SCIM n'a pas liée est refusée
+  comme ne correspondant à aucun compte. Désactivez-le pour un realm dont les utilisateurs peuvent
+  choisir ou modifier leur nom ; il est actif par défaut, ce qui est la façon dont un realm et des
+  comptes existants se rencontrent.
 
 ## Les groupes deviennent des équipes, et en sortir les retire
 

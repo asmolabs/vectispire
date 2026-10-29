@@ -33,25 +33,39 @@ public class ExternalIdentityService {
     private final Optional<TeamRepository> teams;
     private final Optional<TeamMemberRepository> teamMembers;
     private final boolean linkPrivileged;
+    private final boolean linkByClaim;
 
     public ExternalIdentityService(UserRepository users) {
         this(users, Optional.empty(), Optional.empty(), false);
     }
 
+    public ExternalIdentityService(
+            UserRepository users,
+            Optional<TeamRepository> teams,
+            Optional<TeamMemberRepository> teamMembers,
+            boolean linkPrivileged) {
+        this(users, teams, teamMembers, linkPrivileged, true);
+    }
+
     /**
      * @param linkPrivileged whether an administrative or governing account may be bound on its
      *     first sign-on like any other. Off by default: see {@link #resolve(String, String, Claimed)}
+     * @param linkByClaim whether any account is bound on its first sign-on by a claim at all. On by
+     *     default, which is how a realm and an existing set of accounts meet; off, an identity signs in
+     *     only to an account provisioning already bound to its subject
      */
     @Autowired
     public ExternalIdentityService(
             UserRepository users,
             Optional<TeamRepository> teams,
             Optional<TeamMemberRepository> teamMembers,
-            @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged) {
+            @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged,
+            @Value("${vectispire.oidc.link-by-claim:true}") boolean linkByClaim) {
         this.users = users;
         this.teams = teams;
         this.teamMembers = teamMembers;
         this.linkPrivileged = linkPrivileged;
+        this.linkByClaim = linkByClaim;
     }
 
     /**
@@ -150,6 +164,18 @@ public class ExternalIdentityService {
         Optional<UserEntity> bound = users.findByKeycloakId(subject);
         if (bound.isPresent()) {
             return active(bound.get());
+        }
+
+        // **The operator's switch for plain accounts too.** A privileged account had one
+        // (`link-privileged-accounts`); a plain account was bound to whoever claimed its name, with no
+        // way to say that this realm's names are writable by their owners. Off, nothing is bound on a
+        // claim: provisioning binds the subject, and an identity it did not bind opens no account.
+        // Refused before the name is looked up, so the answer says nothing of which names exist.
+        if (!linkByClaim) {
+            log.warn("Single sign-on refused: no account is bound to this subject, and binding by claim is off ({}).",
+                    issuer);
+            throw new SignInRefusedException(Refusal.NO_ACCOUNT, "No account is linked to this identity, and linking "
+                    + "by name is switched off (vectispire.oidc.link-by-claim). It is linked through provisioning.");
         }
 
         String name = nameToMatch(claimed);
