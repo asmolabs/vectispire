@@ -9,7 +9,12 @@ import { of } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
+import { DebugElement } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { Issues } from './issues';
+import { IssuesPage } from './issues-page';
+import { TriageDialog } from './triage-dialog';
+import { AiAdvisorDialog } from './ai-advisor-dialog';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import type { BulkTriageRequest, Issue, TriageRequest } from '@/app/core/api.models';
 import { backlogEntry } from '@/app/core/testing/issues.fixtures';
@@ -17,6 +22,13 @@ import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
 import { openLink, openedLink, reopenedLink, resolvedLink } from '@/app/shared/owasp-weekly';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
 import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
+
+/** The screen's state, which its parts share: provided by the page, read through its injector. */
+const stateOf = (host: DebugElement) => host.injector.get(IssuesPage);
+/** The triage dialog, which keeps its own draft; the page's template opens it for a row or the ticks. */
+const triageOf = (host: DebugElement) => host.query(By.directive(TriageDialog)).componentInstance as TriageDialog;
+const advisorOf = (host: DebugElement) =>
+    host.query(By.directive(AiAdvisorDialog)).componentInstance as AiAdvisorDialog;
 
 /**
  * The backlog.
@@ -75,7 +87,7 @@ describe('the issue backlog', () => {
         firstPage(228);
 
         // Without this, fifty rows out of two hundred read as a backlog of fifty.
-        expect(fixture.componentInstance.pageLabel()).toBe('1–50 of 228');
+        expect(stateOf(fixture.debugElement).pageLabel()).toBe('1–50 of 228');
         expect((fixture.nativeElement as HTMLElement).textContent).toContain('1–50 of 228');
     });
 
@@ -84,7 +96,9 @@ describe('the issue backlog', () => {
      * "analysed by Vectispire" from "declared by a CI" without opening each issue, and filter by it.
      */
     it('offers the plugin and imported types in the filter, and names where each row came from', () => {
-        const values = fixture.componentInstance.types().map((option) => option.value);
+        const values = stateOf(fixture.debugElement)
+            .types()
+            .map((option) => option.value);
         expect(values).toContain('plugin');
         expect(values).toContain('imported');
 
@@ -127,15 +141,17 @@ describe('the issue backlog', () => {
         // Named by their placeholder alone, the selects lost their name once a value replaced it:
         // a screen reader announced "High, combobox" with nothing saying which filter that was.
         firstPage(1);
-        fixture.componentInstance.severity = 'high';
-        fixture.componentInstance.type = 'imported';
+        stateOf(fixture.debugElement).severity.set('high');
+        stateOf(fixture.debugElement).type.set('imported');
         fixture.componentRef.changeDetectorRef.markForCheck();
         await fixture.whenStable();
 
         const dom = fixture.nativeElement as HTMLElement;
         const boxes = Array.from(dom.querySelectorAll('p-select [role="combobox"]'));
         // The value shows where the placeholder was — the case where the name used to go.
-        const high = fixture.componentInstance.severities().find((option) => option.value === 'high')?.label;
+        const high = stateOf(fixture.debugElement)
+            .severities()
+            .find((option) => option.value === 'high')?.label;
         expect(boxes[1].textContent?.trim()).toBe(high);
         expect(boxes.map((box) => box.getAttribute('aria-label'))).toEqual([
             'State',
@@ -150,8 +166,8 @@ describe('the issue backlog', () => {
 
     it('sends the chosen type to the server', () => {
         firstPage(1);
-        fixture.componentInstance.type = 'imported';
-        fixture.componentInstance.reload(0);
+        stateOf(fixture.debugElement).type.set('imported');
+        stateOf(fixture.debugElement).reload(0);
         const request = http.expectOne((call) => call.url === '/api/v1/issues');
         expect(request.request.params.get('type')).toBe('imported');
         request.flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
@@ -160,13 +176,13 @@ describe('the issue backlog', () => {
     it('asks the server for the next window rather than slicing what it holds', () => {
         firstPage(228);
 
-        fixture.componentInstance.reload(50);
+        stateOf(fixture.debugElement).reload(50);
         const next = http.expectOne((call) => call.url === '/api/v1/issues');
         expect(next.request.urlWithParams).toContain('offset=50');
         next.flush(asSchema('IssuePage', { items: [issue(2, 'CVE-2026-9999')], total: 228, limit: 50, offset: 50 }));
         fixture.detectChanges();
 
-        expect(fixture.componentInstance.pageLabel()).toBe('51–100 of 228');
+        expect(stateOf(fixture.debugElement).pageLabel()).toBe('51–100 of 228');
     });
 
     it('links each row to its detail', () => {
@@ -183,7 +199,7 @@ describe('the issue backlog', () => {
         );
         fixture.detectChanges();
 
-        expect(fixture.componentInstance.pageLabel()).toBe('No result');
+        expect(stateOf(fixture.debugElement).pageLabel()).toBe('No result');
     });
 
     it('stops loading when the request is refused', () => {
@@ -194,7 +210,7 @@ describe('the issue backlog', () => {
         fixture.detectChanges();
 
         // A spinner that never stops is how a failed page passes for a slow one.
-        expect(fixture.componentInstance.loading()).toBe(false);
+        expect(stateOf(fixture.debugElement).loading()).toBe(false);
     });
 
     /**
@@ -207,13 +223,13 @@ describe('the issue backlog', () => {
     it('sends each switch to the server as the parameter the API reads', () => {
         firstPage(1);
 
-        const component = fixture.componentInstance;
-        component.onlyKev = true;
-        component.overdue = true;
-        component.unsettled = true;
-        component.onlyDirect = true;
-        component.triageFilter = 'affected';
-        component.reload(0);
+        const component = fixture.debugElement;
+        stateOf(component).onlyKev.set(true);
+        stateOf(component).overdue.set(true);
+        stateOf(component).unsettled.set(true);
+        stateOf(component).onlyDirect.set(true);
+        stateOf(component).triageFilter.set('affected');
+        stateOf(component).reload(0);
 
         const url = http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams;
         expect(url).toContain('is_kev=true');
@@ -232,7 +248,7 @@ describe('the issue backlog', () => {
         await fixture.whenStable();
         fixture.detectChanges();
 
-        expect(fixture.componentInstance.onlyKev).toBe(true);
+        expect(stateOf(fixture.debugElement).onlyKev()).toBe(true);
         expect(http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams).toContain('is_kev=true');
     });
 
@@ -268,7 +284,7 @@ describe('the issue backlog', () => {
             .flush(asSchema('IssuePage', { items: [issue(1, 'CVE-2026-1234')], total: 1, limit: 50, offset: 0 }));
         offline.detectChanges();
 
-        expect(offline.componentInstance.aiEnabled()).toBe(false);
+        expect(stateOf(offline.debugElement).aiEnabled()).toBe(false);
     });
 
     it('hides the advisor too when availability itself does not answer', async () => {
@@ -292,14 +308,14 @@ describe('the issue backlog', () => {
             .flush(asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 }));
         broken.detectChanges();
 
-        expect(broken.componentInstance.aiEnabled()).toBe(false);
+        expect(stateOf(broken.debugElement).aiEnabled()).toBe(false);
     });
 
     it('says the model did not answer, instead of opening an empty dialog', () => {
         firstPage(1);
 
-        const page = fixture.componentInstance;
-        page.openAiAdvisor(page.issues()[0]);
+        const page = fixture.debugElement;
+        advisorOf(page).openAiAdvisor(stateOf(page).issues()[0]);
         const explain = http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1');
         expect(explain.request.params.get('language')).toBe('en');
         explain.error(new ProgressEvent('failed'));
@@ -308,9 +324,9 @@ describe('the issue backlog', () => {
         // **The error was set in a signal the template did not use**: the dialog opened, the
         // spinner stopped, and nothing was left. The message moreover promised a "local fallback
         // generation" that this code never wrote.
-        expect(page.aiAdviceError()).toBeTruthy();
-        expect(page.aiAdviceError()).not.toContain('secours');
-        expect(page.aiAdviceLoading()).toBe(false);
+        expect(advisorOf(page).aiAdviceError()).toBeTruthy();
+        expect(advisorOf(page).aiAdviceError()).not.toContain('secours');
+        expect(advisorOf(page).aiAdviceLoading()).toBe(false);
     });
 });
 
@@ -354,12 +370,12 @@ describe('triaging a selection', () => {
     }, 20_000);
 
     it('sends the ticked issues as `ids`, once', () => {
-        const component = fixture.componentInstance;
-        component.selected.set([component.issues()[0], component.issues()[2]]);
-        component.openBulkTriage();
-        component.triageStatus = 'not_affected';
-        component.triageJustification = 'vulnerable_code_not_in_execute_path';
-        component.submitTriage();
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[2]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).triageStatus = 'not_affected';
+        triageOf(component).triageJustification = 'vulnerable_code_not_in_execute_path';
+        triageOf(component).submitTriage();
 
         const call = http.expectOne('/api/v1/issues/triage');
         expect(call.request.method).toBe('POST');
@@ -372,10 +388,10 @@ describe('triaging a selection', () => {
     });
 
     it('reloads and drops the selection once the batch is written', () => {
-        const component = fixture.componentInstance;
-        component.selected.set([component.issues()[0]]);
-        component.openBulkTriage();
-        component.submitTriage();
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).submitTriage();
         // The route answers with the written issues, not with backlog rows: `targetKind` is the
         // backlog's word and an `IssueView` does not carry it.
         http.expectOne('/api/v1/issues/triage').flush(
@@ -396,29 +412,29 @@ describe('triaging a selection', () => {
         );
 
         // A selection outliving its rows is a decision about issues nobody is looking at any more.
-        expect(component.selected()).toEqual([]);
+        expect(stateOf(component).selected()).toEqual([]);
         http.expectOne((call) => call.url === '/api/v1/issues').flush(
             asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
         );
     });
 
     it('drops the selection when the filters change under it', () => {
-        const component = fixture.componentInstance;
-        component.selected.set([component.issues()[0], component.issues()[1]]);
-        component.severity = 'critical';
-        component.reload(0);
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[1]]);
+        stateOf(component).severity.set('critical');
+        stateOf(component).reload(0);
 
-        expect(component.selected()).toEqual([]);
+        expect(stateOf(component).selected()).toEqual([]);
         http.expectOne((call) => call.url === '/api/v1/issues').flush(
             asSchema('IssuePage', { items: [], total: 0, limit: 50, offset: 0 })
         );
     });
 
     it('says the whole batch was refused when one issue is not visible', () => {
-        const component = fixture.componentInstance;
-        component.selected.set([component.issues()[0], component.issues()[1]]);
-        component.openBulkTriage();
-        component.submitTriage();
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[1]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).submitTriage();
         // The server's own sentence for this case, which says nothing about the other rows.
         http.expectOne('/api/v1/issues/triage').flush(
             { detail: 'Issue not found.' },
@@ -426,7 +442,7 @@ describe('triaging a selection', () => {
         );
         fixture.detectChanges();
 
-        const message = component.triageError();
+        const message = triageOf(component).triageError();
         expect(message).toContain('None of the 2 selected issues were triaged');
         expect(message).toContain('refused as a whole');
         // And nothing was reloaded, so the ticks are still there to select again from.
@@ -434,18 +450,18 @@ describe('triaging a selection', () => {
     });
 
     it("still shows the server's explanation when the refusal is not a visibility one", () => {
-        const component = fixture.componentInstance;
-        component.selected.set([component.issues()[0]]);
-        component.openBulkTriage();
-        component.submitTriage();
+        const component = fixture.debugElement;
+        stateOf(component).selected.set([stateOf(component).issues()[0]]);
+        triageOf(component).openBulkTriage();
+        triageOf(component).submitTriage();
         http.expectOne('/api/v1/issues/triage').flush(
             { detail: 'Too many issues at once: 900, the limit is 500.' },
             { status: 400, statusText: 'Bad Request' }
         );
 
         // The sentence the server took care to write, kept — with the batch's fate stated first.
-        expect(component.triageError()).toContain('Too many issues at once');
-        expect(component.triageError()).toContain('The selected issue was not triaged');
+        expect(triageOf(component).triageError()).toContain('Too many issues at once');
+        expect(triageOf(component).triageError()).toContain('The selected issue was not triaged');
     });
 
     /**
@@ -461,15 +477,19 @@ describe('triaging a selection', () => {
         await fixture.whenStable();
         fixture.detectChanges();
 
-        expect(fixture.componentInstance.selected().map((issue) => issue.id)).toEqual([11, 22, 33]);
+        expect(
+            stateOf(fixture.debugElement)
+                .selected()
+                .map((issue) => issue.id)
+        ).toEqual([11, 22, 33]);
 
-        fixture.componentInstance.openBulkTriage();
-        fixture.componentInstance.submitTriage();
+        triageOf(fixture.debugElement).openBulkTriage();
+        triageOf(fixture.debugElement).submitTriage();
         expect((http.expectOne('/api/v1/issues/triage').request.body as BulkTriageRequest).ids).toEqual([11, 22, 33]);
     });
 
     it('offers the action only once something is ticked, and says what it will do', () => {
-        const component = fixture.componentInstance;
+        const component = fixture.debugElement;
         const session = TestBed.inject(SessionStore);
         const as = (role: string) => session.user.set(sessionUser(role));
 
@@ -484,7 +504,7 @@ describe('triaging a selection', () => {
         as('CISO');
         expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('(2)');
 
-        component.selected.set([component.issues()[0], component.issues()[1]]);
+        stateOf(component).selected.set([stateOf(component).issues()[0], stateOf(component).issues()[1]]);
         fixture.detectChanges();
 
         // The count is on the button because "Save" looks the same for one row and for forty.
@@ -561,21 +581,21 @@ describe('the backlog opened from a dashboard link', () => {
     it('applies is_kev and shows the control as active', async () => {
         const fixture = await open({ is_kev: 'true' });
 
-        expect(fixture.componentInstance.onlyKev).toBe(true);
+        expect(stateOf(fixture.debugElement).onlyKev()).toBe(true);
         const control = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-kev');
         expect(control).not.toBeNull();
         expect(control!.checked).toBe(true);
 
         // And it is still the filter the server was asked for, not only the box that is ticked.
         const http = TestBed.inject(HttpTestingController);
-        fixture.componentInstance.reload(0);
+        stateOf(fixture.debugElement).reload(0);
         expect(http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams).toContain('is_kev=true');
     });
 
     it('does the same for the deadline figure', async () => {
         const fixture = await open({ overdue: 'true' });
 
-        expect(fixture.componentInstance.overdue).toBe(true);
+        expect(stateOf(fixture.debugElement).overdue()).toBe(true);
         expect((fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-overdue')!.checked).toBe(
             true
         );
@@ -586,7 +606,7 @@ describe('the backlog opened from a dashboard link', () => {
         // five — the figure looks wrong, and it is the list that is.
         const fixture = await open({ severity: 'critical', state: 'open', unsettled: 'true' });
 
-        expect(fixture.componentInstance.unsettled).toBe(true);
+        expect(stateOf(fixture.debugElement).unsettled()).toBe(true);
         expect(
             (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-unsettled')!.checked
         ).toBe(true);
@@ -597,7 +617,7 @@ describe('the backlog opened from a dashboard link', () => {
         // be the same contradiction the other way round.
         const fixture = await open({});
 
-        expect(fixture.componentInstance.onlyKev).toBe(false);
+        expect(stateOf(fixture.debugElement).onlyKev()).toBe(false);
         expect((fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-kev')!.checked).toBe(
             false
         );
@@ -754,19 +774,19 @@ describe('the backlog narrowed to a project or a solution', () => {
         // over from the link before it.
         expect(params.has('severity')).toBe(false);
         expect(params.has('unsettled')).toBe(false);
-        expect(before.severity).toBeNull();
-        expect(before.unsettled).toBe(false);
+        expect(stateOf(harness.routeDebugElement!).severity()).toBeNull();
+        expect(stateOf(harness.routeDebugElement!).unsettled()).toBe(false);
         expect(page().querySelector('[data-testid="scope-project"]')).toBeNull();
         expect(page().querySelector('[data-testid="scope-solution"]')).not.toBeNull();
     });
 
     it('writes a control into the URL, keeping the scope it was opened with', async () => {
         await open('/issues?project_id=12');
-        const component = harness.routeDebugElement!.componentInstance as Issues;
+        const component = harness.routeDebugElement!;
 
-        component.severity = 'critical';
-        component.onlyKev = true;
-        component.filtersChanged();
+        stateOf(component).severity.set('critical');
+        stateOf(component).onlyKev.set(true);
+        stateOf(component).filtersChanged();
         const params = await nextRequest();
 
         expect(params.get('project_id')).toBe('12');
@@ -819,10 +839,10 @@ describe('the backlog narrowed to a project or a solution', () => {
 
     it('keeps the identifier when another control moves, and a search beside it stays a search', async () => {
         await open('/issues?identifier=CVE-2021-4428');
-        const component = harness.routeDebugElement!.componentInstance as Issues;
+        const component = harness.routeDebugElement!;
 
-        component.search = 'log4j';
-        component.filtersChanged();
+        stateOf(component).search.set('log4j');
+        stateOf(component).filtersChanged();
         const params = await nextRequest();
 
         expect(params.get('identifier')).toBe('CVE-2021-4428');
@@ -921,7 +941,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         expect(banner.textContent).toContain(`1–${line.open} of ${line.open}`);
         expect(banner.textContent).toContain('not settled by triage as it stands today');
         // The state control says "all", not "open": the control agrees with the request.
-        expect((harness.routeDebugElement!.componentInstance as Issues).state).toBe('all');
+        expect(stateOf(harness.routeDebugElement!).state()).toBe('all');
         // The way back names the week and the scope, and nothing the link could have smuggled in.
         const back = new URL(banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!.href);
         expect(back.pathname).toBe('/owasp');
@@ -942,9 +962,9 @@ describe('the backlog opened from a weekly OWASP figure', () => {
     it('keeps the drill-down when another control moves', async () => {
         const week = threeWeeks().weeks[1];
         await open(url(openLink(week, 'A06', null)), 4);
-        const component = harness.routeDebugElement!.componentInstance as Issues;
-        component.severity = 'critical';
-        component.filtersChanged();
+        const component = harness.routeDebugElement!;
+        stateOf(component).severity.set('critical');
+        stateOf(component).filtersChanged();
         await harness.fixture.whenStable();
         const request = http.expectOne((call) => call.url === '/api/v1/issues');
         const params = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
@@ -1095,43 +1115,45 @@ describe('accepting a risk', () => {
     }, 20_000);
 
     it('offers it in the one list, in words, and never in the colour of good news', () => {
-        const component = fixture.componentInstance;
-        const option = component.triageOptions().find((one) => one.value === 'will_not_fix');
+        const component = fixture.debugElement;
+        const option = stateOf(component)
+            .triageOptions()
+            .find((one) => one.value === 'will_not_fix');
         expect(option?.label).toBe('Will not fix — risk accepted');
-        expect(component.triageLabel('will_not_fix')).toBe('Will not fix — risk accepted');
+        expect(stateOf(component).triageLabel('will_not_fix')).toBe('Will not fix — risk accepted');
         // Settled for the gate, still exposed: amber, not the green of `fixed`.
-        expect(component.triageColour('will_not_fix')).toBe('warn');
+        expect(stateOf(component).triageColour('will_not_fix')).toBe('warn');
     });
 
     it('cannot be submitted without a review delay the server accepts', () => {
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[0]);
-        component.chooseTriageStatus('will_not_fix');
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('will_not_fix');
 
         for (const days of [null, 0, 3651, 1.5]) {
-            component.triageExpiresInDays = days;
-            expect(component.canSubmitTriage()).toBe(false);
+            triageOf(component).triageExpiresInDays = days;
+            expect(triageOf(component).canSubmitTriage()).toBe(false);
         }
-        component.submitTriage();
+        triageOf(component).submitTriage();
         http.expectNone('/api/v1/issues/7/triage');
 
-        component.triageExpiresInDays = 90;
-        expect(component.canSubmitTriage()).toBe(true);
+        triageOf(component).triageExpiresInDays = 90;
+        expect(triageOf(component).canSubmitTriage()).toBe(true);
     });
 
     it('clears a justification chosen before, and never sends one', () => {
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[0]);
-        component.chooseTriageStatus('not_affected');
-        component.triageJustification = 'inline_mitigations_already_exist';
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('not_affected');
+        triageOf(component).triageJustification = 'inline_mitigations_already_exist';
 
-        component.chooseTriageStatus('will_not_fix');
-        expect(component.triageJustification).toBeNull();
+        triageOf(component).chooseTriageStatus('will_not_fix');
+        expect(triageOf(component).triageJustification).toBeNull();
 
         // Even a value written behind the field's back stays home.
-        component.triageJustification = 'inline_mitigations_already_exist';
-        component.triageExpiresInDays = 90;
-        component.submitTriage();
+        triageOf(component).triageJustification = 'inline_mitigations_already_exist';
+        triageOf(component).triageExpiresInDays = 90;
+        triageOf(component).submitTriage();
 
         const body = http.expectOne('/api/v1/issues/7/triage').request.body as TriageRequest;
         expect(body.status).toBe('will_not_fix');
@@ -1140,9 +1162,9 @@ describe('accepting a risk', () => {
     });
 
     it('shows no justification field, and says the delay is required, in the dialog', async () => {
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[0]);
-        component.chooseTriageStatus('will_not_fix');
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('will_not_fix');
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
@@ -1157,9 +1179,9 @@ describe('accepting a risk', () => {
     });
 
     it('keeps the justification and an optional delay for an argument that the product is not exposed', async () => {
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[0]);
-        component.chooseTriageStatus('not_affected');
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
+        triageOf(component).chooseTriageStatus('not_affected');
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
@@ -1232,17 +1254,17 @@ describe('answering a request awaiting approval', () => {
     }, 20_000);
 
     it('opens on the requested status and review date, and grants exactly that', () => {
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[0]);
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
 
-        expect(component.triageStatus).toBe('will_not_fix');
-        expect(component.triageRequested).toBe('will_not_fix');
-        expect(component.triageJustification).toBeNull();
-        expect(component.triageExpiresInDays).toBe(30);
-        expect(component.triageComment).toBe('Legacy module, retired next quarter.');
-        expect(component.canSubmitTriage()).toBe(true);
+        expect(triageOf(component).triageStatus).toBe('will_not_fix');
+        expect(triageOf(component).triageRequested).toBe('will_not_fix');
+        expect(triageOf(component).triageJustification).toBeNull();
+        expect(triageOf(component).triageExpiresInDays).toBe(30);
+        expect(triageOf(component).triageComment).toBe('Legacy module, retired next quarter.');
+        expect(triageOf(component).canSubmitTriage()).toBe(true);
 
-        component.submitTriage();
+        triageOf(component).submitTriage();
         const body = http.expectOne('/api/v1/issues/8/triage').request.body as TriageRequest;
         expect(body.status).toBe('will_not_fix');
         expect(body.justification).toBeNull();
@@ -1256,8 +1278,8 @@ describe('answering a request awaiting approval', () => {
         expect(requested.length).toBe(1);
         expect(requested[0].textContent).toContain('Will not fix — risk accepted');
 
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[0]);
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[0]);
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
@@ -1267,22 +1289,22 @@ describe('answering a request awaiting approval', () => {
     });
 
     it('invents nothing for a request that recorded no status, and keeps its proposed date', () => {
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[1]);
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[1]);
 
-        expect(component.triageStatus).toBe('pending_approval');
-        expect(component.triageRequested).toBeNull();
-        expect(component.triageJustification).toBe('inline_mitigations_already_exist');
-        expect(component.triageExpiresInDays).toBeNull();
+        expect(triageOf(component).triageStatus).toBe('pending_approval');
+        expect(triageOf(component).triageRequested).toBeNull();
+        expect(triageOf(component).triageJustification).toBe('inline_mitigations_already_exist');
+        expect(triageOf(component).triageExpiresInDays).toBeNull();
     });
 
     it('opens a settled decision as it stands, with the delay to choose again', () => {
-        const component = fixture.componentInstance;
-        component.openTriage(component.issues()[2]);
+        const component = fixture.debugElement;
+        triageOf(component).openTriage(stateOf(component).issues()[2]);
 
-        expect(component.triageStatus).toBe('not_affected');
-        expect(component.triageRequested).toBeNull();
-        expect(component.triageExpiresInDays).toBeNull();
+        expect(triageOf(component).triageStatus).toBe('not_affected');
+        expect(triageOf(component).triageRequested).toBeNull();
+        expect(triageOf(component).triageExpiresInDays).toBeNull();
     });
 });
 
@@ -1300,8 +1322,8 @@ describe('applying the advisor suggestion', () => {
     const ROW = backlogEntry(11, { triageStatus: 'affected' });
 
     function advise(status: string): void {
-        const component = fixture.componentInstance;
-        component.openAiAdvisor(component.issues()[0]);
+        const component = fixture.debugElement;
+        advisorOf(component).openAiAdvisor(stateOf(component).issues()[0]);
         http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/11').flush(
             asSchema('AiVulnerabilityAdvice', {
                 identifier: 'CVE-2026-11',
@@ -1314,7 +1336,7 @@ describe('applying the advisor suggestion', () => {
                 references: []
             })
         );
-        component.applySuggestedVex();
+        advisorOf(component).applySuggestedVex();
     }
 
     beforeEach(async () => {
@@ -1344,17 +1366,21 @@ describe('applying the advisor suggestion', () => {
 
     it('reads an investigation as under review, which the dialog offers and the server accepts', () => {
         advise('under_investigation');
-        const component = fixture.componentInstance;
+        const component = fixture.debugElement;
 
-        expect(component.triageStatus).toBe('under_review');
-        expect(component.triageOptions().map((option) => option.value)).toContain(component.triageStatus);
+        expect(triageOf(component).triageStatus).toBe('under_review');
+        expect(
+            stateOf(component)
+                .triageOptions()
+                .map((option) => option.value)
+        ).toContain(triageOf(component).triageStatus);
 
-        component.submitTriage();
+        triageOf(component).submitTriage();
         expect((http.expectOne('/api/v1/issues/11/triage').request.body as TriageRequest).status).toBe('under_review');
     });
 
     it('keeps a status the triage vocabulary shares', () => {
         advise('affected');
-        expect(fixture.componentInstance.triageStatus).toBe('affected');
+        expect(triageOf(fixture.debugElement).triageStatus).toBe('affected');
     });
 });
