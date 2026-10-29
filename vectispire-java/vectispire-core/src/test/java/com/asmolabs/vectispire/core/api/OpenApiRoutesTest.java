@@ -82,7 +82,7 @@ class OpenApiRoutesTest extends ApiTestBase {
                         "post", List.of("201", "400", "409")),
                 "/scim/v2/Users/{id}", Map.of(
                         "get", List.of("200", "404"),
-                        "put", List.of("200", "400", "403", "404"),
+                        "put", List.of("200", "400", "403", "404", "409"),
                         "patch", List.of("200", "400", "403", "404"),
                         "delete", List.of("204", "403")),
                 "/scim/v2/Groups", Map.of(

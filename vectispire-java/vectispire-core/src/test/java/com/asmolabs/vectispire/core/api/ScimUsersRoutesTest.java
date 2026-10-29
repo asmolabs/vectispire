@@ -207,6 +207,47 @@ class ScimUsersRoutesTest extends ApiTestBase {
     }
 
     /**
+     * The subject is unique in {@code t_user}: a directory binding one another account holds reached
+     * the constraint and read a 500, where {@code uniqueness} is what tells it to link instead.
+     */
+    @Test
+    @DisplayName("an externalId another account is bound to is a 409 uniqueness, on creation and on a first binding")
+    void aTakenExternalIdIsUniqueness() throws Exception {
+        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-holder", "externalId", "subject-held"))))
+                .andExpect(status().isCreated());
+
+        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-second", "externalId", "subject-held"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                .andExpect(jsonPath("$.detail").value("An account with this externalId already exists."));
+        assertThat(users.findByUsername("scim-subject-second")).isEmpty();
+
+        tokenFor("scim-subject-unbound", Role.USER, false);
+        long id = users.findByUsername("scim-subject-unbound").orElseThrow().getId();
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-unbound", "externalId", "subject-held",
+                                "displayName", "Not Written"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                .andExpect(jsonPath("$.detail").value("An account with this externalId already exists."));
+        var unbound = users.findById(id).orElseThrow();
+        assertThat(unbound.getKeycloakId()).isNull();
+        assertThat(unbound.getDisplayName()).isNotEqualTo("Not Written");
+
+        // The holder's own subject, sent again, is no conflict.
+        long holder = users.findByUsername("scim-subject-holder").orElseThrow().getId();
+        mvc.perform(authenticated(put("/scim/v2/Users/" + holder), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-holder", "externalId", "subject-held"))))
+                .andExpect(status().isOk());
+    }
+
+    /**
      * The audit of 10 October 2026: the token could not grant a CISO, but it could bind an existing,
      * unbound one to a subject of its choosing, and the next sign-in landed on that account with
      * neither its password nor its second factor.

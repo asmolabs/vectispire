@@ -336,6 +336,37 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         assertThat(members.findByTeamId(id)).isEmpty();
     }
 
+    /** Jackson 3's {@code asString()} throws on a container: a member named by an object answered the PATCH 500. */
+    @Test
+    @DisplayName("a member whose value is an object or an array names nobody and is skipped, in an add and in a replacement")
+    void aContainerMemberValueIsSkipped() throws Exception {
+        long joined = account("scim-container-neighbour");
+        long id = team("Containers");
+
+        for (String op : List.of("add", "replace")) {
+            mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                            .contentType(SCIM)
+                            .content(write(Map.of("Operations", List.of(Map.of(
+                                    "op", op,
+                                    "path", "members",
+                                    "value", List.of(
+                                            Map.of("value", Map.of("id", "1")),
+                                            Map.of("value", List.of("1")),
+                                            Map.of("value", String.valueOf(joined)))))))))
+                    .andExpect(status().isOk());
+            assertThat(members.findByTeamId(id))
+                    .extracting(member -> member.getId().userId())
+                    .containsExactly(joined);
+        }
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "add",
+                                "value", Map.of("members", List.of(Map.of("value", Map.of("id", "1"))))))))))
+                .andExpect(status().isOk());
+    }
+
     @Test
     @DisplayName("a member replacement beside a refused rename is rolled back with it, and members that are not a list are a 400")
     void aRefusedRenameRollsTheReplacementBack() throws Exception {

@@ -153,6 +153,18 @@ public class ScimProvisioningService {
         record Created(UserView user) implements UserCreation {}
 
         record UsernameTaken() implements UserCreation {}
+
+        /** Another account is bound to this {@code externalId}: nothing written. */
+        record ExternalIdTaken() implements UserCreation {}
+    }
+
+    /** A replacement's outcome. {@code ExternalIdTaken} is a binding to a subject another account holds. */
+    public sealed interface UserChange {
+        record Changed(UserView user) implements UserChange {}
+
+        record Absent() implements UserChange {}
+
+        record ExternalIdTaken() implements UserChange {}
     }
 
     /** @param display the member's username, or its identifier when the account is gone */
@@ -260,6 +272,11 @@ public class ScimProvisioningService {
         user.setKeycloakId(bounded(attributes.externalId(), "externalId"));
         user.setIsActive(attributes.active() == null || attributes.active());
         user.setRole(grantable(attributes.role(), Role.USER.name()));
+        // Asked before the insert: the column's unique constraint answered it, and the directory read a
+        // 500 it could not act on where "already provisioned, link it" is what it needed to hear.
+        if (boundToAnother(user.getKeycloakId(), null)) {
+            return new UserCreation.ExternalIdTaken();
+        }
         // A password nobody knows, so the account has none to sign in with; it signs in through the
         // provider. Not "must change": that flag held every federated session of a provisioned
         // account on the change-password screen, which asks for a current password nobody had.
@@ -281,11 +298,10 @@ public class ScimProvisioningService {
         return new UserCreation.Created(UserView.of(saved));
     }
 
-    /** Empty when there is no such account. */
-    public Optional<UserView> replaceUser(Long id, UserAttributes attributes, RequestActor origin) {
+    public UserChange replaceUser(Long id, UserAttributes attributes, RequestActor origin) {
         Optional<UserEntity> found = users.findById(id);
         if (found.isEmpty()) {
-            return Optional.empty();
+            return new UserChange.Absent();
         }
 
         UserEntity user = requireProvisionable(found.get());
@@ -297,7 +313,11 @@ public class ScimProvisioningService {
         user.setDisplayName(bounded(attributes.displayName(), "displayName"));
         user.setEmail(bounded(attributes.email(), "emails"));
         if (attributes.externalId() != null) {
-            bindOnce(user, bounded(attributes.externalId(), "externalId"), linkPrivileged);
+            String externalId = bounded(attributes.externalId(), "externalId");
+            if (user.getKeycloakId() == null && boundToAnother(externalId, id)) {
+                return new UserChange.ExternalIdTaken();
+            }
+            bindOnce(user, externalId, linkPrivileged);
         }
         user.setIsActive(nowActive);
         user.setRole(role);
@@ -336,7 +356,7 @@ public class ScimProvisioningService {
                     origin.userAgent()));
         }
 
-        return Optional.of(UserView.of(saved));
+        return new UserChange.Changed(UserView.of(saved));
     }
 
     /** Empty when there is no such account. */
@@ -477,6 +497,11 @@ public class ScimProvisioningService {
      */
     private static String bounded(String value, String attribute) {
         return BoundedText.within(value, IDENTITY_COLUMN, "The SCIM attribute " + attribute);
+    }
+
+    private boolean boundToAnother(String externalId, Long id) {
+        return externalId != null
+                && users.findByKeycloakId(externalId).filter(other -> !other.getId().equals(id)).isPresent();
     }
 
     /**
@@ -709,7 +734,9 @@ public class ScimProvisioningService {
         Set<Long> listed = new LinkedHashSet<>();
         for (JsonNode item : items) {
             if (item != null && item.has("value")) {
-                resolveUserId(item.get("value").asString()).ifPresent(listed::add);
+                // asString(null): an object or an array names nobody and is skipped, where asString()
+                // threw and answered the whole PATCH 500.
+                resolveUserId(item.get("value").asString(null)).ifPresent(listed::add);
             }
         }
         Set<Long> kept = new HashSet<>();
@@ -789,14 +816,14 @@ public class ScimProvisioningService {
         if (value.isArray()) {
             for (JsonNode item : value) {
                 if (item.has("value")) {
-                    resolveUserId(item.get("value").asString()).ifPresent(userId ->
+                    resolveUserId(item.get("value").asString(null)).ifPresent(userId ->
                             members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }
         } else if (value.isObject() && value.has("members") && value.get("members").isArray()) {
             for (JsonNode item : value.get("members")) {
                 if (item.has("value")) {
-                    resolveUserId(item.get("value").asString()).ifPresent(userId ->
+                    resolveUserId(item.get("value").asString(null)).ifPresent(userId ->
                             members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }

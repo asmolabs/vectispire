@@ -22604,7 +22604,7 @@
                 }
               }
             },
-            "description" : "Another user holds this userName: scimType uniqueness"
+            "description" : "Another user holds this userName or this externalId: scimType uniqueness"
           }
         },
         "tags" : [ "scim-users-controller" ]
@@ -22810,6 +22810,16 @@
               }
             },
             "description" : "No user has this id"
+          },
+          "409" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "Another user is bound to this externalId: scimType uniqueness"
           }
         },
         "tags" : [ "scim-users-controller" ]

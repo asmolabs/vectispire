@@ -81,7 +81,7 @@ public class ScimUsersController {
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimUserDto.class)))
     @ApiResponse(responseCode = "400", description = "An attribute refused: a userName the account rules refuse, a value past its column, a role SCIM does not grant",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
-    @ApiResponse(responseCode = "409", description = "Another user holds this userName: scimType uniqueness",
+    @ApiResponse(responseCode = "409", description = "Another user holds this userName or this externalId: scimType uniqueness",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PostMapping(consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> createUser(
@@ -90,6 +90,8 @@ public class ScimUsersController {
         return switch (provisioning.createUser(attributesOf(dto), RequestActors.unnamed(request))) {
             case ScimProvisioningService.UserCreation.UsernameTaken taken ->
                     throw ScimRefusal.uniqueness("An account with this userName already exists.");
+            case ScimProvisioningService.UserCreation.ExternalIdTaken taken ->
+                    throw ScimRefusal.uniqueness("An account with this externalId already exists.");
             case ScimProvisioningService.UserCreation.Created(UserView saved) ->
                     ResponseEntity.created(URI.create("/scim/v2/Users/" + saved.id())).body(toDto(saved));
         };
@@ -102,13 +104,19 @@ public class ScimUsersController {
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @ApiResponse(responseCode = "403", description = "An administrative account: administered in Vectispire, not through SCIM",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Another user is bound to this externalId: scimType uniqueness",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PutMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> updateUser(
             @PathVariable Long id, @RequestBody ScimUserDto dto, HttpServletRequest request) {
 
-        return provisioning.replaceUser(id, attributesOf(dto), RequestActors.unnamed(request))
-                .map(saved -> ResponseEntity.ok(toDto(saved)))
-                .orElseThrow(() -> ScimRefusal.notFound("User " + id + " not found."));
+        return switch (provisioning.replaceUser(id, attributesOf(dto), RequestActors.unnamed(request))) {
+            case ScimProvisioningService.UserChange.Changed(UserView saved) -> ResponseEntity.ok(toDto(saved));
+            case ScimProvisioningService.UserChange.Absent absent ->
+                    throw ScimRefusal.notFound("User " + id + " not found.");
+            case ScimProvisioningService.UserChange.ExternalIdTaken taken ->
+                    throw ScimRefusal.uniqueness("An account with this externalId already exists.");
+        };
     }
 
     @ApiResponse(responseCode = "200", description = "The user")

@@ -16776,7 +16776,7 @@ export interface operations {
                     "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
-            /** @description Another user holds this userName: scimType uniqueness */
+            /** @description Another user holds this userName or this externalId: scimType uniqueness */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16863,6 +16863,15 @@ export interface operations {
             };
             /** @description No user has this id */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
+            /** @description Another user is bound to this externalId: scimType uniqueness */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
