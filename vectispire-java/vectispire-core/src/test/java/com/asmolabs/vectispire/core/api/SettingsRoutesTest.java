@@ -153,6 +153,22 @@ class SettingsRoutesTest extends ApiTestBase {
         assertThat(settingsStore.get(Setting.AI_REVIEW_OLLAMA_URL)).isEqualTo(before);
     }
 
+    @Test
+    @DisplayName("a CISO sending a secret administrator-only setting is refused whether or not the value is the stored one")
+    void aSecretSettingIsNoOracle() throws Exception {
+        // "Unchanged accepted, changed refused" answered whether a guess was the stored value, for a
+        // setting the role is not shown.
+        settingsStore.set(Setting.TICKET_BASE_URL, "https://tracker.internal.example");
+        String ciso = asCiso();
+        for (String guess : new String[] {"https://tracker.internal.example", "https://other.example"}) {
+            mvc.perform(authenticated(put("/api/v1/settings"), ciso)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("ticket_base_url", guess))))
+                    .andExpect(status().isForbidden());
+        }
+        assertThat(settingsStore.get(Setting.TICKET_BASE_URL)).isEqualTo("https://tracker.internal.example");
+    }
+
     /**
      * The tracker's address is stored as a setting, not through the token's encrypting route: a user name or a
      * token typed into it would be a second copy of the credential, in the clear. Refused as a forge connection's

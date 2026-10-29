@@ -17,7 +17,9 @@ the OpenAI key are set by an administrator only, so the settings that decide the
 the tracker base URL, its project, its Jira account and its pinned CA, *Allow a private tracker URL*, the OpenAI URL
 and the acknowledgement that lets code go to a remote endpoint — are an administrator's too, and show
 read-only to anyone else. Otherwise a role that cannot read a credential could collect it by pointing
-it at its own host, or have it write into a project of its choosing on the tracker's host.
+it at its own host, or have it write into a project of its choosing on the tracker's host. Sent by
+anyone else, such a setting is refused whatever its value when it is one the screen withholds (the
+tracker URL, its CA), and accepted back unchanged otherwise.
 *Allow a private SIEM destination* and *Allow a private webhook URL* are an administrator's for a
 neighbouring reason: the SIEM export and the notification channels are configured and tested by a
 CISO, and the switch deciding whether they may reach the internal network is not left to the same
