@@ -25,7 +25,6 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Teams: who is in one, what it owns, and where its alerts go.
@@ -71,6 +71,14 @@ public class TeamAdministrationService {
     private final GrantTargets grantTargets;
     private final GrantableTargets grantable;
 
+    /**
+     * One transaction per replacement or deletion, the audit entry after it. Each repository call
+     * used to commit alone: a failure between the delete and the inserts left a team with none of
+     * its members or targets, or a deleted team's rows half gone — the state
+     * {@code AccountAdminService.replaceTargets} exists to prevent for an account.
+     */
+    private final TransactionTemplate transactions;
+
     public TeamAdministrationService(
             TeamRepository teams,
             TeamMemberRepository memberships,
@@ -82,7 +90,8 @@ public class TeamAdministrationService {
             AuditLogService audit,
             Clock clock,
             GrantTargets grantTargets,
-            GrantableTargets grantable) {
+            GrantableTargets grantable,
+            TransactionTemplate transactions) {
         this.teams = teams;
         this.memberships = memberships;
         this.targets = targets;
@@ -94,6 +103,7 @@ public class TeamAdministrationService {
         this.clock = clock;
         this.grantTargets = grantTargets;
         this.grantable = grantable;
+        this.transactions = transactions;
     }
 
     /**
@@ -220,10 +230,12 @@ public class TeamAdministrationService {
         int members = memberships.findByTeamId(id).size();
         int owned = targets.findByTeamId(id).size();
 
-        memberships.deleteByTeamId(id);
-        targets.deleteByTeamId(id);
-        webhooks.deleteById(id);
-        teams.deleteById(id);
+        transactions.executeWithoutResult(status -> {
+            memberships.deleteByTeamId(id);
+            targets.deleteByTeamId(id);
+            webhooks.deleteById(id);
+            teams.deleteById(id);
+        });
         record(actor, id, AuditOperation.TEAM_UPDATED,
                 "Team deleted: " + team.getName() + " (" + members + " member(s), " + owned + " target(s))");
     }
@@ -255,8 +267,10 @@ public class TeamAdministrationService {
             throw new InvalidInputException("No such account(s): " + unknown);
         }
 
-        memberships.deleteByTeamId(id);
-        wanted.forEach(userId -> memberships.save(new TeamMemberEntity(id, userId)));
+        transactions.executeWithoutResult(status -> {
+            memberships.deleteByTeamId(id);
+            wanted.forEach(userId -> memberships.save(new TeamMemberEntity(id, userId)));
+        });
 
         record(actor, id, AuditOperation.TEAM_ACCESS_CHANGED,
                 "Members of " + team.getName() + ": " + wanted.size());
@@ -285,7 +299,9 @@ public class TeamAdministrationService {
         java.util.Set<TargetAssignment> held = targets.findByTeamId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
                 .collect(java.util.stream.Collectors.toSet());
-        List<TargetAssignment> wanted = new ArrayList<>();
+        // A set, as for an account's grants: the pair is the table's primary key, and the same
+        // target sent twice was answered and audited as two grants while one row was stored.
+        java.util.LinkedHashSet<TargetAssignment> unique = new java.util.LinkedHashSet<>();
         for (TargetAssignment assignment : requested) {
             if (assignment == null || assignment.id() == null) {
                 continue;
@@ -296,12 +312,15 @@ public class TeamAdministrationService {
             // confusing possible outcome.
             String kind = grantTargets.validate(assignment.kind(), assignment.id(), granter,
                     (normalized, targetId) -> held.contains(new TargetAssignment(normalized, targetId)));
-            wanted.add(new TargetAssignment(kind, assignment.id()));
+            unique.add(new TargetAssignment(kind, assignment.id()));
         }
+        List<TargetAssignment> wanted = List.copyOf(unique);
 
-        targets.deleteByTeamId(id);
-        wanted.forEach(assignment -> targets.save(
-                new TeamTargetEntity(id, assignment.kind(), assignment.id())));
+        transactions.executeWithoutResult(status -> {
+            targets.deleteByTeamId(id);
+            wanted.forEach(assignment -> targets.save(
+                    new TeamTargetEntity(id, assignment.kind(), assignment.id())));
+        });
 
         record(actor, id, AuditOperation.TEAM_ACCESS_CHANGED,
                 "Targets of " + team.getName() + ": " + wanted.size());

@@ -118,6 +118,22 @@ class GrantTargetsRoutesTest extends ApiTestBase {
                 .isEqualTo(404);
     }
 
+    @Test
+    @DisplayName("the same target sent twice is one grant, for a team as for an account")
+    void aTargetSentTwiceIsOneGrant() throws Exception {
+        long team = team("grant-twice-" + System.nanoTime());
+        long repository = repository();
+
+        MockHttpServletResponse granted = grant("/api/v1/teams/" + team, List.of(
+                Map.of("kind", "repository", "id", repository), Map.of("kind", "Repository", "id", repository)));
+
+        assertThat(granted.getStatus()).isEqualTo(200);
+        assertThat(json.readTree(granted.getContentAsString()))
+                .as("answered as stored: one row, not the two the body named")
+                .hasSize(1);
+        assertThat(teamTargets.findByTeamId(team)).hasSize(1);
+    }
+
     private MockHttpServletResponse grant(String grantee, List<Map<String, Object>> body) throws Exception {
         return mvc.perform(authenticated(put(grantee + "/targets"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
