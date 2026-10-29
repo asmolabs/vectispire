@@ -227,6 +227,41 @@ class ApiDiscoveryScannerTest {
     }
 
     @Test
+    @DisplayName("an ingress prefix, with or without its slash, exposes what is under it and not its namesakes")
+    void anIngressPrefixExposesWhatIsUnderIt(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("ingress.yaml"), """
+                kind: Ingress
+                spec:
+                  rules:
+                  - http:
+                      paths:
+                      - path: /api
+                      - path: /web/
+                      - path: /exact
+                """);
+        Files.writeString(tempDir.resolve("main.py"), """
+                @app.get("/api/items")
+                @app.get("/apix/items")
+                @app.get("/web/page")
+                @app.get("/webx")
+                @app.get("/exact")
+                @app.get("/inner/api")
+                """);
+
+        java.util.Map<String, ApiVisibility> visibility = ApiDiscoveryScanner.scan(tempDir).endpoints().stream()
+                .collect(java.util.stream.Collectors.toMap(ApiEndpoint::path, ApiEndpoint::visibility));
+
+        assertThat(visibility).containsEntry("/api/items", ApiVisibility.PUBLIC)
+                .containsEntry("/web/page", ApiVisibility.PUBLIC)
+                .containsEntry("/exact", ApiVisibility.PUBLIC)
+                // A prefix is a whole segment: `/api` does not expose `/apix`, and it is a prefix, not
+                // a suffix.
+                .containsEntry("/apix/items", ApiVisibility.UNKNOWN)
+                .containsEntry("/webx", ApiVisibility.UNKNOWN)
+                .containsEntry("/inner/api", ApiVisibility.UNKNOWN);
+    }
+
+    @Test
     @DisplayName("a path's literal characters match themselves, never as a pattern")
     void pathsAreLiteralBesideTheirParameters() {
         // The paths were spliced into a regex as written: `.` matched any character, and a route

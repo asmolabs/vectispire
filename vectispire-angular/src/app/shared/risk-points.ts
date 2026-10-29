@@ -1,6 +1,5 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from '../core/i18n/i18n.service';
-import { LanguageMemo } from '../core/i18n/language-memo';
 
 /**
  * "54.5 risk points", in the reader's language and decimal mark.
@@ -23,9 +22,8 @@ export function riskPointsLabel(points: number, i18n: Pick<I18nService, 't' | 'c
 })
 export class RiskPointsPipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
-    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(points: number): string {
-        return this.memo.get([points], () => riskPointsLabel(points, this.i18n));
+        return riskPointsLabel(points, this.i18n);
     }
 }

@@ -1,6 +1,5 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from '../core/i18n/i18n.service';
-import { LanguageMemo } from '../core/i18n/language-memo';
 import { keyFor } from '../core/i18n/literal-keys';
 import type { ChecklistSeverity } from '../core/api.models';
 
@@ -78,9 +77,8 @@ export function severityTone(severity: string | null | undefined): SeverityTone 
 })
 export class SeverityLabelPipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
-    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(severity: string | null | undefined): string {
-        return this.memo.get([severity], () => severityLabel(this.i18n, severity));
+        return severityLabel(this.i18n, severity);
     }
 }
