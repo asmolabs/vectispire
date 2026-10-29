@@ -213,6 +213,27 @@ de protéger qui que ce soit.
 
 Les deux sont consignés avec leur raisonnement dans le modèle de menaces du projet.
 
+### Une seule instance du plan de contrôle {#one-instance}
+
+**Exécutez un seul plan de contrôle.** Une seconde instance sur la même base — un second réplica sur
+Kubernetes, un second conteneur dans la même composition — n'est pas prise en charge en 1.0
+([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md) §4).
+Le code est écrit pour plusieurs, et trois mécanismes sont ce sur quoi deux instances s'appuieraient :
+
+- **les tâches de maintenance**, que chaque instance exécute : chacune est écrite pour supporter de
+  tourner deux fois, et celles qui ne doivent tourner qu'une fois — planifier les scans — élisent un
+  meneur par un bail en base ;
+- **le verrou de la chaîne d'audit** : chaque entrée est écrite sous un verrou sur la tête de la
+  chaîne, pour que deux écrivains ne la fassent jamais bifurquer ;
+- **l'outbox** : le relais réclame chaque notification avant de la livrer, pour que deux instances ne
+  l'envoient pas deux fois.
+
+Chacun est testé sur MySQL par deux sessions ou deux fils d'exécution ; **aucun par deux applications
+en marche**. Une garantie qu'aucune vérification n'exécute n'est pas une garantie que nous promettons :
+la haute disponibilité est un objectif de 1.x, avec sa propre décision une fois que deux instances
+auront tourné ensemble dans un test. D'ici là, une seconde instance est à vos risques, et un défaut
+qu'elle seule révèle n'est pas traité comme tel.
+
 ## Kubernetes {#kubernetes}
 
 Une chart Helm est livrée dans [`deploy/helm/vectispire/`](https://github.com/asmolabs/vectispire/tree/main/deploy/helm/vectispire).
@@ -361,7 +382,8 @@ aussi la plage des nœuds. Ce qui rend l'adresse du client dépend du répartite
   `trustedProxies`. Seulement si le répartiteur est le seul chemin vers le contrôleur : sinon un client
   écrit l'en-tête que le contrôleur transmet, et il est cru.
 
-**Deux réplicas** sont possibles, mais pas par défaut. Ils demandent :
+**Deux réplicas ne sont pas pris en charge en 1.0** — voir [Une seule instance du plan de contrôle](#one-instance).
+Outre ce que nomme cette section, un second réplica demanderait :
 
 - l'affinité par cookie (`ingress.stickySessions`) : l'authentification unique garde son état dans la
   session du pod qui a envoyé la personne vers le fournisseur ;
