@@ -83,6 +83,13 @@ import tools.jackson.databind.JsonNode;
 @Service
 public class ScimProvisioningService {
 
+    /**
+     * Who acted, in the audit trail: the identity provider through its token. The entries used to
+     * carry the account they changed as their actor, so a provisioning read as the account acting
+     * on itself. A space keeps it apart from every account name (AccountRules' grammar has none).
+     */
+    public static final String ACTOR = "SCIM provisioning";
+
     /** The width of {@code display_name}, {@code email} and {@code keycloak_id}. */
     private static final int IDENTITY_COLUMN = 255;
 
@@ -289,9 +296,9 @@ public class ScimProvisioningService {
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.USER_CREATED,
-                "SCIM",
+                String.valueOf(saved.getId()),
                 "SCIM provisioned account: " + username,
-                username,
+                ACTOR,
                 origin.ipAddress(),
                 origin.userAgent()));
 
@@ -331,27 +338,27 @@ public class ScimProvisioningService {
             auth.revokeAllForUser(saved.getId());
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM changed the role of " + saved.getUsername() + " from " + previousRole + " to " + role
                             + " and revoked its sessions",
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         } else if (wasActive && !nowActive) {
             auth.revokeAllForUser(saved.getId());
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM deactivated account and revoked all active sessions for " + saved.getUsername(),
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         } else {
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM updated account: " + saved.getUsername(),
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         }
@@ -382,9 +389,9 @@ public class ScimProvisioningService {
             auth.revokeAllForUser(saved.getId());
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM deactivated account and revoked active sessions for " + saved.getUsername(),
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         }
@@ -399,9 +406,9 @@ public class ScimProvisioningService {
             users.delete(user);
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_DELETED,
-                    "SCIM",
+                    String.valueOf(user.getId()),
                     "SCIM deleted account: " + user.getUsername(),
-                    user.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         });
@@ -804,11 +811,11 @@ public class ScimProvisioningService {
 
     /**
      * Called only once the group's transaction has committed — see the class note for the
-     * deadlock this avoids. Attributed to the team's name, as these entries always were.
+     * deadlock this avoids. The team is what the entry is about, and the directory is who acted.
      */
     private void recordGroup(RequestActor origin, String description, String teamName) {
         audit.record(new AuditLogService.Record(
-                AuditOperation.TEAM_UPDATED, "SCIM", description, teamName, origin.ipAddress(), origin.userAgent()));
+                AuditOperation.TEAM_UPDATED, teamName, description, ACTOR, origin.ipAddress(), origin.userAgent()));
     }
 
     private void handleAddMembers(Long teamId, JsonNode value) {

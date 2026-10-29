@@ -61,7 +61,7 @@ class AccountInputRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("a directory attribute past its column is a SCIM 400, and no account is provisioned")
     void scimAttributesAreBounded() throws Exception {
-        int status = mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+        int status = mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-long", "displayName", "d".repeat(256)))))
                 .andReturn().getResponse().getStatus();

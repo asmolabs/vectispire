@@ -40,6 +40,10 @@ vectispire:
     epss-url: https://epss-file.invalid/epss_scores-current.csv.gz
   encryption:
     key: ${ENCRYPTION_KEY:vectispire-test-encryption-passphrase-placeholder}
+  # `/scim` accepts the SCIM token and nothing else, so the suite drives it with one (`asScim()`).
+  scim:
+    enabled: true
+    token: apitest-scim-token-0123456789abcdef
 
 springdoc:
   swagger-ui:

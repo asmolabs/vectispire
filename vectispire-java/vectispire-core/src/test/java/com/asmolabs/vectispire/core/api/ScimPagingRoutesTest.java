@@ -43,7 +43,7 @@ class ScimPagingRoutesTest extends ApiTestBase {
         for (String name : List.of("Gamma", "Alpha", "Beta", "Delta", "Epsilon")) {
             filed.add(String.valueOf(team(name)));
         }
-        String admin = asAdmin();
+        String admin = asScim();
 
         JsonNode every = read("/scim/v2/Groups", admin);
         assertThat(ids(every)).containsExactlyElementsOf(filed);
@@ -69,7 +69,7 @@ class ScimPagingRoutesTest extends ApiTestBase {
         for (String name : List.of("One", "Two", "Three")) {
             team(name);
         }
-        String admin = asAdmin();
+        String admin = asScim();
 
         // startIndex below 1 is 1; a negative count is 0, and 0 answers the total alone.
         JsonNode below = read("/scim/v2/Groups?startIndex=0&count=1", admin);
@@ -87,7 +87,7 @@ class ScimPagingRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("users: asked nothing, every account by username; asked a page, that list cut; a filter pages too")
     void usersPage() throws Exception {
-        String admin = asAdmin();
+        String admin = asScim();
         for (int i = 0; i < 4; i++) {
             tokenFor("scim-pager-" + i + "-" + System.nanoTime(), Role.USER, false);
         }

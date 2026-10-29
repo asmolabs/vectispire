@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.access.ScimProvisioningService;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import java.time.Instant;
 import java.util.List;
@@ -62,7 +63,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         long id = team("Platform");
         members.save(new TeamMemberEntity(id, userId, TeamMemberEntity.Origin.SCIM));
 
-        mvc.perform(authenticated(get("/scim/v2/Groups/" + id), asAdmin()))
+        mvc.perform(authenticated(get("/scim/v2/Groups/" + id), asScim()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(String.valueOf(id)))
                 .andExpect(jsonPath("$.displayName").value("Platform"))
@@ -70,11 +71,11 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.members[0].display").value("scim-member"))
                 .andExpect(jsonPath("$.meta.location").value("/scim/v2/Groups/" + id));
 
-        mvc.perform(authenticated(get("/scim/v2/Groups"), asAdmin()))
+        mvc.perform(authenticated(get("/scim/v2/Groups"), asScim()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalResults").value(1));
 
-        mvc.perform(authenticated(get("/scim/v2/Groups/" + (id + 1000)), asAdmin()))
+        mvc.perform(authenticated(get("/scim/v2/Groups/" + (id + 1000)), asScim()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
                 .andExpect(jsonPath("$.status").value("404"))
@@ -86,7 +87,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
     void createsGroup() throws Exception {
         long userId = account("scim-alice");
 
-        mvc.perform(authenticated(post("/scim/v2/Groups"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Groups"), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of(
                                 "displayName", "Payments",
@@ -106,7 +107,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 });
         assertAudited("SCIM created team: Payments");
 
-        mvc.perform(authenticated(post("/scim/v2/Groups"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Groups"), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", "payments"))))
                 .andExpect(status().isConflict())
@@ -115,7 +116,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.detail").value("A group with this displayName already exists."));
 
         // A blank name is the directory's mistake, told in the same schema rather than as a problem.
-        mvc.perform(authenticated(post("/scim/v2/Groups"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Groups"), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", " "))))
                 .andExpect(status().isBadRequest())
@@ -131,7 +132,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         long id = team("Platform");
         members.save(new TeamMemberEntity(id, leaving, TeamMemberEntity.Origin.SCIM));
 
-        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of(
                                 "displayName", "Platform Engineering",
@@ -149,7 +150,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .containsExactly(joining);
         assertAudited("SCIM updated team: Platform Engineering");
 
-        mvc.perform(authenticated(put("/scim/v2/Groups/" + (id + 1000)), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + (id + 1000)), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", "Nobody"))))
                 .andExpect(status().isNotFound())
@@ -168,7 +169,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         // The name compared as the creation compares it, whatever its case: two teams a screen shows
         // as one. A PUT went on to rewrite the row, and the unique constraint answered it 500 at the
         // flush — on MySQL, whose collation folds case, and not at all on PostgreSQL, whose does not.
-        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", "payments", "members", List.of()))))
                 .andExpect(status().isConflict())
@@ -182,7 +183,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         for (Map<String, Object> operation : List.of(
                 Map.<String, Object>of("op", "replace", "path", "displayName", "value", "Payments"),
                 Map.<String, Object>of("op", "Replace", "value", Map.of("displayName", "PAYMENTS")))) {
-            mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+            mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                             .contentType(SCIM)
                             .content(write(Map.of("Operations", List.of(
                                     Map.of("op", "remove", "path", "members"),
@@ -204,7 +205,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
     void patchRenamesGroup() throws Exception {
         long id = team("Platform");
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "replace", "path", "displayName", "value", "Platform Engineering"))))))
@@ -213,7 +214,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         assertThat(teams.findById(id).orElseThrow().getName()).isEqualTo("Platform Engineering");
         assertAudited("SCIM patched team: Platform Engineering");
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "Replace", "value", Map.of("displayName", "platform engineering")))))))
@@ -221,7 +222,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.displayName").value("platform engineering"));
         assertThat(teams.findById(id).orElseThrow().getName()).isEqualTo("platform engineering");
 
-        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", "Platform Engineering"))))
                 .andExpect(status().isOk());
@@ -234,24 +235,24 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         long id = team("Platform");
         String tooLong = "g".repeat(101);
 
-        mvc.perform(authenticated(post("/scim/v2/Groups"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Groups"), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", tooLong))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
                 .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 100 characters."));
-        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", tooLong))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 100 characters."));
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "replace", "path", "displayName", "value", tooLong))))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 100 characters."));
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "replace", "path", "displayName", "value", 42))))))
@@ -274,7 +275,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
 
         // Read as an add, this left the former member in the team, with what the team grants. An id no
         // account holds and an unknown username are skipped, as an add skips them.
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "replace",
@@ -293,7 +294,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .filteredOn(entry -> "SCIM patched team: Payments".equals(entry.getDescription()))
                 .hasSize(1);
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "Replace",
@@ -305,7 +306,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
 
         // A replacement followed by a removal of everybody in the same PATCH: the bulk removal runs
         // after the replacement's own removals and insertion, which must be written before it.
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(
                                 Map.of("op", "replace", "path", "members",
@@ -319,7 +320,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .extracting(member -> member.getId().userId())
                 .containsExactly(former);
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "replace", "path", "members", "value", List.of()))))))
@@ -328,7 +329,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         assertThat(members.findByTeamId(id)).isEmpty();
 
         // An add naming an id no account holds was a 500 from the foreign key; it is skipped now.
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "add", "path", "members", "value", List.of(Map.of("value", "9000000"))))))))
@@ -344,7 +345,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         long id = team("Containers");
 
         for (String op : List.of("add", "replace")) {
-            mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+            mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                             .contentType(SCIM)
                             .content(write(Map.of("Operations", List.of(Map.of(
                                     "op", op,
@@ -359,7 +360,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                     .containsExactly(joined);
         }
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "add",
@@ -376,7 +377,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         team("Payments");
         members.save(new TeamMemberEntity(id, staying, TeamMemberEntity.Origin.SCIM));
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(
                                 Map.of("op", "replace", "path", "members",
@@ -384,13 +385,13 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                                 Map.of("op", "replace", "path", "displayName", "value", "Payments"))))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.scimType").value("uniqueness"));
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "replace",
                                 "value", Map.of("displayName", "payments", "members", List.of())))))))
                 .andExpect(status().isConflict());
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "replace", "path", "members", "value", "nobody"))))))
@@ -412,7 +413,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         long id = team("Security");
         members.save(new TeamMemberEntity(id, kept, TeamMemberEntity.Origin.SCIM));
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "add",
@@ -425,7 +426,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .extracting(member -> member.getId().userId())
                 .containsExactlyInAnyOrder(kept, added);
 
-        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asScim())
                         .contentType(SCIM)
                         .content(write(Map.of("Operations", List.of(Map.of(
                                 "op", "remove",
@@ -448,7 +449,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         long id = team("Retired");
         members.save(new TeamMemberEntity(id, userId, TeamMemberEntity.Origin.SCIM));
 
-        mvc.perform(authenticated(delete("/scim/v2/Groups/" + id), asAdmin()))
+        mvc.perform(authenticated(delete("/scim/v2/Groups/" + id), asScim()))
                 .andExpect(status().isNoContent());
 
         assertThat(teams.findById(id)).isEmpty();
@@ -457,7 +458,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
 
         // Idempotent, as RFC 7644 allows — and nothing changed, so nothing more is recorded.
         long before = auditLogs.count();
-        mvc.perform(authenticated(delete("/scim/v2/Groups/" + id), asAdmin()))
+        mvc.perform(authenticated(delete("/scim/v2/Groups/" + id), asScim()))
                 .andExpect(status().isNoContent());
         assertThat(auditLogs.count()).isEqualTo(before);
     }
@@ -479,7 +480,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .anySatisfy(entry -> {
                     assertThat(entry.getDescription()).isEqualTo(description);
                     assertThat(entry.getOperationType()).isEqualTo(AuditOperation.TEAM_UPDATED.name());
-                    assertThat(entry.getResourceId()).isEqualTo("SCIM");
+                    assertThat(entry.getUserId()).isEqualTo(ScimProvisioningService.ACTOR);
                 });
     }
 }

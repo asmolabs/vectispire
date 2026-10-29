@@ -73,6 +73,11 @@ An identity provider can create, update, deactivate and delete accounts through 
 (`/scim/v2/Users`, `/scim/v2/Groups`), authenticated by the SCIM bearer token. That token lives in
 the provider's configuration, so what it may do is deliberately bounded:
 
+- **`/scim` takes the SCIM token and nothing else.** An administrator's session or an API key is
+  refused there with `403`, and with SCIM switched off (`vectispire.scim.enabled: false`) nothing is
+  accepted at all; accounts are administered in Vectispire through the users screen. The audit log
+  names `SCIM provisioning` as the actor of what the directory does, and the account or team it
+  changed as the resource.
 - **Administrative accounts are not the directory's to change.** Replacing, patching or deleting an
   administrator or a superuser answers `403`; they are administered in Vectispire.
 - **The directory grants the scoped roles only — User and Security Champion.** A `roles` value of
