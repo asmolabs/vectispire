@@ -13,15 +13,17 @@ import java.util.Set;
 /**
  * Validation of the URLs Vectispire will send a request to.
  *
- * <p>Three settings become server-side requests: the notification webhook, the Ollama server,
- * and the local scan API. Each is a string set by an administrator and then called by the
- * server — a server-side request forgery primitive, whose classic target is the metadata
+ * <p>Settings become server-side requests: the notification channels, the SIEM export, the
+ * tracker, the model endpoints. Each is a string written through the settings — the notification
+ * channels by a security lead, the destinations that receive a credential or the reviewed
+ * findings by an administrator ({@code Setting#administratorOnly()}) — and then called by the
+ * server: a server-side request forgery primitive, whose classic target is the metadata
  * endpoint {@code 169.254.169.254}, which hands out the instance's credentials to whoever
  * asks.
  *
- * <p>"Only an administrator can set it" is a mitigation, not an answer: a Vectispire
- * administrator is not necessarily someone cleared to read the host's IAM credentials, and
- * that is exactly the pivot an attacker who has phished an account is looking for.
+ * <p>Who may set it is a mitigation, not an answer: not every role that writes one of these is
+ * cleared to read the host's IAM credentials — not even an administrator — and that is exactly
+ * the pivot an attacker who has phished an account is looking for.
  *
  * <p><b>Blocking private addresses outright would break two of the three settings by
  * construction</b> — Ollama and the scan side-car are <em>meant</em> to sit on loopback or the

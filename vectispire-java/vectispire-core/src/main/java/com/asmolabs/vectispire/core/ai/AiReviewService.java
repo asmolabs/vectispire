@@ -113,7 +113,12 @@ public class AiReviewService {
      * database or may predate the guard.
      */
     public String validatedUrl() {
-        return trimTrailingSlashes(post.validate(baseUrl(), policy(), provider().wireName() + " URL"));
+        String url = baseUrl();
+        if (!AiReview.isApiRoot(url)) {
+            throw new InvalidInputException(
+                    "The " + provider().wireName() + " URL carries a query or a fragment; it must be the API root alone.");
+        }
+        return trimTrailingSlashes(post.validate(url, policy(), provider().wireName() + " URL"));
     }
 
     /** Stores the URL after validating it — the entry point is where a mistake costs least. */
@@ -121,6 +126,9 @@ public class AiReviewService {
         if (url == null || url.isBlank()) {
             throw new InvalidInputException("The Ollama service URL cannot be empty.");
         }
+        Setting.AI_REVIEW_OLLAMA_URL.validate(url.trim()).ifPresent(problem -> {
+            throw new InvalidInputException("Ollama URL — " + problem);
+        });
         post.validate(url.trim(), policy(), "Ollama URL");
         settings.set(Setting.AI_REVIEW_OLLAMA_URL, url.trim());
     }

@@ -23,6 +23,11 @@ neighbouring reason: the SIEM export and the notification channels are configure
 CISO, and the switch deciding whether they may reach the internal network is not left to the same
 role. The channels' test button answers delivered or not delivered; why a message was not delivered
 is written to the server log, not answered.
+The Ollama URL is an administrator's as well, although no credential goes to it: it receives the
+open findings of every reported repository and may point inside your network, so choosing it is
+choosing an internal host the server calls. A CISO still chooses the provider and the model, and the
+connection test calls only the URL an administrator set. Both model URLs are API roots: one carrying a
+query or a fragment (`?`, `#`) is refused, since each call appends its path to it.
 
 Four settings decide rules rather than parameters and are a **platform governor's** only — who
 sees which targets, whether a triage takes [two people](four-eyes.md), whether Vectispire answers

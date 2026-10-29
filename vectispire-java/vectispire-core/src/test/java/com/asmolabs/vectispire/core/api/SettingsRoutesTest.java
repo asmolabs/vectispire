@@ -117,6 +117,7 @@ class SettingsRoutesTest extends ApiTestBase {
             "{\"ticket_base_url\":\"https://tracker.attacker.example\"}",
             "{\"ticket_allow_private_url\":\"true\"}",
             "{\"ai_review_openai_url\":\"https://llm.attacker.example/v1\"}",
+            "{\"ai_review_ollama_url\":\"http://10.0.0.1:11434\"}",
             "{\"ai_review_allow_remote_url\":\"true\"}"
         }) {
             mvc.perform(authenticated(put("/api/v1/settings"), ciso)
@@ -137,6 +138,19 @@ class SettingsRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"ticket_base_url\":\"https://tracker.example.com\"}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @DisplayName("a model endpoint carrying a query or a fragment is refused 400, and nothing is stored")
+    void aModelEndpointIsAnApiRoot() throws Exception {
+        String before = settingsStore.get(Setting.AI_REVIEW_OLLAMA_URL);
+        MvcResult refused = mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ai_review_ollama_url\":\"http://localhost:11434/x?y=\"}"))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        assertThat(detailOf(refused)).contains("query or a fragment");
+        assertThat(settingsStore.get(Setting.AI_REVIEW_OLLAMA_URL)).isEqualTo(before);
     }
 
     /**
