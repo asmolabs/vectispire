@@ -32,7 +32,6 @@ import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
 import com.asmolabs.vectispire.core.scanning.internal.PlatformMetrics;
 import com.asmolabs.vectispire.core.scanning.internal.ScanQueue;
-import com.asmolabs.vectispire.core.scanning.internal.ScanningProperties;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.CloneCredentials;
@@ -65,6 +64,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @DisplayName("handing a scan to a worker")
 class ScanDispatcherTest {
+
+    /** Scans pinned to one platform; every other scanning setting as shipped. */
+    private static final ScanningProperties AMD64 = new org.springframework.boot.context.properties.bind.Binder(
+                    new org.springframework.boot.context.properties.source.MapConfigurationPropertySource(
+                            java.util.Map.of("vectispire.scanning.image-platform", "linux/amd64")))
+            .bindOrCreate("vectispire.scanning", ScanningProperties.class);
 
     private static final UUID KEY_ID = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
     private static final String PRIVATE_KEY = "test-ssh-private-key-material";
@@ -113,7 +118,7 @@ class ScanDispatcherTest {
                 ruleSets,
                 plugins,
                 envelopes,
-                new ScanningProperties(Optional.of("linux/amd64")),
+                AMD64,
                 Optional.empty(),
                 audit,
                 mock(PlatformMetrics.class),
@@ -400,7 +405,7 @@ class ScanDispatcherTest {
                         mock(ScanIngestor.class),
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, plugins, envelopes,
-                        new ScanningProperties(Optional.of("linux/amd64")),
+                        AMD64,
                         Optional.of(mock(ScanRunner.class)),
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
@@ -464,7 +469,7 @@ class ScanDispatcherTest {
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, plugins, envelopes,
-                        new ScanningProperties(Optional.of("linux/amd64")),
+                        AMD64,
                         Optional.of(runner),
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
@@ -502,7 +507,7 @@ class ScanDispatcherTest {
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, plugins, envelopes,
-                        new ScanningProperties(Optional.of("linux/amd64")),
+                        AMD64,
                         Optional.of(runner),
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
@@ -554,7 +559,7 @@ class ScanDispatcherTest {
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, plugins, envelopes,
-                        new ScanningProperties(Optional.of("linux/amd64")),
+                        AMD64,
                         Optional.of(runner),
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
@@ -682,7 +687,7 @@ class ScanDispatcherTest {
         ScanDispatcher restricted = new ScanDispatcher(
                 queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                settings, ruleSets, plugins, envelopes, new ScanningProperties(Optional.of("linux/amd64")),
+                settings, ruleSets, plugins, envelopes, AMD64,
                 Optional.empty(), mock(AuditLogService.class), mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"), List.of());

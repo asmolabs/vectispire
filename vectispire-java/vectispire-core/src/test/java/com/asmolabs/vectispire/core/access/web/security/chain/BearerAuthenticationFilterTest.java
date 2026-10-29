@@ -54,7 +54,7 @@ class BearerAuthenticationFilterTest {
         SecurityContextHolder.clearContext();
         when(auth.resolve(any())).thenReturn(Optional.empty());
         when(apiKeys.resolve(anyString())).thenReturn(Optional.empty());
-        filter = new BearerAuthenticationFilter(auth, apiKeys, visibility);
+        filter = new BearerAuthenticationFilter(auth, apiKeys, visibility, java.util.Optional.empty());
     }
 
     @AfterEach

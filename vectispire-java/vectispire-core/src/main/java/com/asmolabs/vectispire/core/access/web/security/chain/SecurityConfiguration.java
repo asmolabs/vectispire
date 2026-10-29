@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import jakarta.servlet.DispatcherType;
@@ -177,6 +179,16 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                     "The request was refused: its URL contains a sequence this server does not accept — a"
                             + " doubled or encoded separator, an encoded traversal, a ';' or a control character.");
         };
+    }
+
+    /**
+     * The proxies whose forwarding headers are believed, from {@code vectispire.security.trusted-proxies}.
+     *
+     * <p>Static: the filters this class is constructed with need it, so it must not wait for this class.
+     */
+    @Bean
+    static TrustedProxies trustedProxies(SecurityLimits limits) {
+        return new TrustedProxies(limits.trustedProxies());
     }
 
     @Bean

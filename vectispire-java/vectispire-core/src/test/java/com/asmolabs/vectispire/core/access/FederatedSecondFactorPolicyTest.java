@@ -14,8 +14,9 @@ import org.junit.jupiter.api.Test;
 @DisplayName("the second factor of a single sign-on")
 class FederatedSecondFactorPolicyTest {
 
-    private final FederatedSecondFactorPolicy lenient = new FederatedSecondFactorPolicy(false, "mfa,otp,hwk,fido", "");
-    private final FederatedSecondFactorPolicy strict = new FederatedSecondFactorPolicy(true, "mfa,otp,hwk,fido", "gold");
+    private final FederatedSecondFactorPolicy lenient = new FederatedSecondFactorPolicy(OidcSettings.bound());
+    private final FederatedSecondFactorPolicy strict = new FederatedSecondFactorPolicy(
+            OidcSettings.bound("require-mfa", "true", "mfa-acr", "gold"));
 
     @Test
     @DisplayName("an amr value or a named acr level is evidence; a password alone is not")

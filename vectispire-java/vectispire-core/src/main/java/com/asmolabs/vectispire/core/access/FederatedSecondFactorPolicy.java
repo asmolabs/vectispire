@@ -6,7 +6,6 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -27,13 +26,10 @@ public class FederatedSecondFactorPolicy {
     private final Set<String> acceptedAmr;
     private final Set<String> acceptedAcr;
 
-    public FederatedSecondFactorPolicy(
-            @Value("${vectispire.oidc.require-mfa:false}") boolean required,
-            @Value("${vectispire.oidc.mfa-amr:mfa,otp,hwk,fido}") String acceptedAmr,
-            @Value("${vectispire.oidc.mfa-acr:}") String acceptedAcr) {
-        this.required = required;
-        this.acceptedAmr = values(acceptedAmr);
-        this.acceptedAcr = values(acceptedAcr);
+    public FederatedSecondFactorPolicy(OidcProperties oidc) {
+        this.required = oidc.requireMfa();
+        this.acceptedAmr = values(oidc.mfaAmr());
+        this.acceptedAcr = values(oidc.mfaAcr());
     }
 
     /**

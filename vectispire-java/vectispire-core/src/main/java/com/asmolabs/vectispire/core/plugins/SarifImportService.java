@@ -22,6 +22,7 @@ import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFinding;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,12 +34,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.unit.DataSize;
 
 /**
  * Importing a declared internal source's SARIF report into a repository's backlog.
@@ -100,7 +99,7 @@ public class SarifImportService {
             TransactionTemplate transactions,
             ReportedRepositories reported,
             Clock clock,
-            @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize maxBytes) {
+            RequestBodyLimits limits) {
         this.sources = sources;
         this.imports = imports;
         this.targets = targets;
@@ -109,7 +108,7 @@ public class SarifImportService {
         this.transactions = transactions;
         this.reported = reported;
         this.clock = clock;
-        this.maxBytes = maxBytes.toBytes();
+        this.maxBytes = limits.sarifImport().toBytes();
     }
 
     /**

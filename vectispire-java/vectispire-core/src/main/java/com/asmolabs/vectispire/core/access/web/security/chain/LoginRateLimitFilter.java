@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.access.web.security.chain;
 
 import com.asmolabs.vectispire.common.domain.auth.ClientBuckets;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
@@ -18,8 +19,6 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -118,16 +117,9 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
     private final int capacity;
     private final Duration refillPeriod;
 
-    /** The shipped ceiling, for a caller with no opinion — the tests, and nothing else. */
-    public LoginRateLimitFilter(String configuredProxies) {
-        this(new TrustedProxies(configuredProxies), DEFAULT_CAPACITY, DEFAULT_REFILL_PERIOD);
-    }
-
-    @Autowired
-    public LoginRateLimitFilter(
-            TrustedProxies proxies,
-            @Value("${vectispire.security.login-attempts-per-window:10}") int capacity,
-            @Value("${vectispire.security.login-attempt-window:PT1M}") Duration refillPeriod) {
+    public LoginRateLimitFilter(TrustedProxies proxies, SecurityLimits limits) {
+        int capacity = limits.loginAttemptsPerWindow();
+        Duration refillPeriod = limits.loginAttemptWindow();
 
         // A ceiling of zero would refuse every sign-in including the operator's, so a
         // misconfiguration falls back to the shipped value rather than locking the deployment out

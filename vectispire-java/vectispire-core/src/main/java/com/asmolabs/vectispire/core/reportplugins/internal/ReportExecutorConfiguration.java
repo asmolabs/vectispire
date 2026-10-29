@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.reportplugins.internal;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.scanners.ReportPluginRenderer;
 import com.asmolabs.vectispire.core.reportplugins.ReportExecutor;
-import org.springframework.beans.factory.annotation.Value;
+import com.asmolabs.vectispire.core.scanning.ScanningProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,8 +25,8 @@ import org.springframework.context.annotation.Configuration;
 public class ReportExecutorConfiguration {
 
     @Bean
-    ReportExecutor reportExecutor(@Value("${vectispire.scanning.plugin-registry:}") String pluginRegistry) {
-        ReportPluginRenderer renderer = new ReportPluginRenderer(new ContainerRunner(), pluginRegistry);
+    ReportExecutor reportExecutor(ScanningProperties scanning) {
+        ReportPluginRenderer renderer = new ReportPluginRenderer(new ContainerRunner(), scanning.pluginRegistry());
         return renderer::render;
     }
 }

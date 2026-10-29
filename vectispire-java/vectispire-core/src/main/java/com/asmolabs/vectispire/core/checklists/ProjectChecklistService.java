@@ -46,6 +46,7 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVers
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
@@ -67,11 +68,9 @@ import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.unit.DataSize;
 
 /**
  * A project's checklists, answered by people — and, on the lines a rule measures, by Vectispire (decision
@@ -225,7 +224,7 @@ public class ProjectChecklistService {
             AuditLogService audit,
             TransactionTemplate transactions,
             Clock clock,
-            @Value("${vectispire.http.max-body.checklist-evidence:25MB}") DataSize maxFile) {
+            RequestBodyLimits limits) {
         this.checklists = checklists;
         this.answers = answers;
         this.evidence = evidence;
@@ -244,7 +243,7 @@ public class ProjectChecklistService {
         this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
-        this.maxFileBytes = maxFile.toBytes();
+        this.maxFileBytes = limits.checklistEvidence().toBytes();
     }
 
     /**

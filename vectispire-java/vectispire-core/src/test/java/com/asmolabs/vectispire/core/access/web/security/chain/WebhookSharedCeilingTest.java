@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.RateWindows;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +90,8 @@ class WebhookSharedCeilingTest extends VectispireContextTest {
 
     private WebhookRateLimitFilter instance() {
         // An hour rather than the shipped minute: a test crossing a window's boundary starts over.
-        return new WebhookRateLimitFilter(proxies, windows, CEILING, Duration.ofHours(1));
+        return new WebhookRateLimitFilter(
+                proxies, windows, new SecurityLimits("", 0, null, 0, null, CEILING, Duration.ofHours(1), 0));
     }
 
     private static MockHttpServletResponse deliver(WebhookRateLimitFilter filter, String address) throws Exception {

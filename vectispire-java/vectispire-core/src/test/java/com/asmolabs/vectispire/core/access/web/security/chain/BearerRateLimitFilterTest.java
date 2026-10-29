@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,7 +39,8 @@ class BearerRateLimitFilterTest {
     @BeforeEach
     void setUp() throws Exception {
         audit = mock(AuditLogService.class);
-        filter = new BearerRateLimitFilter(new TrustedProxies(""), audit, CAPACITY, Duration.ofMinutes(5));
+        filter = new BearerRateLimitFilter(
+                new TrustedProxies(""), audit, new SecurityLimits("", 0, null, CAPACITY, Duration.ofMinutes(5), 0, null, 0));
 
         response = mock(HttpServletResponse.class);
         written = new StringWriter();

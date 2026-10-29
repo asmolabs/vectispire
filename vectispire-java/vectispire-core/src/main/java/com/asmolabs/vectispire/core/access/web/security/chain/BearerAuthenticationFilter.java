@@ -16,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -39,12 +38,6 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     private final VisibilityService visibility;
     private final Optional<ScimProperties> scimProperties;
 
-    public BearerAuthenticationFilter(
-            AuthService auth, ApiKeyAuthService apiKeys, VisibilityService visibility) {
-        this(auth, apiKeys, visibility, Optional.empty());
-    }
-
-    @Autowired
     public BearerAuthenticationFilter(
             AuthService auth,
             ApiKeyAuthService apiKeys,

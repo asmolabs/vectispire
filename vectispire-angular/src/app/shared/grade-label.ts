@@ -1,6 +1,5 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from '../core/i18n/i18n.service';
-import { LanguageMemo } from '../core/i18n/language-memo';
 import type { SecurityGrade } from '../core/api.models';
 
 /**
@@ -32,9 +31,8 @@ export function gradeLabel(grade: SecurityGrade, t: I18nService['t']): string {
 })
 export class GradeLabelPipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
-    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(grade: SecurityGrade): string {
-        return this.memo.get([grade], () => gradeLabel(grade, (key, params) => this.i18n.t(key, params)));
+        return gradeLabel(grade, (key, params) => this.i18n.t(key, params));
     }
 }
