@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -90,7 +91,16 @@ class AgentAdministrationRoutesTest extends ApiTestBase {
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"contract_version\": \"0.0-never\"}"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(containsString("Update the agent.")));
+        // An agent newer than its control plane: the other side is the one to move (decision 0043 §2).
+        mvc.perform(post("/api/v1/agent/hello")
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contract_version\": \"" + (AgentContract.CURRENT + 1) + "\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(containsString(
+                        "serves contract " + AgentContract.served() + ". Upgrade the control plane first")));
         assertThat(agents.findById(id).orElseThrow().getLastSeenAt()).isNull();
 
         mvc.perform(post("/api/v1/agent/hello")
