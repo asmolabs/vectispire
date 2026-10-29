@@ -99,9 +99,12 @@ class TrackerRefusalRoutesTest extends ApiTestBase {
     void notPlannedIsNotAFalsePositive() throws Exception {
         String number = String.valueOf(100_000 + System.nanoTime() % 900_000);
         IssueEntity issue = open("refusal-github", number);
+        issue.setTicketUrl("https://github.com/owner/repo/issues/" + number);
+        issues.save(issue);
         String body = """
                 {"action":"closed","issue":{"number":%s,"state":"closed","state_reason":"not_planned",
-                 "body":"We will not schedule this."},"sender":{"login":"maintainer"}}""".formatted(number);
+                 "html_url":"https://github.com/owner/repo/issues/%s",
+                 "body":"We will not schedule this."},"sender":{"login":"maintainer"}}""".formatted(number, number);
 
         mvc.perform(post("/api/v1/tickets/webhook/github")
                         .header("X-Hub-Signature-256", "sha256=" + WebhookAuthenticity.hmacSha256Hex(SECRET, body))

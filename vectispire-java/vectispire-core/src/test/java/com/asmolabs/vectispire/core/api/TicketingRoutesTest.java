@@ -147,19 +147,60 @@ class TicketingRoutesTest extends ApiTestBase {
     void anIidMatchesBothSpellings() throws Exception {
         long hashed = carrying("#205", "fp-iid-hashed").getId();
         long bare = carrying("205", "fp-iid-bare").getId();
+        // References attached without a URL: the integration's repository is what scopes the number.
         String payload = """
-                {"object_kind":"issue","user":{"username":"dev"},
+                {"object_kind":"issue","user":{"username":"dev"},"project":{"path_with_namespace":"group/proj"},
                  "object_attributes":{"iid":205,"state":"closed","title":"False positive: not used","description":""}}""";
 
         settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_WEBHOOK_SECRET, "gitlab-shared");
-        mvc.perform(post("/api/v1/tickets/webhook/gitlab")
-                        .header("X-Gitlab-Token", "gitlab-shared")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.issueIds.length()").value(2))
-                .andExpect(jsonPath("$.issueIds[0]").value(hashed))
-                .andExpect(jsonPath("$.issueIds[1]").value(bare));
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROVIDER, "gitlab");
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROJECT, "group/proj");
+        try {
+            mvc.perform(post("/api/v1/tickets/webhook/gitlab")
+                            .header("X-Gitlab-Token", "gitlab-shared")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(payload))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.issueIds.length()").value(2))
+                    .andExpect(jsonPath("$.issueIds[0]").value(hashed))
+                    .andExpect(jsonPath("$.issueIds[1]").value(bare));
+        } finally {
+            settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROVIDER, "none");
+            settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROJECT, "");
+        }
+    }
+
+    @Test
+    @DisplayName("a GitHub or GitLab number is a repository's: an event about another repository's issue 12 moves nothing")
+    void anotherRepositorysNumberMovesNothing() throws Exception {
+        // Matched on the bare number, an event about issue 306 of any repository on the forge moved
+        // every finding whose ticket was 306 somewhere else.
+        IssueEntity withUrl = carrying("#306", "fp-other-repo-url");
+        withUrl.setTicketUrl("https://gitlab.com/group/proj/-/issues/306");
+        issues.save(withUrl);
+        IssueEntity withoutUrl = carrying("306", "fp-other-repo-bare");
+        String payload = """
+                {"object_kind":"issue","user":{"username":"dev"},"project":{"path_with_namespace":"someone/else"},
+                 "object_attributes":{"iid":306,"state":"closed","title":"False positive","description":"",
+                 "url":"https://gitlab.com/someone/else/-/issues/306"}}""";
+
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_WEBHOOK_SECRET, "gitlab-shared");
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROVIDER, "gitlab");
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROJECT, "group/proj");
+        try {
+            mvc.perform(post("/api/v1/tickets/webhook/gitlab")
+                            .header("X-Gitlab-Token", "gitlab-shared")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(payload))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.matched").value(false));
+        } finally {
+            settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROVIDER, "none");
+            settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROJECT, "");
+        }
+
+        org.junit.jupiter.api.Assertions.assertEquals("under_review", issues.findById(withUrl.getId()).orElseThrow().getTriageStatus());
+        org.junit.jupiter.api.Assertions.assertEquals("under_review", issues.findById(withoutUrl.getId()).orElseThrow().getTriageStatus());
     }
 
     private IssueEntity carrying(String ticketRef, String fingerprint) {
@@ -201,7 +242,8 @@ class TicketingRoutesTest extends ApiTestBase {
                         "iid": 105,
                         "title": "CVE-2026-8888 (wontfix)",
                         "state": "closed",
-                        "description": "Won't fix because risk accepted by architecture board."
+                        "description": "Won't fix because risk accepted by architecture board.",
+                        "url": "https://gitlab.com/group/proj/-/issues/105"
                     },
                     "user": {
                         "username": "lead_sec"

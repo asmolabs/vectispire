@@ -172,7 +172,9 @@ public class TicketingWebhookService {
         // **Every issue carrying the reference, not one.** A person may attach one ticket to several
         // findings, and "12" and "#12" both match: read as one, two rows answered 500 for that ticket at
         // every delivery. Each is synced as a lone one was, its own history and audit entry included.
-        List<IssueView> matching = issues.withTicket(event.ticketRef());
+        List<IssueView> matching = issues.withTicket(event.ticketRef()).stream()
+                .filter(issue -> sameTicket(issue, event, provider))
+                .toList();
         if (matching.isEmpty()) {
             // Through LogText: the key is the tracker's, and a line break in it would write a second,
             // forged entry into this log.
@@ -294,6 +296,38 @@ public class TicketingWebhookService {
         return actionTaken;
     }
 
+    /**
+     * Whether the issue's ticket is the one the event is about, and not merely one with the same
+     * number.
+     *
+     * <p><b>A GitHub or GitLab number is a repository's, not the tracker's.</b> The issues were
+     * matched on the bare number, so an event about issue 12 of any repository — another project on
+     * the same forge, sent by a webhook configured there — moved every finding whose ticket was 12
+     * somewhere else. Such an event matches an issue whose ticket URL is the event's own, or, for a
+     * reference attached without a URL, one in the repository the integration is configured for. A
+     * Jira key or a ServiceNow number already carries its namespace: the reference is the whole of it.
+     */
+    private boolean sameTicket(IssueView issue, ExtractedTicketEvent event, TicketProvider provider) {
+        if (provider != TicketProvider.GITHUB && provider != TicketProvider.GITLAB) {
+            return true;
+        }
+        if (issue.ticketUrl() != null && !issue.ticketUrl().isBlank()) {
+            return event.url() != null && withoutTrailingSlash(issue.ticketUrl()).equalsIgnoreCase(withoutTrailingSlash(event.url()));
+        }
+        String project = tickets.project();
+        return tickets.provider() == provider && !project.isBlank() && project.equalsIgnoreCase(event.project());
+    }
+
+    private static String withoutTrailingSlash(String url) {
+        String trimmed = url.trim();
+        return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
+    }
+
+    /**
+     * @param url the ticket's own web address, as the forge sends it — GitHub and GitLab only
+     * @param project the repository it belongs to ({@code owner/repository}, {@code group/project}) —
+     *     GitHub and GitLab only
+     */
     private record ExtractedTicketEvent(
             String ticketRef,
             String status,
@@ -301,7 +335,9 @@ public class TicketingWebhookService {
             String comment,
             String author,
             boolean isRefusedOrFalsePositive,
-            boolean isFalsePositive) {}
+            boolean isFalsePositive,
+            String url,
+            String project) {}
 
     private ExtractedTicketEvent extractEvent(TicketProvider provider, JsonNode root) {
         if (root == null) return null;
@@ -318,7 +354,8 @@ public class TicketingWebhookService {
                 boolean isFp = title.toLowerCase(Locale.ROOT).contains("false positive") || comment.toLowerCase(Locale.ROOT).contains("false positive");
                 boolean isWontFix = state.equalsIgnoreCase("closed") && (title.toLowerCase(Locale.ROOT).contains("wontfix") || title.toLowerCase(Locale.ROOT).contains("won't fix") || isFp);
 
-                return new ExtractedTicketEvent(iid, state, null, comment, author, isWontFix || isFp, isFp);
+                return new ExtractedTicketEvent(iid, state, null, comment, author, isWontFix || isFp, isFp,
+                        attrs.path("url").asText(null), root.path("project").path("path_with_namespace").asText(null));
             }
             case GITHUB -> {
                 JsonNode issueNode = root.path("issue");
@@ -333,7 +370,8 @@ public class TicketingWebhookService {
                 boolean isFp = body.toLowerCase(Locale.ROOT).contains("false positive");
                 boolean isWontFix = isFp || stateReason.equalsIgnoreCase("not_planned");
 
-                return new ExtractedTicketEvent(number, state, stateReason, body, author, isWontFix, isFp);
+                return new ExtractedTicketEvent(number, state, stateReason, body, author, isWontFix, isFp,
+                        issueNode.path("html_url").asText(null), root.path("repository").path("full_name").asText(null));
             }
             case JIRA -> {
                 JsonNode issueNode = root.path("issue");
@@ -348,7 +386,7 @@ public class TicketingWebhookService {
                 boolean isFp = resLower.contains("false positive") || resLower.contains("cannot reproduce");
                 boolean isWontFix = isFp || resLower.contains("won't fix") || resLower.contains("wontfix") || resLower.contains("declined") || resLower.contains("rejected");
 
-                return new ExtractedTicketEvent(key, status, resolution, comment, author, isWontFix, isFp);
+                return new ExtractedTicketEvent(key, status, resolution, comment, author, isWontFix, isFp, null, null);
             }
             case SERVICENOW -> {
                 String number = root.path("number").asText("");
@@ -362,7 +400,8 @@ public class TicketingWebhookService {
                 boolean isFp = codeLower.contains("false positive") || codeLower.contains("not an issue");
                 boolean isWontFix = isFp || codeLower.contains("won't fix") || codeLower.contains("risk accepted") || codeLower.contains("withdrawn");
 
-                return new ExtractedTicketEvent(number.isEmpty() ? sysId : number, state, closeCode, closeNotes, author, isWontFix, isFp);
+                return new ExtractedTicketEvent(number.isEmpty() ? sysId : number, state, closeCode, closeNotes, author, isWontFix,
+                        isFp, null, null);
             }
             default -> {
                 return null;
