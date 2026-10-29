@@ -10,6 +10,8 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
@@ -46,7 +48,7 @@ import org.springframework.stereotype.Service;
  * it points at localhost, and would have let a public Ollama through under a different name.
  */
 @Service
-public class AiReviewService {
+public class AiReviewService implements SealedStore {
 
     private static final Logger log = LoggerFactory.getLogger(AiReviewService.class);
 
@@ -439,5 +441,12 @@ public class AiReviewService {
 
     private static String trimTrailingSlashes(String url) {
         return url.replaceAll("/+$", "");
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        return List.of(new StoreCensus.Counter("OpenAI API key", "set the key again on the model review settings")
+                .add(encryption.sealOf(settings.get(Setting.AI_REVIEW_OPENAI_KEY), OPENAI_KEY_CONTEXT))
+                .done());
     }
 }

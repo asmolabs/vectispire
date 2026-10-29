@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenEntity;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
@@ -29,7 +31,7 @@ import org.springframework.stereotype.Service;
  * reasons.
  */
 @Service
-public class GitTokenAdministrationService {
+public class GitTokenAdministrationService implements SealedStore {
 
     private static final int NAME_LENGTH = 255;
 
@@ -161,5 +163,14 @@ public class GitTokenAdministrationService {
 
     private static String trim(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("HTTPS clone tokens",
+                "add the token again, move the repositories to it, and delete the old row");
+        tokens.findAllByOrderByCreatedAtDesc().forEach(token -> counter.add(
+                encryption.sealOf(token.getToken(), SecretCipher.gitTokenContext(token.getId().toString()))));
+        return List.of(counter.done());
     }
 }

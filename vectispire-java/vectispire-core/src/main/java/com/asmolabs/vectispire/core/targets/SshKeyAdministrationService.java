@@ -8,6 +8,8 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
@@ -23,7 +25,7 @@ import org.springframework.stereotype.Service;
 
 /** The deployment keys: stored encrypted, and the private half never read back out. */
 @Service
-public class SshKeyAdministrationService {
+public class SshKeyAdministrationService implements SealedStore {
 
     /**
      * A private key has one header worth recognising, and nothing else.
@@ -169,5 +171,14 @@ public class SshKeyAdministrationService {
 
     private static String trim(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("SSH deploy keys",
+                "add the key again, move the repositories to it, and delete the old row");
+        keys.findAllByOrderByCreatedAtDesc().forEach(key -> counter.add(
+                encryption.sealOf(key.getPrivateKey(), SecretCipher.privateKeyContext(key.getId().toString()))));
+        return List.of(counter.done());
     }
 }

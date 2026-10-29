@@ -183,6 +183,24 @@ public class SettingsService {
         return settings.replaceValue(key, expected, value) == 1;
     }
 
+    /**
+     * Moves such a row from the value its caller read to another, in a transaction of its own, and
+     * says whether it moved.
+     *
+     * <p>For a value re-sealed under the current encryption key as it is read: the read may happen
+     * inside a read-only transaction — the signing key is first loaded by a document signed in one —
+     * where joining would be refused, and a refusal must not mark the caller's transaction for
+     * rollback. Conditional, so of two instances re-sealing the same row one writes and the other
+     * leaves the result alone.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean resealInternal(String key, String expected, String value) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, written through set(Setting, …).");
+        }
+        return settings.replaceValue(key, expected, value) == 1;
+    }
+
     /** Deletes a row no {@link Setting} names: the state kept for something that no longer exists. */
     @Transactional
     public void removeInternal(String key) {
