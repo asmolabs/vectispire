@@ -71,7 +71,7 @@ pub enum Placeholder {
     OneTimeCode,
     Window,
     ClockStep,
-    /// `«pem:private-key:1»`: a whole PEM block — a key; a certificate is recorded literally.
+    /// `«pem:private-key:1»`: a whole PEM block — a private key; a certificate or a public key is recorded literally.
     Pem {
         label: String,
         ordinal: u32,

@@ -2,8 +2,10 @@ package com.asmolabs.vectispire.core.golden;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -78,5 +80,53 @@ class PlaceholdersTest {
         JsonNode body = placeholders.render(record).at("/request/body");
         assertThat(body.path("tlsCaPem").asText()).isEqualTo(certificate);
         assertThat(body.path("key").asText()).isEqualTo("«pem:private-key:1»");
+    }
+
+    @Test
+    @DisplayName("a signature the test sends and the public key it sends beside it are kept; the server's signature and a private key are not")
+    void aSignatureSentAndAPublicKeyAreKept() throws Exception {
+        // Generated here, as CryptoRoutesTest does: hidden, the replay could send no signature that verifies, and
+        // /api/v1/crypto/verify was deferred for it (the forger's key, the context's signature).
+        java.security.KeyPair forger = CosignSigner.generateKeyPair();
+        String signature = CosignSigner.sign("{}".getBytes(StandardCharsets.UTF_8), forger.getPrivate());
+        String publicKey = CosignSigner.toPem(forger.getPublic());
+        String privateKey = CosignSigner.toPem(forger.getPrivate());
+        String answered = CosignSigner.sign("{\"a\":1}".getBytes(StandardCharsets.UTF_8), forger.getPrivate());
+        // As CryptoRoutesTest's first request: a text body, read by its shape alone.
+        String sent = "{\n  \"payload\": \"{}\",\n  \"signature\": \"" + signature + "\"\n}\n";
+        JsonNode record = MAPPER.readTree("{\"request\":{\"method\":\"POST\",\"path\":\"/api/v1/crypto/verify\",\"body\":{"
+                + "\"text\":" + MAPPER.writeValueAsString(sent) + ",\"json\":{\"publicKey\":" + MAPPER.writeValueAsString(publicKey)
+                + ",\"key\":" + MAPPER.writeValueAsString(privateKey) + "}}},"
+                + "\"response\":{\"status\":200,\"body\":{\"json\":{\"signature\":\"" + answered + "\"}}}}");
+        Placeholders placeholders = new Placeholders();
+        placeholders.collect(record, null);
+        JsonNode shown = placeholders.render(record);
+
+        assertThat(shown.at("/request/body/text").asText()).isEqualTo(sent);
+        assertThat(shown.at("/request/body/json/publicKey").asText()).isEqualTo(publicKey);
+        assertThat(shown.at("/request/body/json/key").asText()).isEqualTo("«pem:private-key:1»\n");
+        // Java's k is random where Rust's is not: a signature the server makes matches only as a placeholder.
+        assertThat(shown.at("/response/body/json/signature").asText()).matches("«secret:\\d+»");
+    }
+
+    @Test
+    @DisplayName("only an ECDSA signature's DER reads as one: a random key of the same length does not")
+    void onlyASignatureReadsAsOne() {
+        java.security.KeyPair pair = CosignSigner.generateKeyPair();
+        String signature = CosignSigner.sign(new byte[] {1}, pair.getPrivate());
+        assertThat(Placeholders.isEcdsaSignature(signature)).isTrue();
+        byte[] der = java.util.Base64.getDecoder().decode(signature);
+        byte[] anotherTag = der.clone();
+        anotherTag[0] = 0x31; // a SET, its lengths all agreeing
+        assertThat(Placeholders.isEcdsaSignature(java.util.Base64.getEncoder().encodeToString(anotherTag))).isFalse();
+        byte[] shortS = der.clone();
+        shortS[5 + der[3]]--; // s one byte shorter than what follows it
+        assertThat(Placeholders.isEcdsaSignature(java.util.Base64.getEncoder().encodeToString(shortS))).isFalse();
+        byte[] random = new byte[72];
+        new java.security.SecureRandom().nextBytes(random);
+        random[0] = 0x30; // a SEQUENCE's tag, its lengths still random
+        assertThat(Placeholders.isEcdsaSignature(java.util.Base64.getEncoder().encodeToString(random))).isFalse();
+        assertThat(Placeholders.isEcdsaSignature(java.util.Base64.getEncoder()
+                .encodeToString(pair.getPublic().getEncoded()))).isFalse();
     }
 }

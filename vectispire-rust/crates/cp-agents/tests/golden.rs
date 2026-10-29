@@ -284,10 +284,17 @@ impl Siem {
     }
 }
 
-/// A P-256 key in PKCS#8 PEM, fresh for each composition: what a deployment writes into `vectispire.signing.key`.
+/// The Java suite's own `vectispire.signing.key`, `FixtureSigningKey`: the P-256 key whose scalar is these thirty-two
+/// ASCII bytes, in PKCS#8 PEM. The same key on both sides, so that a signature the suite made and recorded as it is
+/// (`/api/v1/crypto/verify`) verifies here, and the published public key is Java's byte for byte. A fixture, not a
+/// secret: it signs test documents only.
 fn signing_key_pem() -> String {
     use p256::pkcs8::{EncodePrivateKey, LineEnding};
-    p256::SecretKey::random(&mut rand_core::OsRng).to_pkcs8_pem(LineEnding::LF).unwrap().to_string()
+    p256::SecretKey::from_slice(b"vectispire golden replay fixture")
+        .unwrap()
+        .to_pkcs8_pem(LineEnding::LF)
+        .unwrap()
+        .to_string()
 }
 
 /// The issues, gate, inventory, SIEM and platform modules as the binary composes them, on the scan catalog and the
