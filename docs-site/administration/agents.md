@@ -54,6 +54,28 @@ database and the control plane's proxy are on networks it is not attached to. Th
 daemon access is root there. The profile is for evaluating the protocol. For the isolation, run
 the agent on another machine and set `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane.
 
+## Upgrading: the control plane first, then its agents {#upgrading-the-control-plane-first}
+
+The control plane serves an agent of **its own minor release and of the previous one**: a 0.12
+control plane hands work to a 0.11 agent. Upgrade the control plane first, then the agents, at your
+own pace — on Kubernetes the two roll at different moments, and that window is what this covers. The
+reverse order is not supported: an agent newer than its control plane may announce a contract the
+control plane has never heard of.
+
+Each agent announces a **contract number** in its `hello`, and the control plane accepts a range of
+them. An agent outside the range is refused at once with **409**, never handed work it would misread,
+and the refusal names both sides and the fix — *This agent speaks contract "0" and Vectispire serves
+contract 1. Update the agent.*, or, for an agent ahead of its control plane, *Upgrade the control
+plane first, then its agents.* The agent stops on that answer rather than retrying. The **Agents** page
+shows each agent's version; the contract it announced is its `contractVersion` in
+`GET /api/v1/admin/agents`, and the one the `hello` answers is that same number.
+
+**What a release may change for an agent.** A change the previous minor's agent would not understand
+— a new envelope, a new mandatory field — is made in **two releases**: the first accepts both the old
+form and the new and hands each agent the one it reads, the next drops the old. Every build checks
+it: the agent of the newest release, from its published and signed image, claims and finishes scans
+against the control plane being built.
+
 ## Running several scans at once
 
 **Concurrent scans** (`max_concurrent`) is how many scans one agent runs in parallel: **from 1 to

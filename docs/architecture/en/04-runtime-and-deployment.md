@@ -25,6 +25,16 @@ long polling ([0003](decisions/0003-long-polling-for-agents.md)) and returns res
 channel — or, for a scan it could not run, a failure report that ends the attempt as a lapsed lease
 would, at once and with the reason (`AgentProtocolService.reportFailure`).
 
+**The agent contract is a range** ([0043](decisions/0043-what-1-0-promises.md) §2). An agent announces
+the contract number it was built with; the control plane serves `AgentContract.OLDEST_SERVED` to
+`CURRENT`, refuses anything else with 409 before any work is handed over, and answers the agent in its
+own number. The number moves only when the previous agent would misread what it is handed — a new
+envelope, a new mandatory field — and such a change takes **two releases**: the first raises `CURRENT`,
+keeps the old form and chooses per agent by the number recorded at its `hello`; the next raises
+`OLDEST_SERVED` and deletes the old form. 0.11.0 is why it is written down: its sealed `v2` envelope
+reached 0.10 agents under the unchanged number 1. CI's `previous-agent` job runs the newest release's
+agent image, verified with cosign, through the composition's scan check against every commit.
+
 ## A scan that could not run
 
 **One rule, whichever executor failed.** An agent's report, the built-in worker's own failure and a

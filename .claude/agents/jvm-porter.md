@@ -25,6 +25,19 @@ Data on its classpath. An agent holding a database connection would also need th
 key, which decrypts every deployment key Vectispire stores (decision 0003). If you find yourself
 wanting the agent to look something up, the answer is a fourth protocol call, not a dependency.
 
+**The control plane serves the previous minor's agent, so an agent-facing break takes two releases**
+(decision 0043 §2). `AgentContract` is a range, `OLDEST_SERVED` to `CURRENT`, checked at the `hello`;
+the agent announces `VERSION`, the number it was built with, and the control plane records it on the
+agent's row. Anything the previous agent would misread or could not do — a new envelope, a new
+mandatory field in `ScanTask` or the result, a new answer it must parse, a step it must now run — is
+made in two steps: release N raises `CURRENT`, keeps the old form and chooses by the agent's recorded
+number; release N+1 raises `OLDEST_SERVED` and deletes the old form. Never both in one release, and
+never the new form under the old number: 0.11.0 sealed credentials in the `v2` envelope with the
+contract still `1`, so every 0.10 agent was accepted and then failed on its work, with no refusal to
+say why. An optional field the agent can ignore is not a break, and you do not get to decide that by
+reading — `ci.yml`'s `previous-agent` runs the newest release's agent image against the commit and
+decides it. When it goes red on your change, the change needs the two steps, not a fix of the job.
+
 The layer rule, checked by `ArchitectureTest`, has six layers and each one only reaches
 downwards:
 

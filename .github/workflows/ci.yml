@@ -1150,6 +1150,60 @@ jobs:
       - if: always()
         run: docker logs --tail 200 vectispire-smoke || true
 
+  # **The previous release's agent, against this commit's control plane** (decision 0043 §2). The
+  # control plane promises to serve the agent of its own minor and of the one before, because on
+  # Kubernetes the two roll at different moments. The promise had already been broken once without
+  # anything saying so: 0.11.0 sealed credentials in an envelope no 0.10 agent opens, and both agents
+  # announced the same contract number, so the hello accepted the old one and it failed on its work.
+  # `AgentContract` now carries a range; this is what decides whether a change keeps it, rather than
+  # a reviewer's memory of which fields an old agent ignores.
+  #
+  # The agent is the newest `v*` release's, by the digest the registry serves and verified with
+  # cosign against that tag's release workflow before it is pulled — `scripts/release-image.sh`, which
+  # the nightly upgrade drill resolves its control plane with. It then runs the composition's scan
+  # check through the `with-agent` profile, as the nightly runs the agent of this commit: every
+  # scanner reports what the fixture planted, an SSH clone with a sealed deployment key, a changed
+  # host key refused. The check fails unless the agent's own log names each scan as claimed and
+  # submitted, and unless the agent's row reports the release's version: a run in which this agent
+  # claimed nothing, or in which another agent stood in for it, is a red, not a vacuous green.
+  #
+  # **On every push and pull request, without a path filter.** What an old agent misreads is not
+  # confined to a package: the task's fields, the rule sets it fetches, the envelope it opens, the
+  # result it hands back and the answers it parses live across `vectispire-common` and half the
+  # control plane's modules. A filter would be a list of where breaks are expected, and the one this
+  # job exists for came from where nobody expected it. Built with Jib like `images`, without the
+  # interface: the check never loads a page. `fetch-depth: 0` brings the tags the release is resolved
+  # from; verifying needs no `id-token`, only the network.
+  previous-agent:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [jvm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: build the control plane image with Jib
+        run: cd vectispire-java && ./gradlew :vectispire-core:jibDockerBuild -x test
+      - name: the previous release's agent, by digest, verified with cosign
+        id: release
+        run: |
+          release="$(scripts/release-image.sh vectispire-agent)"
+          tag="${release%% *}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "image=${release#* }" >> "$GITHUB_OUTPUT"
+          echo "the agent of $tag: ${release#* }"
+      - name: the previous release's agent claims and finishes the scans
+        env:
+          MODE: agent
+          AGENT_IMAGE: ${{ steps.release.outputs.image }}
+          EXPECT_AGENT_VERSION: ${{ steps.release.outputs.version }}
+        run: ./scripts/composition-scan-check.sh
+
   # **The engine campaign, on any change whose behaviour can differ between engines.**
   #
   # It fired on migrations alone, and the schema is only one of the ways a change reaches the
