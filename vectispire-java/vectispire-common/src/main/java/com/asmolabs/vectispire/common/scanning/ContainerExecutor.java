@@ -33,7 +33,14 @@ public interface ContainerExecutor {
     /** How long a scanner may run before it is stopped — what a scan that started can still take. */
     Duration scannerTimeout();
 
-    /** Can it run anything at all? Asked before a scan is claimed rather than in the middle of one. */
+    /**
+     * Can it run anything at all?
+     *
+     * <p><b>Not asked before a claim.</b> A worker whose executor cannot run anything still claims the
+     * scan, and the steps that needed it fail on the scan with the executor's own reason. Gating the
+     * claim on this would turn that into a scan left pending with nothing on any screen saying why,
+     * until a worker's state is shown somewhere — which is work for after 1.0.
+     */
     boolean isAvailable();
 
     /**
