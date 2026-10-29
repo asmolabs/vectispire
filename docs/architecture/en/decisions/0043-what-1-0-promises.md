@@ -1,6 +1,6 @@
 # 0043 — What 1.0 promises: an additive API, agents one version behind, one engine, one instance, a supported line
 
-**Date:** 2026-10-12 · **Amended:** 2026-10-29 (§3: MySQL only) · **Status:** proposed · **Builds on:** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Decider:** Laurent Boucher
+**Date:** 2026-10-12 · **Amended:** 2026-10-29 (§3: MySQL only) · **Status:** accepted (2026-10-29) · **Builds on:** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -95,7 +95,8 @@ held through one minor release with no unplanned break.
   after its successor is released. `SECURITY.md` names the supported lines and the date each ends.
 - A patch release never needs a migration a later minor would not also carry: a fix that needs one goes
   into the next minor, or its migration takes a version reserved for the line (the numbering rule is
-  written before the first 0.11.x patch).
+  written before the first 0.11.x patch). [0047](0047-patch-releases-carry-no-migration.md) settles it: a patch release
+  carries no migration.
 - **A second maintainer** able to cut a release and to handle a security report exists before 1.0.
 - **The repository's final home is settled before 1.0.** The release signatures name the repository,
   its owner and the workflow file; moving it afterwards invalidates every signature a consumer has
@@ -110,7 +111,8 @@ are would freeze their defects:
   English text today);
 - the attestation predicate moves to **v2** with one unit for its counts (`findings.total` counts issues,
   the severities count occurrences);
-- the compliance codes are settled (the CRA codes' 2022 numbering, OWASP Top 10:2025 labels);
+- the compliance codes are settled (the CRA codes' 2022 numbering, OWASP Top 10:2025 labels) —
+  [0046](0046-compliance-codes-for-1-0.md): the CRA's renamed to the adopted text, OWASP kept on 2021 for 1.0;
 - the scan plugin manifest carries a **schema version**, as the report plugins' export already does;
 - the deprecated `reachability` fields are removed — before the promise, not two minors after it;
 - an **N-1 → N upgrade job** runs nightly on both engines over a database holding data, and a restore is

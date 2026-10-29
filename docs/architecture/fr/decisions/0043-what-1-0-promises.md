@@ -1,6 +1,6 @@
 # 0043 — Ce que promet 1.0 : une API additive, des agents d'une version en retard, un moteur, une instance, une ligne maintenue
 
-**Date :** 2026-10-12 · **Amendée :** 2026-10-29 (§3 : MySQL seul) · **Statut :** proposée · **S'appuie sur :** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-10-12 · **Amendée :** 2026-10-29 (§3 : MySQL seul) · **Statut :** acceptée (2026-10-29) · **S'appuie sur :** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 
@@ -103,6 +103,7 @@ c'est possible, et ont tenu pendant une version mineure sans rupture imprévue.
 - Une version corrective n'exige jamais une migration qu'une mineure ultérieure ne porterait pas aussi :
   une correction qui en exige une va dans la mineure suivante, ou sa migration prend une version réservée
   à la ligne (la règle de numérotation est écrite avant le premier correctif 0.11.x).
+  [0047](0047-patch-releases-carry-no-migration.md) la fixe : une version corrective ne porte aucune migration.
 - **Un second mainteneur**, capable de publier une version et de traiter un signalement de sécurité,
   existe avant 1.0.
 - **L'emplacement définitif du dépôt est fixé avant 1.0.** Les signatures des versions nomment le dépôt,
@@ -118,7 +119,8 @@ l'état figerait leurs défauts :
   pipelines analysent aujourd'hui un texte anglais) ;
 - le prédicat d'attestation passe en **v2** avec une seule unité pour ses comptes (`findings.total` compte
   des issues, les sévérités des occurrences) ;
-- les codes de conformité sont arrêtés (numérotation 2022 des codes CRA, libellés OWASP Top 10:2025) ;
+- les codes de conformité sont arrêtés (numérotation 2022 des codes CRA, libellés OWASP Top 10:2025) —
+  [0046](0046-compliance-codes-for-1-0.md) : ceux du CRA renommés selon le texte adopté, OWASP gardé en 2021 pour 1.0 ;
 - le manifeste des plugins de scan porte une **version de schéma**, comme l'export des plugins de rapport
   le fait déjà ;
 - les champs `reachability` dépréciés sont retirés — avant la promesse, pas deux mineures après ;
