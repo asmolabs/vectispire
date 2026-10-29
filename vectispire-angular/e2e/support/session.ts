@@ -76,15 +76,47 @@ function onChangePassword(page: Page): boolean {
     return new URL(page.url()).pathname.startsWith('/change-password');
 }
 
-/** True when the credentials were accepted, whatever the screen we landed on. */
+/** How long a sign-in may take to be answered, either way, before the case fails saying it was neither. */
+const SIGN_IN_ANSWERED = 60_000;
+
+/**
+ * True when the credentials were accepted, false when the screen said they were refused.
+ *
+ * <p><b>An answer, not a deadline.</b> This waited fifteen seconds for the URL to change and read
+ * anything else as a refusal, so a sign-in merely slow — the first of a full run, on a server still
+ * warming up — would have been taken for a wrong password, and the helper would have spent the next
+ * candidate on an account the server was signing in. A case once failed at its first admin sign-in in
+ * a full run and passed alone; that report carried no trace, and the case has not failed since in 149
+ * CI e2e jobs, so whether this was its cause is not known. What is removed is the misreading: the
+ * helper now waits for one of the two answers the screen gives, and a sign-in that gives neither within
+ * {@link SIGN_IN_ANSWERED} fails here, naming the account, instead of as "neither password was
+ * accepted" two calls later.
+ */
 async function attempt(page: Page, password: string, username = 'admin'): Promise<boolean> {
     await page.goto('/login');
     await page.fill('#username', username);
     await page.fill('#password input', password);
     await page.click('button[type="submit"]');
 
-    await page.waitForURL(/\/(dashboard|change-password|issues|overview|targets)/, { timeout: 15_000 }).catch(() => {});
-    return !new URL(page.url()).pathname.startsWith('/login');
+    // Events, not a poll: the first answer ends the wait at once. A poll answered a moment late, after
+    // the dashboard's first requests had left — and a case waiting for one of them waited for ever.
+    const accepted = page
+        .waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: SIGN_IN_ANSWERED })
+        .then(() => true);
+    const refused = page
+        .locator('p-message[severity="error"]')
+        .waitFor({ state: 'visible', timeout: SIGN_IN_ANSWERED })
+        .then(() => false);
+    // The loser times out later, or when the page closes; nobody is waiting for it.
+    accepted.catch(() => {});
+    refused.catch(() => {});
+    try {
+        return await Promise.race([accepted, refused]);
+    } catch {
+        throw new Error(
+            `The sign-in of ${username} was neither accepted nor refused within ${SIGN_IN_ANSWERED / 1000} s.`
+        );
+    }
 }
 
 async function rotate(page: Page): Promise<void> {
