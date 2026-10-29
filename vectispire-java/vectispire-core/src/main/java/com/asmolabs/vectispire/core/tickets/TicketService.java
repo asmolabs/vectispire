@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbound.PinnedHttpSender;
@@ -51,7 +53,7 @@ import org.springframework.stereotype.Service;
  * the same way, which is why the trust is read once per gesture and handed to each call.
  */
 @Service
-public class TicketService {
+public class TicketService implements SealedStore {
 
     private static final Logger log = LoggerFactory.getLogger(TicketService.class);
 
@@ -705,5 +707,17 @@ public class TicketService {
 
     private static String trimTrailingSlashes(String url) {
         return url.replaceAll("/+$", "");
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        return List.of(
+                new StoreCensus.Counter("Tracker access token", "set the token again on the ticketing settings")
+                        .add(encryption.sealOf(settings.get(Setting.TICKET_TOKEN), TOKEN_CONTEXT))
+                        .done(),
+                new StoreCensus.Counter("Inbound tracker webhook secret",
+                                "set the secret again on the ticketing settings, and in the tracker")
+                        .add(encryption.sealOf(settings.get(Setting.TICKET_WEBHOOK_SECRET), WEBHOOK_SECRET_CONTEXT))
+                        .done());
     }
 }

@@ -16,13 +16,15 @@ Previous keys are tried **for decryption only**. Never for writing.
 
 **2. Restart.** Existing values decrypt with an old key; new writes use the new one.
 
-**3. Re-save the secrets.** Values move to the new key as they are re-saved. The
-[SSH keys](ssh-keys.md) page marks the rows that still depend on an old key — that marking
-is how you know the rotation is finished rather than merely started. A
-[forge connection](forge-connections.md) is re-sealed when it is saved, and shows
-`encryptionState: previous_key` until then.
+**3. Re-seal the secrets.** Values move to the new key as they are re-saved; the signing key and
+the second factors move by themselves, at the next start and at each account's next
+second-factor check. `/actuator/encryption` — an administrator's session — lists every sealed
+store, how many of its values still depend on an old key, and what re-seals them: that report,
+not one page, is how you know the rotation is finished rather than merely started. Every start
+also logs the stores that still depend on one.
 
-**4. Remove the old key** from the previous-keys list once nothing is marked.
+**4. Remove the old key** from the previous-keys list once the report answers
+`"rotationFinished": true`.
 
 Do not skip step 4 indefinitely. A rotation that leaves the old key permanently readable
 has changed which key is written and nothing else.

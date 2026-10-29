@@ -23,25 +23,39 @@ VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS="<old key>" \
 cd vectispire-java && ./gradlew :vectispire-core:bootRun
 ```
 
-The old key is used **for decryption only** — every write goes under the new one. Values migrate
-as they are re-saved, and the *SSH keys* page shows **"To rotate"** as long as a row still depends
-on the old one. **The old key comes out of the environment when no row shows it any more**, and not
-before: removing it early leaves those rows unreadable with nothing to say so.
+The old key is used **for decryption only** — every write goes under the new one. **The old key
+comes out of the environment when no sealed store depends on it any more**, and not before:
+removing it early leaves those values unreadable — second factors refused at sign-in, nothing
+signed, the SIEM's authorization header dropped — with nothing to say so.
 
 Several previous keys can be listed, comma-separated, which is what an interrupted rotation needs.
 
-### The stores that show their state
+### Where the rotation stands: `/actuator/encryption`
 
-Three stores say, row by row, which key they are sealed under (`encryptionState`: `current`,
-`previous_key`, `unreadable`), and each is re-sealed by its own gesture:
+One report, to an administrator's session, lists every store Vectispire keeps sealed and how many
+of its values stand under the current key, under a previous one, under none (`unreadable`), or in
+the clear because they predate encryption:
 
-| Store | Where the state shows | What re-seals a row |
-|---|---|---|
-| SSH deploy keys | the *SSH keys* page, `GET /api/v1/ssh-keys` | adding the key again and deleting the old row |
-| HTTPS clone tokens ([0022](../architecture/en/decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | `GET /api/v1/git-tokens` | adding the token again and deleting the old row |
-| Forge connections ([0037](../architecture/en/decisions/0037-discovering-repositories-at-setup.md)) | `GET /api/v1/forge-connections` | saving the connection (`PATCH /api/v1/forge-connections/{id}` — an empty `{}` will do) or replacing its token (`PUT …/token`) |
+```bash
+curl -s -H "Authorization: Bearer <an administrator's session>" https://vectispire.example.com/actuator/encryption
+```
 
-The rotation is finished when none of them lists a `previous_key` row.
+**The rotation is finished when it answers `"rotationFinished": true`** — no store has a
+`previousKey` above zero. Until then, every start also logs a warning per store that still
+depends on a previous key, naming what re-seals it. The report says how many values stand where,
+never what they hold.
+
+| Store | What re-seals a value still under a previous key |
+|---|---|
+| SSH deploy keys | adding the key again, moving the repositories to it, deleting the old row (the *SSH keys* page and `GET /api/v1/ssh-keys` show each row's state) |
+| HTTPS clone tokens ([0022](../architecture/en/decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | adding the token again, moving the repositories to it, deleting the old row (`GET /api/v1/git-tokens`) |
+| Forge connection tokens ([0037](../architecture/en/decisions/0037-discovering-repositories-at-setup.md)) | saving the connection (`PATCH /api/v1/forge-connections/{id}` — an empty `{}` will do) or replacing its token (`PUT …/token`) |
+| Document signing key | the next start, by itself |
+| TOTP secrets and backup codes | the account's next second-factor check — a sign-in, or disabling — by itself; or enrolling again |
+| Tracker access token, inbound tracker webhook secret | setting it again on the ticketing settings (and, for the webhook secret, in the tracker) |
+| Notification webhook signing secret | setting it again on the notification settings, and in the receiver |
+| OpenAI API key | setting it again on the model review settings |
+| SIEM authorization header | setting it again on the SIEM settings |
 
 ## In production, both halves belong in files
 

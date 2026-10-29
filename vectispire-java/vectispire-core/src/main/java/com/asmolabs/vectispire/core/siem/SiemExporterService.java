@@ -14,11 +14,14 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.siem.internal.SiemSender;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Arrays;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -34,7 +37,7 @@ import org.springframework.stereotype.Service;
  * inside the caller's transaction, and always over HTTP whatever the protocol said.
  */
 @Service
-public class SiemExporterService {
+public class SiemExporterService implements SealedStore {
 
     private static final Logger log = LoggerFactory.getLogger(SiemExporterService.class);
 
@@ -365,4 +368,12 @@ public class SiemExporterService {
     }
 
     public record TestResult(boolean success, String message, int statusCode) {}
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("SIEM authorization header",
+                "set the header again on the SIEM settings");
+        repository.findAll().forEach(row -> counter.add(encryption.sealOf(row.getAuthHeader(), AUTH_HEADER_CONTEXT)));
+        return List.of(counter.done());
+    }
 }

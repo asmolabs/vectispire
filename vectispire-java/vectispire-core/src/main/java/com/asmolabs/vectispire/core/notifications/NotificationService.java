@@ -11,6 +11,8 @@ import com.asmolabs.vectispire.common.domain.notifications.TokenAlertMessages;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.TeamChannels;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.notifications.internal.AlertChannel;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
@@ -32,7 +34,7 @@ import org.springframework.stereotype.Service;
  * with no webhook, and the payload testable with no clock.
  */
 @Service
-public class NotificationService implements NotificationChannel, AlertChannel {
+public class NotificationService implements NotificationChannel, AlertChannel, SealedStore {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
@@ -257,5 +259,13 @@ public class NotificationService implements NotificationChannel, AlertChannel {
                 .filter(url -> !url.isBlank())
                 .orElseThrow(() -> new GoneDestinationException(
                         "team " + teamId + " no longer has a webhook — deleted, or its channel was cleared"));
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        return List.of(new StoreCensus.Counter("Notification webhook signing secret",
+                        "set the secret again on the notification settings, and in the receiver")
+                .add(encryption.sealOf(settings.get(Setting.WEBHOOK_SIGNING_SECRET), SIGNING_SECRET_CONTEXT))
+                .done());
     }
 }

@@ -17,14 +17,16 @@ Les clés précédentes ne sont essayées **qu'au déchiffrement**. Jamais à l'
 **2. Redémarrer.** Les valeurs existantes se déchiffrent avec une ancienne clé ; les nouvelles
 écritures utilisent la nouvelle.
 
-**3. Réenregistrer les secrets.** Les valeurs migrent vers la nouvelle clé au fur et à mesure
-qu'elles sont réenregistrées. La page [Clés SSH](ssh-keys.md) marque les lignes qui dépendent
-encore d'une ancienne clé — ce marquage est ce qui vous dit que la rotation est terminée plutôt
-que seulement commencée. Une [connexion de forge](forge-connections.fr.md) est rescellée quand elle
-est enregistrée, et affiche `encryptionState: previous_key` d'ici là.
+**3. Resceller les secrets.** Les valeurs migrent vers la nouvelle clé au fur et à mesure
+qu'elles sont réenregistrées ; la clé de signature et les seconds facteurs migrent d'eux-mêmes, au
+démarrage suivant et à la vérification suivante du second facteur de chaque compte.
+`/actuator/encryption` — une session d'administrateur — liste chaque stockage scellé, combien de
+ses valeurs dépendent encore d'une ancienne clé, et ce qui les rescelle : ce rapport, et non une
+page, est ce qui vous dit que la rotation est terminée plutôt que seulement commencée. Chaque
+démarrage journalise aussi les stockages qui en dépendent encore.
 
-**4. Retirer l'ancienne clé** de la liste des clés précédentes une fois que plus rien n'est
-marqué.
+**4. Retirer l'ancienne clé** de la liste des clés précédentes une fois que le rapport répond
+`"rotationFinished": true`.
 
 Ne repoussez pas indéfiniment l'étape 4. Une rotation qui laisse l'ancienne clé lisible en
 permanence a changé quelle clé est écrite, et rien d'autre.

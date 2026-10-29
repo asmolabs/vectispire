@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +40,7 @@ import org.springframework.stereotype.Service;
  * make the documents already handed out unverifiable without a word.
  */
 @Service
-public class SigningKeyService {
+public class SigningKeyService implements SealedStore {
 
     private static final Logger log = LoggerFactory.getLogger(SigningKeyService.class);
 
@@ -154,7 +155,7 @@ public class SigningKeyService {
     private KeyMaterial loadOrCreate() {
         String stored = settings.internalValue(STORED_KEY).orElse("").trim();
         if (!stored.isEmpty()) {
-            return KeyMaterial.of(CosignSigner.parsePrivateKey(decrypt(stored)));
+            return KeyMaterial.of(CosignSigner.parsePrivateKey(decryptResealing(stored)));
         }
 
         KeyPair generated = CosignSigner.generateKeyPair();
@@ -176,6 +177,38 @@ public class SigningKeyService {
             log.info("Another instance stored the document signing key {} first; signing with it.", key.keyId());
         }
         return key;
+    }
+
+    /**
+     * The key, re-sealed under the current {@code ENCRYPTION_KEY} when a previous one opened it.
+     *
+     * <p>It is written once and read once per start, so nothing else would ever move it: after a
+     * rotation it stayed under the old key, and removing that key — as the procedure said once the
+     * SSH keys were done — stopped every signature. A failed re-seal is not a failed load: the key
+     * is still the right one, and the next start tries again.
+     */
+    private String decryptResealing(String stored) {
+        SecretCipher.Decrypted secret = encryption.inspect(stored, CONTEXT);
+        String plain = decrypt(stored);
+        if (secret.state() == SecretCipher.SecretState.PREVIOUS_KEY) {
+            try {
+                if (settings.resealInternal(STORED_KEY, stored, encryption.encrypt(plain, CONTEXT))) {
+                    log.info("Re-sealed the document signing key under the current ENCRYPTION_KEY.");
+                }
+            } catch (RuntimeException refused) {
+                log.warn("The document signing key is still sealed under a previous ENCRYPTION_KEY and could not be "
+                        + "re-sealed now ({}); the next start tries again.", refused.getMessage());
+            }
+        }
+        return plain;
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        String stored = settings.internalValue(STORED_KEY).orElse("");
+        return List.of(new StoreCensus.Counter("Document signing key", "re-sealed by the next start")
+                .add(encryption.sealOf(stored, CONTEXT))
+                .done());
     }
 
     private String decrypt(String stored) {

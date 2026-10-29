@@ -145,7 +145,7 @@ class PlatformMetricsTest extends ApiTestBase {
                         .content("{\"name\": \"metrics-probe\", \"scopes\": [\"read\"]}"))
                 .andReturn().getResponse().getContentAsString()).get("secret").asText();
 
-        for (String endpoint : List.of("/actuator/metrics", "/actuator/info")) {
+        for (String endpoint : List.of("/actuator/metrics", "/actuator/info", "/actuator/encryption")) {
             for (String refused : List.of(agentKey, integrationKey, asReader(), asCiso(), asPendingPasswordChange())) {
                 mvc.perform(authenticated(
                                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(endpoint), refused))

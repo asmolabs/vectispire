@@ -139,6 +139,33 @@ public class EncryptionService {
         return kms.inspect(encrypted, context);
     }
 
+    /** Where a stored value stands against the configured keys — see {@link StoreCensus}. */
+    public enum Seal {
+        CURRENT,
+        PREVIOUS_KEY,
+        UNREADABLE,
+        /** Stored before it was encrypted: used as it is, see {@link #readSecret}. */
+        CLEAR,
+        /** Nothing stored. */
+        EMPTY
+    }
+
+    /** What {@code stored} is sealed under, without handing out what it holds. */
+    public Seal sealOf(String stored, String context) {
+        String value = stored == null ? "" : stored.trim();
+        if (value.isEmpty()) {
+            return Seal.EMPTY;
+        }
+        if (!isCiphertext(value)) {
+            return Seal.CLEAR;
+        }
+        return switch (inspect(value, context).state()) {
+            case CURRENT -> Seal.CURRENT;
+            case PREVIOUS_KEY -> Seal.PREVIOUS_KEY;
+            case UNREADABLE -> Seal.UNREADABLE;
+        };
+    }
+
     /**
      * Whether a stored value is a ciphertext of either kind this service writes.
      *

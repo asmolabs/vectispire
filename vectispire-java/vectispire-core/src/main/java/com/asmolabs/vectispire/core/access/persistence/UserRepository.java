@@ -84,6 +84,24 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     int advanceTotpStep(@Param("id") Long id, @Param("step") long step);
 
     /**
+     * Replaces the TOTP secret's ciphertext, provided it is still the one the caller read — a
+     * re-seal under the current encryption key, which two sign-ins may attempt at once.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update UserEntity u set u.totpSecret = :replacement
+             where u.id = :id and u.totpSecret = :expected""")
+    int replaceTotpSecret(
+            @Param("id") Long id,
+            @Param("expected") String expected,
+            @Param("replacement") String replacement);
+
+    /** The accounts holding a second factor's sealed values, for the encryption census. */
+    @Query("select u from UserEntity u where u.totpSecret is not null or u.mfaBackupCodes is not null")
+    List<UserEntity> findHoldingSecondFactorSecrets();
+
+    /**
      * Replaces the backup codes, provided they are still the ones the caller read.
      *
      * <p>A read, a removal in Java and a save let two sign-ins presenting the same code both

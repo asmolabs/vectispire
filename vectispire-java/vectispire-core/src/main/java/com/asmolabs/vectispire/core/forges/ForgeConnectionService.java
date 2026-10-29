@@ -16,6 +16,8 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.forges.internal.ForgeClient;
 import com.asmolabs.vectispire.core.forges.internal.ForgeProbes;
 import com.asmolabs.vectispire.core.forges.internal.ForgeTargets;
@@ -56,7 +58,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * this one, and presenting it to a server typed later is the binding decision 0022 exists to keep.
  */
 @Service
-public class ForgeConnectionService {
+public class ForgeConnectionService implements SealedStore {
 
     static final int NAME_LENGTH = 255;
 
@@ -456,5 +458,14 @@ public class ForgeConnectionService {
 
     private static String actorName(RequestActor actor) {
         return actor.username() == null ? "unknown" : BoundedText.clip(actor.username(), 255);
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("Forge connection tokens",
+                "save the connection (PATCH /api/v1/forge-connections/{id} with {}) or replace its token");
+        connections.findAll().forEach(connection -> counter.add(encryption.sealOf(
+                connection.getToken(), SecretCipher.forgeConnectionContext(connection.getId().toString()))));
+        return List.of(counter.done());
     }
 }
