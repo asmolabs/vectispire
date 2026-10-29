@@ -114,7 +114,10 @@ pub struct RequestActor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditOperation {
     UserUpdated,
+    ApiKeyCreated,
     ApiKeyDeleted,
+    TeamUpdated,
+    TeamAccessChanged,
     LoginBlocked,
     LoginFailure,
     LoginSuccess,
@@ -125,7 +128,10 @@ impl AuditOperation {
     pub const fn name(self) -> &'static str {
         match self {
             AuditOperation::UserUpdated => "USER_UPDATED",
+            AuditOperation::ApiKeyCreated => "API_KEY_CREATED",
             AuditOperation::ApiKeyDeleted => "API_KEY_DELETED",
+            AuditOperation::TeamUpdated => "TEAM_UPDATED",
+            AuditOperation::TeamAccessChanged => "TEAM_ACCESS_CHANGED",
             AuditOperation::LoginBlocked => "LOGIN_BLOCKED",
             AuditOperation::LoginFailure => "LOGIN_FAILURE",
             AuditOperation::LoginSuccess => "LOGIN_SUCCESS",

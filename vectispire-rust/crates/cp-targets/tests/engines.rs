@@ -58,6 +58,7 @@ async fn on_both_engines() {
         credentials_are_stored_encrypted_under_their_contexts(&db).await;
         every_service_refuses_what_its_caller_cannot_see(&db).await;
         the_forms_refuse_as_java_does(&db).await;
+        access_names_and_finds_what_it_grants(&db).await;
         println!("{engine}: the targets' suite passed");
         db.close().await;
     }
@@ -795,4 +796,70 @@ async fn the_forms_refuse_as_java_does(db: &Db) {
         recorded.contains(&"Repository updated: https://***@gitlab.example.org/a/legacy".to_owned()),
         "{recorded:?}"
     );
+}
+
+/// `TargetsForAccess`'s four questions besides `targetsIn` — what the grant and key screens ask (`TargetNaming.named`,
+/// `projectExists`, `exists`, `labels`): named in the order given, a project qualified by its solution, a target that
+/// is gone said to be gone, and the labels in the order the targets were created.
+async fn access_names_and_finds_what_it_grants(db: &Db) {
+    use vectispire_cp_access::visibility::Grant;
+    use vectispire_cp_access::{GrantableTargets, TargetGrant};
+
+    exec(db, "insert into t_solution (name, created_at) values ('Granted solution', '2026-01-01 00:00:00')").await;
+    let solution = count(db, "select max(id) from t_solution").await;
+    exec(db, &format!("insert into t_project (solution_id, name, created_at) values ({solution}, 'Granted project', '2026-01-01 00:00:00')")).await;
+    let project = count(db, "select max(id) from t_project").await;
+    exec(db, "insert into t_repository (url, branch, tier, name) values ('https://forge.example/granted/api.git', 'main', 'TIER_2_BUSINESS_OPERATIONAL', 'Granted API')").await;
+    let repository = count(db, "select max(id) from t_repository").await;
+    exec(db, "insert into t_repository (url, branch, tier) values ('https://forge.example/granted/web.git', 'main', 'TIER_2_BUSINESS_OPERATIONAL')").await;
+    let unnamed = count(db, "select max(id) from t_repository").await;
+    exec(db, "insert into t_container (image_name, tag) values ('granted/worker', '1.2')").await;
+    let image = count(db, "select max(id) from t_container").await;
+    let gone = 987_654_321;
+
+    let access = vectispire_cp_targets::TargetsForAccess(db.clone());
+    let grant = |kind: &str, id: i64| Grant { kind: kind.to_owned(), id };
+    let named = access
+        .named(&[
+            grant("container", image),
+            grant("project", project),
+            grant("repository", unnamed),
+            grant("repository", repository),
+            grant("repository", gone),
+            grant("project", gone),
+            grant("solution", solution),
+        ])
+        .await
+        .unwrap();
+    let expected = |kind: &str, id: i64, name: &str| TargetGrant { kind: kind.to_owned(), id, name: name.to_owned() };
+    assert_eq!(
+        named,
+        vec![
+            expected("container", image, "granted/worker:1.2"),
+            expected("project", project, "Granted solution / Granted project"),
+            expected("repository", unnamed, "granted/web"),
+            expected("repository", repository, "Granted API"),
+            expected("repository", gone, "deleted target"),
+            expected("project", gone, "deleted target"),
+            expected("solution", solution, "deleted target"),
+        ]
+    );
+    assert!(access.named(&[]).await.unwrap().is_empty());
+
+    assert!(access.project_exists(project).await.unwrap());
+    assert!(!access.project_exists(gone).await.unwrap());
+    assert!(access.exists(ScanTarget::Repository(repository)).await.unwrap());
+    assert!(access.exists(ScanTarget::Container(image)).await.unwrap());
+    assert!(!access.exists(ScanTarget::Repository(image.max(repository) + gone)).await.unwrap());
+    assert!(!access.exists(ScanTarget::Container(gone)).await.unwrap());
+
+    let labels = access.labels().await.unwrap();
+    let ids: Vec<i64> = labels.repositories.iter().map(|(id, _)| *id).collect();
+    let mut sorted = ids.clone();
+    sorted.sort_unstable();
+    assert_eq!(ids, sorted, "the repositories in the order they were created");
+    assert_eq!(labels.repository(repository), Some("Granted API"));
+    assert_eq!(labels.repository(unnamed), Some("granted/web"));
+    assert_eq!(labels.container(image), Some("granted/worker:1.2"));
+    assert_eq!(labels.container(gone), None);
 }

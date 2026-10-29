@@ -124,6 +124,38 @@ pub(crate) async fn find(db: &Db, id: Uuid) -> Result<Option<KeyRow>, StoreError
     stored.map(Stored::row).transpose()
 }
 
+/// `findAllByOrderByCreatedAtDescIdDesc`: every key, newest first — the administration list, the identifier settling
+/// two keys issued in the same microsecond.
+pub(crate) async fn all_newest_first(db: &Db) -> Result<Vec<KeyRow>, StoreError> {
+    // MySQL's `datetime(6)` would be read as a zone-less `PrimitiveDateTime`; Hibernate stores UTC there.
+    let stored = match db {
+        #[cfg(feature = "mysql-queries")]
+        Db::MySql(pool) => {
+            sqlx::query_as!(
+                Stored,
+                r#"/* mysql */ select id, name, key_hash, prefix, created_at as "created_at: _",
+                last_used_at as "last_used_at: _", scopes, target_kind, target_id, expires_at as "expires_at: _",
+                owner_user_id from t_api_key order by created_at desc, id desc"#
+            )
+            .fetch_all(pool)
+            .await?
+        }
+        #[cfg(feature = "postgres-queries")]
+        Db::PostgreSql(pool) => {
+            sqlx::query_as!(
+                Stored,
+                "/* postgres */ select id, name, key_hash, prefix, created_at, last_used_at, scopes, target_kind, \
+                 target_id, expires_at, owner_user_id from t_api_key order by created_at desc, id desc"
+            )
+            .fetch_all(pool)
+            .await?
+        }
+        #[cfg(not(all(feature = "mysql-queries", feature = "postgres-queries")))]
+        _ => return Err(StoreError::not_built()),
+    };
+    stored.into_iter().map(Stored::row).collect()
+}
+
 /// `markUsed`: the only trace that lets an operator spot a key issued for a use that never happened.
 pub(crate) async fn mark_used(db: &Db, id: Uuid, at: OffsetDateTime) -> Result<u64, StoreError> {
     let id = id.as_hyphenated().to_string();

@@ -118,9 +118,55 @@ pub trait AccessSettings: Send + Sync {
 
 /// `GrantableTargets`: what access needs to know about the targets it grants — a port the targets module
 /// implements, so that the dependency points from targets to access and nowhere else (decision 0029).
+///
+/// Java's port asks four more questions, which the administration services need (stage 2b): what a grant is called,
+/// whether a project or a target exists, and every target's label for the key screen.
 pub trait GrantableTargets: Send + Sync {
     /// The repositories and the images filed in these projects now. Never asked with an empty set.
     fn targets_in<'a>(&'a self, projects: &'a BTreeSet<i64>) -> BoxFuture<'a, Result<Vec<ScanTarget>, AccessError>>;
+
+    /// `named`: the grants, **in the order given**, each with its target's name now — `deleted target` for one that
+    /// no longer exists, or of a kind nobody wrote. Named by the server: a project is in no selector the screen
+    /// fetches, so a client labelling grants itself listed a project grant as a bare number.
+    fn named<'a>(&'a self, grants: &'a [Grant]) -> BoxFuture<'a, Result<Vec<TargetGrant>, AccessError>>;
+
+    /// `projectExists`.
+    fn project_exists(&self, project_id: i64) -> BoxFuture<'_, Result<bool, AccessError>>;
+
+    /// `exists`: the repository or the image is there.
+    fn exists(&self, target: ScanTarget) -> BoxFuture<'_, Result<bool, AccessError>>;
+
+    /// `labels`: every repository and image with its display name, each ordered as the targets were created — the
+    /// order the key screen lists them in.
+    fn labels(&self) -> BoxFuture<'_, Result<Labels, AccessError>>;
+}
+
+/// `GrantableTargets.TargetGrant`: a grant as a screen lists it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TargetGrant {
+    pub kind: String,
+    pub id: i64,
+    /// What the target is called now; `deleted target` when it no longer exists — a grant outliving its target is
+    /// worth seeing rather than hiding.
+    pub name: String,
+}
+
+/// `GrantableTargets.Labels`: by identifier, in the order the targets were created (Java's `LinkedHashMap` filled
+/// from `findAll`, which both engines answer in key order for these tables).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Labels {
+    pub repositories: Vec<(i64, String)>,
+    pub containers: Vec<(i64, String)>,
+}
+
+impl Labels {
+    pub fn repository(&self, id: i64) -> Option<&str> {
+        self.repositories.iter().find(|(key, _)| *key == id).map(|(_, label)| label.as_str())
+    }
+
+    pub fn container(&self, id: i64) -> Option<&str> {
+        self.containers.iter().find(|(key, _)| *key == id).map(|(_, label)| label.as_str())
+    }
 }
 
 /// A resolution that could not be made. **Never reduced to "nothing visible"**: that would answer a 404 or an

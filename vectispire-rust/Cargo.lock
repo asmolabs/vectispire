@@ -4048,6 +4048,7 @@ dependencies = [
  "vectispire-cp-http",
  "vectispire-cp-maintenance",
  "vectispire-cp-outbound",
+ "vectispire-cp-settings",
  "vectispire-domain",
  "vectispire-migrate",
  "vectispire-testkit",

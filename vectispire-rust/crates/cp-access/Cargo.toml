@@ -31,6 +31,7 @@ sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio",
 subtle.workspace = true
 thiserror.workspace = true
 time = { version = "0.3", features = ["std"] }
+tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 # `Normalizer.normalize(NFKD)` and `\p{M}` in the sign-in throttle's user key. Already in the graph (idna, cp-crypto).
 unicode-normalization = "0.1"
@@ -43,6 +44,10 @@ vectispire-cp-db = { path = "../cp-db", default-features = false }
 vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-http.workspace = true
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
+# A team's channel is checked by the URL guard when it is typed, as the global webhook's is (`outbound` and `settings`
+# are shared modules: no edge line). The guard resolves the host, so it runs on tokio's blocking pool.
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-settings = { path = "../cp-settings" }
 vectispire-domain.workspace = true
 # The password a hash is derived from, wiped when dropped.
 zeroize = "1"
@@ -62,8 +67,7 @@ time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
-# The second factor's engine test seals with the real `Encryption`, whose Vault door names these.
-vectispire-cp-outbound = { path = "../cp-outbound" }
+# The second factor's engine test seals with the real `Encryption`, whose Vault door names `vectispire-cp-outbound`.
 vectispire-migrate = { path = "../migrate" }
 vectispire-testkit = { path = "../testkit" }
 vectispire-tls.workspace = true

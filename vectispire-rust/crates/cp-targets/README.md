@@ -88,5 +88,6 @@ the same callers: no hidden target in `/repositories`, `/containers` or the solu
   task 2.11a, then `cp-scanning`'s from 2.7): the 29 routes with scanning's three and the agents' seventeen, composed as the binary composes them, since the listings answer
   with scanning's `TargetScans`. `crates/cp-contract/scripts/replay-goldens.sh` runs it; what is not green is named
   in `golden/deferred/`. The replay found no difference in this crate.
-- `GrantableTargets` in Rust declares `targets_in` only; Java's port also names grants, checks a project or a target
-  exists and labels targets — `naming`, `catalog` and `TargetsForAccess` hold those for 1.7's access routes.
+- `GrantableTargets` carries Java's five questions (access stage 2b): `TargetsForAccess` names grants in the order given
+  (`TargetNaming.named`), checks a project or a target exists, and labels every target by identifier — held by
+  `tests/engines.rs` (`access_names_and_finds_what_it_grants`).
