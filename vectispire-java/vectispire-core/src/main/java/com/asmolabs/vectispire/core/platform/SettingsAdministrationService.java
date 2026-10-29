@@ -192,8 +192,14 @@ public class SettingsAdministrationService {
             // and the reach of the SIEM export and of the notification channels only in an
             // administrator's. Only on a change: a screen that saves every field it shows sends these
             // back unchanged, and refusing that would lock a CISO out of the rest of the section.
+            //
+            // **But never for a secret one.** "Unchanged is accepted, changed is refused" answered
+            // whether a value sent was the stored one: for a setting withheld from a security lead —
+            // the tracker's address, its pinned CA — that was a way to test guesses of it, one 200 or
+            // 403 at a time. A secret administrator-only key is refused from anyone else whatever it
+            // holds; the screen sends only what changed, so it never sends one back.
             if (setting.administratorOnly()
-                    && !value.equals(settings.get(setting))
+                    && (setting.isSecret() || !value.equals(settings.get(setting)))
                     && !administrative(writer)) {
                 throw new AccessDeniedException(setting.directsCredential()
                         .map(credential -> setting.label() + " decides where "

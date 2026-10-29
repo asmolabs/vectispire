@@ -18,7 +18,9 @@ ils partent — l'URL du tracker, son projet, son compte Jira et sa CA épinglé
 l'URL OpenAI et l'acceptation qui laisse partir le code vers un point d'accès distant — sont donc
 aussi ceux d'un administrateur, et s'affichent en lecture seule pour les autres. Sans cela, un rôle
 qui ne peut pas lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte, ou le
-faire écrire dans un projet de son choix sur l'hôte du tracker.
+faire écrire dans un projet de son choix sur l'hôte du tracker. Envoyé par un autre rôle, un tel
+réglage est refusé quelle que soit sa valeur quand l'écran le masque (l'URL du tracker, sa CA), et
+accepté s'il revient inchangé dans les autres cas.
 *Autoriser une destination SIEM privée* et *Autoriser une URL de webhook privée* reviennent à un
 administrateur pour une raison voisine : l'export SIEM et les canaux de notification sont configurés
 et testés par un CISO, et l'interrupteur qui décide s'ils peuvent joindre le réseau interne n'est pas
