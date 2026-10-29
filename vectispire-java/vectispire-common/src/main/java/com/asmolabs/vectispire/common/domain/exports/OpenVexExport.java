@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.exports;
 
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
@@ -66,7 +67,7 @@ public final class OpenVexExport {
         // The reading CycloneDX and CSAF make of the same triage (decision 0041), spelled in OpenVEX.
         VexDisposition disposition = VexDisposition.of(
                 issue.triageStatus(), issue.triageJustification(), issue.resolved());
-        String comment = blankToNull(issue.triageComment());
+        String comment = Texts.blankToNull(issue.triageComment());
 
         VexStatus status = switch (disposition.kind()) {
             case NOT_AFFECTED -> VexStatus.NOT_AFFECTED;
@@ -96,9 +97,5 @@ public final class OpenVexExport {
                 action,
                 null,
                 issue.triagedAt() != null ? issue.triagedAt() : issue.lastSeenAt());
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 }

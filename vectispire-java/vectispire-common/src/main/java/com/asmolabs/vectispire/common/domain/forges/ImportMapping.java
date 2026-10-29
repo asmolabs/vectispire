@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.forges;
 
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import java.util.ArrayList;
@@ -90,8 +91,8 @@ public record ImportMapping(List<Rule> rules) {
             if (rule == null) {
                 throw new InvalidInputException("A mapping rule is empty.");
             }
-            String namespace = blankToNull(rule.namespacePath());
-            String forgeId = blankToNull(rule.forgeId());
+            String namespace = Texts.trimmedOrNull(rule.namespacePath());
+            String forgeId = Texts.trimmedOrNull(rule.forgeId());
             if ((namespace == null) == (forgeId == null)) {
                 throw new InvalidInputException("A mapping rule names a namespacePath or a forgeId, not both and not "
                         + "neither.");
@@ -205,10 +206,6 @@ public record ImportMapping(List<Rule> rules) {
 
     private static String name(String raw, String what) {
         return BoundedText.required(raw, NAME_LENGTH, what);
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private static String stripSlashes(String value) {

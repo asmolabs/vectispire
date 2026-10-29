@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.plugins;
 
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
@@ -62,8 +63,8 @@ public record PluginSignature(
 
     /** Blank fields become absent; a key's line endings become {@code \n}, so a paste hashes as typed. */
     public PluginSignature {
-        identity = blankToNull(identity);
-        issuer = blankToNull(issuer);
+        identity = Texts.strippedOrNull(identity);
+        issuer = Texts.strippedOrNull(issuer);
         publicKey = publicKey == null || publicKey.isBlank()
                 ? null
                 : publicKey.replace("\r\n", "\n").replace('\r', '\n').strip() + "\n";
@@ -175,9 +176,5 @@ public record PluginSignature(
         } else if (!algorithm.equals(EdECObjectIdentifiers.id_Ed25519)) {
             throw new InvalidPluginException("The signer's key is ECDSA, Ed25519 or RSA — the kinds cosign verifies.");
         }
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.strip();
     }
 }
