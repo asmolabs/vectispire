@@ -18,6 +18,19 @@ in to fix it.
 A refused code keeps the enrolment open. Six digits with thirty seconds of life: getting one wrong
 is ordinary, and reissuing a fresh secret over a typo would mean copying everything again.
 
+**The confirmation asks for your current password too.** With a session alone, whoever held one —
+stolen, or left open on a desk — could put your second factor on their own phone, and you would have
+no code to remove it with. A wrong password counts against the account as a wrong sign-in does, and
+past the same ceiling the confirmation answers `429`. An account that signs in only through the
+provider has no password it knows, and no use for this factor.
+
+## Locked out of your own factor
+
+If the phone is gone and the recovery codes with it, or a factor you did not enrol is on the account,
+an administrator resets it from the users screen: the factor is removed and your sessions close, and
+you sign in with your password alone until you enrol again. If somebody else may have used the
+account, ask for a password reset as well — that is what revokes the API keys.
+
 ## The recovery codes are shown once
 
 The server stores them encrypted and will not return them again. The screen says so **before** showing them,

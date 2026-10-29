@@ -49,6 +49,25 @@ par le bouton de déverrouillage de la ligne du compte, après confirmation.
 
 La route est `DELETE /api/v1/users/{id}/password-change-requirement`, pour les administrateurs.
 
+### Réinitialiser un second facteur
+
+Un compte dont le titulaire a perdu le téléphone et les codes de secours, ou qui porte un facteur que
+son titulaire n'a pas enrôlé, le récupère par le bouton bouclier de sa ligne (proposé quand un facteur
+est enrôlé). Retirer un facteur demande sinon un code actuel, ce qui manque justement à ce titulaire.
+
+- **Le facteur est retiré et les sessions du compte se ferment** : un facteur enrôlé par quelqu'un
+  d'autre est venu avec une session de cette personne. Le compte se connecte avec son seul mot de passe
+  jusqu'à un nouvel enrôlement.
+- **Ses clés d'API restent.** Si le compte a pu être compromis, réinitialisez aussi son mot de passe :
+  c'est ce qui les révoque.
+- **Jamais sur son propre compte**, et celui d'un super-administrateur par un super-administrateur
+  seulement.
+- **Enregistrée** comme `USER_UPDATED`, et envoyée au SIEM comme une modification de compte
+  (`VECTI-SEC-010`).
+- **Idempotente.** Un compte sans facteur est rendu tel quel, sans entrée.
+
+La route est `DELETE /api/v1/users/{id}/second-factor`, pour les administrateurs.
+
 ## Rôles
 
 Les rôles décident de ce qu'une personne peut **faire** ; les équipes décident de ce qu'elle peut

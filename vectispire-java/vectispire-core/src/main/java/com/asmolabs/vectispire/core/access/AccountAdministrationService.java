@@ -336,6 +336,53 @@ public class AccountAdministrationService {
         return new AccountView(UserView.of(user), activeSessionsByUser().getOrDefault(id, 0L));
     }
 
+    /**
+     * Clears another account's second factor, and closes its sessions.
+     *
+     * <p><b>The way back for an account locked out of its own factor.</b> Enrolling asks for the
+     * password, but a lost phone, or a factor enrolled by whoever held the password and a session, used
+     * to be recoverable only in the database. Disabling asks for a current code, which is exactly what
+     * the owner no longer has.
+     *
+     * <p>Never one's own — an administrator who could clear their own factor would make it a password
+     * again — and under the governor's rules, as a password reset is: the governor's factor is the
+     * governor's. The sessions close because a factor enrolled by somebody else came with a session of
+     * theirs. The account's API keys stay: resetting the password, as for any suspected compromise, is
+     * what takes them.
+     *
+     * <p><b>Idempotent.</b> An account without a factor is answered as it is, with no write and no entry.
+     *
+     * @param actingAccountId the account clearing it. Read, not trusted: it must hold an administrative role
+     *     today, whatever the route's marker admitted
+     * @throws AccessDeniedException when the caller is not an administrative account
+     */
+    public AccountView resetSecondFactor(long id, Long actingAccountId, RequestActor actor) {
+        boolean administers = actingAccountId != null && users.findById(actingAccountId)
+                .flatMap(account -> Role.of(account.getRole()))
+                .map(Role::isAdministrative)
+                .orElse(false);
+        if (!administers) {
+            throw new AccessDeniedException("Only an administrator can reset another account's second factor.");
+        }
+        UserEntity user = requireAccount(id);
+        if (isSelf(actingAccountId, id)) {
+            throw new InvalidInputException("You cannot reset your own second factor: disable it with a current code.");
+        }
+        refuseGovernorAdministration(actingAccountId, Role.of(user.getRole()), Optional.empty());
+
+        if (!user.getMfaEnabled()) {
+            return new AccountView(UserView.of(user), activeSessionsByUser().getOrDefault(id, 0L));
+        }
+        user.setMfaEnabled(false);
+        user.setTotpSecret(null);
+        user.setMfaBackupCodes(null);
+        user.setTotpLastStep(null);
+        user.setUpdatedAt(clock.instant());
+        accounts.save(user, true);
+        record(actor, id, "Account " + user.getUsername() + ": second factor reset by an administrator, sessions closed");
+        return new AccountView(UserView.of(user), 0);
+    }
+
     /** Holds a password and no provider subject: the password is how it signs in. */
     private static boolean signsInWithItsPassword(UserEntity user) {
         return user.getPassword() != null && user.getKeycloakId() == null;

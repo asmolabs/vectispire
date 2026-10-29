@@ -76,6 +76,17 @@
                     <div class="text-xs text-muted-color break-all">{{ setup.qrCodeUri }}</div>
 
                     <div class="flex flex-col gap-2">
+                        <label for="mfa-password" class="font-medium">{{ 'account.mfa_password' | translate }}</label>
+                        <input
+                            pInputText
+                            id="mfa-password"
+                            type="password"
+                            autocomplete="current-password"
+                            [(ngModel)]="password"
+                            name="mfa-password"
+                        />
+                    </div>
+                    <div class="flex flex-col gap-2">
                         <label for="mfa-code" class="font-medium">{{ 'account.mfa_code' | translate }}</label>
                         <input
                             pInputText

@@ -18,6 +18,20 @@ corriger.
 Un code refusé garde l'enrôlement ouvert. Six chiffres et trente secondes de vie : se tromper est
 ordinaire, et redistribuer un secret neuf pour une faute de frappe obligerait à tout recopier.
 
+**La confirmation demande aussi votre mot de passe actuel.** Avec une session seule, quiconque en
+tenait une — volée, ou laissée ouverte sur un bureau — pouvait mettre votre second facteur sur son
+propre téléphone, et vous n'auriez eu aucun code pour le retirer. Un mot de passe faux compte contre le
+compte comme une connexion fausse, et passé le même plafond la confirmation répond `429`. Un compte qui
+ne se connecte que par le fournisseur n'a pas de mot de passe qu'il connaisse, ni l'usage de ce facteur.
+
+## Privé de votre propre facteur
+
+Si le téléphone est perdu et les codes de secours avec lui, ou si un facteur que vous n'avez pas enrôlé
+est sur le compte, un administrateur le réinitialise depuis l'écran des utilisateurs : le facteur est
+retiré et vos sessions se ferment, et vous vous connectez avec votre seul mot de passe jusqu'à un nouvel
+enrôlement. Si quelqu'un d'autre a pu utiliser le compte, demandez aussi une réinitialisation du mot de
+passe — c'est elle qui révoque les clés d'API.
+
 ## Les codes de secours ne sont montrés qu'une fois
 
 Le serveur les chiffre et ne les rendra plus. L'écran le dit **avant** de les afficher, parce que
