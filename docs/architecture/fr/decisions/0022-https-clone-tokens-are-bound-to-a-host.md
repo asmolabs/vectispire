@@ -47,3 +47,9 @@ part vers l'agent qui réclame l'analyse, quoi que promette son mode d'identifia
   que le mode fait déjà pour les clés, et elle est dite plutôt que contournée.
 - Faire tourner un jeton, c'est le remplacer : l'ancienne ligne est supprimée une fois qu'aucun dépôt
   ne l'utilise, comme une clé.
+- **Le chiffré est lié à l'identifiant de la ligne, non à son hôte** (revu avant la 1.0). L'hôte est
+  écrit une fois, à l'ajout du jeton — aucune route ne le modifie, et déplacer un jeton vers un autre
+  hôte, c'est en ajouter un nouveau ; `GitTokenHostTest` échoue sur un second écrivain. Lier l'hôte au
+  contexte n'arrêterait qu'une main sur la base de données, qui peut aussi bien créer un administrateur
+  ou réécrire l'URL d'un dépôt, et coûterait un rechiffrement de chaque jeton stocké. Une route qui
+  modifie l'hôte d'un jeton rouvre la question : l'hôte entre d'abord dans le contexte.

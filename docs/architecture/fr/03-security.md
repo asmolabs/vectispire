@@ -15,6 +15,7 @@ conformité qu'un attaquant pourrait chercher à falsifier.
 | Actif | Emplacement | Conséquence d'une fuite |
 |---|---|---|
 | Clés de déploiement SSH | `ssh_key`, chiffrées en AES-GCM | Accès en lecture à tous les dépôts suivis |
+| Jetons de clonage HTTPS | `t_git_token`, chiffrés en AES-GCM sous l'identifiant de la ligne ; présentés au seul hôte écrit à l'ajout du jeton, que rien ne modifie ([0022](decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | Ce que le jeton accorde sur cette forge |
 | `ENCRYPTION_KEY` | Variable d'environnement ou fichier | Déchiffre **l'ensemble** des clés d'accès |
 | Accès au démon Docker | Via `docker-socket-proxy`, jamais le fichier socket ([0018](decisions/0018-the-docker-socket-is-never-mounted.md)) | Équivalent de l'accès `root` sur l'hôte qui l'exécute |
 | Verdict du Quality Gate | `issue`, `gate_policy` | Un build vulnérable passe le contrôle CI/CD |
