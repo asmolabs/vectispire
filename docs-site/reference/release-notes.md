@@ -1,5 +1,19 @@
 # Release notes
 
+## Unreleased
+
+What follows is against 0.11.2, on the way to 1.0. Decision 0043 §6 lists the contracts put right
+before 1.0 freezes them; each removal below is one of them, and is made now rather than two minors
+after it was announced.
+
+### Before you upgrade {#before-you-upgrade-unreleased}
+
+- **An issue no longer carries `reachability` or `reachableSymbols`.** Deprecated in 0.11.0, they read
+  `UNKNOWN` and null on every issue since nothing computes reachability. They leave every response that
+  carries an issue: `GET /api/v1/issues`, `GET /api/v1/issues/{id}`, `POST /api/v1/issues/triage`,
+  `POST /api/v1/issues/{id}/triage` and `PUT /api/v1/issues/{id}/ticket`. A client that read them reads
+  nothing in their place; no field replaces them. The columns stay in the database, unread.
+
 ## 0.11.2 — 2026-10-27
 
 0.11.2 runs scans on a Kubernetes cluster that has no Docker. With `agents.executor: kubernetes`, the

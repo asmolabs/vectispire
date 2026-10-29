@@ -895,16 +895,6 @@
             "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
             "type" : [ "string", "null" ]
           },
-          "reachability" : {
-            "deprecated" : true,
-            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
-            "type" : "string"
-          },
-          "reachableSymbols" : {
-            "deprecated" : true,
-            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
-            "type" : [ "string", "null" ]
-          },
           "repoId" : {
             "description" : "The repository the issue was found on; null on a container image's issue.",
             "format" : "int64",
@@ -5568,16 +5558,6 @@
             "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
             "type" : [ "string", "null" ]
           },
-          "reachability" : {
-            "deprecated" : true,
-            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
-            "type" : "string"
-          },
-          "reachableSymbols" : {
-            "deprecated" : true,
-            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
-            "type" : [ "string", "null" ]
-          },
           "repoId" : {
             "description" : "The repository the issue was found on; null on a container image's issue.",
             "format" : "int64",
@@ -5848,16 +5828,6 @@
           },
           "purl" : {
             "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
-            "type" : [ "string", "null" ]
-          },
-          "reachability" : {
-            "deprecated" : true,
-            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
-            "type" : "string"
-          },
-          "reachableSymbols" : {
-            "deprecated" : true,
-            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
             "type" : [ "string", "null" ]
           },
           "repoId" : {

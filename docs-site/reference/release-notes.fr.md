@@ -1,5 +1,20 @@
 # Notes de version
 
+## Non publié
+
+Ce qui suit est par rapport à la 0.11.2, en route vers la 1.0. La décision 0043 §6 liste les contrats
+corrigés avant que la 1.0 ne les fige ; chaque retrait ci-dessous en est un, fait maintenant plutôt que
+deux versions mineures après son annonce.
+
+### Avant la mise à jour {#avant-la-mise-a-jour-non-publie}
+
+- **Un problème ne porte plus `reachability` ni `reachableSymbols`.** Dépréciés en 0.11.0, ils valaient
+  `UNKNOWN` et null sur chaque problème, puisque rien ne calcule l'atteignabilité. Ils quittent toutes les
+  réponses qui portent un problème : `GET /api/v1/issues`, `GET /api/v1/issues/{id}`,
+  `POST /api/v1/issues/triage`, `POST /api/v1/issues/{id}/triage` et `PUT /api/v1/issues/{id}/ticket`.
+  Un client qui les lisait ne lit rien à leur place ; aucun champ ne les remplace. Les colonnes restent en
+  base, sans lecteur.
+
 ## 0.11.2 — 27 octobre 2026
 
 La 0.11.2 exécute les scans sur un cluster Kubernetes sans Docker. Avec `agents.executor: kubernetes`,
