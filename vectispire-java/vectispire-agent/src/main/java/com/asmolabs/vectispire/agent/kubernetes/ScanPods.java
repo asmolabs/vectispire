@@ -303,7 +303,7 @@ final class ScanPods {
      * stopping a pod that is failing anyway.
      */
     static boolean killed(JsonNode terminated) {
-        return "OOMKilled".equals(terminated.path("reason").asText());
+        return "OOMKilled".equals(terminated.path("reason").asText()) || terminated.path("exitCode").asInt() == KILLED;
     }
 
     /** A label value: 63 characters of {@code [a-z0-9-._]}, starting and ending with an alphanumeric. */
