@@ -1382,10 +1382,10 @@ jobs:
     # nobody can read.
     if: needs.frontend-changes.outputs.touched == 'true'
     container:
-      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.63.0. Playwright
+      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.64.1. Playwright
       # ships its browsers inside this image and refuses to launch one it did not build. The check
       # step below is what makes a mismatch readable rather than fatal in the middle of the suite.
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
     # **On MySQL, the production default, with the schema validated (decision 0034).** A job service
     # beside the Playwright container shares its network, so the control plane and the suite's
     # helpers (`e2e/support/fixture.ts`, through `mysql2`) both reach `mysql:3306` with the variables
@@ -1457,7 +1457,7 @@ jobs:
       - name: the Playwright image matches the installed Playwright
         run: |
           want="v$(node -p "require('@playwright/test/package.json').version")-noble"
-          have="v1.63.0-noble"
+          have="v1.64.1-noble"
           if [ "$want" != "$have" ]; then
             echo "playwright image $have does not match the installed $want"
             echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"
