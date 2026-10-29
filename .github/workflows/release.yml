@@ -55,6 +55,40 @@ jobs:
         with:
           persist-credentials: false
 
+      # **A patch release carries no migration** (decision 0047). A migration on an older line takes
+      # either the next free number, which `develop` has already given to something else, or a number
+      # below what the newer minor ships, which Flyway refuses on an installation already on it. So a
+      # fix that needs a schema change goes into the next minor, and a `vX.Y.Z` tag with Z > 0 whose
+      # migration directories differ from `vX.Y.0`'s is refused here, before anything is built — a
+      # rule kept by memory is the one forgotten on the day of an urgent fix. A pre-release of a patch
+      # (`v1.0.1-rc.1`) is held to the same rule; a minor, a major and a rehearsal are not concerned.
+      # Only `vX.Y.0` is fetched, one commit deep: the diff compares two trees and needs no history.
+      - name: A patch release carries no migration
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          migrations=vectispire-java/vectispire-core/src/main/resources/db/migration/
+          if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-.+)?$ ]]; then
+            echo "::error::$TAG is not vX.Y.Z[-pre]: which line it belongs to cannot be told, so it is not released."
+            exit 1
+          fi
+          if [ "${BASH_REMATCH[3]}" = 0 ]; then
+            echo "$TAG opens its line: migrations are allowed."
+            exit 0
+          fi
+          base="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
+          if ! git fetch --quiet --no-tags --depth=1 origin "refs/tags/$base:refs/tags/$base"; then
+            echo "::error::$TAG is a patch release, and $base, the release it patches, cannot be fetched: nothing to compare its migrations with."
+            exit 1
+          fi
+          if ! git diff --quiet "refs/tags/$base" HEAD -- "$migrations"; then
+            echo "::error::$TAG is a patch release and changes the migrations of $base (decision 0047). A fix that needs a schema change goes into the next minor."
+            git diff --name-status "refs/tags/$base" HEAD -- "$migrations"
+            exit 1
+          fi
+          echo "$TAG carries the migrations of $base unchanged."
+
       # **The wrapper is the first thing the build executes**, and a `gradle-wrapper.jar` swapped
       # in a pull request runs before any plugin or dependency is resolved. Checked against the
       # checksums Gradle publishes for every released wrapper; the distribution it then downloads
