@@ -1,0 +1,110 @@
+<p-dialog
+    [header]="triageHeader()"
+    [(visible)]="triageOpen"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+    [appendTo]="'body'"
+>
+    <form id="triage-form" class="flex flex-col gap-4" (ngSubmit)="submitTriage()">
+        <div>
+            <label for="triage-status" class="block font-medium mb-2">{{
+                'issues.triage_dialog_title' | translate
+            }}</label>
+            <p-select
+                inputId="triage-status"
+                [required]="true"
+                [ngModelOptions]="{ standalone: true }"
+                [ngModel]="triageStatus"
+                (ngModelChange)="chooseTriageStatus($event)"
+                [options]="page.triageOptions()"
+                optionLabel="label"
+                optionValue="value"
+                styleClass="w-full"
+                appendTo="body"
+            />
+            @if (triageRequested) {
+                <small class="text-muted-color" data-testid="triage-requested-hint">{{
+                    'issues.triage_requested_hint' | translate: { status: page.triageLabel(triageRequested) }
+                }}</small>
+            }
+        </div>
+
+        @if (triageStatus === 'not_affected' || triageStatus === 'pending_approval') {
+            <div>
+                <label for="triage-justification" class="block font-medium mb-2"
+                    >{{ 'issues.triage_reason' | translate }} <span class="text-red-500">*</span></label
+                >
+                <p-select
+                    inputId="triage-justification"
+                    [required]="true"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="triageJustification"
+                    [options]="page.justifications()"
+                    optionLabel="label"
+                    optionValue="value"
+                    styleClass="w-full"
+                    [placeholder]="'issues.choose' | translate"
+                    appendTo="body"
+                />
+                <small class="text-muted-color">{{ 'issues.justification_hint' | translate }}</small>
+            </div>
+        }
+
+        <div>
+            <label for="triage-comment" class="block font-medium mb-2">{{ 'issues.comment' | translate }}</label>
+            <textarea
+                id="triage-comment"
+                pTextarea
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="triageComment"
+                rows="3"
+                class="w-full"
+            ></textarea>
+        </div>
+
+        @if (triageStatus !== 'under_review') {
+            <div>
+                <label for="triage-expires" class="block font-medium mb-2"
+                    >{{ 'issues.triage_expires' | translate }}
+                    @if (acceptsRisk()) {
+                        <span class="text-red-500">*</span>
+                    }
+                </label>
+                <input
+                    id="triage-expires"
+                    pInputText
+                    type="number"
+                    min="1"
+                    max="3650"
+                    [required]="acceptsRisk()"
+                    aria-describedby="triage-expires-hint"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="triageExpiresInDays"
+                    class="w-full"
+                />
+                <!-- A risk accepted is the one decision whose review cannot be left empty, so the
+                     hint saying "leave empty" would be wrong under it. -->
+                <small class="text-muted-color" id="triage-expires-hint">
+                    @if (acceptsRisk()) {
+                        {{ 'issues.will_not_fix_hint' | translate }}
+                    } @else {
+                        {{ 'issues.expires_hint' | translate }}
+                    }
+                </small>
+            </div>
+        }
+
+        @if (triageError()) {
+            <p-message severity="error" styleClass="w-full" id="triage-error">{{ triageError() }}</p-message>
+        }
+    </form>
+
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="triageOpen.set(false)" />
+        <p-button
+            [label]="page.canApprove() ? ('common.save' | translate) : page.triageActionLabel()"
+            [disabled]="!canSubmitTriage() || !page.canTriage()"
+            (onClick)="submitTriage()"
+        />
+    </ng-template>
+</p-dialog>

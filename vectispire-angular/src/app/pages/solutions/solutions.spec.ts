@@ -3,11 +3,20 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { By } from '@angular/platform-browser';
+import { Type } from '@angular/core';
 import { Solutions } from './solutions';
+import { SolutionsPage } from './solutions-page';
+import { ConfirmChangeDialog } from './confirm-change-dialog';
+import { FileDialog } from './file-dialog';
+import { MoveProjectDialog } from './move-project-dialog';
+import { NodeEditorDialog } from './node-editor-dialog';
+import { PluginsDialog } from './plugins-dialog';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { ACTIVATION, PLUGIN } from '@/app/core/testing/plugins.fixtures';
+import { openIssues, SOLUTION_TREE } from '@/app/core/testing/solutions.fixtures';
 import type { Plugin } from '@/app/core/api.models';
 
 /**
@@ -20,102 +29,14 @@ import type { Plugin } from '@/app/core/api.models';
  */
 describe('the solutions tree', () => {
     let fixture: ComponentFixture<Solutions>;
+    /** The screen's state, which its parts share: provided by the page, read through its injector. */
+    const state = () => fixture.debugElement.injector.get(SolutionsPage);
+    /** A dialog, which makes its own write once the state says what it is open on. */
+    const partOf = <T>(type: Type<T>): T => fixture.debugElement.query(By.directive(type)).componentInstance as T;
     let http: HttpTestingController;
 
-    const issues = (critical: number, high: number, medium = 0) =>
-        asSchema('OpenIssues', {
-            critical,
-            high,
-            medium,
-            low: 0,
-            negligible: 0,
-            unknown: 0,
-            total: critical + high + medium
-        });
-
-    const TREE = asSchema('SolutionTree', {
-        solutions: [
-            {
-                id: 1,
-                name: 'Payments',
-                description: 'The payments platform',
-                createdAt: '2026-09-01T00:00:00Z',
-                partial: true,
-                repositoryCount: 2,
-                containerCount: 1,
-                openIssues: issues(2, 1),
-                projects: [
-                    {
-                        id: 11,
-                        solutionId: 1,
-                        name: 'Gateway',
-                        description: null,
-                        createdAt: '2026-09-01T00:00:00Z',
-                        partial: true,
-                        checklistsVisible: false,
-                        repositoryCount: 1,
-                        containerCount: 0,
-                        openIssues: issues(2, 0),
-                        repositories: [{ id: 9, name: 'api-gateway' }],
-                        detectedLanguages: [],
-                        languagesUnknownFor: []
-                    },
-                    {
-                        id: 12,
-                        solutionId: 1,
-                        name: 'Ledger',
-                        description: null,
-                        createdAt: '2026-09-01T00:00:00Z',
-                        partial: false,
-                        checklistsVisible: true,
-                        repositoryCount: 1,
-                        containerCount: 1,
-                        openIssues: issues(0, 1),
-                        repositories: [{ id: 10, name: 'ledger-core' }],
-                        // Numbered like api-gateway on purpose: repository 9 and image 9 are two
-                        // targets, and only the route tells them apart.
-                        containers: [{ id: 9, name: 'ghcr.io/acme/ledger:1.4' }],
-                        detectedLanguages: [],
-                        languagesUnknownFor: []
-                    }
-                ]
-            },
-            {
-                id: 2,
-                name: 'Mobile',
-                description: null,
-                createdAt: '2026-09-02T00:00:00Z',
-                partial: false,
-                repositoryCount: 0,
-                containerCount: 0,
-                openIssues: issues(0, 0),
-                projects: [
-                    {
-                        id: 21,
-                        solutionId: 2,
-                        name: 'App',
-                        description: null,
-                        createdAt: '2026-09-02T00:00:00Z',
-                        partial: false,
-                        checklistsVisible: true,
-                        repositoryCount: 0,
-                        containerCount: 0,
-                        openIssues: issues(0, 0),
-                        repositories: [],
-                        detectedLanguages: [],
-                        languagesUnknownFor: []
-                    }
-                ]
-            }
-        ],
-        unfiled: {
-            repositoryCount: 1,
-            containerCount: 1,
-            openIssues: issues(0, 0, 4),
-            repositories: [{ id: 30, name: 'legacy-batch' }],
-            containers: [{ id: 31, name: 'nginx:1.27' }]
-        }
-    });
+    const issues = openIssues;
+    const TREE = SOLUTION_TREE;
 
     const EMPTY = asSchema('SolutionTree', {
         solutions: [],
@@ -331,7 +252,7 @@ describe('the solutions tree', () => {
         expect(confirmation).toContain('return to “no project”');
         expect(confirmation).toContain('every grant naming this project is revoked');
 
-        fixture.componentInstance.confirm();
+        partOf(ConfirmChangeDialog).confirm();
         http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/projects/11').flush(null);
         http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
     });
@@ -341,7 +262,7 @@ describe('the solutions tree', () => {
 
         button('Delete Payments')!.click();
         await fixture.whenStable();
-        fixture.componentInstance.confirm();
+        partOf(ConfirmChangeDialog).confirm();
 
         http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/solutions/1').flush(
             { detail: 'The solution still holds 2 projects.' },
@@ -358,21 +279,21 @@ describe('the solutions tree', () => {
 
         button('File legacy-batch into a project')!.click();
         await fixture.whenStable();
-        fixture.componentInstance.targetProjectId.set(12);
+        state().targetProjectId.set(12);
         await fixture.whenStable();
 
         expect(text('[data-testid="file-consequence"]')).toContain(
             'Filing legacy-batch into Payments / Ledger is an access change'
         );
 
-        fixture.componentInstance.saveFile();
+        partOf(FileDialog).saveFile();
         const put = http.expectOne(
             (call) => call.method === 'PUT' && call.url === '/api/v1/projects/12/repositories/30'
         );
         put.flush(null);
         http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
 
-        expect(fixture.componentInstance.fileVisible()).toBe(false);
+        expect(state().fileVisible()).toBe(false);
     });
 
     it('says a move takes the repository from one project and gives it to the other', async () => {
@@ -382,10 +303,12 @@ describe('the solutions tree', () => {
         await fixture.whenStable();
 
         // The project it is in is not offered as a destination.
-        const offered = fixture.componentInstance.projectChoices().flatMap((group) => group.items.map((i) => i.value));
+        const offered = partOf(FileDialog)
+            .projectChoices()
+            .flatMap((group) => group.items.map((i) => i.value));
         expect(offered).toEqual([12, 21]);
 
-        fixture.componentInstance.targetProjectId.set(21);
+        state().targetProjectId.set(21);
         await fixture.whenStable();
 
         const consequence = text('[data-testid="file-consequence"]');
@@ -393,7 +316,7 @@ describe('the solutions tree', () => {
         expect(consequence).toContain('Payments / Gateway');
         expect(consequence).toContain('Mobile / App');
 
-        fixture.componentInstance.saveFile();
+        partOf(FileDialog).saveFile();
         http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/projects/21/repositories/9').flush(
             null
         );
@@ -407,7 +330,7 @@ describe('the solutions tree', () => {
         await fixture.whenStable();
         expect(text('[data-testid="confirm-text"]')).toContain('Payments / Gateway');
 
-        fixture.componentInstance.confirm();
+        partOf(ConfirmChangeDialog).confirm();
         http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/projects/11/repositories/9').flush(
             null
         );
@@ -466,19 +389,19 @@ describe('the solutions tree', () => {
 
             button('File nginx:1.27 into a project')!.click();
             await fixture.whenStable();
-            fixture.componentInstance.targetProjectId.set(11);
+            state().targetProjectId.set(11);
             await fixture.whenStable();
 
             expect(text('[data-testid="file-consequence"]')).toContain(
                 'Filing nginx:1.27 into Payments / Gateway is an access change'
             );
 
-            fixture.componentInstance.saveFile();
+            partOf(FileDialog).saveFile();
             http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/projects/11/containers/31').flush(
                 null
             );
             http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
-            expect(fixture.componentInstance.fileVisible()).toBe(false);
+            expect(state().fileVisible()).toBe(false);
         });
 
         it('moves an image by its own number, never the repository sharing it', async () => {
@@ -486,18 +409,18 @@ describe('the solutions tree', () => {
 
             button('Move ghcr.io/acme/ledger:1.4 to another project')!.click();
             await fixture.whenStable();
-            const offered = fixture.componentInstance
+            const offered = partOf(FileDialog)
                 .projectChoices()
                 .flatMap((group) => group.items.map((i) => i.value));
             expect(offered).toEqual([11, 21]);
 
-            fixture.componentInstance.targetProjectId.set(11);
+            state().targetProjectId.set(11);
             await fixture.whenStable();
             expect(text('[data-testid="file-consequence"]')).toContain(
                 'Moving ghcr.io/acme/ledger:1.4 changes who can see it'
             );
 
-            fixture.componentInstance.saveFile();
+            partOf(FileDialog).saveFile();
             http.expectNone('/api/v1/projects/11/repositories/9');
             http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/projects/11/containers/9').flush(
                 null
@@ -514,7 +437,7 @@ describe('the solutions tree', () => {
                 'Return ghcr.io/acme/ledger:1.4 to “no project”? Accounts and teams that see it only through a grant on Payments / Ledger'
             );
 
-            fixture.componentInstance.confirm();
+            partOf(ConfirmChangeDialog).confirm();
             http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/projects/12/containers/9').flush(
                 null
             );
@@ -526,7 +449,7 @@ describe('the solutions tree', () => {
 
             button('Remove ghcr.io/acme/ledger:1.4 from its project')!.click();
             await fixture.whenStable();
-            fixture.componentInstance.confirm();
+            partOf(ConfirmChangeDialog).confirm();
             http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/projects/12/containers/9').flush(
                 { detail: 'This image is not in that project.' },
                 { status: 404, statusText: 'Not Found' }
@@ -558,16 +481,16 @@ describe('the solutions tree', () => {
     it('creates a project in its solution, and keeps a refusal in the dialog', async () => {
         await mount('ADMIN');
 
-        fixture.componentInstance.newProject(TREE.solutions[1]);
-        fixture.componentInstance.formName.set('  Wallet  ');
-        fixture.componentInstance.saveEditor();
+        state().newProject(TREE.solutions[1]);
+        state().formName.set('  Wallet  ');
+        partOf(NodeEditorDialog).saveEditor();
 
         const post = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/solutions/2/projects');
         expect(post.request.body).toEqual({ name: 'Wallet', description: '' });
         post.flush({ detail: 'Only an administrator may do this.' }, { status: 403, statusText: 'Forbidden' });
 
-        expect(fixture.componentInstance.editorVisible()).toBe(true);
-        expect(fixture.componentInstance.formError()).toBe('Only an administrator may do this.');
+        expect(state().editorVisible()).toBe(true);
+        expect(state().formError()).toBe('Only an administrator may do this.');
     });
 
     /**
@@ -580,9 +503,9 @@ describe('the solutions tree', () => {
         it('names the solution a project name is taken in, on a create and on a rename', async () => {
             await mount('ADMIN');
 
-            fixture.componentInstance.newProject(TREE.solutions[0]);
-            fixture.componentInstance.formName.set('ledger');
-            fixture.componentInstance.saveEditor();
+            state().newProject(TREE.solutions[0]);
+            state().formName.set('ledger');
+            partOf(NodeEditorDialog).saveEditor();
             http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/solutions/1/projects').flush(
                 conflict(
                     'urn:vectispire:problem:project-name-taken',
@@ -590,14 +513,12 @@ describe('the solutions tree', () => {
                 ),
                 { status: 409, statusText: 'Conflict' }
             );
-            expect(fixture.componentInstance.editorVisible()).toBe(true);
-            expect(fixture.componentInstance.formError()).toBe(
-                'Payments already holds a project named ledger. Choose another name.'
-            );
+            expect(state().editorVisible()).toBe(true);
+            expect(state().formError()).toBe('Payments already holds a project named ledger. Choose another name.');
 
-            fixture.componentInstance.editProject(TREE.solutions[0], TREE.solutions[0].projects[0]);
-            fixture.componentInstance.formName.set('Ledger');
-            fixture.componentInstance.saveEditor();
+            state().editProject(TREE.solutions[0], TREE.solutions[0].projects[0]);
+            state().formName.set('Ledger');
+            partOf(NodeEditorDialog).saveEditor();
             http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11').flush(
                 conflict(
                     'urn:vectispire:problem:project-name-taken',
@@ -605,33 +526,29 @@ describe('the solutions tree', () => {
                 ),
                 { status: 409, statusText: 'Conflict' }
             );
-            expect(fixture.componentInstance.formError()).toBe(
-                'Payments already holds a project named Ledger. Choose another name.'
-            );
+            expect(state().formError()).toBe('Payments already holds a project named Ledger. Choose another name.');
         });
 
         it('says a solution name is taken, and leaves any other conflict in the server words', async () => {
             await mount('ADMIN');
 
-            fixture.componentInstance.newSolution();
-            fixture.componentInstance.formName.set('mobile');
-            fixture.componentInstance.saveEditor();
+            state().newSolution();
+            state().formName.set('mobile');
+            partOf(NodeEditorDialog).saveEditor();
             http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/solutions').flush(
                 conflict('urn:vectispire:problem:solution-name-taken', 'A solution named "mobile" already exists.'),
                 { status: 409, statusText: 'Conflict' }
             );
-            expect(fixture.componentInstance.formError()).toBe(
-                'A solution named mobile already exists. Choose another name.'
-            );
+            expect(state().formError()).toBe('A solution named mobile already exists. Choose another name.');
 
-            fixture.componentInstance.editSolution(TREE.solutions[1]);
-            fixture.componentInstance.formName.set('Mobile apps');
-            fixture.componentInstance.saveEditor();
+            state().editSolution(TREE.solutions[1]);
+            state().formName.set('Mobile apps');
+            partOf(NodeEditorDialog).saveEditor();
             http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/solutions/2').flush(
                 { title: 'Conflict', status: 409, detail: 'Somebody changed this solution.' },
                 { status: 409, statusText: 'Conflict' }
             );
-            expect(fixture.componentInstance.formError()).toBe('Somebody changed this solution.');
+            expect(state().formError()).toBe('Somebody changed this solution.');
         });
     });
 
@@ -672,13 +589,13 @@ describe('the solutions tree', () => {
         it('offers only the other solutions, so a move that changes nothing cannot be chosen', async () => {
             await openMove();
 
-            expect(fixture.componentInstance.solutionChoices()).toEqual([{ label: 'Mobile', value: 2 }]);
+            expect(partOf(MoveProjectDialog).solutionChoices()).toEqual([{ label: 'Mobile', value: 2 }]);
             expect(confirmButton().disabled).toBe(true);
         });
 
         it('sends solutionId alone, refreshes the tree and says where the project went', async () => {
             await openMove();
-            fixture.componentInstance.targetSolutionId.set(2);
+            state().targetSolutionId.set(2);
             await fixture.whenStable();
             confirmButton().click();
 
@@ -696,13 +613,13 @@ describe('the solutions tree', () => {
             http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
             await fixture.whenStable();
 
-            expect(fixture.componentInstance.moveVisible()).toBe(false);
+            expect(state().moveVisible()).toBe(false);
             expect(text('[data-testid="notice"]')).toContain('Project Gateway moved to solution Mobile.');
         });
 
         it('keeps the dialog open on a name taken in the destination, and sends the new name on the retry', async () => {
             await openMove();
-            fixture.componentInstance.targetSolutionId.set(2);
+            state().targetSolutionId.set(2);
             await fixture.whenStable();
             confirmButton().click();
             http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11').flush(
@@ -711,12 +628,12 @@ describe('the solutions tree', () => {
             );
             await fixture.whenStable();
 
-            expect(fixture.componentInstance.moveVisible()).toBe(true);
+            expect(state().moveVisible()).toBe(true);
             expect(text('[data-testid="move-name-taken"]')).toContain(
                 'Mobile already holds a project named Gateway. Give it another name above'
             );
             // The generic refusal is not shown beside it: the server's sentence names no way out.
-            expect(fixture.componentInstance.formError()).toBeNull();
+            expect(state().formError()).toBeNull();
             http.expectNone((call) => call.method === 'GET' && call.url === '/api/v1/solutions');
 
             await typeName('  Gateway EU  ');
@@ -727,7 +644,7 @@ describe('the solutions tree', () => {
 
         it('shows any other refusal as the server words it', async () => {
             await openMove();
-            fixture.componentInstance.targetSolutionId.set(2);
+            state().targetSolutionId.set(2);
             await fixture.whenStable();
             confirmButton().click();
             http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11').flush(
@@ -737,7 +654,7 @@ describe('the solutions tree', () => {
             await fixture.whenStable();
 
             expect(document.querySelector('[data-testid="move-name-taken"]')).toBeNull();
-            expect(fixture.componentInstance.formError()).toBe('Solution not found.');
+            expect(state().formError()).toBe('Solution not found.');
         });
     });
 
@@ -794,7 +711,7 @@ describe('the solutions tree', () => {
             await openFor('CISO');
             expect(toggle('py-rules')?.disabled).toBe(false);
 
-            fixture.componentInstance.togglePlugin(OTHER, true);
+            partOf(PluginsDialog).togglePlugin(OTHER, true);
             http.expectOne({ method: 'PUT', url: '/api/v1/projects/11/plugins/py-rules' }).flush(
                 asSchema('PluginActivationView', {
                     ...ACTIVATION,
@@ -802,11 +719,11 @@ describe('the solutions tree', () => {
                     projectId: 11
                 })
             );
-            fixture.componentInstance.togglePlugin(PLUGIN, false);
+            partOf(PluginsDialog).togglePlugin(PLUGIN, false);
             http.expectOne({ method: 'DELETE', url: '/api/v1/projects/11/plugins/acme-lint' }).flush(null);
             await fixture.whenStable();
 
-            expect([...fixture.componentInstance.activations().keys()]).toEqual(['py-rules']);
+            expect([...state().activations().keys()]).toEqual(['py-rules']);
         });
 
         /** The tree with project 11 carrying the given languages and the given uncounted repositories. */
@@ -888,14 +805,14 @@ describe('the solutions tree', () => {
         it("keeps the stored state and the server's reason when a switch is refused", async () => {
             await openFor('CISO');
 
-            fixture.componentInstance.togglePlugin(OTHER, true);
+            partOf(PluginsDialog).togglePlugin(OTHER, true);
             http.expectOne({ method: 'PUT', url: '/api/v1/projects/11/plugins/py-rules' }).flush(
                 { detail: 'Only a security lead may switch a plugin on.' },
                 { status: 403, statusText: 'Forbidden' }
             );
             await fixture.whenStable();
 
-            expect(fixture.componentInstance.activations().has('py-rules')).toBe(false);
+            expect(state().activations().has('py-rules')).toBe(false);
             expect(text('[data-testid="plugins-dialog"]')).toContain('Only a security lead may switch a plugin on.');
         });
     });

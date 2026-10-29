@@ -60,9 +60,15 @@ after an announcement.
   Migration V92 rewrites the declarations already stored; audit-log entries written before the upgrade
   keep the code they recorded. Titles, scores and the other frameworks' codes are unchanged.
 - **The composition's third-party images move**, each still by tag and index digest: MySQL 8.4.11 → 8.4.13
-  (same LTS line, same data volume), the Docker socket proxy 0.3.0 → 0.5.0 (HAProxy 3 underneath; the
-  same endpoints allowed, the new pause and unpause ones left closed), and the `sso` profile's Keycloak
-  26.0.8 → 26.8.1, off a line Keycloak no longer patches. The example realm imports unchanged on 26.8.1.
+  (same LTS line, same data volume), the Docker socket proxy 0.3.0 → 0.5.0 (HAProxy 3 underneath), and
+  the `sso` profile's Keycloak 26.0.8 → 26.8.1, off a line Keycloak no longer patches. The example realm
+  imports unchanged on 26.8.1.
+- **What the socket proxy lets through, stated exactly.** `CONTAINERS: 1`, which scans need to create,
+  start, read and remove their containers, admits every `/containers/…` route, since the proxy matches
+  it as a prefix: stop, kill, pause and unpause included, as under 0.3.0. 0.5.0's `ALLOW_PAUSE` and
+  `ALLOW_UNPAUSE` can only open those paths, never close them. `EVENTS`, the one section the image opens
+  by default, is now set to `0` in `docker-compose.yml` for both proxies — nothing in Vectispire reads
+  the daemon's event stream. A composition of your own should name it too.
 
 ### Changes an integration can see {#changes-an-integration-can-see-unreleased}
 

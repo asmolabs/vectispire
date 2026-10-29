@@ -423,8 +423,9 @@ services:
   agent-docker-proxy:
     image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     # Ce qu'appelle ContainerRunner, et rien d'autre ; toute autre section garde sa valeur par
-    # défaut, 0. docker-compose.yml les liste toutes, chacune avec sa raison.
-    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0}
+    # défaut, 0, sauf EVENTS, que l'image ouvre et qui est fermée ici.
+    # docker-compose.yml les liste toutes, chacune avec sa raison.
+    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0, EVENTS: 0}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped

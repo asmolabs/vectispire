@@ -1,0 +1,49 @@
+<p-dialog
+    [header]="'solutions.header_file' | translate: { name: page.filing()?.target?.ref?.name ?? '' }"
+    [(visible)]="page.fileVisible"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+>
+    <form id="file-target" class="flex flex-col gap-4" (ngSubmit)="saveFile()">
+        @if (page.filing()?.from; as from) {
+            <p class="m-0">
+                {{ 'solutions.currently_in' | translate: { project: from.solution.name + ' / ' + from.project.name } }}
+            </p>
+        }
+        <div class="flex flex-col gap-2">
+            <label for="target-project" class="font-medium">{{ 'solutions.target_project' | translate }}</label>
+            <p-select
+                inputId="target-project"
+                name="target-project"
+                [options]="projectChoices()"
+                [group]="true"
+                optionLabel="label"
+                optionValue="value"
+                optionGroupLabel="label"
+                optionGroupChildren="items"
+                [required]="true"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.targetProjectId"
+                [placeholder]="'solutions.choose_project' | translate"
+                [filter]="true"
+                appendTo="body"
+                styleClass="w-full"
+            />
+        </div>
+        @if (filingConsequence(); as consequence) {
+            <p-message severity="warn" [closable]="false" data-testid="file-consequence">{{ consequence }}</p-message>
+        }
+        @if (page.formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="page.fileVisible.set(false)" />
+        <p-button
+            [label]="page.filing()?.from ? ('solutions.move' | translate) : ('solutions.file' | translate)"
+            [disabled]="page.targetProjectId() === null"
+            [loading]="page.saving()"
+            (onClick)="saveFile()"
+        />
+    </ng-template>
+</p-dialog>

@@ -748,11 +748,7 @@ public class LicenseGovernanceService {
         if (entry.targetId() == null) {
             return null;
         }
-        return switch (entry.targetKind()) {
-            case "repository" -> new ScanTarget.Repository(entry.targetId());
-            case "container" -> new ScanTarget.Container(entry.targetId());
-            default -> null;
-        };
+        return ScanTarget.of(entry.targetKind(), entry.targetId()).orElse(null);
     }
 
     private static LicenseSummary summarize(List<LicenseEntry> inventory) {

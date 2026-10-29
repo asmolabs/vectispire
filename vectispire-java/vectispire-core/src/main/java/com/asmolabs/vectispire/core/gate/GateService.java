@@ -119,19 +119,15 @@ public class GateService {
 
         public static PolicyScope of(ScanTarget target) {
             return switch (target) {
-                case ScanTarget.Repository repository -> new PolicyScope("repository", repository.id());
-                case ScanTarget.Container container -> new PolicyScope("container", container.id());
+                case ScanTarget.Repository repository -> new PolicyScope(target.kind(), repository.id());
+                case ScanTarget.Container container -> new PolicyScope(target.kind(), container.id());
             };
         }
 
         /** A target's scope named as the policy routes name it: {@code repository/7}, {@code container/3}. */
         public static PolicyScope of(String kind, long id) {
-            return of(switch (kind) {
-                case "repository" -> new ScanTarget.Repository(id);
-                case "container" -> new ScanTarget.Container(id);
-                default -> throw new InvalidInputException(
-                        "Unknown target kind: \"" + kind + "\". Use repository or container.");
-            });
+            return of(ScanTarget.of(kind, id).orElseThrow(() -> new InvalidInputException(
+                    "Unknown target kind: \"" + kind + "\". Use repository or container.")));
         }
 
         public boolean isGlobal() {
@@ -421,8 +417,8 @@ public class GateService {
     private void requireScopeExists(PolicyScope scope) {
         boolean exists = switch (scope.kind()) {
             case SCOPE_GLOBAL -> true;
-            case "repository" -> catalog.exists(new ScanTarget.Repository(scope.id()));
-            case "container" -> catalog.exists(new ScanTarget.Container(scope.id()));
+            case ScanTarget.KIND_REPOSITORY -> catalog.exists(new ScanTarget.Repository(scope.id()));
+            case ScanTarget.KIND_CONTAINER -> catalog.exists(new ScanTarget.Container(scope.id()));
             default -> throw new InvalidInputException(
                     "Unknown policy scope: \"" + scope.kind() + "\". Use global, repository or container.");
         };
@@ -523,9 +519,10 @@ public class GateService {
         Map<ScanTarget, List<String>> byTarget = new LinkedHashMap<>();
         ruleCoverage.uncoveredEcosystemsByTarget().forEach((key, ecosystems) -> {
             String[] parts = key.split(":", 2);
-            ScanTarget target = "container".equals(parts[0])
-                    ? new ScanTarget.Container(Long.valueOf(parts[1]))
-                    : new ScanTarget.Repository(Long.valueOf(parts[1]));
+            long id = Long.parseLong(parts[1]);
+            // Written by `RuleCoverageService` as `repository:` or `container:`; anything else is read as
+            // a repository, as it always was.
+            ScanTarget target = ScanTarget.of(parts[0], id).orElseGet(() -> new ScanTarget.Repository(id));
             byTarget.put(target, ecosystems);
         });
         return byTarget;

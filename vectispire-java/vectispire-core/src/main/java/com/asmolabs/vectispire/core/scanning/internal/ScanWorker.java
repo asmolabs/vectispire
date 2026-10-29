@@ -1,11 +1,10 @@
 package com.asmolabs.vectispire.core.scanning.internal;
 
+import com.asmolabs.vectispire.common.scanning.LocalHost;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import com.asmolabs.vectispire.core.scanning.WorkerProperties;
 import jakarta.annotation.PreDestroy;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -39,7 +38,7 @@ public class ScanWorker {
      * in a containerized deployment — and two workers sharing an identity would steal each
      * other's leases without the ownership check being able to notice.
      */
-    private final String worker = hostName() + "/" + UUID.randomUUID().toString().substring(0, 8);
+    private final String worker = LocalHost.name() + "/" + UUID.randomUUID().toString().substring(0, 8);
 
     private final AtomicBoolean busy = new AtomicBoolean();
 
@@ -134,15 +133,5 @@ public class ScanWorker {
     /** What this worker calls itself, for the agents screen and for {@code claimedBy}. */
     public String identity() {
         return worker;
-    }
-
-    private static String hostName() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException unknown) {
-            // A host that cannot name itself still has to produce a distinguishable identity;
-            // the random suffix carries the whole burden in that case.
-            return "unknown-host";
-        }
     }
 }

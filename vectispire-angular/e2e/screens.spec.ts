@@ -2515,6 +2515,7 @@ test.describe('documentation screenshots', () => {
                     mustChangePassword: false,
                     federated: false,
                     activeSessions: 0,
+                    mfaEnabled: false,
                     createdAt: '2026-04-23T08:00:00Z'
                 },
                 {
@@ -2527,6 +2528,7 @@ test.describe('documentation screenshots', () => {
                     mustChangePassword: false,
                     federated: false,
                     activeSessions: 1,
+                    mfaEnabled: true,
                     createdAt: '2026-05-02T09:10:00Z'
                 },
                 {
@@ -2539,6 +2541,7 @@ test.describe('documentation screenshots', () => {
                     mustChangePassword: false,
                     federated: false,
                     activeSessions: 0,
+                    mfaEnabled: false,
                     createdAt: '2026-06-11T14:25:00Z'
                 }
             ],

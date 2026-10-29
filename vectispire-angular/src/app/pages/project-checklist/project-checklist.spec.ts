@@ -42,10 +42,11 @@ import {
     groupsOf,
     incompleteLinesOf,
     PROBLEM_KEYS,
-    ProjectChecklist,
     signOffBlockOf,
     STATUS_KEYS
-} from './project-checklist';
+} from './checklist-model';
+import { ChecklistActs } from './checklist-acts';
+import { ProjectChecklist } from './project-checklist';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -961,7 +962,7 @@ describe('the project checklist screen', () => {
 
         // The button is greyed out on this draft; the sign-off meets the same refusal when a proof
         // lapsed since the submission. Called directly to read the sentence built from the lines shown.
-        fixture.componentInstance.submit();
+        (fixture.debugElement.query(By.directive(ChecklistActs)).componentInstance as ChecklistActs).submit();
         refuse(post(`${BASE}/2/submission`), 'urn:vectispire:problem:checklist-incomplete');
         fixture.detectChanges();
 

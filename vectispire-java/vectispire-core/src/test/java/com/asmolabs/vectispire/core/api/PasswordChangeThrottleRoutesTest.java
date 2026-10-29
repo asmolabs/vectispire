@@ -95,7 +95,7 @@ class PasswordChangeThrottleRoutesTest extends ApiTestBase {
         // Enrolled for real, so the code presented below is a right one: only the deactivation
         // can refuse it.
         String secret = Totp.generateSecret();
-        String backup = totp.enable(UserView.of(saved), secret, Totp.generateCode(secret, clock.instant()))
+        String backup = totp.enable(UserView.of(saved), PASSWORD, secret, Totp.generateCode(secret, clock.instant()), "127.0.0.1", null)
                 .backupCodes().getFirst();
         saved = users.findById(saved.getId()).orElseThrow();
 

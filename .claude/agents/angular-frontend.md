@@ -60,7 +60,11 @@ Moving a component to OnPush is a deliberate change: every state it renders must
 
 **The application is zoneless.** Eager change detection renders after a template event, a signal
 write or `markForCheck` — not after a `FileReader.onload`, a timer or a promise that only assigns a
-plain field. State written from a callback is a signal.
+plain field. State written from a callback is a signal. **Splitting a page moves that line**
+(2026-10-29): a plain field read by a component of its own is redrawn only when that component is,
+and a URL change or a call from code marks nothing — the issues filters kept showing the previous
+link's switches once they left the page's template, where the signals beside them had redrawn them.
+State a page service shares with its components is signals, and a dialog's open flag too.
 
 **Errors are read with `messageOf`.** The server answers RFC 7807: the explanation is in `detail`,
 and `err.error.message` is always empty, so fourteen screens showed the generic fallback.

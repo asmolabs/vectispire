@@ -89,7 +89,7 @@ public class SecurityScorecardService {
             // **The filter was passed to the stream and not to the query.** The unfiltered call
             // parsed every SBOM in the deployment to keep one repository's rows.
             List<LicenseEntry> licenses = licenseService.getInventory(checked).stream()
-                    .filter(l -> Long.valueOf(repoId).equals(l.targetId()) && "repository".equalsIgnoreCase(l.targetKind()))
+                    .filter(l -> Long.valueOf(repoId).equals(l.targetId()) && ScanTarget.KIND_REPOSITORY.equalsIgnoreCase(l.targetKind()))
                     .toList();
 
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Repository(repoId), "completed");
@@ -116,7 +116,7 @@ public class SecurityScorecardService {
                     openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId))))));
 
             List<LicenseEntry> licenses = licenseService.getInventory(checked).stream()
-                    .filter(l -> Long.valueOf(containerId).equals(l.targetId()) && "container".equalsIgnoreCase(l.targetKind()))
+                    .filter(l -> Long.valueOf(containerId).equals(l.targetId()) && ScanTarget.KIND_CONTAINER.equalsIgnoreCase(l.targetKind()))
                     .toList();
 
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Container(containerId), "completed");
@@ -466,7 +466,9 @@ public class SecurityScorecardService {
     private static Map<ScanTarget, Terms> byTarget(List<IssueAggregates.TargetGradingCount> rows) {
         Map<ScanTarget, List<IssueAggregates.TargetGradingCount>> grouped = new LinkedHashMap<>();
         for (IssueAggregates.TargetGradingCount row : rows) {
-            ScanTarget target = targetOf(row.repoId(), row.containerId());
+            // A row attached to neither target is unclassifiable, and ranks nowhere: there is no card
+            // to agree with.
+            ScanTarget target = ScanTarget.ofColumns(row.repoId(), row.containerId());
             if (target != null && Terms.isOpen(row.state())) {
                 grouped.computeIfAbsent(target, key -> new ArrayList<>()).add(row);
             }
@@ -690,17 +692,4 @@ public class SecurityScorecardService {
     private static IssueFilters openWithin(Visibility allowed) {
         return new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed);
     }
-
-
-    /**
-     * A row attached to neither target is unclassifiable, and ranks nowhere: there is no card to
-     * agree with.
-     */
-    private static ScanTarget targetOf(Object repoId, Object containerId) {
-        if (repoId != null) {
-            return new ScanTarget.Repository(((Number) repoId).longValue());
-        }
-        return containerId == null ? null : new ScanTarget.Container(((Number) containerId).longValue());
-    }
-
 }

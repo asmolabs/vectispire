@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.audit;
 
 import com.asmolabs.vectispire.common.domain.paging.Batches;
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
@@ -69,8 +70,8 @@ public class AuditLogQueryService {
 
         String term = BoundedText.search(search, "search");
         Page<AuditLogEntity> page = entries.findFiltered(
-                blankToNull(operationType),
-                blankToNull(userId),
+                Texts.blankToNull(operationType),
+                Texts.blankToNull(userId),
                 term == null ? null : "%" + term.toLowerCase(Locale.ROOT) + "%",
                 PageRequest.of(from / Math.max(size, 1), size,
                         Sort.by(Sort.Order.desc("timestamp"), Sort.Order.desc("id"))));
@@ -166,9 +167,5 @@ public class AuditLogQueryService {
                 mirror.missingFromTable(),
                 mirror.missingFromMirror(),
                 clock.instant());
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 }

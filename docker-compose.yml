@@ -128,7 +128,10 @@ services:
       PING: 1          # isAvailable(), avant de réclamer un scan
       VERSION: 1       # la négociation d'API du client
       INFO: 1          # infoCmd().getNCPU(), pour le quota CPU
-      CONTAINERS: 1    # create, start, wait, logs, inspect, rm
+      # create, start, wait, logs, inspect, rm — and, since the proxy's rule matches the prefix,
+      # every other `/containers/…` route: stop, kill, pause, unpause. `ALLOW_PAUSE` and the like
+      # can only open those paths, never close what `CONTAINERS` admits.
+      CONTAINERS: 1
       IMAGES: 1        # pull, save, inspect
       POST: 1          # create/start/pull sont des POST ; sans cela tout est en lecture seule
       # Named although they already default to 0: an absent line reads as an oversight, a line set
@@ -140,6 +143,10 @@ services:
       # instance created stays inert. The capability is closed, just not where one looks for it: see
       # decision 0018 for the codes observed.
       EXEC: 0
+      # **The one section the image opens by default**, and nothing here calls it: the daemon's
+      # event stream names every container started on the host, the operator's own included.
+      EVENTS: 0
+      GRPC: 0
       AUTH: 0
       SECRETS: 0
       CONFIGS: 0
@@ -500,6 +507,8 @@ services:
       IMAGES: 1
       POST: 1
       EXEC: 0
+      EVENTS: 0
+      GRPC: 0
       AUTH: 0
       SECRETS: 0
       CONFIGS: 0

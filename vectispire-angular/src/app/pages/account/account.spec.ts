@@ -101,9 +101,17 @@ describe('the account screen', () => {
         expect((fixture.nativeElement as HTMLElement).textContent).toContain('JBSW Y3DP EHPK 3PXP');
 
         page.code = '123456';
+        // The server enrols a factor only for whoever proves the password: without it, nothing is sent.
+        page.confirm();
+        http.expectNone((call) => call.url === '/api/v1/auth/mfa/enable');
+        page.password = 'correct horse battery staple';
         page.confirm();
         const enable = http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable');
-        expect(enable.request.body).toEqual({ secret: SETUP.secret, code: '123456' });
+        expect(enable.request.body).toEqual({
+            password: 'correct horse battery staple',
+            secret: SETUP.secret,
+            code: '123456'
+        });
         enable.flush(asSchema('EnableResponse', { success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] }));
         fixture.detectChanges();
 
@@ -116,6 +124,7 @@ describe('the account screen', () => {
         page.begin();
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/setup').flush(SETUP);
         page.code = '123456';
+        page.password = 'correct horse battery staple';
         page.confirm();
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable').flush(
             asSchema('EnableResponse', { success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] })
@@ -136,6 +145,7 @@ describe('the account screen', () => {
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/setup').flush(SETUP);
 
         page.code = '000000';
+        page.password = 'correct horse battery staple';
         page.confirm();
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable').flush(
             { message: 'Invalid TOTP verification code.' },

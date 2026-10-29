@@ -112,11 +112,6 @@ public class TicketLinkService {
 
     /** A row attached to neither target is left to {@code Visibility.permits}, as the entity's reading is. */
     private static com.asmolabs.vectispire.common.domain.targets.ScanTarget targetOf(IssueView issue) {
-        if (issue.repoId() != null) {
-            return new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Repository(issue.repoId());
-        }
-        return issue.containerId() == null
-                ? null
-                : new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Container(issue.containerId());
+        return com.asmolabs.vectispire.common.domain.targets.ScanTarget.ofColumns(issue.repoId(), issue.containerId());
     }
 }

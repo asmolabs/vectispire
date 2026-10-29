@@ -80,6 +80,8 @@ export class Users {
     readonly pendingDelete = signal<UserSummary | null>(null);
     readonly liftVisible = signal(false);
     readonly pendingLift = signal<UserSummary | null>(null);
+    readonly secondFactorVisible = signal(false);
+    readonly pendingSecondFactor = signal<UserSummary | null>(null);
     readonly isEmpty = computed(() => this.users().length === 0);
 
     form = { username: '', displayName: '', role: 'USER', password: '' };
@@ -348,6 +350,35 @@ export class Users {
             error: (response) => {
                 this.saving.set(false);
                 this.formError.set(messageOf(response, this.i18n.t('users.error_lift')));
+            }
+        });
+    }
+
+    /** Offered where the server would accept it: a second factor enrolled, on an account not one's own. */
+    canResetSecondFactor(user: UserSummary): boolean {
+        return user.mfaEnabled && user.id !== this.currentUserId();
+    }
+
+    askResetSecondFactor(user: UserSummary): void {
+        this.pendingSecondFactor.set(user);
+        this.formError.set(null);
+        this.secondFactorVisible.set(true);
+    }
+
+    /** As the lift: the refusal (the governor's rule) stays in the dialog, in the server's words. */
+    confirmResetSecondFactor(): void {
+        const user = this.pendingSecondFactor();
+        if (!user) return;
+        this.saving.set(true);
+        this.accountsApi.resetSecondFactor(user.id).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.secondFactorVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.error_second_factor')));
             }
         });
     }

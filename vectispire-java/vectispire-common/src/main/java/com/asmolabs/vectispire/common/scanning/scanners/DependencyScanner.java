@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
+import com.asmolabs.vectispire.common.scanning.Directories;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
@@ -13,7 +14,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
@@ -196,7 +196,7 @@ public final class DependencyScanner {
             writeSbom(directory, sbomJson);
             return match(directory, "grype (image SBOM analysis)");
         } finally {
-            deleteRecursively(directory);
+            Directories.deleteRecursively(directory);
         }
     }
 
@@ -289,20 +289,6 @@ public final class DependencyScanner {
             Files.writeString(directory.resolve(SBOM_FILENAME), sbomJson);
         } catch (IOException e) {
             throw ScannerFailureException.of("grype", "The SBOM could not be staged for matching: " + e.getMessage());
-        }
-    }
-
-    private static void deleteRecursively(Path root) {
-        try (var paths = Files.walk(root)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException ignored) {
-                    // One undeletable file must not stop the rest from going.
-                }
-            });
-        } catch (IOException ignored) {
-            // Absent is the outcome we wanted.
         }
     }
 }
