@@ -49,6 +49,9 @@ class ScimTokenScopeTest extends VectispireContextTest {
         mvc.perform(get("/scim/v2/Users").header("Authorization", SCIM)).andExpect(status().isOk());
     }
 
+    // The converse — /scim takes the token and nothing else — is ScimUsersRoutesTest's
+    // `scimTakesOnlyTheToken`, where an administrator's session can be minted.
+
     @Test
     @DisplayName("is nobody on the rest of the API, however administrative the route")
     void isNobodyElsewhere() throws Exception {

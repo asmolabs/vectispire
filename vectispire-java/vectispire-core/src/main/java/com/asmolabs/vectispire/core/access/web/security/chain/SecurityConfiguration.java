@@ -253,6 +253,13 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // The rest of Actuator: an administrator's session, and no other credential
                         // — the MVC confinement does not reach these endpoints. See ActuatorAccess.
                         .requestMatchers("/actuator/**").access(ActuatorAccess.administratorSession())
+                        // **`/scim` is the identity provider's, and only its token opens it.** The
+                        // controllers' administrator marker let an administrator's session
+                        // provision through it too, whether SCIM was enabled or not, with the
+                        // directory's powers — external ids among them — and none of the account
+                        // screens' rules or audit. The SCIM principal exists only while SCIM is
+                        // enabled with a token, so this also closes the path where it never was.
+                        .requestMatchers("/scim", "/scim/**").hasAuthority(VectispirePrincipal.SCIM_SCOPE)
                         // **A complete endpoint catalogue, and who may read it is now a
                         // decision.** `springdoc` is off by default, so nothing is served at
                         // all until somebody turns it on — but when they did, this line handed

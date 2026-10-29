@@ -118,13 +118,16 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
                 null, null, agent, credentialRestriction, List.of(new SimpleGrantedAuthority("SCOPE_AGENT")));
     }
 
+    /** The authority only the SCIM token carries, and the only one {@code /scim} accepts. */
+    public static final String SCIM_SCOPE = "SCOPE_SCIM";
+
     public static VectispirePrincipal ofScimClient() {
         return new VectispirePrincipal(
                 null,
                 null,
                 null,
                 Visibility.everything(),
-                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + Role.ADMIN.name()), new SimpleGrantedAuthority("SCOPE_SCIM")));
+                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + Role.ADMIN.name()), new SimpleGrantedAuthority(SCIM_SCOPE)));
     }
 
     /** What the credential itself allows, before the account's own assignments narrow it further. */

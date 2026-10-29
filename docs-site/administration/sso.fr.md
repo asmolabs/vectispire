@@ -78,6 +78,11 @@ Un fournisseur d'identité peut créer, modifier, désactiver et supprimer des c
 (`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM. Ce jeton vit dans la
 configuration du fournisseur ; ce qu'il peut faire est donc volontairement borné :
 
+- **`/scim` n'accepte que le jeton SCIM.** Une session d'administrateur ou une clé d'API y est refusée
+  par `403`, et SCIM désactivé (`vectispire.scim.enabled: false`), rien n'y est accepté ; les comptes
+  s'administrent dans Vectispire, par l'écran des utilisateurs. Le journal d'audit nomme
+  `SCIM provisioning` comme auteur de ce que fait l'annuaire, et le compte ou l'équipe modifié comme
+  ressource.
 - **Les comptes administratifs ne relèvent pas de l'annuaire.** Remplacer, modifier ou supprimer un
   administrateur ou un super-administrateur répond `403` ; ils s'administrent dans Vectispire.
 - **L'annuaire n'accorde que les rôles bornés — User et Security Champion.** Une valeur `roles` à
