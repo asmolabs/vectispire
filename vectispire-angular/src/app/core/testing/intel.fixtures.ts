@@ -1,5 +1,6 @@
 import type { IntelApi } from '../api/intel.api';
-import type { AnswerOf } from './contract';
+import type { AiVulnerabilityAdvice } from '../api.models';
+import { asSchema, type AnswerOf } from './contract';
 
 /**
  * The advisor's state as `GET /api/v1/ai-advisor/status` sends it. The document types the route as a
@@ -12,4 +13,18 @@ export function aiAdvisorStatus(
     changes: Partial<AnswerOf<IntelApi['getAiAdvisorStatus']>> = {}
 ): AnswerOf<IntelApi['getAiAdvisorStatus']> {
     return { enabled, selectedModel: 'llama3', availableModels: enabled ? ['llama3'] : [], ...changes };
+}
+
+/** The advisor's answer about CVE-2026-11 as a model writes it, its VEX suggestion saying `status`. */
+export function vulnerabilityAdvice(status: string): AiVulnerabilityAdvice {
+    return asSchema('AiVulnerabilityAdvice', {
+        identifier: 'CVE-2026-11',
+        title: '',
+        summaryExplanation: 'Remote code execution.',
+        exploitMechanics: '',
+        exposureAssessment: '',
+        remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+        vexSuggestion: { status, justification: '', impactStatement: 'Reachable.', actionStatement: '' },
+        references: []
+    });
 }
