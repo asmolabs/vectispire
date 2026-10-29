@@ -43,7 +43,7 @@
         "angular-eslint": "^22.6.0",
         "autoprefixer": "^10.6.2",
         "eslint": "^10.13.0",
-        "happy-dom": "^20.14.6",
+        "happy-dom": "^21.0.4",
         "mysql2": "3.24.6",
         "openapi-typescript": "^7.13.0",
         "postcss": "^8.5.32",
