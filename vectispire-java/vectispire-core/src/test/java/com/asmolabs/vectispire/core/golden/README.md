@@ -138,7 +138,7 @@ Names depend only on the tree: two recordings of the same commit have the same f
     parsed gave back its exact bytes. Send `json` bodies compact (no whitespace), in the sorted order.
     Anything else is shown as `text` and sent byte for byte. A signed webhook's signature covers bytes.
 - **Text** covers `text/*`, `xml`, `yaml`, `csv`, form bodies, `javascript` and PEM (`application/x-pem-file`,
-  the signing key's public half, whose block is then hidden as any other), as long as the bytes decode in the
+  the signing key's public half, whose block then stays literal as any public key), as long as the bytes decode in the
   declared charset (UTF-8 by default).
 - **Anything else** is binary: its length and SHA-256. A request's bytes are inline in base64, because
   the replay has to send them. A response's bytes are in a gzip sidecar (`file`), for phase 5, which
@@ -257,7 +257,15 @@ response that minted the token. Collected from:
   a digit in it — or, instead of the digit, base64's `=` padding at its end: an agent's sealing or
   signing public key, an ECDSA signature. A signature's DER length varies, and so does its padding.
   One key in about 1,300 has no digit, and without the padding rule it stayed literal in the row
-  that stores it, which the replay's own key could never match.
+  that stores it, which the replay's own key could never match. **Not an ECDSA signature the request
+  carries** (base64 of a DER `SEQUENCE` of two `INTEGER`s, every length agreeing): a signature is no
+  credential, and the replay has to send the one the test made for the route to verify it —
+  `CryptoRoutesTest` signs with the context's key, which is the fixture `FixtureSigningKey` the
+  replay configures too, or with a key pair whose public half it sends beside it. Hidden, the replay
+  sent random bytes and `/api/v1/crypto/verify` could only answer "invalid". A signature in an
+  answer or a row is still a secret, and so is one an earlier answer of the test carried: Java draws
+  `k` at random where Rust's is deterministic (RFC 6979), so one document has two valid signatures,
+  and only a placeholder matches both.
 
 `correct horse battery staple` is never a secret. It is `ApiTestBase`'s fixture passphrase, in the
 source.
@@ -266,7 +274,7 @@ Then, on every string, in this order:
 
 | rule | placeholder |
 |---|---|
-| a PEM block, whole — **not a certificate**, which stays literal | `«pem:<label>:N»`, such as `«pem:private-key:1»`. The suites generate their keys at every run, and no key reaches a golden. A certificate is public and an answer states what it reads from one (a subject, an expiry): replaced, it left the SIEM's collector-CA recordings unreplayable. Its body is set aside while the other rules run, so no run of its base64 is read as a token |
+| a PEM block, whole — **not a certificate nor a public key**, which stay literal | `«pem:<label>:N»`, such as `«pem:private-key:1»`. The suites generate their keys at every run, and no private key reaches a golden. A certificate is public and an answer states what it reads from one (a subject, an expiry): replaced, it left the SIEM's collector-CA recordings unreplayable. A public key is public too, and a signature is checked against it: replaced, the forger's key `CryptoRoutesTest` sends to `/api/v1/crypto/verify` left the replay nothing to verify with, and the context's own (`/api/v1/crypto/public-key.pub`) is the fixture `FixtureSigningKey`, the same in the replay. Its body is set aside while the other rules run, so no run of its base64 is read as a token |
 | an Argon2 or bcrypt hash | `«password-hash(correct horse battery staple)»`, `«password-hash(secret:N)»` when it verifies against that secret (a password sent in this test, or an API key), else `«password-hash(?)»`. A replay seeding the row hashes that value |
 | a sealed value, `v2:` and base64 (`SecretCipher`) | `«sealed»` |
 | the SHA-256 hex of a known secret | `«sha256(secret:N)»`. A session's `token_hash`: the replay mints a token, stores its hash and sends it |
@@ -311,7 +319,7 @@ is therefore the Java tree at a named commit: the Rust replay job records at the
 against, or downloads that commit's recording as a CI artifact, and the commit is part of the cache
 key. What is committed is this format and the code that implements it.
 
-**Secrets.** Every credential the suites mint or generate is a placeholder: tokens, keys, PEM blocks,
+**Secrets.** Every credential the suites mint or generate is a placeholder: tokens, keys, private PEM blocks,
 password hashes, sealed values. A scan of a whole recording with the repository's `.gitleaks.toml`
 (`gitleaks detect --no-git --source <dir>`) finds one value only: `AKIAPLANTEDSECRET7781`, an invented
 fixture `ProjectExportRoutesTest` plants in a finding to prove that the project export never carries

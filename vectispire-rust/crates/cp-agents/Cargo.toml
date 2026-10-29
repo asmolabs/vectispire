@@ -50,10 +50,9 @@ vectispire-cp-inventory = { path = "../cp-inventory" }
 vectispire-cp-siem = { path = "../cp-siem" }
 # …and the platform routes served so far: the audit trail and the signing key.
 vectispire-cp-platform = { path = "../cp-platform" }
-# The replay's configured signing key (`vectispire.signing.key`), generated per composition: both already in the graph
-# through cp-crypto, with the features it uses.
+# The replay's configured signing key (`vectispire.signing.key`), the Java suite's fixture: already in the graph through
+# cp-crypto, with the features it uses.
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pkcs8", "pem", "std"] }
-rand_core.workspace = true
 http-body-util.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true

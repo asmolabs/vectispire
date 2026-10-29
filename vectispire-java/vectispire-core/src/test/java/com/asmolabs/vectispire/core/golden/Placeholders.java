@@ -221,18 +221,31 @@ final class Placeholders {
 
     private static final Pattern HEX_ANY = Pattern.compile("(?i)(?<![0-9a-z])[0-9a-f]{32,}(?![0-9a-z])");
 
-    /** The first pass: registers every credential a record carries, before any of it is rendered. */
+    /**
+     * The first pass: registers every credential a record carries, before any of it is rendered. Called on a whole
+     * record ({@code fieldName} null), its {@code request} is read as what the test sent ({@link #isEcdsaSignature}).
+     */
     void collect(JsonNode node, String fieldName) {
+        if (fieldName == null && node != null && node.isObject()) {
+            for (Map.Entry<String, JsonNode> field : node.properties()) {
+                collect(field.getValue(), field.getKey(), field.getKey().equals("request"));
+            }
+            return;
+        }
+        collect(node, fieldName, false);
+    }
+
+    private void collect(JsonNode node, String fieldName, boolean sentByTheTest) {
         if (node == null) {
             return;
         }
         if (node.isObject()) {
             for (Map.Entry<String, JsonNode> field : node.properties()) {
-                collect(field.getValue(), field.getKey());
+                collect(field.getValue(), field.getKey(), sentByTheTest);
             }
         } else if (node.isArray()) {
             for (JsonNode element : node) {
-                collect(element, fieldName);
+                collect(element, fieldName, sentByTheTest);
             }
         } else if (node.isTextual()) {
             String text = node.asText();
@@ -244,12 +257,16 @@ final class Placeholders {
                     registerSecret(text);
                 }
             }
-            collectPatterns(text);
+            collectPatterns(text, sentByTheTest);
         }
     }
 
     /** Credentials recognised by their shape alone. */
     void collectPatterns(String raw) {
+        collectPatterns(raw, false);
+    }
+
+    private void collectPatterns(String raw, boolean sentByTheTest) {
         // Not inside a stored form: an Argon2 hash or a sealed value is random, not a credential presented.
         String text = SEALED.matcher(PASSWORD_HASH.matcher(PEM.matcher(raw).replaceAll(" ")).replaceAll(" ")).replaceAll(" ");
         Matcher keys = API_KEY.matcher(text);
@@ -264,9 +281,17 @@ final class Placeholders {
                 // (a badge's token) is. Tokens after a slash are out of RANDOM_TOKEN's reach on the whole string.
                 for (String segment : candidate.split("/")) {
                     if (!segment.isEmpty()) {
-                        collectPatterns(segment);
+                        collectPatterns(segment, sentByTheTest);
                     }
                 }
+            } else if (sentByTheTest && isEcdsaSignature(candidate)) {
+                // Kept: a signature the test sends — over a document it wrote, with the context's fixture key or a key
+                // pair whose public half it sends beside it — is what the replay must send for the route to verify
+                // it, and it is no credential. Hidden, it was «secret:N», which the replay filled with random bytes:
+                // /api/v1/crypto/verify could only answer "invalid". One the server answered, or stored, is still
+                // registered (wherever else in the record it shows): Java draws k at random where Rust's is
+                // deterministic, so the same document has two valid signatures, and only a placeholder matches both.
+                continue;
             } else if (looksRandom(candidate)) {
                 registerSecret(candidate);
             }
@@ -361,11 +386,14 @@ final class Placeholders {
         // A PEM block whole, before anything inside it is read as a token. **A certificate stays literal**: it is
         // public, and an answer states what it reads from one — the subject, the expiry — so a replay sending a
         // placeholder in its place could answer nothing Java answered (the SIEM's collector CA, refused or pinned).
-        // It is set aside while the rules run, so that no base64 run of its body is read as a token. A key is a
-        // placeholder: no key reaches a golden.
+        // **So does a public key**, for the same reason: a signature is checked against it, and a placeholder in its
+        // place left the replay no key the signature was made with (a forger's key sent to /api/v1/crypto/verify);
+        // the context's own is the suite's fixture (FixtureSigningKey), the same in the replay. Either is set aside
+        // while the rules run, so that no base64 run of its body is read as a token. A private key is a
+        // placeholder: no private key reaches a golden.
         List<String> certificates = new ArrayList<>();
         String out = replace(text, PEM, match -> {
-            if ("CERTIFICATE".equals(match.group(1))) {
+            if (isPublic(match.group(1))) {
                 certificates.add(match.group());
                 return CERTIFICATE_SET_ASIDE + (certificates.size() - 1) + CERTIFICATE_SET_ASIDE;
             }
@@ -409,6 +437,11 @@ final class Placeholders {
             out = out.replace(CERTIFICATE_SET_ASIDE + i + CERTIFICATE_SET_ASIDE, certificates.get(i));
         }
         return out;
+    }
+
+    /** A certificate or a public key: {@code CERTIFICATE}, {@code PUBLIC KEY}, {@code RSA PUBLIC KEY}. Not a private key. */
+    private static boolean isPublic(String label) {
+        return label.equals("CERTIFICATE") || label.equals("PUBLIC KEY") || label.endsWith(" PUBLIC KEY");
     }
 
     /** Brackets a certificate's index while the rules run: a character no recorded text holds. */
@@ -498,6 +531,28 @@ final class Placeholders {
         }
         String first = candidate.substring(1, candidate.indexOf('/', 1));
         return !first.isEmpty() && first.chars().allMatch(c -> (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'));
+    }
+
+    /**
+     * An ECDSA signature as {@code CosignSigner} writes it: base64 of a DER {@code SEQUENCE} of two {@code INTEGER}s,
+     * every length agreeing. Random bytes read so about once in 2^40, and a token, a key or a sealed value never is.
+     */
+    static boolean isEcdsaSignature(String candidate) {
+        byte[] der;
+        try {
+            der = java.util.Base64.getDecoder().decode(candidate);
+        } catch (IllegalArgumentException notBase64) {
+            return false;
+        }
+        if (der.length < 8 || der[0] != 0x30 || der[1] != der.length - 2 || der[2] != 0x02) {
+            return false;
+        }
+        int rLength = der[3];
+        if (rLength < 1 || rLength > 33 || 4 + rLength + 2 > der.length || der[4 + rLength] != 0x02) {
+            return false;
+        }
+        int sLength = der[5 + rLength];
+        return sLength >= 1 && sLength <= 33 && 6 + rLength + sLength == der.length;
     }
 
     /**

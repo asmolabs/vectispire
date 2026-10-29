@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core;
 
+import com.asmolabs.vectispire.core.golden.FixtureSigningKey;
 import com.asmolabs.vectispire.core.golden.TrafficRecorder;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,16 @@ public abstract class VectispireContextTest {
     static void database(DynamicPropertyRegistry registry) {
         TestDatabase.emptyBeforeAContextStarts(TABLES_CHILDREN_FIRST);
         TestDatabase.register(registry);
+    }
+
+    /**
+     * The document signing key, configured as a deployment configures it, and the same at every run: a signature the
+     * suite makes is recorded as it is, and the Rust replay, configured with the same key, verifies it
+     * ({@link FixtureSigningKey}). Generated at each start, it verified under that run's key only.
+     */
+    @DynamicPropertySource
+    static void signingKey(DynamicPropertyRegistry registry) {
+        registry.add("vectispire.signing.key", FixtureSigningKey::pem);
     }
 
     /**
