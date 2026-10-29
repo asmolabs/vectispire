@@ -1,0 +1,176 @@
+@if (page.view(); as shown) {
+    @if (shown.checklist; as current) {
+        <p-card styleClass="mb-4" data-testid="header">
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+                <h2 class="text-xl font-semibold m-0" data-testid="shown-revision">
+                    {{ 'project_checklist.revision_title' | translate: { revision: current.revision } }}
+                </h2>
+                <p-tag [severity]="statusTone()" [value]="statusText()" data-testid="status" />
+                @if (automaticCount() > 0) {
+                    <span class="text-sm text-muted-color" data-testid="automatic-count">{{
+                        'project_checklist.automatic_count' | translate: { count: automaticCount() }
+                    }}</span>
+                }
+            </div>
+            @if (!page.isLatest()) {
+                <p-message severity="secondary" [closable]="false" styleClass="mb-3 w-full" data-testid="read-only-old">
+                    {{ 'project_checklist.read_only_old' | translate }}
+                </p-message>
+            } @else if (!page.writes()) {
+                <p-message
+                    severity="secondary"
+                    [closable]="false"
+                    styleClass="mb-3 w-full"
+                    data-testid="read-only-role"
+                >
+                    {{ 'project_checklist.read_only_role' | translate }}
+                </p-message>
+            }
+            <dl class="grid grid-cols-1 md:grid-cols-[max-content_1fr] gap-x-6 gap-y-1 m-0 text-sm">
+                <dt class="font-medium">{{ 'project_checklist.field_template' | translate }}</dt>
+                <dd class="m-0">
+                    {{ current.templateName }}
+                    <span class="font-mono text-muted-color">{{ current.templateSlug }}</span>
+                </dd>
+                <dt class="font-medium">{{ 'project_checklist.field_version' | translate }}</dt>
+                <dd class="m-0" data-testid="version">
+                    {{ 'project_checklist.version_n' | translate: { ordinal: current.versionOrdinal } }}
+                    @if (current.versionLabel) {
+                        ({{ current.versionLabel }})
+                    }
+                </dd>
+                <dt class="font-medium">{{ 'project_checklist.field_author' | translate }}</dt>
+                <dd class="m-0">{{ current.author }}</dd>
+                <dt class="font-medium">{{ 'project_checklist.field_opened' | translate }}</dt>
+                <dd class="m-0">
+                    {{
+                        'project_checklist.by_at'
+                            | translate
+                                : { who: current.openedBy, at: (current.openedAt | date: 'dd/MM/yyyy HH:mm') ?? '' }
+                    }}
+                    @if (current.supersedesRevision) {
+                        · {{ 'project_checklist.moved_from' | translate: { revision: current.supersedesRevision } }}
+                    }
+                </dd>
+                @if (current.submittedAt) {
+                    <dt class="font-medium">{{ 'project_checklist.field_submitted' | translate }}</dt>
+                    <dd class="m-0" data-testid="submitted">
+                        {{
+                            'project_checklist.by_at'
+                                | translate
+                                    : {
+                                          who: current.submittedBy ?? '—',
+                                          at: (current.submittedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                    </dd>
+                }
+                @if (current.returnedAt) {
+                    <dt class="font-medium">{{ 'project_checklist.field_returned' | translate }}</dt>
+                    <dd class="m-0" data-testid="returned">
+                        {{
+                            'project_checklist.by_at'
+                                | translate
+                                    : {
+                                          who: current.returnedBy ?? '—',
+                                          at: (current.returnedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                        @if (current.returnReason) {
+                            — {{ current.returnReason }}
+                        }
+                    </dd>
+                }
+                @if (current.signedOffAt) {
+                    <dt class="font-medium">{{ 'project_checklist.field_signed_off' | translate }}</dt>
+                    <dd class="m-0" data-testid="signed-off">
+                        {{
+                            'project_checklist.by_at'
+                                | translate
+                                    : {
+                                          who: current.signedOffBy ?? '—',
+                                          at: (current.signedOffAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                    </dd>
+                }
+                <dt class="font-medium">{{ 'project_checklist.field_four_eyes' | translate }}</dt>
+                <dd class="m-0" data-testid="four-eyes">
+                    @if (current.status === 'signed_off') {
+                        {{
+                            current.signOffFourEyes
+                                ? ('project_checklist.four_eyes_applied' | translate)
+                                : ('project_checklist.four_eyes_not_applied' | translate)
+                        }}
+                    } @else {
+                        {{
+                            shown.fourEyesRequired
+                                ? ('project_checklist.four_eyes_on' | translate)
+                                : ('project_checklist.four_eyes_off' | translate)
+                        }}
+                    }
+                </dd>
+                @if (shown.authors.length > 0) {
+                    <dt class="font-medium">{{ 'project_checklist.field_authors' | translate }}</dt>
+                    <dd class="m-0" data-testid="authors">{{ shown.authors.join(', ') }}</dd>
+                }
+            </dl>
+            <!-- The document to hand over: signed only as far as the status can say (decision 0032 §10). -->
+            <div class="border-t mt-4 pt-4" style="border-color: var(--surface-border)" data-testid="document">
+                <h3 class="text-base font-semibold mt-0 mb-1">{{ 'project_checklist.document_title' | translate }}</h3>
+                <div class="flex flex-wrap items-center gap-3">
+                    <p-button
+                        id="download-document"
+                        icon="pi pi-download"
+                        size="small"
+                        [outlined]="true"
+                        [loading]="page.downloading() === current.revision"
+                        [label]="
+                            signed()
+                                ? ('project_checklist.document_signed_btn' | translate)
+                                : ('project_checklist.document_unsigned_btn' | translate)
+                        "
+                        (onClick)="page.downloadDocument(current.revision)"
+                    />
+                    <span class="text-sm text-muted-color" data-testid="document-hint">
+                        {{
+                            signed()
+                                ? ('project_checklist.document_signed_hint' | translate)
+                                : ('project_checklist.document_unsigned_hint' | translate)
+                        }}
+                    </span>
+                </div>
+                @if (verificationCommands(); as commands) {
+                    <div class="mt-3 text-sm" data-testid="verification">
+                        <p class="mt-0 mb-2">
+                            {{ 'project_checklist.verify_intro' | translate }}
+                            <a [href]="publicKeyPath" [attr.download]="publicKeyFile" data-testid="public-key-link">{{
+                                'project_checklist.verify_key_link' | translate
+                            }}</a>
+                        </p>
+                        <div class="flex items-start gap-2">
+                            <pre
+                                class="m-0 p-3 rounded-md overflow-x-auto flex-1 font-mono text-xs"
+                                style="background: var(--surface-ground)"
+                                data-testid="verification-commands"
+                                >{{ commands }}</pre>
+                            <p-button
+                                id="copy-verification"
+                                [icon]="copied() ? 'pi pi-check' : 'pi pi-copy'"
+                                size="small"
+                                [text]="true"
+                                [ariaLabel]="
+                                    copied()
+                                        ? ('project_checklist.verify_copied' | translate)
+                                        : ('project_checklist.verify_copy' | translate)
+                                "
+                                (onClick)="copyCommands(commands)"
+                            />
+                        </div>
+                        <p class="text-muted-color mt-2 mb-0">{{ 'project_checklist.verify_tlog' | translate }}</p>
+                    </div>
+                }
+            </div>
+        </p-card>
+    }
+}

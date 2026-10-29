@@ -26,7 +26,7 @@ describe('the accounts screen', () => {
         username: string,
         role: string,
         isActive = true,
-        owes: { mustChangePassword?: boolean; federated?: boolean } = {}
+        owes: { mustChangePassword?: boolean; federated?: boolean; mfaEnabled?: boolean } = {}
     ) =>
         asSchema('UserAdminSummary', {
             id,
@@ -38,7 +38,8 @@ describe('the accounts screen', () => {
             mustChangePassword: owes.mustChangePassword ?? false,
             federated: owes.federated ?? false,
             createdAt: '2026-01-01T00:00:00Z',
-            activeSessions: 0
+            activeSessions: 0,
+            mfaEnabled: owes.mfaEnabled ?? false
         });
 
     const LIST = asSchema('UserListing', {
@@ -431,6 +432,61 @@ describe('the accounts screen', () => {
             await vi.waitFor(() =>
                 expect(document.body.textContent).toContain('signs in with its password, which somebody else chose')
             );
+        });
+    });
+    describe('resetting a second factor', () => {
+        /**
+         * The current account (1) and another (5), both with a factor, and one without (6). Only the other
+         * account with a factor is offered the action: the server refuses one's own, and there is nothing
+         * to reset on the third.
+         */
+        const ENROLLED = asSchema('UserListing', {
+            users: [
+                account(1, 'admin', 'ADMIN', true, { mfaEnabled: true }),
+                account(5, 'locked-out', 'USER', true, { mfaEnabled: true }),
+                account(6, 'plain', 'USER')
+            ],
+            currentUserId: 1,
+            total: 3
+        });
+
+        const resetButton = (name: string) =>
+            document.querySelector<HTMLButtonElement>(`button[aria-label="Reset the second factor of ${name}"]`);
+
+        async function showEnrolled(): Promise<void> {
+            useEnglish();
+            fixture.autoDetectChanges();
+            fixture.componentInstance.reload();
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(ENROLLED);
+            await fixture.whenStable();
+        }
+
+        it('is offered for another account with a factor — not for oneself nor an account without one', async () => {
+            await showEnrolled();
+
+            expect(resetButton('locked-out')).not.toBeNull();
+            expect(resetButton('admin')).toBeNull();
+            expect(resetButton('plain')).toBeNull();
+        });
+
+        it('asks first, says what it does, then resets and reads the list again', async () => {
+            await showEnrolled();
+
+            resetButton('locked-out')!.click();
+            await fixture.whenStable();
+            http.expectNone((call) => call.method === 'DELETE');
+            expect(document.querySelector('#second-factor-consequence')?.textContent).toContain(
+                'its open sessions close'
+            );
+
+            document.querySelector<HTMLButtonElement>('#second-factor-confirm button')!.click();
+            await fixture.whenStable();
+            http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/users/5/second-factor').flush(
+                asSchema('UserAdminSummary', { ...ENROLLED.users[1], mfaEnabled: false })
+            );
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(ENROLLED);
+
+            expect(fixture.componentInstance.secondFactorVisible()).toBe(false);
         });
     });
 });

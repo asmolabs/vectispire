@@ -13,6 +13,7 @@ and it returns a verdict someone has an interest in making lie.
 | Asset | Where | Consequence of a leak |
 |---|---|---|
 | SSH deployment keys | `ssh_key`, AES-GCM encrypted | read access to every watched repository |
+| HTTPS clone tokens | `t_git_token`, AES-GCM encrypted under the row's id; presented to the one host written when the token was added, which nothing edits ([0022](decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | what the token grants on that forge |
 | `ENCRYPTION_KEY` | environment, or a file it names | decrypts **all** the keys above |
 | Access to the Docker daemon | through `docker-socket-proxy`, never the socket file ([0018](decisions/0018-the-docker-socket-is-never-mounted.md)) | root-equivalent on the host that runs it |
 | The gate verdict | `issue`, `gate_policy` | a build that should have failed passes |
@@ -90,3 +91,20 @@ Empty — the default — means the peer is the client and only a genuinely encr
 The address believed is the rightmost entry of `X-Forwarded-For` the list does not name, and it is
 only what that proxy saw: behind a hop that translates the source (a Kubernetes node's SNAT), it is
 the hop's.
+
+## Residual risks, stated rather than implied
+
+**A repository URL is checked against Vectispire's own endpoints where it is entered, not where it
+is cloned.** The git host allowlist refuses a URL naming the control plane's Docker daemon, its
+database or its cluster API (`ReservedEndpoints`), when the URL is entered and again when a scan
+task is built. Two things escape it. The name is resolved by that check and resolved again by the
+clone, which re-checks only link-local and metadata addresses: a name whose answer changes between
+the two (DNS rebinding) reaches what the first answer did not name. And an agent's own endpoints —
+its `DOCKER_HOST`, `agent-docker-proxy:2375` in the shipped compose — are not the control plane's to
+know. What reaches such an endpoint is the opening of an `https`, `ssh` or `git` transport, the only
+schemes a repository URL may use: a handshake, or a read of a path ending in `/info/refs`, never
+carrying a credential — a token is presented to its own host only. The plain-HTTP daemon proxies
+refuse all of it; an HTTPS API answers it as it answers an anonymous caller. Closing it would mean
+pinning, inside each of JGit's transports, the addresses checked; that was judged disproportionate
+to this impact before 1.0, and is reconsidered if a transport that speaks plain HTTP is ever
+accepted.

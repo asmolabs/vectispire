@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -302,9 +303,48 @@ class ScimUsersRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-ciso-unbound", "externalId", "attacker-subject"))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                // It used to send the directory to "an administrator, in Vectispire", where no route binds a
+                // subject: the refusal names what does work.
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Provision a new account")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("link-privileged-accounts")));
 
         assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
+    }
+
+    /**
+     * The role was read at the binding, and the directory may lower one: a first request lowered the
+     * CISO to User, and the next bound it, now that it held nothing. Lowering stays allowed — taking a
+     * privilege away must not wait — and the binding remembers what the account held.
+     */
+    @Test
+    @DisplayName("an account the directory lowered out of a privileged role is not bound until an administrator sets its role")
+    void aLoweredAccountIsNotBound() throws Exception {
+        tokenFor("scim-ciso-lowered", Role.CISO, false);
+        long id = users.findByUsername("scim-ciso-lowered").orElseThrow().getId();
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "roles", List.of(Map.of("value", "USER"))))))
+                .andExpect(status().isOk());
+        assertThat(users.findById(id).orElseThrow().getRole()).isEqualTo(Role.USER.name());
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "externalId", "attacker-subject"))))
+                .andExpect(status().isBadRequest());
+        assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
+
+        // An administrator who sets the role has decided about the account; the directory binds it then.
+        mvc.perform(authenticated(patch("/api/v1/users/" + id), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("role", "USER"))))
+                .andExpect(status().isOk());
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "externalId", "directory-subject"))))
+                .andExpect(status().isOk());
+        assertThat(users.findById(id).orElseThrow().getKeycloakId()).isEqualTo("directory-subject");
     }
 
     @Test
@@ -318,7 +358,8 @@ class ScimUsersRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(put("/scim/v2/Users/" + account.getId()), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-totp-unbound", "externalId", "attacker-subject"))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("turns the second factor off")));
 
         assertThat(users.findById(account.getId()).orElseThrow().getKeycloakId()).isNull();
     }

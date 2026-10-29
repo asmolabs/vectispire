@@ -15,6 +15,7 @@ conformité qu'un attaquant pourrait chercher à falsifier.
 | Actif | Emplacement | Conséquence d'une fuite |
 |---|---|---|
 | Clés de déploiement SSH | `ssh_key`, chiffrées en AES-GCM | Accès en lecture à tous les dépôts suivis |
+| Jetons de clonage HTTPS | `t_git_token`, chiffrés en AES-GCM sous l'identifiant de la ligne ; présentés au seul hôte écrit à l'ajout du jeton, que rien ne modifie ([0022](decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | Ce que le jeton accorde sur cette forge |
 | `ENCRYPTION_KEY` | Variable d'environnement ou fichier | Déchiffre **l'ensemble** des clés d'accès |
 | Accès au démon Docker | Via `docker-socket-proxy`, jamais le fichier socket ([0018](decisions/0018-the-docker-socket-is-never-mounted.md)) | Équivalent de l'accès `root` sur l'hôte qui l'exécute |
 | Verdict du Quality Gate | `issue`, `gate_policy` | Un build vulnérable passe le contrôle CI/CD |
@@ -94,3 +95,21 @@ délégué quel que soit le lien.) Vide — le défaut — signifie que le pair 
 une connexion réellement chiffrée compte. L'adresse crue est l'entrée la plus à droite de
 `X-Forwarded-For` que la liste ne nomme pas, et elle n'est que ce que ce proxy a vu : derrière un
 relais qui traduit la source (le SNAT d'un nœud Kubernetes), c'est celle du relais.
+
+## Risques résiduels, dits plutôt que sous-entendus
+
+**L'URL d'un dépôt est comparée aux points d'accès de Vectispire là où elle est saisie, pas là où
+elle est clonée.** La liste d'hôtes git autorisés refuse une URL qui nomme le démon Docker du plan de
+contrôle, sa base de données ou l'API de son cluster (`ReservedEndpoints`), à la saisie et de nouveau
+à la construction de la tâche de scan. Deux choses lui échappent. Le nom est résolu par ce contrôle,
+puis résolu de nouveau par le clonage, qui ne revérifie que les adresses link-local et de métadonnées :
+un nom dont la réponse change entre les deux (DNS rebinding) atteint ce que la première réponse ne
+nommait pas. Et les points d'accès propres à un agent — son `DOCKER_HOST`, `agent-docker-proxy:2375`
+dans le compose livré — ne sont pas connus du plan de contrôle. Ce qui atteint un tel point d'accès est
+l'ouverture d'un transport `https`, `ssh` ou `git`, les seuls schémas qu'une URL de dépôt peut porter :
+une poignée de main, ou la lecture d'un chemin finissant par `/info/refs`, sans jamais porter
+d'identifiant — un jeton n'est présenté qu'à son propre hôte. Les proxys du démon, en HTTP clair,
+refusent tout cela ; une API en HTTPS y répond comme à un appelant anonyme. Le fermer demanderait
+d'épingler, dans chacun des transports de JGit, les adresses vérifiées ; cela a été jugé
+disproportionné à cet impact avant la 1.0, et sera reconsidéré si un transport parlant HTTP en clair
+est un jour accepté.

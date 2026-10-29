@@ -73,6 +73,14 @@ public class UserEntity {
     @Column(name = "totp_last_step")
     private Long totpLastStep;
 
+    /**
+     * The privileged role the directory lowered this account out of while it was bound to no subject,
+     * until an administrator sets its role. While it is set, neither the directory nor a claim binds
+     * the account: see V93.
+     */
+    @Column(name = "scim_lowered_from", length = 32)
+    private String scimLoweredFrom;
+
     public Long getId() {
         return id;
     }
@@ -175,6 +183,14 @@ public class UserEntity {
 
     public void setMustChangePassword(boolean mustChangePassword) {
         this.mustChangePassword = mustChangePassword;
+    }
+
+    public String getScimLoweredFrom() {
+        return scimLoweredFrom;
+    }
+
+    public void setScimLoweredFrom(String scimLoweredFrom) {
+        this.scimLoweredFrom = scimLoweredFrom;
     }
 
     public boolean getMfaEnabled() {

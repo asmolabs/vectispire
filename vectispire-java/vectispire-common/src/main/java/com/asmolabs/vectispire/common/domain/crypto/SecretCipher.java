@@ -152,7 +152,17 @@ public final class SecretCipher {
         return "ssh_key:" + keyId + ":private_key";
     }
 
-    /** Where an HTTPS clone token lives — the same rule as {@link #privateKeyContext}. */
+    /**
+     * Where an HTTPS clone token lives — the same rule as {@link #privateKeyContext}.
+     *
+     * <p><b>The row's id, not its host, and that is a decision</b> (decision 0022). The host decides
+     * where the token is ever presented, so it would be the field to bind if anything could move
+     * it; nothing does — no route edits a token, rotating or rehosting one is adding another, and
+     * {@code GitTokenHostTest} fails on a second writer of the column. What is left is a hand on the
+     * database, and that hand can as well create an administrator or rewrite a repository's URL:
+     * binding the host would close none of what it opens, at the price of re-sealing every stored
+     * token. A route that edits the host changes this answer — bind the host first.
+     */
     public static String gitTokenContext(String tokenId) {
         return "git_token:" + tokenId + ":token";
     }

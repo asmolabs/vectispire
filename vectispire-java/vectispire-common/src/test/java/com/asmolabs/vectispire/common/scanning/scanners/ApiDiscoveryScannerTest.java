@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.asmolabs.vectispire.common.domain.apis.ApiContract;
 import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
@@ -10,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.apis.ShadowApiDiff;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -245,6 +247,45 @@ class ApiDiscoveryScannerTest {
         assertThat(diff.documentedEndpoints()).containsExactly(parameterised);
         assertThat(diff.shadowEndpoints()).containsExactlyInAnyOrder(lookalike, anything);
         assertThat(diff.zombieEndpoints()).containsExactlyInAnyOrder("/a.b/items", "/secret/admin");
+    }
+
+    @Test
+    @DisplayName("adjacent parameters cost a bounded comparison, and still mean one or more characters each")
+    void adjacentParametersDoNotBacktrack() {
+        // `/{a}{b}…` became `[^/]+[^/]+…`, which a regex engine backtracks through in time
+        // exponential in the number of parameters, against a path the same repository wrote.
+        String adjacent = "/" + "{p}".repeat(24);
+        String longSegment = "/" + "a".repeat(120) + "!";
+        ApiEndpoint hostile = new ApiEndpoint(
+                "GET", longSegment + "/x", true, "BEARER", ApiVisibility.PUBLIC, "A.java", 1, "SPRING_BOOT", null, null, null);
+        ApiEndpoint two = new ApiEndpoint(
+                "GET", "/xy", true, "BEARER", ApiVisibility.PUBLIC, "B.java", 2, "SPRING_BOOT", null, null, null);
+        ApiEndpoint one = new ApiEndpoint(
+                "GET", "/z", true, "BEARER", ApiVisibility.PUBLIC, "C.java", 3, "SPRING_BOOT", null, null, null);
+        ApiContract contract = new ApiContract("openapi.json", "OPENAPI_V3", "Core API", "1.0", 3,
+                List.of(adjacent + "/y", "/{a}{b}", longSegment.substring(0, 60) + "/{rest}"));
+
+        ShadowApiDiff diff = assertTimeoutPreemptively(Duration.ofSeconds(5),
+                () -> ShadowApiDiff.compute(List.of(hostile, two, one), List.of(contract)));
+
+        assertThat(diff.documentedEndpoints()).containsExactly(two);
+        assertThat(diff.shadowEndpoints()).containsExactlyInAnyOrder(hostile, one);
+    }
+
+    @Test
+    @DisplayName("a path past the length bound is compared only as written")
+    void anOverlongPathIsComparedAsWritten() {
+        String overlong = "/" + "a".repeat(600);
+        ApiEndpoint asWritten = new ApiEndpoint(
+                "GET", overlong, true, "BEARER", ApiVisibility.PUBLIC, "A.java", 1, "SPRING_BOOT", null, null, null);
+        ApiEndpoint parameterised = new ApiEndpoint(
+                "GET", "/{any}", true, "BEARER", ApiVisibility.PUBLIC, "B.java", 2, "SPRING_BOOT", null, null, null);
+        ApiContract contract = new ApiContract("openapi.json", "OPENAPI_V3", "Core API", "1.0", 1, List.of(overlong));
+
+        ShadowApiDiff diff = ShadowApiDiff.compute(List.of(asWritten, parameterised), List.of(contract));
+
+        assertThat(diff.documentedEndpoints()).containsExactly(asWritten);
+        assertThat(diff.shadowEndpoints()).containsExactly(parameterised);
     }
 
     @Test

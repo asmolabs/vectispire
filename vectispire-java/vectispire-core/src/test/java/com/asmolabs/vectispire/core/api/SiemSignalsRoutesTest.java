@@ -302,8 +302,9 @@ class SiemSignalsRoutesTest extends ApiTestBase {
         pending.setMfaEnabled(false);
         UserEntity user = users.save(pending);
         String secret = totp.setup(UserView.of(user)).secret();
-        List<String> codes = totp.enable(UserView.of(user), secret,
-                com.asmolabs.vectispire.common.domain.auth.Totp.generateCode(secret, Instant.now())).backupCodes();
+        List<String> codes = totp.enable(UserView.of(user), PASSWORD, secret,
+                com.asmolabs.vectispire.common.domain.auth.Totp.generateCode(secret, Instant.now()), "127.0.0.1", null)
+                .backupCodes();
 
         // An operation that signals on its own: USER_UPDATED is an account change whoever writes it.
         assertThat(queued("ACCOUNT_CHANGED")).singleElement()

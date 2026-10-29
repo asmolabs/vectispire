@@ -571,7 +571,7 @@ export interface paths {
         put?: never;
         /**
          * Enable MFA
-         * @description Confirms TOTP setup by verifying the first code.
+         * @description Confirms TOTP setup by verifying the first code; requires the current password.
          */
         post: operations["enableMfa"];
         delete?: never;
@@ -4444,6 +4444,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}/second-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["resetSecondFactor"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{id}/targets": {
         parameters: {
             query?: never;
@@ -7109,6 +7125,7 @@ export interface components {
         };
         MfaEnableRequest: {
             code?: string;
+            password?: string;
             secret?: string;
         };
         MfaVerifyRequest: {
@@ -9142,6 +9159,7 @@ export interface components {
             /** Format: int64 */
             id?: number;
             isActive: boolean;
+            mfaEnabled: boolean;
             mustChangePassword: boolean;
             role?: string;
             username?: string;
@@ -16323,6 +16341,28 @@ export interface operations {
         };
     };
     clearPasswordChangeRequirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAdminSummary"];
+                };
+            };
+        };
+    };
+    resetSecondFactor: {
         parameters: {
             query?: never;
             header?: never;

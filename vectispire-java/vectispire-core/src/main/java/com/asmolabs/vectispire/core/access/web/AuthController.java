@@ -53,7 +53,8 @@ public class AuthController {
     private final TrustedProxies proxies;
 
     public record MfaVerifyRequest(@JsonProperty("mfa_token") String mfaToken, String code) {}
-    public record MfaEnableRequest(String secret, String code) {}
+    /** {@code password} is the account's current one: enrolling a factor is proving who one is, not only holding a session. */
+    public record MfaEnableRequest(String password, String secret, String code) {}
     public record MfaDisableRequest(String code) {}
 
     public AuthController(
@@ -156,17 +157,29 @@ public class AuthController {
         return totp.setup(principal.requireUser());
     }
 
-    @Operation(summary = "Enable MFA", description = "Confirms TOTP setup by verifying the first code.")
+    @Operation(summary = "Enable MFA", description = "Confirms TOTP setup by verifying the first code; requires the current password.")
     @ApiResponse(responseCode = "200", description = "MFA activated")
     @RequiresAccount
     @PostMapping("/mfa/enable")
     public TotpService.EnableResponse enableMfa(
             @RequestBody MfaEnableRequest body,
-            @AuthenticationPrincipal VectispirePrincipal principal) {
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
         if (body == null || body.secret() == null || body.code() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Secret and verification code are required.");
         }
-        return totp.enable(principal.requireUser(), body.secret(), body.code());
+        if (body.password() == null || body.password().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The current password is required to enable MFA.");
+        }
+        try {
+            return totp.enable(principal.requireUser(), body.password(), body.secret(), body.code(),
+                    proxies.clientAddress(request), request.getHeader("User-Agent"));
+        } catch (TotpService.CurrentPasswordWrongException wrong) {
+            // 401 and not 400, as at the password change: what is missing is proof of identity.
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, wrong.getMessage());
+        } catch (TotpService.PasswordLockedException locked) {
+            throw throttled(locked.retryAfter());
+        }
     }
 
     @Operation(summary = "Disable MFA", description = "Deactivates 2FA after providing verification code.")

@@ -41,18 +41,4 @@ public record ScopeCoverage(
     public boolean declared() {
         return declaredAssets > 0;
     }
-
-    /**
-     * The share of the <em>declared</em> scope with fresh evidence, as a percentage.
-     *
-     * <p>Against the declared count and not against {@code inScope}, which is the point of the
-     * record: dividing by what the instance happens to hold is how a tool reports a hundred per
-     * cent on a third of an estate. Empty when nobody has declared a count — a percentage computed
-     * against an unknown denominator is a number that will be quoted and should not exist.
-     */
-    public java.util.OptionalInt freshShareOfScope() {
-        return declared()
-                ? java.util.OptionalInt.of((int) Math.round(100.0 * scannedRecently / declaredAssets))
-                : java.util.OptionalInt.empty();
-    }
 }

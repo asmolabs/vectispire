@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Totp;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -56,6 +57,27 @@ public class TotpService implements SealedStore {
         }
     }
 
+    /** Enrolment's password was wrong; the caller answers 401, as the password change does. */
+    public static class CurrentPasswordWrongException extends RuntimeException {
+        public CurrentPasswordWrongException() {
+            super("Current password is incorrect.");
+        }
+    }
+
+    /** The account's password budget is spent; the caller answers 429. */
+    public static class PasswordLockedException extends RuntimeException {
+        private final java.time.Duration retryAfter;
+
+        public PasswordLockedException(java.time.Duration retryAfter) {
+            super("Too many wrong passwords. Try again later.");
+            this.retryAfter = retryAfter;
+        }
+
+        public java.time.Duration retryAfter() {
+            return retryAfter;
+        }
+    }
+
     public record SetupResponse(String secret, String qrCodeUri, String issuer) {}
 
     public record EnableResponse(boolean success, List<String> backupCodes) {}
@@ -88,11 +110,44 @@ public class TotpService implements SealedStore {
      * The row is read here, by the account's id: the caller holds a {@link UserView}, which carries
      * no secret and is not something to save.
      *
+     * <p><b>The password first.</b> Enrolling with a session alone let whoever held one — stolen, or
+     * left open on a desk — put the account's second factor on their own phone, and the owner, who
+     * had no code to disable it with, was out until somebody edited the database. A wrong password
+     * spends the account's sign-in budget and is recorded, as at the password change, so the route is
+     * no way to guess it either.
+     *
      * @throws java.util.NoSuchElementException when the account is gone — only a deletion racing
      *     this request, which the bearer filter found active
+     * @throws CurrentPasswordWrongException when the password is not the account's
+     * @throws PasswordLockedException when the account's sign-in budget is spent
      */
-    public EnableResponse enable(UserView account, String secret, String code) {
+    public EnableResponse enable(
+            UserView account, String password, String secret, String code, String ipAddress, String userAgent) {
         UserEntity user = users.findById(account.id()).orElseThrow();
+        AuthService.Reservation attempt = auth.reservePassword(user.getId(), ipAddress);
+        if (!attempt.admitted()) {
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_BLOCKED,
+                    String.valueOf(user.getId()),
+                    "MFA enrolment refused by the throttle (" + attempt.retryAfter().toSeconds() + "s to wait)",
+                    user.getUsername(),
+                    ipAddress,
+                    userAgent,
+                    SecurityEventType.SIGN_IN_THROTTLED));
+            throw new PasswordLockedException(attempt.retryAfter());
+        }
+        if (!PasswordHasher.verify(password, user.getPassword())) {
+            // The reservation stays: it is this failure.
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_FAILURE,
+                    String.valueOf(user.getId()),
+                    "MFA enrolment refused: the current password was wrong",
+                    user.getUsername(),
+                    ipAddress,
+                    userAgent));
+            throw new CurrentPasswordWrongException();
+        }
+        auth.clearPasswordFailures(user.getId(), ipAddress);
         // Enrolling over an active factor replaced it with no proof of the old one: a session
         // left open on somebody's desk was enough to move their second factor onto one's own
         // phone. Disabling asks for a code, so replacing goes through disabling.

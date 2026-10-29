@@ -6367,6 +6367,9 @@
           "code" : {
             "type" : "string"
           },
+          "password" : {
+            "type" : "string"
+          },
           "secret" : {
             "type" : "string"
           }
@@ -11739,6 +11742,9 @@
           "isActive" : {
             "type" : "boolean"
           },
+          "mfaEnabled" : {
+            "type" : "boolean"
+          },
           "mustChangePassword" : {
             "type" : "boolean"
           },
@@ -11749,7 +11755,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "activeSessions", "federated", "isActive", "mustChangePassword" ],
+        "required" : [ "activeSessions", "federated", "isActive", "mfaEnabled", "mustChangePassword" ],
         "type" : "object"
       },
       "UserCreateRequest" : {
@@ -13224,7 +13230,7 @@
     },
     "/api/v1/auth/mfa/enable" : {
       "post" : {
-        "description" : "Confirms TOTP setup by verifying the first code.",
+        "description" : "Confirms TOTP setup by verifying the first code; requires the current password.",
         "operationId" : "enableMfa",
         "requestBody" : {
           "content" : {
@@ -22042,6 +22048,33 @@
     "/api/v1/users/{id}/password-change-requirement" : {
       "delete" : {
         "operationId" : "clearPasswordChangeRequirement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserAdminSummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "users-controller" ]
+      }
+    },
+    "/api/v1/users/{id}/second-factor" : {
+      "delete" : {
+        "operationId" : "resetSecondFactor",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",

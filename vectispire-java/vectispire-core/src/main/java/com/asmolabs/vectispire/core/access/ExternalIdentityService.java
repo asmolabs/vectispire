@@ -51,6 +51,14 @@ public class ExternalIdentityService {
         this.teamMembers = teamMembers;
         this.linkPrivileged = oidc.linkPrivilegedAccounts();
         this.linkByClaim = oidc.linkByClaim();
+        if (this.linkPrivileged && this.linkByClaim) {
+            // Each switch is legitimate alone; together they bind an administrator, a CISO or the governor
+            // to whoever first signs on under its name. Right for a realm where nobody chooses a username,
+            // and said at every start so that it stays a choice somebody can see.
+            log.warn("vectispire.oidc.link-privileged-accounts and vectispire.oidc.link-by-claim are both on: a "
+                    + "privileged account without a second factor is linked to the first identity that signs on "
+                    + "under its username. Keep it only for a realm where nobody chooses or edits their own username.");
+        }
     }
 
     /**
@@ -160,7 +168,7 @@ public class ExternalIdentityService {
             log.warn("Single sign-on refused: no account is bound to this subject, and binding by claim is off ({}).",
                     issuer);
             throw new SignInRefusedException(Refusal.NO_ACCOUNT, "No account is linked to this identity, and linking "
-                    + "by name is switched off (vectispire.oidc.link-by-claim). It is linked through provisioning.");
+                    + "by name is switched off (vectispire.oidc.link-by-claim). Only an account provisioning bound to it signs in.");
         }
 
         String name = nameToMatch(claimed);
@@ -177,21 +185,32 @@ public class ExternalIdentityService {
         if (account.getKeycloakId() != null) {
             log.warn("Single sign-on refused: \"{}\" is already bound to another subject.", name);
             throw new SignInRefusedException(Refusal.ALREADY_LINKED,
-                    "This account is already linked to a different identity. An administrator has to unlink it.");
+                    "This account is already linked to a different identity, and a link is never moved: a new identity "
+                            + "signs in to a new account.");
         }
 
         if (Boolean.TRUE.equals(account.getMfaEnabled())) {
             log.warn("Single sign-on refused: \"{}\" has a local second factor and is not bound on a claim ({}).",
                     name, issuer);
             throw new SignInRefusedException(Refusal.LOCAL_MFA, "This account is protected by its own second factor, "
-                    + "so it is not linked by name. Sign in with its password and code, or ask for it to be linked "
-                    + "through provisioning.");
+                    + "so it is not linked by name. Sign in with its password and code; to sign on through the provider, "
+                    + "its owner turns the second factor off first.");
         }
         if (Role.of(account.getRole()).map(ExternalIdentityService::privileged).orElse(true) && !linkPrivileged) {
             log.warn("Single sign-on refused: \"{}\" holds a privileged role and is not bound on a claim ({}).",
                     name, issuer);
             throw new SignInRefusedException(Refusal.PRIVILEGED, "This account holds a privileged role, so it is not linked by name. "
-                    + "Sign in with its password, or ask for it to be linked through provisioning.");
+                    + "Sign in with its password; to sign on through the provider, an administrator grants the role to "
+                    + "an account the provider is linked to.");
+        }
+
+        if (account.getScimLoweredFrom() != null && !linkPrivileged) {
+            // Lowered by the directory while unbound: a claim binds it no more than SCIM does, until an
+            // administrator has set its role (V93).
+            log.warn("Single sign-on refused: \"{}\" was lowered out of a privileged role by the directory and "
+                    + "is not bound on a claim ({}).", name, issuer);
+            throw new SignInRefusedException(Refusal.PRIVILEGED, "This account held a privileged role until the "
+                    + "directory lowered it, so it is not linked by name until an administrator sets its role.");
         }
 
         UserEntity allowed = active(account);

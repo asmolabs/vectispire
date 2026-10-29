@@ -45,3 +45,9 @@ travels to whichever agent claims the scan, whatever that agent's credentials mo
   helpers, and the host's own configuration is SSH-only today. That is the same promise the mode
   makes for keys, and it is stated rather than worked around.
 - Rotating a token is replacing it: the old row is deleted once no repository uses it, like a key.
+- **The ciphertext is bound to the row's id, not to its host** (reviewed before 1.0). The host is
+  written once, when the token is added — no route edits it, and moving a token to another host is
+  adding a new one; `GitTokenHostTest` fails on a second writer. Binding the host into the context
+  would only stop a hand on the database, which can as well create an administrator or rewrite a
+  repository's URL, and it would cost a re-seal of every stored token. A route that edits a token's
+  host reopens this: the host goes into the context first.

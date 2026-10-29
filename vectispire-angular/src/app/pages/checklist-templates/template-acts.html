@@ -1,0 +1,90 @@
+@if (page.preview(); as current) {
+    <div class="border-t border-surface pt-4 mt-6 flex flex-col gap-3" data-testid="acts">
+        @if (current.version.status === 'draft') {
+            <p class="text-sm m-0">{{ 'checklist_templates.publish_explain' | translate }}</p>
+            @if (!current.version.layoutConfirmed) {
+                <p class="text-sm text-muted-color m-0" data-testid="publish-needs-layout">
+                    {{ 'checklist_templates.publish_needs_layout' | translate }}
+                </p>
+            }
+        }
+        @if (page.confirming(); as pending) {
+            <div class="flex flex-wrap items-center gap-3" data-testid="confirm-act">
+                <span class="text-sm font-medium">
+                    @if (pending === 'publish') {
+                        {{ 'checklist_templates.confirm_publish' | translate: { revision: current.version.revision } }}
+                    } @else if (current.version.status === 'draft') {
+                        {{ 'checklist_templates.confirm_set_aside' | translate }}
+                    } @else {
+                        {{ 'checklist_templates.confirm_retire' | translate }}
+                    }
+                </span>
+                <p-button
+                    id="confirm-act"
+                    [severity]="pending === 'publish' ? 'success' : 'danger'"
+                    [label]="'common.confirm' | translate"
+                    [loading]="page.busy()"
+                    (onClick)="pending === 'publish' ? publish() : retire()"
+                />
+                <p-button [text]="true" [label]="'common.cancel' | translate" (onClick)="page.confirming.set(null)" />
+            </div>
+        } @else {
+            <div class="flex flex-wrap items-end gap-3">
+                @if (current.version.status === 'draft') {
+                    <p-button
+                        id="publish-version"
+                        icon="pi pi-send"
+                        severity="success"
+                        [label]="'checklist_templates.publish_btn' | translate: { revision: current.version.revision }"
+                        [disabled]="!current.version.layoutConfirmed || page.busy() || page.publishBlocked()"
+                        (onClick)="page.confirming.set('publish')"
+                    />
+                    <p-button
+                        id="retire-version"
+                        icon="pi pi-times"
+                        severity="secondary"
+                        [outlined]="true"
+                        [label]="'checklist_templates.set_aside_btn' | translate"
+                        [disabled]="page.busy()"
+                        (onClick)="page.confirming.set('retire')"
+                    />
+                    @if (page.publishBlocked()) {
+                        <p
+                            id="publish-four-eyes"
+                            class="basis-full text-sm text-muted-color m-0"
+                            data-testid="publish-four-eyes"
+                        >
+                            {{ 'checklist_templates.publish_four_eyes' | translate }}
+                        </p>
+                    }
+                } @else {
+                    <div class="flex flex-col gap-1">
+                        <label for="derive-label" class="text-sm font-medium">
+                            {{ 'checklist_templates.derive_label' | translate }}
+                        </label>
+                        <input pInputText id="derive-label" [(ngModel)]="deriveLabel" />
+                    </div>
+                    <p-button
+                        id="derive-version"
+                        icon="pi pi-clone"
+                        [label]="'checklist_templates.derive_btn' | translate"
+                        [disabled]="page.busy()"
+                        (onClick)="derive()"
+                    />
+                    <p-button
+                        id="retire-version"
+                        icon="pi pi-ban"
+                        severity="danger"
+                        [outlined]="true"
+                        [label]="'checklist_templates.retire_btn' | translate"
+                        [disabled]="page.busy()"
+                        (onClick)="page.confirming.set('retire')"
+                    />
+                }
+            </div>
+            @if (current.version.status === 'published') {
+                <small class="text-muted-color">{{ 'checklist_templates.derive_explain' | translate }}</small>
+            }
+        }
+    </div>
+}

@@ -42,7 +42,8 @@ describe('the teams screen', () => {
                 mustChangePassword: false,
                 federated: false,
                 createdAt: '2026-01-01T00:00:00Z',
-                activeSessions: 1
+                activeSessions: 1,
+                mfaEnabled: false
             },
             {
                 id: 2,
@@ -54,7 +55,8 @@ describe('the teams screen', () => {
                 mustChangePassword: false,
                 federated: false,
                 createdAt: '2026-01-01T00:00:00Z',
-                activeSessions: 0
+                activeSessions: 0,
+                mfaEnabled: false
             }
         ],
         total: 2,

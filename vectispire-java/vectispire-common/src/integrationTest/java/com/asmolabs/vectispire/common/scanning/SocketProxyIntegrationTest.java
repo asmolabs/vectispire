@@ -52,7 +52,7 @@ class SocketProxyIntegrationTest {
     /** `docker-compose.yml`'s `docker-proxy` environment, line for line. */
     private static final List<String> FILTER = List.of(
             "PING=1", "VERSION=1", "INFO=1", "CONTAINERS=1", "IMAGES=1", "POST=1",
-            "EXEC=0", "AUTH=0", "SECRETS=0", "CONFIGS=0", "SWARM=0", "NODES=0", "SERVICES=0", "TASKS=0",
+            "EXEC=0", "EVENTS=0", "GRPC=0", "AUTH=0", "SECRETS=0", "CONFIGS=0", "SWARM=0", "NODES=0", "SERVICES=0", "TASKS=0",
             "VOLUMES=0", "NETWORKS=0", "PLUGINS=0", "SYSTEM=0", "DISTRIBUTION=0", "BUILD=0", "COMMIT=0", "SESSION=0");
 
     private static final DockerClient DOCKER = DockerClients.local();

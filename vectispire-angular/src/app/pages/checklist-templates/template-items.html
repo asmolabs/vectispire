@@ -1,0 +1,185 @@
+@if (page.version(); as whole) {
+    @if (whole.items.length > 0) {
+        <h3 class="text-base font-semibold mt-6 mb-2">
+            {{ 'checklist_templates.items_title' | translate: { count: whole.items.length } }}
+        </h3>
+        @if (page.evidenceEditable()) {
+            <p class="text-sm text-muted-color mt-0" data-testid="evidence-explain">
+                {{ 'checklist_templates.evidence_explain' | translate }}
+            </p>
+        }
+        <div class="overflow-auto max-h-[24rem] mb-4">
+            <p-table
+                [value]="rows()"
+                [rowTrackBy]="trackRow"
+                dataKey="item.id"
+                styleClass="p-datatable-sm"
+                data-testid="items"
+            >
+                <ng-template #header>
+                    <tr>
+                        <th>{{ 'checklist_templates.col_row' | translate }}</th>
+                        <th>{{ 'checklist_templates.column_domain' | translate }}</th>
+                        <th>{{ 'checklist_templates.column_objective' | translate }}</th>
+                        <th>{{ 'checklist_templates.column_control' | translate }}</th>
+                        <th>{{ 'checklist_templates.column_contact' | translate }}</th>
+                        <th>{{ 'checklist_templates.column_kpi' | translate }}</th>
+                        <th>{{ 'checklist_templates.col_evidence' | translate }}</th>
+                        <th>{{ 'checklist_templates.col_rule' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-row>
+                    <tr [attr.data-testid]="'item-' + row.item.sheetRow">
+                        <td class="font-mono">{{ row.item.sheetRow }}</td>
+                        <td>{{ row.item.domain ?? '' }}</td>
+                        <td>{{ row.item.objective ?? '' }}</td>
+                        <td>{{ row.item.control }}</td>
+                        <td>{{ row.item.contact ?? '' }}</td>
+                        <td>{{ row.item.kpi ?? '' }}</td>
+                        <td class="whitespace-nowrap" data-testid="item-evidence">
+                            @if (page.evidenceEditable()) {
+                                <div class="flex items-center gap-2">
+                                    <label [for]="'evidence-kind-' + row.item.id" class="sr-only">{{
+                                        'checklist_templates.evidence_kind_field'
+                                            | translate: { row: row.item.sheetRow }
+                                    }}</label>
+                                    <select
+                                        [id]="'evidence-kind-' + row.item.id"
+                                        class="p-1 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                                        [ngModel]="row.requirement.kind"
+                                        (ngModelChange)="setEvidenceKind(row.item, $event)"
+                                    >
+                                        @for (kind of kindOptions(); track kind.value) {
+                                            <option [ngValue]="kind.value">{{ kind.label }}</option>
+                                        }
+                                    </select>
+                                    <label [for]="'evidence-months-' + row.item.id" class="sr-only">{{
+                                        'checklist_templates.evidence_months_field'
+                                            | translate: { row: row.item.sheetRow }
+                                    }}</label>
+                                    <input
+                                        pInputText
+                                        type="number"
+                                        class="w-24"
+                                        step="1"
+                                        [min]="minValidity"
+                                        [max]="maxValidity"
+                                        [id]="'evidence-months-' + row.item.id"
+                                        [placeholder]="'checklist_templates.evidence_months_placeholder' | translate"
+                                        [disabled]="row.requirement.kind === 'none'"
+                                        [ngModel]="row.requirement.months"
+                                        (ngModelChange)="setEvidenceMonths(row.item, $event)"
+                                    />
+                                </div>
+                            } @else {
+                                {{ row.requirementText }}
+                            }
+                        </td>
+                        <td class="min-w-64" data-testid="item-rule">
+                            @if (row.rule; as rule) {
+                                <div class="font-medium" data-testid="item-rule-kind">
+                                    {{ row.ruleKindText }}
+                                </div>
+                                <ul class="m-0 pl-4 text-sm">
+                                    @for (words of row.ruleWords; track $index) {
+                                        <li>{{ words }}</li>
+                                    }
+                                </ul>
+                            } @else {
+                                <span class="text-muted-color">{{ 'checklist_templates.rule_none' | translate }}</span>
+                            }
+                            @if (row.pending) {
+                                <div class="flex items-center gap-1 mt-1">
+                                    <p-tag
+                                        severity="warn"
+                                        [value]="'checklist_templates.rule_pending' | translate"
+                                        data-testid="item-rule-pending"
+                                    />
+                                    <p-button
+                                        icon="pi pi-undo"
+                                        size="small"
+                                        [text]="true"
+                                        [ariaLabel]="
+                                            'checklist_templates.aria_undo_rule' | translate: { row: row.item.sheetRow }
+                                        "
+                                        (onClick)="undoRule(row.item)"
+                                    />
+                                </div>
+                            }
+                            @if (page.rulesEditable()) {
+                                <p-button
+                                    [id]="'edit-rule-' + row.item.id"
+                                    icon="pi pi-sliders-h"
+                                    size="small"
+                                    [outlined]="true"
+                                    styleClass="mt-1"
+                                    [label]="
+                                        row.rule
+                                            ? ('checklist_templates.rule_change_btn' | translate)
+                                            : ('checklist_templates.rule_bind_btn' | translate)
+                                    "
+                                    [ariaLabel]="
+                                        'checklist_templates.aria_edit_rule' | translate: { row: row.item.sheetRow }
+                                    "
+                                    [disabled]="page.busy()"
+                                    (onClick)="editRule(row.item)"
+                                />
+                            }
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+        @if (page.evidenceEditable()) {
+            @if (page.evidenceError(); as message) {
+                <p-message severity="error" [closable]="false" styleClass="mb-3 w-full" data-testid="evidence-error">
+                    {{ message }}
+                </p-message>
+            }
+            <p-button
+                id="save-evidence"
+                icon="pi pi-save"
+                [label]="'checklist_templates.save_evidence_btn' | translate: { count: evidenceChanges().length }"
+                [loading]="page.busy()"
+                [disabled]="evidenceChanges().length === 0 || page.busy()"
+                (onClick)="saveEvidence()"
+            />
+        }
+
+        <!-- What each line is measured by (decision 0032 §6): bound on a draft, by a security lead. -->
+        <h4 class="text-sm font-semibold mt-6 mb-1">{{ 'checklist_templates.rules_title' | translate }}</h4>
+        <p class="text-sm text-muted-color mt-0" data-testid="rules-explain">
+            {{
+                page.rulesEditable()
+                    ? ('checklist_templates.rules_explain' | translate)
+                    : ('checklist_templates.rules_read_only' | translate)
+            }}
+        </p>
+        @if (page.rulesEditable()) {
+            <!-- Tracked by key: another line opened is another editor, started from its own rule. -->
+            @for (editing of editingRows(); track editing.item.itemKey) {
+                <app-checklist-rule-editor
+                    [item]="editing.item"
+                    [rule]="editing.rule"
+                    [suggestions]="page.scopeSuggestions() ?? []"
+                    (kept)="keepRule(editing.item, $event)"
+                    (cancelled)="page.editingRule.set(null)"
+                />
+            }
+            @if (page.rulesError(); as message) {
+                <p-message severity="error" [closable]="false" styleClass="my-3 w-full" data-testid="rules-error">
+                    {{ message }}
+                </p-message>
+            }
+            <p-button
+                id="save-rules"
+                icon="pi pi-save"
+                styleClass="mt-3"
+                [label]="'checklist_templates.save_rules_btn' | translate: { count: ruleChanges().length }"
+                [loading]="page.busy()"
+                [disabled]="ruleChanges().length === 0 || page.busy()"
+                (onClick)="saveRules()"
+            />
+        }
+    }
+}

@@ -108,11 +108,6 @@ public final class ScanQueue {
         return Math.max(0, maxConcurrent - running);
     }
 
-    /** A lease that never expires is not a lease: an absent date counts as expired. */
-    public static boolean leaseHasLapsed(Instant leaseExpiresAt, Instant asOf) {
-        return leaseExpiresAt == null || leaseExpiresAt.isBefore(asOf);
-    }
-
     /**
      * What to do with a scan whose lease has lapsed.
      *
