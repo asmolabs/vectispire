@@ -1,7 +1,8 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
-import com.asmolabs.vectispire.common.domain.auth.ClientBuckets;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.auth.ClientBuckets;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
@@ -171,7 +172,8 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
             String key = request.getHeader(BearerAuthenticationFilter.API_KEY_HEADER);
             return key != null && !key.isBlank();
         }
-        return header.regionMatches(true, 0, "bearer ", 0, 7);
+        // Read as the authentication filter reads it, or a separator it accepts escapes the count.
+        return Sessions.bearerToken(header).isPresent();
     }
 
     private Bucket newBucket() {

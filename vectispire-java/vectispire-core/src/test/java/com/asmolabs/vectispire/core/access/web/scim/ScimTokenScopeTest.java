@@ -22,11 +22,11 @@ import org.springframework.web.context.WebApplicationContext;
  * token that exists to create and deactivate accounts could also read the audit log, rewrite the
  * gate policy, issue API keys and change the settings.
  */
-@TestPropertySource(properties = {"vectispire.scim.enabled=true", "vectispire.scim.token=scim-test-token-0123456789"})
+@TestPropertySource(properties = {"vectispire.scim.enabled=true", "vectispire.scim.token=scim-test-token-0123456789abcdef0123"})
 @DisplayName("the SCIM provisioning token")
 class ScimTokenScopeTest extends VectispireContextTest {
 
-    private static final String SCIM = "Bearer scim-test-token-0123456789";
+    private static final String SCIM = "Bearer scim-test-token-0123456789abcdef0123";
 
     @Autowired
     private WebApplicationContext context;

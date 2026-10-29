@@ -13,7 +13,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /** A token left in the environment of an installation that switched SCIM off authenticates nobody. */
-@TestPropertySource(properties = {"vectispire.scim.enabled=false", "vectispire.scim.token=scim-test-token-0123456789"})
+@TestPropertySource(properties = {"vectispire.scim.enabled=false", "vectispire.scim.token=scim-test-token-0123456789abcdef0123"})
 @DisplayName("the SCIM provisioning token, with SCIM switched off")
 class ScimTokenDisabledTest extends VectispireContextTest {
 
@@ -29,7 +29,7 @@ class ScimTokenDisabledTest extends VectispireContextTest {
         MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(securityFilterChain)
                 .build()
-                .perform(get("/scim/v2/Users").header("Authorization", "Bearer scim-test-token-0123456789"))
+                .perform(get("/scim/v2/Users").header("Authorization", "Bearer scim-test-token-0123456789abcdef0123"))
                 .andExpect(status().isUnauthorized());
     }
 }

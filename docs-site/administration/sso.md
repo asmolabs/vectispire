@@ -70,8 +70,10 @@ the first time a mapper was misconfigured.
 ## Provisioning from the directory (SCIM)
 
 An identity provider can create, update, deactivate and delete accounts through SCIM 2.0
-(`/scim/v2/Users`, `/scim/v2/Groups`), authenticated by the SCIM bearer token. That token lives in
-the provider's configuration, so what it may do is deliberately bounded:
+(`/scim/v2/Users`, `/scim/v2/Groups`), authenticated by the SCIM bearer token
+(`vectispire.scim.token`, or a file named by `VECTISPIRE_SCIM_TOKEN_FILE`). With SCIM enabled, a
+token shorter than 32 characters stops the start: generate one with `openssl rand -base64 32`. That
+token lives in the provider's configuration, so what it may do is deliberately bounded:
 
 - **Administrative accounts are not the directory's to change.** Replacing, patching or deleting an
   administrator or a superuser answers `403`; they are administered in Vectispire.
