@@ -278,9 +278,10 @@ public class SettingsController {
      * <p>It reports rather than throws: "unreachable" is an answer to the question the button
      * asks, not an error in asking it.
      *
-     * <p><b>Narrowed to whoever may configure the endpoint</b> — the same marker as the route that
-     * writes it, rather than the narrower administrator one: testing a field one is allowed to
-     * edit should not need a second account. Under the class marker alone it was
+     * <p><b>Narrowed to whoever configures the review</b> — a security lead chooses the model and
+     * the provider, and tests what the administrator's endpoint answers to that choice; the endpoint
+     * itself is an administrator's to change ({@link Setting#administratorOnly()}), so the test calls
+     * only a destination an administrator chose. Under the class marker alone it was
      * reachable by any signed-in reader, and it answers with the configured URL: the one value
      * `ai_review_ollama_url` is marked {@code SECRET} to keep out of exactly those hands, since an
      * internal model endpoint describes the estate's topology. It also makes the server open an

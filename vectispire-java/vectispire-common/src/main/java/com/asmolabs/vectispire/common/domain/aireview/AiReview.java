@@ -36,6 +36,18 @@ public final class AiReview {
     public static final String DEFAULT_OPENAI_URL = "https://api.openai.com/v1";
 
     /**
+     * Whether a model endpoint is a bare API root: no query and no fragment.
+     *
+     * <p>Every call appends its path to the root ({@code /api/chat}, {@code /chat/completions}), so a
+     * {@code ?} or a {@code #} in it would carry that path into a parameter or a fragment instead.
+     * Checked when the setting is saved and again before each call, since a stored value may
+     * predate the check.
+     */
+    public static boolean isApiRoot(String url) {
+        return url.indexOf('?') < 0 && url.indexOf('#') < 0;
+    }
+
+    /**
      * Left blank on purpose.
      *
      * <p>Model names on a hosted API are retired and renamed on the provider's schedule, not on

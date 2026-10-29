@@ -203,6 +203,9 @@ public class SettingsAdministrationService {
                         .orElse(setting == Setting.TICKET_TOKEN_EXPIRES_ON
                                 ? setting.label() + " describes the tracker token, which only an administrator sets, "
                                         + "and only an administrator may change it."
+                                : setting == Setting.AI_REVIEW_OLLAMA_URL
+                                ? setting.label() + " decides which host receives the findings sent for review, "
+                                        + "and only an administrator may change it."
                                 : setting.label() + " decides how far a channel configured by a security lead "
                                         + "may reach, and only an administrator may change it."));
             }

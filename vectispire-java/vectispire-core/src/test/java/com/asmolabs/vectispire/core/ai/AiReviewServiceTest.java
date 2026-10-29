@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AdviceLanguage;
 import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -187,6 +188,15 @@ class AiReviewServiceTest {
 
         // Whether that public address is reachable is the review's problem, not the form's. Asking
         // here would refuse a legitimate endpoint that happens to be down while somebody edits.
+        verify(post, never()).validate(anyString(), any(), anyString());
+    }
+
+    @Test
+    @DisplayName("a stored endpoint carrying a query is refused before any call")
+    void aStoredQueryIsRefusedAtTheCall() {
+        // A value written before the save refused it, or straight into the database.
+        when(settings.get(Setting.AI_REVIEW_OLLAMA_URL)).thenReturn("http://localhost:11434/x?");
+        assertThatThrownBy(() -> service.validatedUrl()).isInstanceOf(InvalidInputException.class);
         verify(post, never()).validate(anyString(), any(), anyString());
     }
 
