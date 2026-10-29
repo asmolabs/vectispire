@@ -47,6 +47,11 @@ que deux versions mineures après une annonce.
   cause, la cause elle-même. Un pipeline décide sur lui plutôt que sur de l'anglais
   ([erreurs de l'API](errors.md#les-codes)). Ajout seul : rien d'autre ne change dans un refus. Le
   verdict de la barrière nommait déjà la `rule` de chaque violation.
+- **Les images tierces de la composition avancent**, chacune toujours par étiquette et empreinte d'index :
+  MySQL 8.4.11 → 8.4.13 (même ligne LTS, même volume de données), le proxy du socket Docker 0.3.0 → 0.5.0
+  (HAProxy 3 dessous ; les mêmes points d'accès ouverts, les nouveaux pause et unpause laissés fermés), et
+  le Keycloak du profil `sso` 26.0.8 → 26.8.1, hors d'une ligne que Keycloak ne corrige plus. Le realm
+  d'exemple s'importe à l'identique sur 26.8.1.
 
 ## 0.11.2 — 27 octobre 2026
 

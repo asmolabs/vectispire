@@ -401,7 +401,7 @@ services:
     restart: unless-stopped
     networks: [outside, docker]
   agent-docker-proxy:
-    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     # What ContainerRunner calls, and nothing else; every other section stays at its default, 0.
     # docker-compose.yml lists them all, each with its reason.
     environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0}

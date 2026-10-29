@@ -44,6 +44,10 @@ after an announcement.
   cause, the cause itself. A pipeline branches on it instead of matching English
   ([API errors](errors.md#the-codes)). Additive: nothing else in a refusal changes. The gate's
   verdict already named each violation's `rule`.
+- **The composition's third-party images move**, each still by tag and index digest: MySQL 8.4.11 → 8.4.13
+  (same LTS line, same data volume), the Docker socket proxy 0.3.0 → 0.5.0 (HAProxy 3 underneath; the
+  same endpoints allowed, the new pause and unpause ones left closed), and the `sso` profile's Keycloak
+  26.0.8 → 26.8.1, off a line Keycloak no longer patches. The example realm imports unchanged on 26.8.1.
 
 ## 0.11.2 — 2026-10-27
 

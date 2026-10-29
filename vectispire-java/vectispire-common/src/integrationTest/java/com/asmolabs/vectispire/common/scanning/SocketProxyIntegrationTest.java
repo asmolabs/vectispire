@@ -47,7 +47,7 @@ class SocketProxyIntegrationTest {
 
     /** The composition's pin, the same digest. */
     private static final String PROXY =
-            "tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2";
+            "tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459";
 
     /** `docker-compose.yml`'s `docker-proxy` environment, line for line. */
     private static final List<String> FILTER = List.of(
