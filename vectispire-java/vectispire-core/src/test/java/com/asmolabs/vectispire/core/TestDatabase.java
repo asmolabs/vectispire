@@ -73,11 +73,28 @@ public final class TestDatabase {
 
     private TestDatabase() {}
 
+    /**
+     * <b>No binary log, on every connection the suite opens.</b> A server whose disk fills does not
+     * refuse a commit that must write the binary log: it waits, retrying every minute, for somebody to
+     * free space — {@code Disk is full writing './binlog.000002' … Waiting for someone to free space}.
+     * On 2026-10-29 a developer's disk filled and a run of the suite hung an hour and a half inside a
+     * commit; reproduced on {@code mysql:9.4} with a full data directory, a delete waited until killed.
+     * Without the binary log the same commit fails at once ({@code The table … is full}), and the run
+     * fails saying why. Per session, through the driver, because {@code log_bin} cannot be turned off
+     * on a running server and CI's service takes no command line. Nothing the suite asserts reads the
+     * binary log; {@code sync_binlog = 0} below already gave up its durability.
+     */
+    private static final String UNLOGGED = "sessionVariables=sql_log_bin=0";
+
     /** The server's address and an account that may create a database on it. */
     private record Server(String url, String user, String password) {
 
+        String url(String database) {
+            return url + "/" + database + "?" + UNLOGGED;
+        }
+
         Connection connect(String database) throws SQLException {
-            return DriverManager.getConnection(url + "/" + database, user, password);
+            return DriverManager.getConnection(url(database), user, password);
         }
     }
 
@@ -85,7 +102,7 @@ public final class TestDatabase {
     private record Database(Server server, String name) {
 
         String url() {
-            return server.url() + "/" + name;
+            return server.url(name);
         }
 
         Connection connect() throws SQLException {
@@ -138,7 +155,7 @@ public final class TestDatabase {
         @Override
         public void close() {
             Database opened = database();
-            String name = url.substring(url.lastIndexOf('/') + 1);
+            String name = url.substring(url.lastIndexOf('/') + 1, url.indexOf('?'));
             drop(opened.server(), name);
             UNCLOSED_SCRATCHES.remove(name);
         }
@@ -159,7 +176,7 @@ public final class TestDatabase {
             throw new IllegalStateException("Could not create a scratch database on " + opened.server().url(), failed);
         }
         UNCLOSED_SCRATCHES.add(name);
-        return new Scratch(opened.server().url() + "/" + name, opened.server().user(), opened.server().password());
+        return new Scratch(opened.server().url(name), opened.server().user(), opened.server().password());
     }
 
     /**
@@ -195,7 +212,7 @@ public final class TestDatabase {
         try {
             if (cleaner == null || !cleaner.isValid(2)) {
                 cleaner = DriverManager.getConnection(
-                        opened.url() + "?allowMultiQueries=true", opened.server().user(), opened.server().password());
+                        opened.url() + "&allowMultiQueries=true", opened.server().user(), opened.server().password());
             }
             if (onlyIfMigrated && !migrated(cleaner, opened.name())) {
                 return;
