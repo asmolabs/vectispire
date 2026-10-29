@@ -1,9 +1,0 @@
-{
-  "name": "things/one-normalised",
-  "request": { "method": "GET", "path": "/api/v1/things/7" },
-  "response": {
-    "status": 200,
-    "headers": { "content-type": "application/json" },
-    "body": { "id": "<id>", "name": "<item>", "tags": ["a", "b"] }
-  }
-}

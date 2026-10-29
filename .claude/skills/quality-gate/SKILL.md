@@ -106,58 +106,6 @@ the release image's signature with cosign before pulling it and stops if that fa
 the network to ghcr.io and Sigstore, and there is no switch to skip it; `FROM_IMAGE` must be a
 digest and comes with its `FROM_TAG`.
 
-## 4b. Rust port — when `vectispire-rust/` changed
-
-```bash
-cd vectispire-rust && ./check.sh
-```
-
-The toolchain is `rust-toolchain.toml`'s. Docker is required: the clone and container suites start
-throwaway `vs-rs-*` containers and fail without a daemon — never skip them. `check.sh` runs fmt, clippy
-with `-D warnings` (and the lints `Cargo.toml` denies), the tests, `cargo deny`, `security/check-unsafe.sh`,
-`security/lint-ceilings.sh`, `cargo vet --locked` and `security/semgrep.sh`; CI's `rust` job runs the same
-steps (`vectispire-rust/security/README.md` lists what each refuses). cargo-deny and cargo-vet come from
-`security/install-tools.sh`, which `check.sh` calls: the versions `security/tools.txt` pins — CI installs
-through the same script —, built once into `~/.cache/vectispire/rust-tools` and shared by every worktree.
-
-**A new dependency is reviewed in three places in the same diff**: its licence in `deny.toml` if it is
-new, its build script in `[bans.build]` if it has one (with what it builds), and an audit or a named
-exemption in `supply-chain/` (`cargo vet` says which is missing). Never `cargo vet regenerate
-exemptions` to make a red run green without reading what it adds. A parser of untrusted input gets a
-fuzz target in `fuzz/` (`fuzz/run.sh 60 <target>` runs it). A ceiling in `security/lint-ceilings.txt` is
-lowered when a use goes away, never raised.
-
-**Which engines.** Every suite that loops over the engines asks `VECTISPIRE_TEST_ENGINES` first (`cp-db`'s
-`testing::runs_on`): unset means both, otherwise a comma-separated list of `mysql` and `postgresql` — a misspelt
-or empty value fails the run rather than selecting nothing. A port branch may run its local gate with
-`VECTISPIRE_TEST_ENGINES=mysql ./check.sh`, as CI's `rust` and `rust-replay` jobs do on pull requests; each
-PostgreSQL case left out says so on stderr (`left out: PostgreSQL …`). **PostgreSQL is the nightly's**
-(`nightly.yml`'s `rust-engines` and `rust-replay`: the tests, the Flyway oracle, the query caches and the
-replay on both engines) — and the code is still written, checked and cached for both: a query with only
-its `/* mysql */` half does not compile, and `sqlx-prepare.sh prepare` refuses a narrowed selection, since
-it would drop the PostgreSQL half of the cache. A nightly red on PostgreSQL is the port branch's to fix.
-
-When the image changed: `security/reproducible-image.sh linux/arm64` (or `linux/amd64`, as CI) must say
-`reproducible`.
-
-**The control plane's crates (`cp-*`, `migrate`) are held to the Java side by suites `check.sh` does not run**,
-because they need a JDK 25 and Gradle beside Docker; CI's `rust` and `rust-replay` jobs run them, and so should
-you when you touch those crates or a Flyway migration:
-
-```bash
-cd vectispire-rust
-./crates/migrate/oracle/check-oracle.sh             # the migration runner against the real Flyway, both engines
-./crates/cp-db/scripts/sqlx-prepare.sh check        # every crate's checked-query cache is current (the engines selected)
-crates/cp-contract/scripts/record-goldens.sh /tmp/vs-recordings    # the Java suite's traffic, recorded
-cargo run -p vectispire-cp-contract -- replay-plan /tmp/vs-recordings
-```
-
-A route ported to the control plane leaves its module's file, `crates/cp-contract/reference/not-yet-ported/<module>.txt`
-(each file, and its own `ceiling`, only shrink) in the same commit — and its recordings are then owed a replay,
-which `replay-plan` refuses to let pass (exit 3), unless its module's file in `golden/deferred/` says why it waits.
-`cp-arch-tests` holds the module edges, the layers, `unsafe`, the agent's isolation and the route-authorization
-rules; a module's edges are its own file, `crates/cp-arch-tests/data/edges/<module>.toml`, each with its reason.
-
 ## 5. Contract — when a route's shape changed
 
 `ClientContractSpecTest` fails with the command. Regenerate, then the client types, and commit both:

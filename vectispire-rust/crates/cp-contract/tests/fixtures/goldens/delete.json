@@ -1,5 +1,0 @@
-{
-  "name": "things/delete",
-  "request": { "method": "DELETE", "path": "/api/v1/things/7" },
-  "response": { "status": 204 }
-}

@@ -1,7 +1,0 @@
-error[E0599]: no method named `requires` found for struct `RouteSpec<Declared, Unset>` in the current scope
- --> tests/ui/marker_twice.rs:6:56
-  |
-6 |     let _ = Route::get("/x").requires(Access::Account).requires(Access::Administrator);
-  |                                                        ^^^^^^^^ method not found in `RouteSpec<Declared, Unset>`
-  |
-  = note: the method was found for `RouteSpec<Unset, S>`

@@ -1,4 +1,0 @@
-# The module `forges` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
-status = "pending"
-allowed = ["targets", "checklists", "access::security"]
-reason = "`targets` for the import: targets, solutions and projects are created through its own gestures, first scans queued through `TargetScans`. `checklists` for the change-review readings, through the port `ChangeReviews` this module implements: the dependency runs from the module that calls the forge to the one that judges what it said. `access::security` for its routes."

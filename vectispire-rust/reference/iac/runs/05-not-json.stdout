@@ -1,3 +1,0 @@
-Traceback (most recent call last):
-  File "checkov/main.py", line 1
-KeyError: 'x'
