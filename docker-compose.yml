@@ -43,12 +43,12 @@ services:
   db:
     # **The data this composition keeps is in this image's hands**, so it is named by the
     # multi-architecture index digest and not by a tag a registry can republish. `mysql:8` was the
-    # tag; on 2026-10-15 it resolved to 8.4.11, the 8.4 LTS line, and that is what is pinned — not a
-    # move to another line. Dependabot (`docker-compose`) proposes the next 8.4 patch with its
+    # tag; on 2026-10-15 it resolved to 8.4.11, the 8.4 LTS line, and that line is what is pinned
+    # (8.4.13 since 2026-10-29) — not a move to another line. Dependabot (`docker-compose`) proposes the next 8.4 patch with its
     # digest, and never MySQL 9: a server major is a one-way upgrade of the volume below. 8.4 is
     # the integration campaign's oldest supported version (decision 0043 §3), and
     # `scripts/check-db-pins.py` fails CI if this pin leaves the versions `Engine.java` runs.
-    image: mysql:8.4.11@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
+    image: mysql:8.4.13@sha256:a0225d1ea6631c8bc2385dc4c2faba17bbf1834ecf369e1659a9a382bd8d5dd7
     container_name: vectispire-db
     # A report's export is kept in one row and the driver sends it hex-encoded, at twice its size: at
     # the server's default 64 MiB packet an export past about 32 MiB is refused `export_too_large`, and
@@ -121,7 +121,7 @@ services:
   # Pinned by the multi-architecture index digest, like the scanner images: this container talks to
   # the daemon, and a mutable tag here would be a mutable tag on the socket.
   docker-proxy:
-    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: vectispire-docker-proxy
     environment:
       # What `ContainerRunner` actually calls, and nothing else.
@@ -357,11 +357,12 @@ services:
   # checked: the marker comes back literal. A production realm therefore carries its own secrets,
   # set some other way.
   #
-  # Pinned by digest like the other third-party images: this one decides who signs in. `26.0` was
-  # the tag and resolved to 26.0.8, the last release of a line Keycloak no longer patches — moving
-  # to a supported line is a change of its own, with the realm import re-checked against it.
+  # Pinned by digest like the other third-party images: this one decides who signs in. It was
+  # 26.0.8, the last release of a line Keycloak no longer patches; 26.8.1 was taken with the realm
+  # import re-checked against it — imported on both, the client, its redirect URIs, the group mapper
+  # and the groups read back identical through the admin API.
   keycloak:
-    image: quay.io/keycloak/keycloak:26.0.8@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858
+    image: quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
     container_name: vectispire-keycloak
     profiles:
       - sso
@@ -487,7 +488,7 @@ services:
   # isolation. The isolation is the agent on another host, with `VECTISPIRE_EMBEDDED_WORKER=false`
   # here so the control plane needs no daemon at all.
   agent-docker-proxy:
-    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: vectispire-agent-docker-proxy
     profiles:
       - with-agent
