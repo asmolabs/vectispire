@@ -521,9 +521,11 @@ public class ScimProvisioningService {
      * could not <em>grant</em> a CISO, an auditor or a champion ({@link #grantable}), but it could bind
      * an existing one, still unbound, to a subject of its choosing — and the next sign-in landed on
      * that account with neither its password nor its local second factor. The same rule as a claim's
-     * ({@code ExternalIdentityService}): a privileged account, or one with a local second factor, is
-     * not bound from outside unless the operator allows privileged linking; an administrator binds it
-     * in Vectispire. A binding the account already has is not a binding, and passes.
+     * ({@code ExternalIdentityService}): a privileged account is not bound from outside unless the
+     * operator allows privileged linking, and one with a local second factor never is. Nothing in
+     * Vectispire binds a subject to an existing account either, so the refusals say what does work:
+     * a new account the directory provisions, given its role by an administrator, or the second
+     * factor turned off by its owner. A binding the account already has is not a binding, and passes.
      */
     private static void bindOnce(UserEntity user, String externalId, boolean linkPrivileged) {
         if (user.getKeycloakId() != null && !user.getKeycloakId().equals(externalId)) {
@@ -534,11 +536,14 @@ public class ScimProvisioningService {
             boolean privileged = Role.of(user.getRole()).map(ExternalIdentityService::privileged).orElse(true);
             if (Boolean.TRUE.equals(user.getMfaEnabled())) {
                 throw new InvalidInputException("This account has a local second factor, so the directory "
-                        + "does not bind it to an identity-provider subject; an administrator does, in Vectispire.");
+                        + "does not bind it to an identity-provider subject. Its owner turns the second factor off "
+                        + "first, or the directory provisions a new account.");
             }
             if (privileged && !linkPrivileged) {
                 throw new InvalidInputException("This account holds a privileged role, so the directory does "
-                        + "not bind it to an identity-provider subject; an administrator does, in Vectispire.");
+                        + "not bind it to an identity-provider subject. Provision a new account and have an "
+                        + "administrator grant it the role in Vectispire, or allow it with "
+                        + "vectispire.oidc.link-privileged-accounts.");
             }
         }
         user.setKeycloakId(externalId);
