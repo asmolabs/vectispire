@@ -1,5 +1,0 @@
-# libFuzzer's instrumentation needs a nightly compiler; this one, dated, so that a night's crash is
-# reproduced with the compiler that found it. Moving it is a reviewed change, like the stable pin.
-[toolchain]
-channel = "nightly-2026-10-15"
-profile = "minimal"

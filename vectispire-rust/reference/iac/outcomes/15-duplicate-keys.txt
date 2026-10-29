@@ -1,2 +1,0 @@
-findings
-[{"checkId":"THIRD","checkName":"","file":"","line":0,"guideline":null,"resource":null}]

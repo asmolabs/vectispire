@@ -1,7 +1,0 @@
-error[E0599]: no method named `handler` found for struct `RouteSpec<Declared, Unset>` in the current scope
- --> tests/ui/no_visibility.rs:8:56
-  |
-8 |     let _ = Route::get("/x").requires(Access::Account).handler(handler);
-  |                                                        ^^^^^^^ method not found in `RouteSpec<Declared, Unset>`
-  |
-  = note: the method was found for `RouteSpec<Declared, Declared>`

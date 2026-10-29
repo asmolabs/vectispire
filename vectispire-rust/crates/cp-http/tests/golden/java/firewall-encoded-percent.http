@@ -1,5 +1,0 @@
-400 
-Content-Type: application/problem+json;charset=UTF-8
-Content-Length: 243
-
-{"title":"Bad Request","status":400,"detail":"The request was refused: its URL contains a sequence this server does not accept — a doubled or encoded separator, an encoded traversal, a ';' or a control character.","instance":"/api/v1/a%25b"}

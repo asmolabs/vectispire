@@ -1,1 +1,0 @@
-{"results": {"failed_checks": [{"check_id": "CKV_\u00e9", "check_name": "tab\there \"quoted\" \ud83d\ude00 \u0000 end", "file_path": "/caf\u00e9/\u2028x.tf", "file_line_range": [1], "resource": "r\/s"}]}}

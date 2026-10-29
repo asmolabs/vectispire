@@ -96,73 +96,25 @@ not mean portability was checked** — a service that hands an existing query ne
 touches none of the engine paths, and a renamed response field touches no front-end file. Those are the nightly's, and a
 release should not go out on a nightly that has not been green.
 
-**The Rust port (`vectispire-rust/`, not shipped — the agent, and the control plane's foundations) has jobs
-of its own, run when anything under it, `ci.yml`, a Flyway migration or the Java traffic recorder changed**
-(`rust-changes`, a range that cannot be resolved counting as changed). `rust` runs
-fmt, clippy with `-D warnings` over the lints `Cargo.toml` denies (`unwrap`/`expect` and `print!` in
-shipped code, undocumented `unsafe`), `security/check-unsafe.sh` (`unsafe` in `crates/git/src/init.rs`
-only), `security/lint-ceilings.sh` (indexing, slicing and unchecked arithmetic held to counts that only
-go down), the tests with Docker — the isolation test among them —, `cargo deny` (advisories, bans,
-licences, crates.io only, no new duplicate, **build scripts only for the crates listed**), `cargo vet
---locked` (every crate audited by an imported set or exempted by name) and semgrep with the workspace's
-own rules — and, with a JDK, the suites that hold the port to the Java side: `vectispire-migrate` against the
-real Flyway in both directions (`crates/migrate/oracle/check-oracle.sh`), the checked queries'
-offline caches regenerated and compared (`crates/cp-db/scripts/sqlx-prepare.sh check`), and the contract summary.
-`rust-replay` records the Java suite's HTTP traffic at the commit (`crates/cp-contract/scripts/record-goldens.sh`:
-two tests are expected to fail under the recorder, and no others), scans the recordings for credentials, and
-reads them with `cp-contract replay-plan` — a recording of a route that has left the list of routes not yet
-ported, with nothing replaying it, fails the step. **On a pull request both jobs run on MySQL alone** (`VECTISPIRE_TEST_ENGINES=mysql`, which
-every engine loop of the port asks through `cp-db`'s `testing::runs_on`); PostgreSQL is the nightly's
-`rust-engines` — the tests, the oracle and the query caches on both engines — and its `rust-replay`, which
-records afresh and replays on both. The code is still written and cached for both engines. `rust-image` builds the image twice from nothing and refuses two different digests, writes
-the CycloneDX SBOM, and runs grype on the image at `ScannerImages`' digest — refusing a scan that saw
-too few crates, since a static binary shows none without cargo-auditable's list. The nightly's
-`rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each
-check refuses and how it was proved is in `vectispire-rust/security/README.md`.
+**The Rust port is off `develop` for now** (2026-10-29): the work, its CI jobs, its agent and skills live on
+the `rust/main` branch, at the `develop` commit they left from (ba38a4137). `develop` carries the Java control plane
+and its interface only, and a Java change no longer has a Rust side to move with it. Bringing the port back is a
+merge of `rust/main` brought up to date — its reference sets regenerated against the Java of that day — and the
+required checks `rust-changes`, `rust`, `rust-replay` and `rust-image` restored in the `develop` ruleset.
 
-**A module the port has reached moves on both sides in one pull request, or waits.** Once a module has a
-crate under `vectispire-rust/crates/` (`cp-<module>`), or a domain type the Rust side reproduces against a
-reference set (`vectispire-rust/reference/`), a change to its behaviour in Java — a route, a refusal, a stored
-field, a message — lands in the Rust crate in the same pull request, or is held until it can. The alternative
-is a list of Java changes to replay later, which nobody keeps: on 2026-10-28 three SIEM fixes made the same
-day had to be ported in three more commits. The reference sets enforce part of it already — a Java behaviour
-change fails the Java test in check mode until the answers are regenerated, and then the Rust tests — and
-`golden/deferred.txt` the rest, once the routes are served. Choosing the next modules to port, prefer the ones
-that change least in Java.
-
-A **`v*` tag** runs the `release` workflow in two jobs. `build` validates the Gradle wrapper, runs
-`./gradlew build`, builds the interface, the jar and the three images as archives, and hands them over
-with their checksums — holding **no permission but reading the repository**, since it executes every
-plugin and package the tree depends on. Each of those is first checked against
-`vectispire-java/gradle/verification-metadata.xml` — a signature by a key the keyring beside it
-carries, or a recorded sha256 where nothing is signed — so a dependency or plugin change regenerates
-that file and has its diff reviewed (`quality-gate`, step 2). `publish` checks out nothing and builds nothing: it verifies
-the checksums, signs with Sigstore keyless, and **verifies the signature it just made** before
-publishing anything, with the same command a consumer runs — a signature nobody has checked is a
-signature that does not work. The certificate identity is
-`https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>` with issuer
-`https://token.actions.githubusercontent.com` — it names the workflow file, not the job — and
-`publish` needs `permissions: id-token: write` or `cosign` fails at publication time rather than
-before it. Both halves of that identity are
-forge-bound: **renaming the workflow file, the repository, or the owner invalidates every
-signature a consumer has learned to verify**, which is why the repository was renamed before the
-first tag and not after.
 
 ## Agents and skills
 
-Four agents and four skills live in [`.claude/`](.claude/), tracked with the code so the rules they
+Three agents and two skills live in [`.claude/`](.claude/), tracked with the code so the rules they
 carry move with it:
 
 | | Use it for |
 |---|---|
 | [`jvm-porter`](.claude/agents/jvm-porter.md) | any change to the control plane or the agent in `vectispire-java/` |
 | [`angular-frontend`](.claude/agents/angular-frontend.md) | any change to `vectispire-angular/` — screens, API clients, tests, Playwright |
-| [`rust-porter`](.claude/agents/rust-porter.md) | any change to the Rust port in `vectispire-rust/` — the invariants it keeps identical to the Java side, and its security checks |
 | [`security-reviewer`](.claude/agents/security-reviewer.md) | a read-only review of one security area or of a diff |
 | [`quality-gate`](.claude/skills/quality-gate/SKILL.md) | the checks a change passes before it is committed and pushed, and the develop → CI → main flow |
 | [`security-audit`](.claude/skills/security-audit/SKILL.md) | a four-area review in parallel, verified and deduplicated into one ranked report |
-| [`port-module`](.claude/skills/port-module/SKILL.md) | porting one module or task of the Java control plane to Rust, end to end — placement, the parity rules the replay keeps catching, persistence, wiring, delivery |
-| [`golden-replay`](.claude/skills/golden-replay/SKILL.md) | bringing ported routes to green against the Java suite's recorded traffic, and shrinking `golden/deferred/` (one file per module) without weakening it |
 
 Each carries the defects already made here, so that the next change does not make them again. When a
 new class of defect is found, add it to the agent or skill that should have caught it.
