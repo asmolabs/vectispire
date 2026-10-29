@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.teams;
 
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import java.util.Locale;
 import java.util.Set;
@@ -26,9 +27,9 @@ public final class TeamRules {
     public static final int MAX_DESCRIPTION_LENGTH = 255;
 
     /** The kinds that exist. Anything else grants nothing, so it is refused on the way in. */
-    public static final String KIND_REPOSITORY = "repository";
+    public static final String KIND_REPOSITORY = ScanTarget.KIND_REPOSITORY;
 
-    public static final String KIND_CONTAINER = "container";
+    public static final String KIND_CONTAINER = ScanTarget.KIND_CONTAINER;
 
     /**
      * A project, which grants its repositories <em>as they are at each request</em> (decision

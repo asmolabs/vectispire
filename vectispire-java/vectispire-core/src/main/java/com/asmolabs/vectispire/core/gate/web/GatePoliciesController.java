@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.gate.web;
 
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
@@ -211,7 +212,7 @@ public class GatePoliciesController {
     }
 
     private static String nameOf(StoredGatePolicyView policy, TargetNaming.Names names) {
-        return "container".equals(policy.targetKind())
+        return ScanTarget.KIND_CONTAINER.equals(policy.targetKind())
                 ? names.of(null, policy.targetId())
                 : names.of(policy.targetId(), null);
     }

@@ -260,9 +260,8 @@ public class ApiKeyAdministrationService {
      * to probe which identifiers exist.
      */
     private void requireIssuerSees(Long ownerUserId, String targetKind, Long targetId) {
-        ScanTarget target = "repository".equals(targetKind)
-                ? new ScanTarget.Repository(targetId)
-                : new ScanTarget.Container(targetId);
+        // The kind was normalised and checked on the way in (`normalizeTargetKind`).
+        ScanTarget target = ScanTarget.of(targetKind, targetId).orElseThrow();
         boolean exists = targets.exists(target);
         boolean visible = exists && users.findById(ownerUserId)
                 .map(owner -> visibility.of(UserView.of(owner)).permits(target))
@@ -286,7 +285,7 @@ public class ApiKeyAdministrationService {
         if (kind.isEmpty() || request.targetId() == null) {
             throw new InvalidApiKeyException("A restricted key needs both a target kind and a target id.");
         }
-        if (!"repository".equals(kind) && !"container".equals(kind)) {
+        if (!ScanTarget.KIND_REPOSITORY.equals(kind) && !ScanTarget.KIND_CONTAINER.equals(kind)) {
             throw new InvalidApiKeyException("Unknown target kind: \"" + kind + "\".");
         }
         return kind;
@@ -315,7 +314,7 @@ public class ApiKeyAdministrationService {
         if (key.getTargetKind() == null || key.getTargetId() == null) {
             return null;
         }
-        return "repository".equals(key.getTargetKind())
+        return ScanTarget.KIND_REPOSITORY.equals(key.getTargetKind())
                 ? names.repositories().getOrDefault(key.getTargetId(), key.getTargetKind() + " " + key.getTargetId() + " (deleted)")
                 : names.containers().getOrDefault(key.getTargetId(), key.getTargetKind() + " " + key.getTargetId() + " (deleted)");
     }
