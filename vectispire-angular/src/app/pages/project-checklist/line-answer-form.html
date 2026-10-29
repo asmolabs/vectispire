@@ -1,0 +1,78 @@
+@if (page.answering(); as draft) {
+    @let item = line();
+    <form
+        class="mt-3 p-3 rounded-md bg-surface-50 dark:bg-surface-800 flex flex-col gap-2"
+        [attr.data-testid]="'answer-form-' + item.position"
+        (ngSubmit)="save()"
+    >
+        <fieldset class="border-0 p-0 m-0 flex flex-wrap gap-4">
+            <legend class="font-medium mb-1">
+                {{ 'project_checklist.label_answer' | translate }}
+            </legend>
+            @for (answer of answers(); track answer.value) {
+                <label class="flex items-center gap-2" [for]="'answer-' + item.itemId + '-' + answer.value">
+                    <input
+                        type="radio"
+                        [id]="'answer-' + item.itemId + '-' + answer.value"
+                        [name]="'answer-' + item.itemId"
+                        required
+                        [checked]="draft.value === answer.value"
+                        (change)="setAnswer({ value: answer.value })"
+                    />
+                    {{ answer.label }}
+                    @if (answer.word; as word) {
+                        <span class="text-muted-color text-sm">({{ word }})</span>
+                    }
+                </label>
+            }
+        </fieldset>
+        <label [for]="'comment-' + item.itemId" class="font-medium">{{
+            'project_checklist.label_comment' | translate
+        }}</label>
+        <textarea
+            pTextarea
+            [id]="'comment-' + item.itemId"
+            rows="3"
+            maxlength="4000"
+            [required]="!!draft.value && draft.value !== 'yes'"
+            [attr.aria-invalid]="!!page.answerError()"
+            [attr.aria-describedby]="page.answerError() ? 'answer-error-' + item.itemId : null"
+            [ngModelOptions]="{ standalone: true }"
+            [ngModel]="draft.comment"
+            (ngModelChange)="setAnswer({ comment: $event })"
+        ></textarea>
+        <small class="text-muted-color">{{ 'project_checklist.comment_hint' | translate }}</small>
+        @if (automatic()) {
+            <small class="text-muted-color" data-testid="takeover-hint">{{
+                'project_checklist.takeover_hint' | translate
+            }}</small>
+        }
+        @if (draft.restingOn; as resting) {
+            <small class="text-muted-color" data-testid="answer-resting">
+                {{
+                    draft.value === resting.value
+                        ? ('project_checklist.answer_resting'
+                          | translate
+                              : {
+                                    at: (resting.computedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                })
+                        : ('project_checklist.answer_resting_dropped' | translate)
+                }}
+            </small>
+        }
+        @if (page.answerError(); as message) {
+            <small [id]="'answer-error-' + item.itemId" class="text-red-500" data-testid="answer-error">{{
+                message
+            }}</small>
+        }
+        <div class="flex gap-2">
+            <p-button
+                [id]="'save-answer-' + item.itemId"
+                type="submit"
+                [label]="'project_checklist.save_answer_btn' | translate"
+                [disabled]="page.busy()"
+            />
+            <p-button [text]="true" [label]="'common.cancel' | translate" (onClick)="page.answering.set(null)" />
+        </div>
+    </form>
+}
