@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
@@ -18,7 +19,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -87,9 +87,10 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
     public BearerRateLimitFilter(
             TrustedProxies proxies,
             AuditLogService audit,
-            @Value("${vectispire.security.bearer-failures-per-window:60}") int capacity,
-            @Value("${vectispire.security.bearer-failure-window:PT5M}") Duration window) {
+            SecurityLimits limits) {
 
+        int capacity = limits.bearerFailuresPerWindow();
+        Duration window = limits.bearerFailureWindow();
         this.proxies = proxies;
         this.audit = audit;
         this.capacity = capacity > 0 ? capacity : DEFAULT_CAPACITY;

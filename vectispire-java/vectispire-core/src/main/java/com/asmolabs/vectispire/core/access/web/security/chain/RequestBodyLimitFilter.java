@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
 import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
@@ -10,7 +11,6 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.unit.DataSize;
@@ -110,31 +110,19 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     /** The projects' routes; only a checklist proof's file under it has a ceiling of its own. */
     static final String PROJECTS_PREFIX = "/api/v1/projects/";
 
-    public RequestBodyLimitFilter(
-            @Value("${vectispire.http.max-body.ticket-webhook:1MB}") DataSize webhook,
-            @Value("${vectispire.http.max-body.vex-ingest:16MB}") DataSize vexIngest,
-            @Value("${vectispire.http.max-body.agent-result:256MB}") DataSize agentResult,
-            @Value("${vectispire.http.max-body.sign-in:16KB}") DataSize signIn,
-            @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize sarifImport,
-            @Value("${vectispire.http.max-body.coverage-import:16MB}") DataSize coverageImport,
-            @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize testReportImport,
-            @Value("${vectispire.http.max-body.sbom-import:32MB}") DataSize sbomImport,
-            @Value("${vectispire.http.max-body.checklist-template-import:10MB}") DataSize checklistTemplateImport,
-            @Value("${vectispire.http.max-body.checklist-evidence:25MB}") DataSize checklistEvidence,
-            @Value("${vectispire.http.max-body.rule-set-upload:64MB}") DataSize ruleSetUpload,
-            @Value("${vectispire.http.max-body.default:1MB}") DataSize fallback) {
-        this.webhook = webhook;
-        this.vexIngest = vexIngest;
-        this.agentResult = agentResult;
-        this.signIn = signIn;
-        this.sarifImport = sarifImport;
-        this.coverageImport = coverageImport;
-        this.testReportImport = testReportImport;
-        this.sbomImport = sbomImport;
-        this.checklistTemplateImport = checklistTemplateImport;
-        this.checklistEvidence = checklistEvidence;
-        this.ruleSetUpload = ruleSetUpload;
-        this.fallback = fallback;
+    public RequestBodyLimitFilter(RequestBodyLimits limits) {
+        this.webhook = limits.ticketWebhook();
+        this.vexIngest = limits.vexIngest();
+        this.agentResult = limits.agentResult();
+        this.signIn = limits.signIn();
+        this.sarifImport = limits.sarifImport();
+        this.coverageImport = limits.coverageImport();
+        this.testReportImport = limits.testReportImport();
+        this.sbomImport = limits.sbomImport();
+        this.checklistTemplateImport = limits.checklistTemplateImport();
+        this.checklistEvidence = limits.checklistEvidence();
+        this.ruleSetUpload = limits.ruleSetUpload();
+        this.fallback = limits.fallback();
     }
 
     @Override

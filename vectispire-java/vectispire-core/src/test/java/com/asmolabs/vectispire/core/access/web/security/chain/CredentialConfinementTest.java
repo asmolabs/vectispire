@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedException;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -49,7 +50,7 @@ class CredentialConfinementTest {
     @Test
     @DisplayName("a key past its budget is refused with the wait, and another key keeps its own budget")
     void eachKeyHasItsOwnBudget() throws Exception {
-        CredentialConfinement confinement = new CredentialConfinement(2);
+        CredentialConfinement confinement = new CredentialConfinement(new SecurityLimits("", 0, null, 0, null, 0, null, 2));
         HandlerMethod route = readRoute();
         UUID looping = UUID.randomUUID();
 

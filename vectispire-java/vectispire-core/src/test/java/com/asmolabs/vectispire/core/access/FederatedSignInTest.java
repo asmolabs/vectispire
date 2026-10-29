@@ -67,7 +67,7 @@ class FederatedSignInTest extends VectispireContextTest {
     }
 
     private static FederatedSecondFactorPolicy mfa(boolean required) {
-        return new FederatedSecondFactorPolicy(required, "mfa,otp,hwk,fido", "");
+        return new FederatedSecondFactorPolicy(OidcSettings.bound("require-mfa", String.valueOf(required)));
     }
 
     private static FederatedIdentity alice(List<String> amr, List<String> groups) {

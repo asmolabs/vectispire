@@ -28,6 +28,7 @@ import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultRepository;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -35,11 +36,9 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.unit.DataSize;
 
 /**
  * Recording a declared internal source's coverage and test reports for a repository (decision 0032
@@ -118,9 +117,7 @@ public class ReportImportService {
             ReportedRepositories reported,
             BuildSbomInventory buildSboms,
             Clock clock,
-            @Value("${vectispire.http.max-body.coverage-import:16MB}") DataSize maxCoverageBytes,
-            @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize maxTestReportBytes,
-            @Value("${vectispire.http.max-body.sbom-import:32MB}") DataSize maxSbomBytes) {
+            RequestBodyLimits limits) {
         this.sources = sources;
         this.coverage = coverage;
         this.coveragePackages = coveragePackages;
@@ -132,9 +129,9 @@ public class ReportImportService {
         this.reported = reported;
         this.buildSboms = buildSboms;
         this.clock = clock;
-        this.maxCoverageBytes = maxCoverageBytes.toBytes();
-        this.maxTestReportBytes = maxTestReportBytes.toBytes();
-        this.maxSbomBytes = maxSbomBytes.toBytes();
+        this.maxCoverageBytes = limits.coverageImport().toBytes();
+        this.maxTestReportBytes = limits.testReportImport().toBytes();
+        this.maxSbomBytes = limits.sbomImport().toBytes();
     }
 
     /**

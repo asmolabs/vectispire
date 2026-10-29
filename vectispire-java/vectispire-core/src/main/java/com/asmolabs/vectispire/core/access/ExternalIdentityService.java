@@ -15,8 +15,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,38 +33,25 @@ public class ExternalIdentityService {
     private final boolean linkPrivileged;
     private final boolean linkByClaim;
 
-    public ExternalIdentityService(UserRepository users) {
-        this(users, Optional.empty(), Optional.empty(), false);
-    }
-
-    public ExternalIdentityService(
-            UserRepository users,
-            Optional<TeamRepository> teams,
-            Optional<TeamMemberRepository> teamMembers,
-            boolean linkPrivileged) {
-        this(users, teams, teamMembers, linkPrivileged, true);
-    }
-
     /**
-     * @param linkPrivileged whether an administrative or governing account may be bound on its
-     *     first sign-on like any other. Off by default: see {@link #resolve(String, String, Claimed)}
-     * @param linkByClaim whether any account is bound on its first sign-on by a claim at all. On by
-     *     default, which is how a realm and an existing set of accounts meet; off, an identity signs in
-     *     only to an account provisioning already bound to its subject
+     * @param oidc {@link OidcProperties#linkPrivilegedAccounts}: whether an administrative or governing
+     *     account may be bound on its first sign-on like any other — off by default, see {@link
+     *     #resolve(String, String, Claimed)}; and {@link OidcProperties#linkByClaim}: whether any account
+     *     is bound on its first sign-on by a claim at all — on by default, which is how a realm and an
+     *     existing set of accounts meet; off, an identity signs in only to an account provisioning
+     *     already bound to its subject
      */
-    @Autowired
     public ExternalIdentityService(
             UserRepository users,
             Optional<TeamRepository> teams,
             Optional<TeamMemberRepository> teamMembers,
-            @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged,
-            @Value("${vectispire.oidc.link-by-claim:true}") boolean linkByClaim) {
+            OidcProperties oidc) {
         this.users = users;
         this.teams = teams;
         this.teamMembers = teamMembers;
-        this.linkPrivileged = linkPrivileged;
-        this.linkByClaim = linkByClaim;
-        if (linkPrivileged && linkByClaim) {
+        this.linkPrivileged = oidc.linkPrivilegedAccounts();
+        this.linkByClaim = oidc.linkByClaim();
+        if (this.linkPrivileged && this.linkByClaim) {
             // Each switch is legitimate alone; together they bind an administrator, a CISO or the governor
             // to whoever first signs on under its name. Right for a realm where nobody chooses a username,
             // and said at every start so that it stays a choice somebody can see.

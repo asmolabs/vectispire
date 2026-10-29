@@ -36,6 +36,7 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVers
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionSummary;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,11 +52,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.unit.DataSize;
 
 /**
  * The organisation's checklist templates: a workbook imported as a draft, its layout confirmed by a
@@ -130,7 +129,7 @@ public class ChecklistTemplateService {
             AuditLogService audit,
             TransactionTemplate transactions,
             Clock clock,
-            @Value("${vectispire.http.max-body.checklist-template-import:10MB}") DataSize maxWorkbook) {
+            RequestBodyLimits limits) {
         this.templates = templates;
         this.versions = versions;
         this.items = items;
@@ -139,7 +138,7 @@ public class ChecklistTemplateService {
         this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
-        this.maxWorkbookBytes = maxWorkbook.toBytes();
+        this.maxWorkbookBytes = limits.checklistTemplateImport().toBytes();
     }
 
     /**

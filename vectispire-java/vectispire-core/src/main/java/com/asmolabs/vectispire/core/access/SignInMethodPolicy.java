@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.access;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Component;
 
@@ -51,8 +50,8 @@ public class SignInMethodPolicy {
     private final boolean password;
 
     public SignInMethodPolicy(
-            Optional<ClientRegistrationRepository> providers,
-            @Value("${vectispire.oidc.password-login:true}") boolean passwordRequested) {
+            Optional<ClientRegistrationRepository> providers, OidcProperties oidc) {
+        boolean passwordRequested = oidc.passwordLogin();
 
         this.singleSignOn = providers.isPresent();
         this.password = passwordRequested || !singleSignOn;

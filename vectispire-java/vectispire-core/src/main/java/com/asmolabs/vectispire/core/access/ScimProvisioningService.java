@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
@@ -111,7 +110,7 @@ public class ScimProvisioningService {
             AuditLogService audit,
             TransactionTemplate transactions,
             Clock clock,
-            @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged) {
+            OidcProperties oidc) {
         this.users = users;
         this.teams = teams;
         this.members = members;
@@ -119,7 +118,7 @@ public class ScimProvisioningService {
         this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
-        this.linkPrivileged = linkPrivileged;
+        this.linkPrivileged = oidc.linkPrivilegedAccounts();
     }
 
     /** An account as the directory describes it, already read out of the SCIM document. */

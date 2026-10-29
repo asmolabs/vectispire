@@ -26,7 +26,8 @@ class LinkingSwitchesWarningTest {
 
     private static ExternalIdentityService start(boolean linkPrivileged, boolean linkByClaim) {
         return new ExternalIdentityService(
-                Mockito.mock(UserRepository.class), Optional.empty(), Optional.empty(), linkPrivileged, linkByClaim);
+                Mockito.mock(UserRepository.class), Optional.empty(), Optional.empty(), OidcSettings.bound(
+                        "link-privileged-accounts", String.valueOf(linkPrivileged), "link-by-claim", String.valueOf(linkByClaim)));
     }
 
     @Test

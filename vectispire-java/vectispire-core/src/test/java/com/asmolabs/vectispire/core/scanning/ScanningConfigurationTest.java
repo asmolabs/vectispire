@@ -32,7 +32,11 @@ import org.springframework.context.annotation.Configuration;
 class ScanningConfigurationTest {
 
     private final ApplicationContextRunner contexts = new ApplicationContextRunner()
-            .withUserConfiguration(Dependencies.class, ScanningConfiguration.class);
+            .withUserConfiguration(Dependencies.class, ScanningConfiguration.class)
+            // Registered in the application by `@ConfigurationPropertiesScan`, which a runner does not run.
+            .withBean(ScanningProperties.class, () -> new org.springframework.boot.context.properties.bind.Binder(
+                            new org.springframework.boot.context.properties.source.MapConfigurationPropertySource(java.util.Map.of()))
+                    .bindOrCreate("vectispire.scanning", ScanningProperties.class));
 
     @Test
     @DisplayName("is wired by default, or the queue never moves and nothing says so")

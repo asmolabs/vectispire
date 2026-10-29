@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.core.config;
 
 import java.util.Properties;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,25 +27,21 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 public class MailConfiguration {
 
     /**
-     * @param starttls on by default. A relay that does not offer it will refuse the upgrade and
-     *     the send fails loudly, which is the right outcome: these messages name a company's
-     *     unfixed vulnerabilities, and sending them in the clear across a network is a decision
-     *     somebody should have to make on purpose
+     * STARTTLS is on by default. A relay that does not offer it will refuse the upgrade and the
+     * send fails loudly, which is the right outcome: these messages name a company's unfixed
+     * vulnerabilities, and sending them in the clear across a network is a decision somebody should
+     * have to make on purpose.
      */
     @Bean
-    JavaMailSender mailSender(
-            @Value("${vectispire.mail.host}") String host,
-            @Value("${vectispire.mail.port:587}") int port,
-            @Value("${vectispire.mail.username:}") String username,
-            @Value("${vectispire.mail.password:}") String password,
-            @Value("${vectispire.mail.starttls:true}") boolean starttls) {
-
+    JavaMailSender mailSender(MailProperties mail) {
+        String username = mail.username();
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
-        sender.setHost(host);
-        sender.setPort(port);
+        // Present: this configuration exists only when the host is set.
+        sender.setHost(mail.host().orElseThrow());
+        sender.setPort(mail.port());
         if (!username.isBlank()) {
             sender.setUsername(username);
-            sender.setPassword(password);
+            sender.setPassword(mail.password());
         }
 
         Properties properties = sender.getJavaMailProperties();
@@ -54,7 +49,7 @@ public class MailConfiguration {
         // Only when there is a username: an anonymous internal relay refuses AUTH outright, and
         // asking for it turns a working configuration into a failed send.
         properties.put("mail.smtp.auth", String.valueOf(!username.isBlank()));
-        properties.put("mail.smtp.starttls.enable", String.valueOf(starttls));
+        properties.put("mail.smtp.starttls.enable", String.valueOf(mail.starttls()));
         // **Timeouts, because the default is none.** A relay that accepts a connection and never
         // answers would hold a relay thread for ever, and the notification tick runs every
         // minute — one unreachable server would eventually hold them all.

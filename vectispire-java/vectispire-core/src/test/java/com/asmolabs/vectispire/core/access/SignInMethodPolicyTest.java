@@ -26,7 +26,7 @@ class SignInMethodPolicyTest {
     @Test
     @DisplayName("by default, a password works and single sign-on is absent")
     void theDefaultIsPasswordOnly() {
-        SignInMethodPolicy policy = new SignInMethodPolicy(WITHOUT_PROVIDER, true);
+        SignInMethodPolicy policy = new SignInMethodPolicy(WITHOUT_PROVIDER, OidcSettings.bound("password-login", "true"));
 
         assertThat(policy.passwordAllowed()).isTrue();
         assertThat(policy.singleSignOnAvailable()).isFalse();
@@ -37,7 +37,7 @@ class SignInMethodPolicyTest {
     void bothDoorsCanBeOpen() {
         // Adding an issuer must not silently change how everybody already signs in. Closing the
         // password door is a separate decision, and it is spelled out separately.
-        SignInMethodPolicy policy = new SignInMethodPolicy(WITH_PROVIDER, true);
+        SignInMethodPolicy policy = new SignInMethodPolicy(WITH_PROVIDER, OidcSettings.bound("password-login", "true"));
 
         assertThat(policy.passwordAllowed()).isTrue();
         assertThat(policy.singleSignOnAvailable()).isTrue();
@@ -46,7 +46,7 @@ class SignInMethodPolicyTest {
     @Test
     @DisplayName("with a provider, the password door can be closed")
     void theProviderCanCarryEverything() {
-        SignInMethodPolicy policy = new SignInMethodPolicy(WITH_PROVIDER, false);
+        SignInMethodPolicy policy = new SignInMethodPolicy(WITH_PROVIDER, OidcSettings.bound("password-login", "false"));
 
         assertThat(policy.passwordAllowed()).isFalse();
         assertThat(policy.singleSignOnAvailable()).isTrue();
@@ -60,7 +60,7 @@ class SignInMethodPolicyTest {
         // VECTISPIRE_OIDC_ISSUER is in place. Honouring the request would leave a tool holding
         // every watched repository's deployment key with no way in at all — and no way to fix
         // it from the interface either.
-        SignInMethodPolicy policy = new SignInMethodPolicy(WITHOUT_PROVIDER, false);
+        SignInMethodPolicy policy = new SignInMethodPolicy(WITHOUT_PROVIDER, OidcSettings.bound("password-login", "false"));
 
         assertThat(policy.passwordAllowed())
                 .as("password sign-in stays on when it is the only door")

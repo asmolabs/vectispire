@@ -48,7 +48,8 @@ class ScimUsersControllerTest {
         clock = Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC);
         controller = new ScimUsersController(new ScimProvisioningService(
                 users, mock(TeamRepository.class), mock(TeamMemberRepository.class), auth, audit,
-                mock(org.springframework.transaction.support.TransactionTemplate.class), clock, false));
+                mock(org.springframework.transaction.support.TransactionTemplate.class), clock,
+                com.asmolabs.vectispire.core.access.OidcSettings.bound()));
         request = mock(HttpServletRequest.class);
     }
 

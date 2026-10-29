@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedExcepti
 import com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
@@ -17,7 +18,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -57,7 +57,8 @@ public class CredentialConfinement implements HandlerInterceptor {
         }
     });
 
-    public CredentialConfinement(@Value("${vectispire.security.api-key-requests-per-minute:600}") int requestsPerMinute) {
+    public CredentialConfinement(SecurityLimits limits) {
+        int requestsPerMinute = limits.apiKeyRequestsPerMinute();
         this.requestsPerMinute = requestsPerMinute > 0 ? requestsPerMinute : 600;
     }
 

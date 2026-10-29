@@ -2,12 +2,12 @@ package com.asmolabs.vectispire.core.access.web.security.chain;
 
 import com.asmolabs.vectispire.core.access.AuthenticationFlowService;
 import com.asmolabs.vectispire.core.access.ExternalIdentityService;
+import com.asmolabs.vectispire.core.access.OidcProperties;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -77,11 +77,14 @@ public class OidcConfiguration {
      * instead of asking an operator to copy four of them correctly.
      */
     @Bean
-    ClientRegistrationRepository oidcProvider(
-            @Value("${vectispire.oidc.issuer}") String issuer,
-            @Value("${vectispire.oidc.client-id}") String clientId,
-            @Value("${vectispire.oidc.client-secret:}") String clientSecret,
-            @Value("${vectispire.oidc.name:Single sign-on}") String name) {
+    ClientRegistrationRepository oidcProvider(OidcProperties oidc) {
+        // Both required, as the placeholders without a default that read them used to be: a start
+        // with an issuer and no client fails here, naming the variable, not at the first sign-on.
+        String issuer = oidc.issuer().orElseThrow(() -> new IllegalStateException("VECTISPIRE_OIDC_ISSUER is empty."));
+        String clientId = oidc.clientId().orElseThrow(() -> new IllegalStateException(
+                "VECTISPIRE_OIDC_ISSUER is set but VECTISPIRE_OIDC_CLIENT_ID is not; single sign-on needs both."));
+        String clientSecret = oidc.clientSecret();
+        String name = oidc.name();
 
         ClientRegistration registration = ClientRegistrations.fromIssuerLocation(issuer)
                 .registrationId("oidc")

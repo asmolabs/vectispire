@@ -42,7 +42,7 @@ class OidcGroupSyncTest {
     void setUp() {
         teams = mock(TeamRepository.class);
         teamMembers = mock(TeamMemberRepository.class);
-        service = new ExternalIdentityService(mock(UserRepository.class), Optional.of(teams), Optional.of(teamMembers), false);
+        service = new ExternalIdentityService(mock(UserRepository.class), Optional.of(teams), Optional.of(teamMembers), OidcSettings.bound());
 
         user = new UserEntity();
         user.setId(10L);
