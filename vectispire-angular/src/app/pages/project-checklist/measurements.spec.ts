@@ -51,7 +51,8 @@ import {
     RECONCILIATION_KEYS,
     SOURCE_KEYS
 } from './measurements';
-import { AS_MEASURED_SKIP_KEYS, ProjectChecklist } from './project-checklist';
+import { AS_MEASURED_SKIP_KEYS } from './checklist-model';
+import { ProjectChecklist } from './project-checklist';
 
 /**
  * The contacts panel stands in for itself here: it reads its own routes, which `checklist-contacts.spec.ts`
