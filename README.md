@@ -530,7 +530,7 @@ Two things to know:
 ```bash
 cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites — on MySQL, needs Docker
 cd vectispire-java && ./gradlew integrationTest    # one engine (MySQL; -Pdialect=postgres), via Testcontainers
-cd vectispire-java && ./gradlew integrationTestAll # every supported engine (MySQL) — needs Docker
+cd vectispire-java && ./gradlew integrationTestAll # MySQL 9.x and 8.4 LTS, the supported versions — needs Docker
 npm ci && npm run build && npm test                # the Angular interface
 ```
 

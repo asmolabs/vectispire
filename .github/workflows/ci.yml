@@ -1226,7 +1226,9 @@ jobs:
 
   engines:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Two campaigns in a row since MySQL 8.4 joined 9.x (decision 0043 §3): one took about 26
+    # minutes here, so the former 40 would have cut the second one off halfway.
+    timeout-minutes: 75
     needs: [migration-changes]
     # Skipped rather than run empty: a job reporting green having done nothing is a signal nobody
     # can read, and this file holds that "unexpected" is not a signal.

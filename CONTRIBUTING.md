@@ -33,7 +33,7 @@ Send them.
 
 ```bash
 cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites
-cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL and MySQL — when the change touches persistence
+cd vectispire-java && ./gradlew integrationTestAll   # MySQL 9.x and 8.4 LTS — when the change touches persistence
 
 npm ci && npm run lint && npm run build && npm test  # the Angular interface, from the repository root
 ```
@@ -165,7 +165,7 @@ n'ont besoin de rien de tout cela. Envoyez-les.
 
 ```bash
 cd vectispire-java && ./gradlew build                # compilation, suites unitaires, d'architecture et HTTP
-cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL et MySQL — quand le changement touche la persistance
+cd vectispire-java && ./gradlew integrationTestAll   # MySQL 9.x et 8.4 LTS — quand le changement touche la persistance
 
 npm ci && npm run lint && npm run build && npm test  # l'interface Angular, depuis la racine du dépôt
 ```

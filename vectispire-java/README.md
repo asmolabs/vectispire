@@ -8,7 +8,7 @@ HTTP.
 ./gradlew build                      # compile + unit, architecture and HTTP suites (on MySQL: Docker)
 ./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: mysql)
-./gradlew integrationTestAll         # every supported engine: MySQL (decision 0043 §3)
+./gradlew integrationTestAll         # every supported engine at both ends: MySQL 9.x and 8.4 LTS (decision 0043 §3)
 ./gradlew integrationTestPostgres    # PostgreSQL, unsupported: kept for whoever brings it back
 ```
 
