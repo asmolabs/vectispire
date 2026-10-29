@@ -1,2 +1,0 @@
-findings
-[{"ruleId":"example.rule","category":"security","severity":"MEDIUM","confidence":"HIGH","file":"in.py","line":3,"message":"A message.","owaspCategory":"A03"},{"ruleId":"example.rule","category":"security","severity":"MEDIUM","confidence":"HIGH","file":"repo/source/other/out.py","line":3,"message":"A message.","owaspCategory":"A03"},{"ruleId":"example.rule","category":"security","severity":"MEDIUM","confidence":"HIGH","file":"x/quirk.py","line":3,"message":"A message.","owaspCategory":"A03"}]

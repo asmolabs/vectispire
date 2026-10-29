@@ -1,4 +1,0 @@
-# The module `checklists` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
-status = "pending"
-allowed = ["access", "access::security", "targets", "scanning", "scanning::queries", "issues", "plugins", "inventory", "notifications"]
-reason = "`access`: the signed-in account four-eyes compares with a draft's authors, and the whole-project guard. `targets`: the project a checklist answers for, its repositories and `ProjectDeleted`. The measurements read their evidence from its owners' APIs: `scanning` and `scanning::queries` (`ScanCatalog`), `issues` (`IssueCatalog`), `plugins`, `inventory`. `notifications`: the weekly reminder leaves through the mail channel. `access::security` for its routes."

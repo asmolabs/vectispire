@@ -4,7 +4,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.golden.TrafficRecorder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +38,7 @@ class ScimTokenScopeTest extends VectispireContextTest {
 
     @BeforeEach
     void mvc() {
-        mvc = TrafficRecorder.wire(MockMvcBuilders.webAppContextSetup(context), context)
+        mvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(securityFilterChain)
                 .build();
     }

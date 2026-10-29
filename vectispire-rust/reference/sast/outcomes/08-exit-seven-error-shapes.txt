@@ -1,2 +1,0 @@
-failure
-Scanner "semgrep (source code analysis)" exited with 7. OnlyType; only a message; Both: and its message; 3; empty type

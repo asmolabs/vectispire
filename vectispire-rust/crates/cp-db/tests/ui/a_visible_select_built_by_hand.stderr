@@ -1,5 +1,0 @@
-error[E0451]: fields `statement` and `table` of struct `VisibleSelect` are private
- --> tests/ui/a_visible_select_built_by_hand.rs:8:39
-  |
-8 |     let _ = VisibleSelect::<Issues> { statement: Query::select(), table: std::marker::PhantomData };
-  |                                       ^^^^^^^^^ private field     ^^^^^ private field

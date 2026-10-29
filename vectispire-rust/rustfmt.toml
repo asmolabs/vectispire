@@ -1,4 +1,0 @@
-# One width for the workspace, the Java side's: comments here carry reasoning, and 100 columns cut
-# them into short lines that read worse.
-max_width = 120
-use_small_heuristics = "Max"

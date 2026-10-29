@@ -1,4 +1,0 @@
-# The module `rules` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
-status = "pending"
-allowed = ["access::security", "inventory", "issues", "scanning"]
-reason = "`inventory`: rule coverage compares the rule sets with the components' package URLs. `issues`: a rule set's impact on the open SAST issues. `scanning`: a scan fetches the active rule set through `ScanRuleSets`, a port `scanning` declares — the other way round would close `scanning` → `rules` → `inventory` → `scanning`. `access::security` for its routes; not `access`."

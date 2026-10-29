@@ -1,4 +1,0 @@
-# The module `ai` — what it may use, and whether it is ported. `_workspace.toml` says what each key means.
-status = "pending"
-allowed = ["access", "access::security", "issues", "threatintel"]
-reason = "`access`: an issue is read within the caller's visibility. `issues`: the advisor explains an issue, asked of `IssueCatalog`. `threatintel`: the advice states a vulnerability's KEV listing and EPSS score as the stored feeds hold them. `access::security` for its routes."

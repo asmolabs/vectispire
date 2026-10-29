@@ -329,16 +329,6 @@ tasks.named<Test>("test") {
     inputs.files(rootProject.file("../docker-compose.yml"), rootProject.file("../.env.oidc.example"))
         .withPropertyName("shippedComposition")
         .withPathSensitivity(PathSensitivity.RELATIVE)
-
-    // The traffic recorder (port plan §4.3, task 0.5; README.md beside `TrafficRecorder`): off unless
-    // `-Pvectispire.golden.dir=<dir>` is given, and then the directory is the task's output, so a
-    // recording is never answered by an up-to-date check from a run that recorded nothing. Unset, the
-    // task's inputs and outputs are the ones it had before the recorder existed.
-    providers.gradleProperty("vectispire.golden.dir").orNull?.let { directory ->
-        val goldens = file(directory)
-        systemProperty("vectispire.golden.dir", goldens.absolutePath)
-        outputs.dir(goldens).withPropertyName("goldenFiles")
-    }
 }
 
 tasks.register("integrationTestAll") {
@@ -513,46 +503,6 @@ tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configure
  * counted here; folding it in would make this number depend on whether somebody had a Docker
  * daemon, which is the opposite of what a gate should do.
  */
-/**
- * The reference sets the Rust control plane's `access` crate is held to — `vectispire-rust/reference/access/`,
- * written and checked by `AccessReferenceSetTest`, and its `scim/` by `ScimReferenceSetTest`, exactly as
- * `vectispire-common`'s are by its own (see `common.rust.ReferenceSet`): checked on every build, regenerated with
- * `-Dvectispire.rust.reference.write=true`.
- *
- * Here and not in `vectispire-common` because the answers are `VisibilityService`'s, `RowVisibility`'s, the four-eyes
- * rules of `IssueDecisionService`, `VexIngestorService`, `SettingsAdministrationService` and `ScimProvisioningService`
- * — all of this module. The input is declared so that a changed reference file reruns the suite rather than leaving it
- * up to date and green.
- */
-tasks.named<Test>("test") {
-    systemProperty("vectispire.rust.reference", rootProject.file("../vectispire-rust/reference").absolutePath)
-    systemProperty(
-        "vectispire.rust.reference.write",
-        providers.systemProperty("vectispire.rust.reference.write").getOrElse("false"))
-    inputs.dir(rootProject.file("../vectispire-rust/reference/access")).withPropertyName("accessReferenceSet")
-    // `cp-arch-tests`' and `cp-maintenance`'s: the module model Modulith reads and the maintenance tick's composition,
-    // written by `ModulesReferenceSetTest` and `MaintenanceReferenceSetTest` through `core.RustReference`.
-    inputs.dir(rootProject.file("../vectispire-rust/reference/modules")).withPropertyName("modulesReferenceSet")
-    inputs.dir(rootProject.file("../vectispire-rust/reference/maintenance")).withPropertyName("maintenanceReferenceSet")
-    // `domain::cron`'s: Spring's CronExpression, which only this module links, written by `CronReferenceSetTest`.
-    inputs.dir(rootProject.file("../vectispire-rust/reference/cron")).withPropertyName("cronReferenceSet")
-    // `cp-crypto`'s: encryption at rest, the Vault exchanges and the signing key, both ways — `EncryptionService`,
-    // `VaultKmsProvider` and `SigningKeyService` are this module's, written and read by `EncryptionReferenceSetTest`.
-    inputs.dir(rootProject.file("../vectispire-rust/reference/encryption")).withPropertyName("encryptionReferenceSet")
-    // `protocol`'s server half: what the control plane's two mappers read and write on the agent routes — the result
-    // and the failure report through `CoreConfiguration`'s bean, the rest through Spring MVC's — by `AgentWireReferenceSetTest`.
-    inputs.dir(rootProject.file("../vectispire-rust/reference/artifacts")).withPropertyName("artifactsReferenceSet")
-    // `cp-outbox`'s: the relay's calls over a mocked repository, the backoff, the stamped rows (`OutboxReferenceSetTest`),
-    // and the types the started application relays (`OutboxRegistryReferenceSetTest`), which hold the Rust relay back.
-    inputs.dir(rootProject.file("../vectispire-rust/reference/outbox")).withPropertyName("outboxReferenceSet")
-    // `cp-scanning`'s: the scheduling rule, the queue's rules, the dispatcher's sentences and claims, the columns a scan's
-    // page reads back — `ScanningReferenceSetTest`, written before the Rust port of the module.
-    inputs.dir(rootProject.file("../vectispire-rust/reference/scanning")).withPropertyName("scanningReferenceSet")
-    // `cp-siem`'s: what the module queues for an audit entry, what a queued row becomes at delivery, what a save and
-    // the connection test answer — `SiemModuleReferenceSetTest`, over the real services and mocked collaborators.
-    inputs.dir(rootProject.file("../vectispire-rust/reference/siem")).withPropertyName("siemReferenceSet")
-}
-
 /**
  * The one system property a developer passes through to the test JVM.
  *

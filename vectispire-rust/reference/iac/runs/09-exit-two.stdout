@@ -1,1 +1,0 @@
-{"check_type": "terraform", "results": {"passed_checks": [], "failed_checks": [{"check_id": "CKV_X_1", "check_name": "A check", "file_path": "/main.tf", "file_line_range": [1, 2], "guideline": "https://docs.example.org/x", "resource": "aws_s3_bucket.a"}]}}

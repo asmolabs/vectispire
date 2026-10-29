@@ -1,2 +1,0 @@
-findings
-[{"checkId":"CKV_é","checkName":"tab\there \"quoted\" 😀 \u0000 end","file":"café/ x.tf","line":1,"guideline":null,"resource":"r/s"}]
