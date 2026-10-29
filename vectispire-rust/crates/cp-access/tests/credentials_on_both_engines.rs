@@ -379,20 +379,32 @@ async fn api_keys(engine: Engine) {
 
 #[tokio::test]
 async fn sessions_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     sessions(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn sessions_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     sessions(Engine::PostgreSql).await;
 }
 
 #[tokio::test]
 async fn api_keys_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     api_keys(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn api_keys_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     api_keys(Engine::PostgreSql).await;
 }

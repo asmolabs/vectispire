@@ -24,6 +24,9 @@ use vectispire_cp_rules::{NewSemgrepRuleSet, RuleSetsForScans, SemgrepRuleSetRep
 
 #[tokio::test]
 async fn semgrep_rule_sets_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::MySql).await;
     let db = migrated.connect().await;
     clean(&db).await;
@@ -33,6 +36,9 @@ async fn semgrep_rule_sets_on_mysql() {
 
 #[tokio::test]
 async fn semgrep_rule_sets_on_postgres() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::PostgreSql).await;
     let db = migrated.connect().await;
     clean(&db).await;

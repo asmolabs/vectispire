@@ -350,10 +350,16 @@ async fn on(engine: Engine) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_outbox_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     on(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_outbox_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     on(Engine::PostgreSql).await;
 }

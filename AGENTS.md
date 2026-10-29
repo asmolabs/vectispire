@@ -106,12 +106,15 @@ go down), the tests with Docker — the isolation test among them —, `cargo de
 licences, crates.io only, no new duplicate, **build scripts only for the crates listed**), `cargo vet
 --locked` (every crate audited by an imported set or exempted by name) and semgrep with the workspace's
 own rules — and, with a JDK, the suites that hold the port to the Java side: `vectispire-migrate` against the
-real Flyway in both directions on both engines (`crates/migrate/oracle/check-oracle.sh`), the checked queries'
+real Flyway in both directions (`crates/migrate/oracle/check-oracle.sh`), the checked queries'
 offline caches regenerated and compared (`crates/cp-db/scripts/sqlx-prepare.sh check`), and the contract summary.
 `rust-replay` records the Java suite's HTTP traffic at the commit (`crates/cp-contract/scripts/record-goldens.sh`:
 two tests are expected to fail under the recorder, and no others), scans the recordings for credentials, and
 reads them with `cp-contract replay-plan` — a recording of a route that has left the list of routes not yet
-ported, with nothing replaying it, fails the step. `rust-image` builds the image twice from nothing and refuses two different digests, writes
+ported, with nothing replaying it, fails the step. **On a pull request both jobs run on MySQL alone** (`VECTISPIRE_TEST_ENGINES=mysql`, which
+every engine loop of the port asks through `cp-db`'s `testing::runs_on`); PostgreSQL is the nightly's
+`rust-engines` — the tests, the oracle and the query caches on both engines — and its `rust-replay`, which
+records afresh and replays on both. The code is still written and cached for both engines. `rust-image` builds the image twice from nothing and refuses two different digests, writes
 the CycloneDX SBOM, and runs grype on the image at `ScannerImages`' digest — refusing a scan that saw
 too few crates, since a static binary shows none without cargo-auditable's list. The nightly's
 `rust-fuzz` fuzzes the parsers of untrusted input and runs Miri on the crates without C. What each

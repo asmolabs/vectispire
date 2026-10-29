@@ -33,6 +33,9 @@ const NOW: i64 = 1_790_380_800_000;
 
 #[tokio::test]
 async fn sealing_keys_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::MySql).await;
     let db = migrated.connect().await;
     clean(&db).await;
@@ -42,6 +45,9 @@ async fn sealing_keys_on_mysql() {
 
 #[tokio::test]
 async fn sealing_keys_on_postgres() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::PostgreSql).await;
     let db = migrated.connect().await;
     clean(&db).await;
@@ -86,6 +92,9 @@ async fn test_sealing_keys(db: &Db) {
 
 #[tokio::test]
 async fn withheld_claim_repair_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::MySql).await;
     let db = migrated.connect().await;
     clean(&db).await;
@@ -95,6 +104,9 @@ async fn withheld_claim_repair_on_mysql() {
 
 #[tokio::test]
 async fn withheld_claim_repair_on_postgres() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::PostgreSql).await;
     let db = migrated.connect().await;
     clean(&db).await;
@@ -160,6 +172,9 @@ async fn test_withheld_claim_repair(db: &Db) {
 
 #[tokio::test]
 async fn directory_and_claim_lock_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::MySql).await;
     let db = migrated.connect().await;
     clean(&db).await;
@@ -169,6 +184,9 @@ async fn directory_and_claim_lock_on_mysql() {
 
 #[tokio::test]
 async fn directory_and_claim_lock_on_postgres() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     let migrated = Migrated::start(Engine::PostgreSql).await;
     let db = migrated.connect().await;
     clean(&db).await;

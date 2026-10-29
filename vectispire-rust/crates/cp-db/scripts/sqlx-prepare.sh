@@ -25,12 +25,39 @@
 # regenerated cache for a changed schema differs from the committed one. `check` catches both, which is
 # why a schema change and its cache travel in one commit.
 #
+# **The engines: `VECTISPIRE_TEST_ENGINES`**, as cp-db's `testing` reads it — unset, both; `mysql`, `postgresql` or both
+# comma-separated; anything else refused. `check` on MySQL alone (what pull requests run, the nightly running both)
+# regenerates and compares the MySQL half of each cache, says the other is left out, and still compiles the whole
+# committed cache offline with both engines on. `prepare` writes whole caches, so it refuses a narrowed selection: the
+# PostgreSQL half would be dropped.
+#
 # Containers and the network are named vs-rs-sqlx-*, removed on exit. A missing Docker fails the run.
 set -eu
 cd "$(dirname "$0")/../../.." # the workspace root, vectispire-rust/
 
 mode="${1:-}"
 case "$mode" in prepare | check) ;; *) echo "usage: $0 prepare|check [crate]" >&2; exit 2 ;; esac
+
+value="${VECTISPIRE_TEST_ENGINES-mysql,postgresql}"
+refuse_engines() {
+  echo "VECTISPIRE_TEST_ENGINES=$value: name \`mysql\`, \`postgresql\` or both, comma-separated, or leave it unset for both" >&2
+  exit 2
+}
+case "$value" in '' | ,* | *, | *,,*) refuse_engines ;; esac
+on_mysql=no
+on_postgres=no
+for word in $(printf '%s' "$value" | tr ',' ' '); do
+  case "$word" in
+    mysql) on_mysql=yes ;;
+    postgresql) on_postgres=yes ;;
+    *) refuse_engines ;;
+  esac
+done
+if [ "$on_mysql" = no ] || [ "$on_postgres" = no ]; then
+  [ "$mode" = check ] || { echo "prepare writes both engines' caches: run it with VECTISPIRE_TEST_ENGINES unset" >&2; exit 2; }
+  [ "$on_mysql" = yes ] || echo "left out: MySQL (VECTISPIRE_TEST_ENGINES=$value): its half of the caches is not regenerated"
+  [ "$on_postgres" = yes ] || echo "left out: PostgreSQL (VECTISPIRE_TEST_ENGINES=$value): its half of the caches is not regenerated"
+fi
 
 # Every crate with checked statements, as its directory under crates/; the package is `vectispire-<crate>`.
 crates_with_queries="$(for cache in crates/*/.sqlx; do if [ -d "$cache" ]; then basename "$(dirname "$cache")"; fi; done | tr '\n' ' ')"
@@ -135,8 +162,8 @@ prepare_engine() { # engine feature
 
 fresh="$scratch/sqlx"
 mkdir -p "$fresh"
-prepare_engine mysql mysql-queries "$fresh"
-prepare_engine postgres postgres-queries "$fresh"
+[ "$on_mysql" = no ] || prepare_engine mysql mysql-queries "$fresh"
+[ "$on_postgres" = no ] || prepare_engine postgres postgres-queries "$fresh"
 
 for crate in $selected; do
   committed="crates/$crate/.sqlx"
@@ -148,7 +175,20 @@ for crate in $selected; do
       echo "wrote $(find "$committed" -name 'query-*.json' | wc -l | tr -d ' ') query files to $committed"
       ;;
     check)
-      if ! diff -r "$fresh/$crate" "$committed"; then
+      # What the fresh pass is compared with: the committed cache, or its files of the engines that ran.
+      compared="$committed"
+      if [ "$on_mysql" = no ] || [ "$on_postgres" = no ]; then
+        compared="$scratch/committed/$crate"
+        mkdir -p "$compared"
+        for file in "$committed"/query-*.json; do
+          case "$(sed -n 's/^  "db_name": "\(.*\)",$/\1/p' "$file")" in
+            MySQL) [ "$on_mysql" = no ] || cp "$file" "$compared"/ ;;
+            PostgreSQL) [ "$on_postgres" = no ] || cp "$file" "$compared"/ ;;
+            *) echo "$file names no engine sqlx-prepare.sh knows" >&2; exit 1 ;;
+          esac
+        done
+      fi
+      if ! diff -r "$fresh/$crate" "$compared"; then
         echo "the committed $committed is stale: run crates/cp-db/scripts/sqlx-prepare.sh prepare $crate and commit the result" >&2
         exit 1
       fi

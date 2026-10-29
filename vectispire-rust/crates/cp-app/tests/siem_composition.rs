@@ -34,11 +34,17 @@ const KEY: &str = "cmVmZXJlbmNlLXNjYW5uaW5nLWtleS0zMi1ieXRlcyE="; // gitleaks:al
 
 #[tokio::test(flavor = "multi_thread")]
 async fn on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     run(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     run(Engine::PostgreSql).await;
 }
 

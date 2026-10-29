@@ -426,11 +426,11 @@ macro_rules! on_both_engines {
     ($($name:ident),* $(,)?) => {
         mod mysql {
             $(#[tokio::test(flavor = "multi_thread")]
-            async fn $name() { super::$name(super::Engine::MySql).await; })*
+            async fn $name() { if vectispire_cp_db::testing::runs_on(super::Engine::MySql) { super::$name(super::Engine::MySql).await; } })*
         }
         mod postgres {
             $(#[tokio::test(flavor = "multi_thread")]
-            async fn $name() { super::$name(super::Engine::PostgreSql).await; })*
+            async fn $name() { if vectispire_cp_db::testing::runs_on(super::Engine::PostgreSql) { super::$name(super::Engine::PostgreSql).await; } })*
         }
     };
 }

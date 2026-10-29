@@ -64,6 +64,12 @@ and PostgreSQL (`VECTISPIRE_TEST_*_URL`), run by nextest beside every other test
 tables (`pg_stat_activity`, `performance_schema`, a global variable) sees the other tests, so it filters by the
 test's database (`current_database()`, `database()`).
 
+A suite that loops over the engines asks `testing::runs_on(engine)` first — `VECTISPIRE_TEST_ENGINES`, unset
+meaning both, a misspelt value failing the run — and `TestDatabase::empty` refuses an engine left out, so a
+loop that forgets to ask fails rather than running it anyway. Pull requests run on MySQL alone; PostgreSQL
+is the nightly's (`rust-engines`, `rust-replay`). Code is still written for both engines: a new engine loop
+asks `runs_on`, and the PostgreSQL half of a query is written and cached in the same diff.
+
 ## Defects already made here
 
 - The first reference sets pinned the Java parsers' "garbage reads as clean" answers, reproduced on

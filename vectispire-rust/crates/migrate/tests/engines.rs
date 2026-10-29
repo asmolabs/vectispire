@@ -208,9 +208,9 @@ macro_rules! on_both_engines {
         mod $name {
             use super::*;
             #[tokio::test(flavor = "multi_thread")]
-            async fn mysql() { $body(Engine::MySql).await; }
+            async fn mysql() { if common::runs_on(Engine::MySql) { $body(Engine::MySql).await; } }
             #[tokio::test(flavor = "multi_thread")]
-            async fn postgres() { $body(Engine::PostgreSql).await; }
+            async fn postgres() { if common::runs_on(Engine::PostgreSql) { $body(Engine::PostgreSql).await; } }
         }
     )*};
 }

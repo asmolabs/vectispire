@@ -591,6 +591,9 @@ async fn ingestion_oracle_conformance() {
     let doc = vectispire_testkit::read_json("scanning/ingestion.json");
     let cases = doc["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 145, "all 145 reference cases must be verified");
+    if !vectispire_cp_db::testing::runs_on(vectispire_cp_db::Engine::MySql) {
+        return;
+    }
     let migrated = support::Migrated::start(vectispire_cp_db::Engine::MySql).await;
     let db = migrated.connect().await;
 

@@ -45,6 +45,9 @@ async fn java_migrates_then_rust_continues(
     root: Option<&std::path::Path>,
     line: &str,
 ) {
+    if !common::runs_on(engine) {
+        return;
+    }
     let server = Server::start(engine);
     let database = server.database().await;
     server.oracle("migrate", root, None).unwrap();
@@ -77,6 +80,9 @@ async fn rust_migrates_then_java_accepts(
     root: Option<&std::path::Path>,
     line: &str,
 ) {
+    if !common::runs_on(engine) {
+        return;
+    }
     let server = Server::start(engine);
     let database = server.database().await;
     let options = Options { set, ..Options::default() };
@@ -144,6 +150,9 @@ async fn postgres_rust_then_java_on_0111() {
 
 /// An installation Java migrated to V89, upgraded by a Rust build, then started again by Java.
 async fn java_to_v89_rust_the_rest_java_again(engine: Engine) {
+    if !common::runs_on(engine) {
+        return;
+    }
     let server = Server::start(engine);
     let database = server.database().await;
     server.oracle("migrate", None, Some("89")).unwrap();
@@ -178,6 +187,9 @@ async fn postgres_java_to_v89_then_rust_then_java() {
 /// A Java and a Rust instance starting together on an empty database: each takes Flyway's lock in
 /// turn, every migration is applied once, and the schema is the one either alone produces.
 async fn java_and_rust_start_together(engine: Engine) {
+    if !common::runs_on(engine) {
+        return;
+    }
     let server = Server::start(engine);
     let database = server.database().await;
     let java = {

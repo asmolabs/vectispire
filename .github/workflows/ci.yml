@@ -1473,13 +1473,18 @@ jobs:
   # used. The cargo tools are installed `--locked` at a written version: crates.io serves one file
   # per version, checked against the index's checksum, and the tool's own lockfile decides its graph.
   #
-  # **One MySQL and one PostgreSQL for the whole job**, as the `jvm` job has one MySQL: every suite that needs a
-  # database creates one of its own on these servers and drops it when it ends (cp-db's `testing`), instead of
-  # starting a container of each engine per test — a start of ten to thirty seconds, paid some sixty times and one
-  # binary after another. The images are the campaign's, the digests `crates/cp-db/src/testing.rs` pins for the
-  # throwaway servers (`scripts/check-db-pins.py` holds both to `Engine.java`). The host ports are the daemon's
-  # choice, read from the job's context. A server that does not answer fails the suites — the variables are set,
-  # so nothing falls back and nothing skips.
+  # **One MySQL for the whole job**, as the `jvm` job has one: every suite that needs a database creates one of its
+  # own on this server and drops it when it ends (cp-db's `testing`), instead of starting a container per test — a
+  # start of ten to thirty seconds, paid some sixty times and one binary after another. The image is the campaign's,
+  # the digest `crates/cp-db/src/testing.rs` pins for the throwaway servers (`scripts/check-db-pins.py` holds both to
+  # `Engine.java`). The host port is the daemon's choice, read from the job's context. A server that does not answer
+  # fails the suites — the variables are set, so nothing falls back and nothing skips.
+  #
+  # **MySQL only on a pull request; PostgreSQL every night** (decided 2026-10-29). `VECTISPIRE_TEST_ENGINES=mysql`
+  # narrows every suite on a database — the tests, the Flyway oracle, the queries' caches — to MySQL, each PostgreSQL
+  # case saying it was left out (cp-db's `testing`); nightly.yml's `rust-engines` and `rust-replay` run both. The
+  # code is still written for both engines: a PostgreSQL break lands on `develop` and is red within a day, which is
+  # the trade `engines` makes for the Java campaign.
   rust:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
@@ -1501,26 +1506,14 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 30
-      postgres:
-        image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
-        env:
-          POSTGRES_PASSWORD: vectispire-ci
-        ports:
-          - 5432
-        options: >-
-          --health-cmd "pg_isready -h 127.0.0.1 -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 30
     env:
       CARGO_TERM_COLOR: never
-      # The servers' administrators: cp-db's `testing` creates each test's database (and, on MySQL, its user) with
-      # them, and gives the composition's flags to MySQL, which a job service cannot take on its command line. The
-      # URLs, which carry the ports the daemon chose, are set by the first step: a job's `env` cannot read `job`.
+      VECTISPIRE_TEST_ENGINES: mysql
+      # The server's administrator: cp-db's `testing` creates each test's database and user with it, and gives the
+      # composition's flags to MySQL, which a job service cannot take on its command line. The URL, which carries the
+      # port the daemon chose, is set by the first step: a job's `env` cannot read `job`.
       VECTISPIRE_TEST_MYSQL_USER: root
       VECTISPIRE_TEST_MYSQL_PASSWORD: vectispire-ci
-      VECTISPIRE_TEST_POSTGRES_USER: postgres
-      VECTISPIRE_TEST_POSTGRES_PASSWORD: vectispire-ci
       # No incremental compilation: a CI build starts from what the cache restored, never from its own last run,
       # so the incremental state is only written, never read — and is a fifth of the target directory. Line tables
       # only: a panic's backtrace keeps its files and lines, without the full debug information that makes up most
@@ -1529,17 +1522,14 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: line-tables-only
       CARGO_PROFILE_TEST_DEBUG: line-tables-only
     steps:
-      - name: the job's database servers, for every step after this one
+      - name: the job's database server, for every step after this one
         working-directory: .
         env:
           MYSQL_PORT: ${{ job.services.mysql.ports['3306'] }}
-          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: |
-          if [ -z "$MYSQL_PORT" ] || [ -z "$POSTGRES_PORT" ]; then
-            echo "::error::a database service published no port"; exit 1
-          fi
+          [ -n "$MYSQL_PORT" ] || { echo "::error::the database service published no port"; exit 1; }
           echo "VECTISPIRE_TEST_MYSQL_URL=jdbc:mysql://127.0.0.1:$MYSQL_PORT" >> "$GITHUB_ENV"
-          echo "VECTISPIRE_TEST_POSTGRES_URL=jdbc:postgresql://127.0.0.1:$POSTGRES_PORT" >> "$GITHUB_ENV"
+          echo "::notice::VECTISPIRE_TEST_ENGINES=$VECTISPIRE_TEST_ENGINES: PostgreSQL is left out of this job and checked by the nightly (rust-engines)"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The whole history: the migration runner is also held to Flyway on the 0.11.1 line's migrations, which
@@ -1608,14 +1598,15 @@ jobs:
         run: cargo nextest run --workspace --locked --profile ci
       - name: doctests
         run: cargo test --workspace --locked --doc
-      # **The migration runner against the real Flyway**, both engines: a database Java migrated is validated and
+      # **The migration runner against the real Flyway**, on MySQL here (both in the nightly): a database Java migrated is validated and
       # left alone by Rust, one Rust migrated is accepted by Java with the same schema, Java to V89 then Rust then
       # Java, a Java and a Rust instance starting together (crates/migrate/README.md). Not in `cargo test`: it
       # needs the JDK above and Gradle's cache.
       - name: the migration runner, held to Flyway
         run: ./crates/migrate/oracle/check-oracle.sh
-      # **The checked queries' offline caches** are the committed ones, for both engines: regenerated against
-      # throwaway servers and compared, then compiled offline (crates/cp-db/README.md). One script for every crate
+      # **The checked queries' offline caches** are the committed ones: MySQL's half regenerated against a throwaway
+      # server and compared here, PostgreSQL's in the nightly, then the whole cache compiled offline with both engines
+      # on (crates/cp-db/README.md). One script for every crate
       # with checked statements — cp-db and each module's persistence, its `crates_with_queries` — each crate's
       # cache beside it.
       - name: the queries' caches are current
@@ -1662,13 +1653,14 @@ jobs:
   # is to answer every one as Java did. Every recording is read (a format that drifted fails), each of a route
   # not served yet is covered by a line of vectispire-rust/golden/deferred/ saying why (one file per module whose
   # port ends the line, each at its own ceiling), and each of a served route is replayed — seed, request, answer and
-  # rows — on both engines (`replay-goldens.sh`, which finds every `crates/*/tests/golden.rs` replay). The recordings
+  # rows — on MySQL (`replay-goldens.sh`, which finds every `crates/*/tests/golden.rs` replay; nightly.yml's
+  # `rust-replay` replays on both engines, decided 2026-10-29). The recordings
   # are generated here, not committed (66 MB, 7,000 files), kept as an artifact for a few days, and scanned: they
   # carry no credential but the one invented value the export test plants, allowed by name.
   rust-replay:
     runs-on: ubuntu-24.04
-    # Recording (16 min, skipped when the Java tree is unchanged), the build, and the replay on two engines
-    # (34 min) — measured on develop on 2026-10-28.
+    # Recording (16 min, skipped when the Java tree is unchanged), the build, and the replay — 34 min on two engines,
+    # measured on develop on 2026-10-28; MySQL alone since 2026-10-29.
     timeout-minutes: 90
     needs: [rust-changes]
     if: needs.rust-changes.outputs.touched == 'true'
@@ -1728,10 +1720,13 @@ jobs:
           grep -q "^channel = \"$(rustc --version | cut -d' ' -f2)\"" rust-toolchain.toml \
             || { echo "::error::rustc is not the version rust-toolchain.toml pins"; exit 1; }
       # The plan (every recording of a route not served covered by golden/deferred/), then every replay test the
-      # script finds (crates/*/tests/golden.rs) on MySQL and PostgreSQL: a recording of a served route replays green on
-      # both, or is listed with why. No module is named here: a port adds nothing to this job.
-      - name: the recordings replayed against the served routes
+      # script finds (crates/*/tests/golden.rs) on MySQL: a recording of a served route replays green, or is listed
+      # with why; the replay says PostgreSQL was left out, and the nightly replays on both. No module is named here: a
+      # port adds nothing to this job.
+      - name: the recordings replayed against the served routes, on MySQL
         working-directory: vectispire-rust
+        env:
+          VECTISPIRE_TEST_ENGINES: mysql
         run: crates/cp-contract/scripts/replay-goldens.sh "$RUNNER_TEMP/goldens"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

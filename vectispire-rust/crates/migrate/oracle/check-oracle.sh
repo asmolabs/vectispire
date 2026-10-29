@@ -9,6 +9,9 @@
 #
 # `VECTISPIRE_REFERENCE_WRITE=1 oracle/check-oracle.sh` rewrites reference/migrate/ from Flyway's own
 # output — on purpose, after a migration was added, never to make a failure go away.
+#
+# `VECTISPIRE_TEST_ENGINES=mysql` runs the MySQL cases only — what pull requests run, the nightly running both: each
+# PostgreSQL case passes after saying it was left out (cp-db's `testing`). A misspelt value fails every case.
 set -eu
 cd "$(dirname "$0")/../../.."
 command -v docker >/dev/null || { echo "check-oracle.sh: Docker is required" >&2; exit 1; }

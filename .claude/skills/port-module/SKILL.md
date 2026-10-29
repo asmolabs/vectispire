@@ -8,7 +8,9 @@ description: Porting one module or task of the Java control plane to Rust (vecti
 The port is held to the Java side by **what runs**, not by reading: the reference sets, the Flyway
 oracle, the checked queries, the contract and the replay of the Java suite's recorded traffic. A module
 is ported when its routes leave `crates/cp-contract/reference/not-yet-ported/<module>.txt` and their recordings
-replay green on MySQL and PostgreSQL — not when it compiles. The `rust-porter` agent carries the
+replay green on MySQL and PostgreSQL — not when it compiles. A port branch may run its local gate and its
+replay on MySQL alone (`VECTISPIRE_TEST_ENGINES=mysql`), as the pull request's CI does; PostgreSQL runs every
+night (`nightly.yml`), and the code is still written for both — both halves of every query, both caches. The `rust-porter` agent carries the
 invariants; this is the sequence. Replaying and shrinking the deferred list is the `golden-replay` skill.
 
 ## 1. Read before writing

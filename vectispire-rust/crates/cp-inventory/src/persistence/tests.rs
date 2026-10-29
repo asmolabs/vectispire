@@ -37,11 +37,17 @@ const SCAN_BOTH: i64 = 14;
 
 #[test]
 fn on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     run(Engine::MySql);
 }
 
 #[test]
 fn on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     run(Engine::PostgreSql);
 }
 

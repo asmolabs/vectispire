@@ -184,10 +184,16 @@ async fn round_trip(engine: Engine) {
 
 #[tokio::test]
 async fn accounts_round_trip_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     round_trip(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn accounts_round_trip_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     round_trip(Engine::PostgreSql).await;
 }

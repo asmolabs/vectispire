@@ -10,6 +10,16 @@
 //!   `vs_rs_<epoch seconds>_<pid>_<sequence>`, and drops it when the value is dropped. CI's `rust` job runs one
 //!   server of each engine as a job service, so the suite pays two starts instead of one per test.
 //!
+//! **The engines a run covers: `VECTISPIRE_TEST_ENGINES`**, read here and nowhere else. Unset, both — what `./check.sh`
+//! and the nightly run. `mysql` (or `postgresql`, or `mysql,postgresql`) narrows the run to those: pull requests and a
+//! port's local gate run MySQL only (decided 2026-10-29), the nightly both, and the code stays written for both. A
+//! suite asks [`runs_on`] (or reads [`engines`]) before it starts a server; for an engine left out it writes one line,
+//! `left out: PostgreSQL (VECTISPIRE_TEST_ENGINES=mysql)`, straight to the process's stderr — past the test harness's
+//! capture, so that it shows on a passing test — and the test returns: it passes, but it says it did not run, never as
+//! if it had (AGENTS.md, "Never skip silently"). A value that names no engine, or a misspelt one, fails every test that
+//! asks rather than selecting nothing. [`TestDatabase::empty`] refuses an engine left out, so a test that forgot to ask
+//! fails loudly instead of running what the run was told to leave out.
+//!
 //! **Nothing is shared between two tests but the server.** A table, a row, a sequence, a migration history: each is
 //! in the test's own database (MySQL: and a user of the same name, granted that database only, as the image's
 //! entrypoint grants `MYSQL_USER` its `MYSQL_DATABASE`). What a test must not do on a shared server is read the
@@ -41,6 +51,52 @@ pub const MYSQL_IMAGE: &str = "mysql:9.4.0@sha256:135bc87cce147c3d28cecb9ad270b8
 /// `Engine.POSTGRESQL` of the campaign, by digest.
 pub const POSTGRES_IMAGE: &str =
     "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94";
+
+/// The variable naming the engines a run covers: unset, both; otherwise a comma-separated list of `mysql` and
+/// `postgresql`.
+pub const ENGINES_VARIABLE: &str = "VECTISPIRE_TEST_ENGINES";
+
+/// The engines this run covers, in the campaign's order (module documentation). Panics on a value that names no
+/// engine or a misspelt one: a typo must not select nothing and pass.
+pub fn engines() -> &'static [Engine] {
+    static SELECTED: OnceLock<Result<Vec<Engine>, String>> = OnceLock::new();
+    match SELECTED.get_or_init(|| selection(std::env::var(ENGINES_VARIABLE).ok().as_deref())) {
+        Ok(engines) => engines,
+        Err(refusal) => panic!("{refusal}"),
+    }
+}
+
+/// Whether this run covers `engine`. When it does not, says so in one line on the process's stderr, written past the
+/// harness's capture so that a passing test shows it; the caller then returns without running anything.
+pub fn runs_on(engine: Engine) -> bool {
+    if engines().contains(&engine) {
+        return true;
+    }
+    use std::io::Write as _;
+    let value = std::env::var(ENGINES_VARIABLE).unwrap_or_default();
+    // On the handle, not `eprintln!`: libtest captures the macros, and a line nobody sees is a silent skip.
+    let _ = writeln!(std::io::stderr(), "left out: {engine} ({ENGINES_VARIABLE}={value})");
+    false
+}
+
+/// The engines a value of [`ENGINES_VARIABLE`] names, or why it names none.
+fn selection(value: Option<&str>) -> Result<Vec<Engine>, String> {
+    let Some(value) = value else { return Ok(Engine::ALL.to_vec()) };
+    let mut named = Vec::new();
+    for word in value.split(',').map(str::trim) {
+        named.push(match word {
+            "mysql" => Engine::MySql,
+            "postgresql" => Engine::PostgreSql,
+            other => {
+                return Err(format!(
+                    "{ENGINES_VARIABLE}={value}: `{other}` is not an engine; name `mysql`, `postgresql` or both, \
+                     comma-separated, or leave it unset for both"
+                ));
+            }
+        });
+    }
+    Ok(Engine::ALL.into_iter().filter(|engine| named.contains(engine)).collect())
+}
 
 /// The application account's password, on a throwaway server and on a shared one alike.
 const PASSWORD: &str = "throwaway-test-database"; // gitleaks:allow — invented, for a database removed after the test
@@ -127,6 +183,10 @@ impl TestDatabase {
 
     /// A database with nothing in it, for a test that migrates it itself.
     pub fn empty(engine: Engine) -> TestDatabase {
+        assert!(
+            engines().contains(&engine),
+            "{engine} is left out by {ENGINES_VARIABLE}: the test should have asked `testing::runs_on` before starting it"
+        );
         match shared(engine) {
             Some(server) => TestDatabase::on_shared(engine, server),
             None => TestDatabase::throwaway(engine),
@@ -587,7 +647,18 @@ fn wait_until_ready(engine: Engine, server: &Container) {
 
 #[cfg(test)]
 mod tests {
-    use super::mysql_batch;
+    use super::{Engine, mysql_batch, selection};
+
+    #[test]
+    fn the_engines_are_both_unless_named_and_a_misspelt_name_is_refused() {
+        assert_eq!(selection(None), Ok(vec![Engine::MySql, Engine::PostgreSql]));
+        assert_eq!(selection(Some("mysql")), Ok(vec![Engine::MySql]));
+        assert_eq!(selection(Some("postgresql")), Ok(vec![Engine::PostgreSql]));
+        assert_eq!(selection(Some("postgresql, mysql")), Ok(vec![Engine::MySql, Engine::PostgreSql]));
+        for misspelt in ["", "mysq", "MySQL", "postgres", "mysql,", "both"] {
+            assert!(selection(Some(misspelt)).is_err(), "{misspelt:?} selected an engine");
+        }
+    }
 
     #[test]
     fn a_value_is_escaped_as_the_mysql_client_s_batch_mode_escapes_it() {

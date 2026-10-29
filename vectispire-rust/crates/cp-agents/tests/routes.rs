@@ -179,10 +179,16 @@ async fn suite(engine: Engine) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     suite(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     suite(Engine::PostgreSql).await;
 }
