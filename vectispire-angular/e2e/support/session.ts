@@ -98,14 +98,25 @@ async function attempt(page: Page, password: string, username = 'admin'): Promis
     await page.fill('#password input', password);
     await page.click('button[type="submit"]');
 
-    const refusal = page.locator('p-message[severity="error"]');
-    await expect(async () => {
-        const left = !new URL(page.url()).pathname.startsWith('/login');
-        expect(left || (await refusal.isVisible()), `the sign-in of ${username} was neither accepted nor refused`).toBe(
-            true
+    // Events, not a poll: the first answer ends the wait at once. A poll answered a moment late, after
+    // the dashboard's first requests had left — and a case waiting for one of them waited for ever.
+    const accepted = page
+        .waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: SIGN_IN_ANSWERED })
+        .then(() => true);
+    const refused = page
+        .locator('p-message[severity="error"]')
+        .waitFor({ state: 'visible', timeout: SIGN_IN_ANSWERED })
+        .then(() => false);
+    // The loser times out later, or when the page closes; nobody is waiting for it.
+    accepted.catch(() => {});
+    refused.catch(() => {});
+    try {
+        return await Promise.race([accepted, refused]);
+    } catch {
+        throw new Error(
+            `The sign-in of ${username} was neither accepted nor refused within ${SIGN_IN_ANSWERED / 1000} s.`
         );
-    }).toPass({ timeout: SIGN_IN_ANSWERED });
-    return !new URL(page.url()).pathname.startsWith('/login');
+    }
 }
 
 async function rotate(page: Page): Promise<void> {
