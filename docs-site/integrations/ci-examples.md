@@ -301,7 +301,8 @@ screen: every call writes one, so ask once per pipeline, not in a loop.
 Every refusal is a [problem document](../reference/errors.md): `application/problem+json`, with
 `detail` written for the person reading the log. None of these refusals carries a
 `urn:vectispire:problem:` type — that is reserved for conflicts a screen must tell apart — so a
-script decides on the status and shows the `detail`.
+script decides on the status, or on the `code` beside it (`import-refused`, `not-found`,
+`invalid-request`, `content-too-large`), and shows the `detail`.
 
 ## 2. Jenkins {#jenkins}
 

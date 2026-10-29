@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.errors.ProblemCode;
 import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
@@ -55,6 +56,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * ResponseEntityExceptionHandler} makes Spring's own refusals problems; a {@code
  * ResponseStatusException} is one of them, and its reason becomes the {@code detail}.
  *
+ * <p><b>And always with a {@code code}</b> ({@link ProblemCode}): the kind of refusal for a program,
+ * beside the sentence for a person, so that a pipeline branches on a token rather than on wording.
+ * Each handler below names its own; what reaches {@link #createResponseEntity} without one is named
+ * by its status.
+ *
  * <p>Every message below is meant to be shown as it stands. These exceptions carry text written
  * for the person who triggered them; replacing it with a generic sentence would throw away the
  * only part that helps.
@@ -80,7 +86,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         InvalidInputException.class
     })
     ProblemDetail badRequest(RuntimeException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, error.getMessage());
+        return problem(HttpStatus.BAD_REQUEST, error.getMessage(), ProblemCode.INVALID_REQUEST);
     }
 
     /**
@@ -95,7 +101,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         // 422 by number: Spring deprecated the constant in favour of the WebDAV spelling
         // `UNPROCESSABLE_CONTENT`, which is the same code under a name nobody uses in an API
         // contract. The number is what the frontend matches on, and it is not moving.
-        return ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(422), error.getMessage());
+        return problem(HttpStatusCode.valueOf(422), error.getMessage(), ProblemCode.UNSAFE_URL);
     }
 
     /**
@@ -107,7 +113,10 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      */
     @ExceptionHandler({MissingEncryptionKeyException.class, CredentialWithheldException.class})
     ProblemDetail preconditionFailed(RuntimeException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, error.getMessage());
+        return problem(HttpStatus.PRECONDITION_FAILED, error.getMessage(),
+                error instanceof MissingEncryptionKeyException
+                        ? ProblemCode.ENCRYPTION_KEY_MISSING
+                        : ProblemCode.CREDENTIAL_WITHHELD);
     }
 
     /**
@@ -117,19 +126,19 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      */
     @ExceptionHandler({SarifImportRefusedException.class, ReportImportRefusedException.class})
     ProblemDetail importRefused(RuntimeException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
+        return problem(HttpStatus.FORBIDDEN, error.getMessage(), ProblemCode.IMPORT_REFUSED);
     }
 
     /** A key or an agent credential on a route that did not invite it (decision 0024). */
     @ExceptionHandler(CredentialNotAcceptedException.class)
     ProblemDetail credentialNotAccepted(CredentialNotAcceptedException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
+        return problem(HttpStatus.FORBIDDEN, error.getMessage(), ProblemCode.CREDENTIAL_NOT_ACCEPTED);
     }
 
     @ExceptionHandler(ApiKeyRateLimitedException.class)
     ResponseEntity<ProblemDetail> apiKeyRateLimited(ApiKeyRateLimitedException error) {
         long seconds = Math.max(1, error.retryAfter().toSeconds());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, error.getMessage());
+        ProblemDetail problem = problem(HttpStatus.TOO_MANY_REQUESTS, error.getMessage(), ProblemCode.RATE_LIMITED);
         problem.setProperty("retryAfterSeconds", seconds);
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
@@ -144,7 +153,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      */
     @ExceptionHandler(PasswordChangeRequiredException.class)
     ProblemDetail passwordChangeRequired(PasswordChangeRequiredException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
+        return problem(HttpStatus.FORBIDDEN, error.getMessage(), ProblemCode.PASSWORD_CHANGE_REQUIRED);
     }
 
     /**
@@ -167,11 +176,21 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         PluginConflictException.class
     })
     ProblemDetail conflict(RuntimeException error) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
+        ProblemDetail problem = problem(HttpStatus.CONFLICT, error.getMessage(), switch (error) {
+            case ScanTriggerService.AlreadyQueuedException _ -> ProblemCode.ALREADY_QUEUED;
+            case AttestationService.NotAttestableException _ -> ProblemCode.NOT_ATTESTABLE;
+            case SolutionAdministrationService.SolutionNotEmptyException _ -> ProblemCode.SOLUTION_NOT_EMPTY;
+            case PluginConflictException _ -> ProblemCode.PLUGIN_CONFLICT;
+            default -> ProblemCode.CONFLICT;
+        });
         // A route whose 409 has several causes names each, so that a client tells "read it again" from
         // "a second person has to do it" by the type and not by a sentence that changes with its words.
+        // The cause is the code too: one token, in the two places a client may look for it.
         if (error instanceof ConflictException conflict) {
-            conflict.conflictCause().ifPresent(cause -> problem.setType(URI.create(PROBLEM_TYPE + cause)));
+            conflict.conflictCause().ifPresent(cause -> {
+                problem.setType(URI.create(PROBLEM_TYPE + cause));
+                problem.setProperty(ProblemCode.MEMBER, cause);
+            });
             // What the sentence names, as data — a checklist's incomplete lines by item — for a client
             // that shows them in its own language.
             conflict.members().forEach(problem::setProperty);
@@ -190,7 +209,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler({RequestBodyTooLargeException.class, SarifTooLargeException.class, ReportTooLargeException.class,
         ChecklistFileTooLargeException.class})
     ProblemDetail contentTooLarge(RuntimeException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
+        return problem(HttpStatus.CONTENT_TOO_LARGE, error.getMessage(), ProblemCode.CONTENT_TOO_LARGE);
     }
 
     /**
@@ -203,7 +222,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      */
     @ExceptionHandler(NotFoundException.class)
     ProblemDetail notFound(NotFoundException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, error.getMessage());
+        return problem(HttpStatus.NOT_FOUND, error.getMessage(), ProblemCode.NOT_FOUND);
     }
 
     /**
@@ -220,8 +239,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             throw error;
         }
         String reference = UnexpectedFailure.record(request.getMethod(), request.getRequestURI(), error);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.INTERNAL_SERVER_ERROR, UnexpectedFailure.detail(reference));
+        ProblemDetail problem = problem(
+                HttpStatus.INTERNAL_SERVER_ERROR, UnexpectedFailure.detail(reference), ProblemCode.UNEXPECTED_FAILURE);
         problem.setProperty(UnexpectedFailure.REFERENCE, reference);
         return ResponseEntity.internalServerError().body(problem);
     }
@@ -236,7 +255,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected @Nullable ResponseEntity<Object> handleNoResourceFoundException(
             NoResourceFoundException error, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, "Nothing is served at this path.");
+        // Not `not-found`: a pipeline told "the target is gone" when its URL is wrong would delete
+        // the wrong thing from its configuration.
+        ProblemDetail problem = problem(status, "Nothing is served at this path.", ProblemCode.NO_SUCH_ROUTE);
         return handleExceptionInternal(error, problem, headers, status, request);
     }
 
@@ -280,6 +301,16 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatus known = HttpStatus.resolve(statusCode.value());
             problem.setDetail(known == null ? "The request was refused." : known.getReasonPhrase() + ".");
         }
+        if (body instanceof ProblemDetail problem
+                && (problem.getProperties() == null || !problem.getProperties().containsKey(ProblemCode.MEMBER))) {
+            problem.setProperty(ProblemCode.MEMBER, ProblemCode.forStatus(statusCode.value()));
+        }
         return super.createResponseEntity(body, headers, statusCode, request);
+    }
+
+    private static ProblemDetail problem(HttpStatusCode status, @Nullable String detail, String code) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setProperty(ProblemCode.MEMBER, code);
+        return problem;
     }
 }

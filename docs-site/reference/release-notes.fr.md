@@ -21,6 +21,11 @@ que deux versions mineures après une annonce.
   des champs ne changent pas. **La v1 n'est pas servie à côté** : un vérificateur qui épingle
   `…/attestation/v1` refuse les nouvelles déclarations jusqu'à ce qu'il épingle la v2
   ([conformité](../guide/compliance.md#le-paquet-de-preuves)).
+- **Chaque document « problem » porte un `code`** à côté de son `detail` : un jeton stable comme
+  `not-found`, `no-such-route`, `invalid-request` ou `rate-limited`, et pour un conflit qui nomme sa
+  cause, la cause elle-même. Un pipeline décide sur lui plutôt que sur de l'anglais
+  ([erreurs de l'API](errors.md#les-codes)). Ajout seul : rien d'autre ne change dans un refus. Le
+  verdict de la barrière nommait déjà la `rule` de chaque violation.
 
 ## 0.11.2 — 27 octobre 2026
 

@@ -17,7 +17,7 @@ final class ChecklistRefusals {
     /** {@code urn:vectispire:problem:checklist-incomplete}: the lines kept from a submission or a sign-off. */
     @Schema(name = "ChecklistIncompleteProblem", description = "A checklist-incomplete refusal: an RFC 9457 problem "
             + "whose lines member names each line kept from the submission or the sign-off, with its problems.")
-    record Incomplete(String type, String title, int status, String detail, String instance,
+    record Incomplete(String type, String title, int status, String detail, String instance, String code,
             List<ChecklistConflict.IncompleteLine> lines) {}
 
     /**
@@ -27,7 +27,7 @@ final class ChecklistRefusals {
     @Schema(name = "ChecklistMeasurementProblem", description = "A checklist-measurement-contradicted or "
             + "checklist-measurement-changed refusal: an RFC 9457 problem whose lines member names each line with "
             + "its answer, what the rule finds now and, for a sign-off, what it found at the submission.")
-    record Measured(String type, String title, int status, String detail, String instance,
+    record Measured(String type, String title, int status, String detail, String instance, String code,
             List<ChecklistConflict.MeasuredLine> lines) {}
 
     /**
@@ -37,6 +37,6 @@ final class ChecklistRefusals {
     @Schema(name = "ChecklistUnrenderableProblem", description = "A checklist-template-unrenderable or "
             + "checklist-version-unrenderable refusal: an RFC 9457 problem whose cells member names each cell a "
             + "sign-off writes that carries a formula other cells depend on — cell, kind shared or array, range.")
-    record Unrenderable(String type, String title, int status, String detail, String instance,
+    record Unrenderable(String type, String title, int status, String detail, String instance, String code,
             List<ChecklistConflict.UnrenderableCell> cells) {}
 }

@@ -2,14 +2,15 @@
 
 Chaque refus de l'API REST est un document « problem » au sens de la
 [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457). Lisez `detail` : c'est la phrase écrite pour
-l'auteur de la requête.
+l'auteur de la requête ; décidez sur `code`.
 
 ```json
 {
   "title": "Bad Request",
   "status": 400,
   "detail": "Scheme \"ftp\" is not allowed. Expected https, ssh or git.",
-  "instance": "/api/v1/repositories"
+  "instance": "/api/v1/repositories",
+  "code": "invalid-request"
 }
 ```
 
@@ -19,6 +20,7 @@ l'auteur de la requête.
 | `title` | oui | La formule standard du statut. Pas faite pour être affichée seule. |
 | `detail` | oui | Ce qui ne va pas, en des termes faits pour être affichés tels quels. |
 | `instance` | oui | Le chemin demandé. |
+| `code` | oui | Ce qu'est le refus, en jeton stable sur lequel un programme décide — voir [les codes](#les-codes). |
 | `retryAfterSeconds` | sur un 429 | Le temps d'attente. L'en-tête `Retry-After` porte le même nombre. |
 | `correlationId` | sur un 500 | Une référence à transmettre à votre administrateur ; elle figure aussi dans `detail`. |
 
@@ -30,6 +32,36 @@ aucune n'est une page HTML, et aucune ne nomme le serveur ni sa version. Une exc
 une défaillance levée avant qu'une route ne soit atteinte reçoit de la page d'erreur les mêmes
 membres, en `application/json` sauf si le client demande `application/problem+json` dans
 `Accept`.
+
+## Les codes
+
+`code` nomme le genre de refus pour un programme, pour qu'un script décide sur un jeton plutôt que sur
+la formulation de `detail`, écrite pour une personne et qui change avec elle. Il a été ajouté en route
+vers la 1.0 (décision 0043 §6) ; `status`, `title`, `detail` et `type` sont restés ce qu'ils étaient.
+
+| `code` | Statut | Quand |
+|---|---|---|
+| `invalid-request` | 400 | La requête est mal formée ou une valeur y est refusée. |
+| `authentication-required` | 401 | Pas d'identifiant, ou un identifiant invalide. |
+| `forbidden` | 403 | L'identifiant n'autorise pas ceci. |
+| `credential-not-accepted` | 403 | Une clé d'API ou un identifiant d'agent sur une route qui n'en accepte pas. |
+| `password-change-required` | 403 | Le compte doit d'abord changer de mot de passe. |
+| `import-refused` | 403 | Un SARIF, une couverture ou un rapport de tests d'une source non déclarée pour lui. |
+| `not-found` | 404 | Ce que nomme le chemin est absent — ou vous est caché ; le code ne distingue pas les deux non plus. |
+| `no-such-route` | 404 | Rien n'est servi à ce chemin : l'URL est fausse, la cible n'a pas disparu. |
+| `method-not-allowed`, `not-acceptable`, `unsupported-media-type` | 405, 406, 415 | Mauvaise méthode, mauvais `Accept` ou mauvais type de corps. |
+| `conflict` | 409 | L'état le refuse, pour une raison sans code propre. |
+| `already-queued`, `not-attestable`, `solution-not-empty`, `plugin-conflict` | 409 | Un scan déjà en file ; un scan sans rien à attester ; une solution qui contient encore des projets ; l'état d'un plugin. |
+| *la cause* | 409 | Un conflit qu'un client doit distinguer : le code est le dernier segment de son `type` `urn:vectispire:problem:`, comme `target-already-registered`. |
+| `encryption-key-missing`, `credential-withheld` | 412 | Le déploiement manque d'un réglage d'exploitant. |
+| `content-too-large` | 413 | Le corps dépasse le plafond de la route. |
+| `unsafe-url` | 422 | Une destination refusée par la politique sortante. |
+| `rate-limited` | 429 | Trop de tentatives ; attendez `retryAfterSeconds`. |
+| `unexpected-failure` | 500 | Une défaillance pour laquelle personne n'a écrit de phrase ; citez le `correlationId`. |
+| `unavailable` | 502–504 | Passager. |
+
+Les codes sont ouverts, comme les valeurs d'énumération : un client qui en rencontre un qu'il ne connaît
+pas se rabat sur `status`. Un statut que ce tableau ne nomme pas se lit `http-<statut>`.
 
 ## Ce que signifie chaque statut
 

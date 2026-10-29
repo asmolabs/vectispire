@@ -62,6 +62,8 @@ class RepositoryDuplicatesRoutesTest extends ApiTestBase {
                             .content("{\"url\":\"" + url + "\",\"branch\":\"main\"}"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.type").value(TYPE))
+                    // The cause is the code too, so a client reads one member on every refusal.
+                    .andExpect(jsonPath("$.code").value("target-already-registered"))
                     .andExpect(jsonPath("$.existingRepositoryId").value(api))
                     .andReturn();
             assertThat(detailOf(refused)).as(url)

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.platform.web;
 
+import com.asmolabs.vectispire.common.domain.errors.ProblemCode;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -56,6 +57,7 @@ public class ProblemErrorAttributes extends DefaultErrorAttributes {
             problem.put("detail", status == null ? "The request was refused." : status.getReasonPhrase() + ".");
         }
         problem.put("instance", path);
+        problem.put(ProblemCode.MEMBER, ProblemCode.forStatus(code));
         return problem;
     }
 }

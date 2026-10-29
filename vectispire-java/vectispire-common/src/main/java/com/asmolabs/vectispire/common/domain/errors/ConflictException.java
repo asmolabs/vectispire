@@ -36,8 +36,8 @@ public class ConflictException extends RuntimeException {
     /** A lowercase token of letters, digits and hyphens: what a URN's last segment reads without escaping. */
     private static final Pattern CAUSE = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
 
-    /** RFC 9457's own members, which an extension must not overwrite. */
-    private static final Set<String> RESERVED = Set.of("type", "title", "status", "detail", "instance");
+    /** RFC 9457's own members, and the {@link ProblemCode} beside them, which an extension must not overwrite. */
+    private static final Set<String> RESERVED = Set.of("type", "title", "status", "detail", "instance", ProblemCode.MEMBER);
 
     private final String cause;
 
@@ -57,7 +57,7 @@ public class ConflictException extends RuntimeException {
     /**
      * @param cause the token naming why, which the problem's {@code type} carries
      * @param members extension members of the problem, by name — never {@code type}, {@code title},
-     *     {@code status}, {@code detail} or {@code instance}, which the problem's own fields hold
+     *     {@code status}, {@code detail}, {@code instance} or {@code code}, which the problem's own fields hold
      */
     protected ConflictException(String message, String cause, Map<String, ?> members) {
         super(message);
