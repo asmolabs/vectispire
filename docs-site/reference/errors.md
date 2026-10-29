@@ -1,14 +1,15 @@
 # API errors
 
 Every refusal of the REST API is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
-document. Read `detail`: it is the sentence written for whoever made the request.
+document. Read `detail`: it is the sentence written for whoever made the request; branch on `code`.
 
 ```json
 {
   "title": "Bad Request",
   "status": 400,
   "detail": "Scheme \"ftp\" is not allowed. Expected https, ssh or git.",
-  "instance": "/api/v1/repositories"
+  "instance": "/api/v1/repositories",
+  "code": "invalid-request"
 }
 ```
 
@@ -18,6 +19,7 @@ document. Read `detail`: it is the sentence written for whoever made the request
 | `title` | yes | The status's standard phrase. Not meant to be shown on its own. |
 | `detail` | yes | What went wrong, in words meant to be displayed as they are. |
 | `instance` | yes | The path that was requested. |
+| `code` | yes | What the refusal is, as a stable token a program branches on — see [the codes](#the-codes). |
 | `retryAfterSeconds` | on a 429 | How long to wait. The `Retry-After` header carries the same number. |
 | `correlationId` | on a 500 | A reference to quote to your administrator; also found in `detail`. |
 
@@ -28,6 +30,36 @@ a 400 whose `detail` says which kind of URL was refused; neither is an HTML page
 names the server or its version. One exception remains: a failure thrown before any route is
 reached is answered by the error page with the same members, as `application/json` unless the
 client asks for `application/problem+json` in `Accept`.
+
+## The codes
+
+`code` names the kind of refusal for a program, so that a script branches on a token rather than on
+the wording of `detail`, which is written for a person and changes with it. It was added on the way
+to 1.0 (decision 0043 §6); `status`, `title`, `detail` and `type` are as they were.
+
+| `code` | Status | When |
+|---|---|---|
+| `invalid-request` | 400 | The request is malformed or a value in it is refused. |
+| `authentication-required` | 401 | No credential, or one that is not valid. |
+| `forbidden` | 403 | The credential may not do this. |
+| `credential-not-accepted` | 403 | An API key or an agent credential on a route that does not take one. |
+| `password-change-required` | 403 | The account owes a password change first. |
+| `import-refused` | 403 | A SARIF, coverage or test report from a source not declared for it. |
+| `not-found` | 404 | What the path names is absent — or hidden from you; the code does not tell the two apart either. |
+| `no-such-route` | 404 | Nothing is served at this path: the URL is wrong, not the target gone. |
+| `method-not-allowed`, `not-acceptable`, `unsupported-media-type` | 405, 406, 415 | Wrong method, `Accept` or body media type. |
+| `conflict` | 409 | The state refuses it, for a reason with no code of its own. |
+| `already-queued`, `not-attestable`, `solution-not-empty`, `plugin-conflict` | 409 | A scan already queued; a scan with nothing to attest; a solution still holding projects; a plugin's state. |
+| *the cause* | 409 | A conflict a client must tell apart: the code is the last segment of its `urn:vectispire:problem:` `type`, such as `target-already-registered`. |
+| `encryption-key-missing`, `credential-withheld` | 412 | The deployment is missing something an operator sets. |
+| `content-too-large` | 413 | The body is over the route's ceiling. |
+| `unsafe-url` | 422 | A destination refused by the outbound policy. |
+| `rate-limited` | 429 | Too many attempts; wait `retryAfterSeconds`. |
+| `unexpected-failure` | 500 | A failure nobody wrote a sentence for; quote the `correlationId`. |
+| `unavailable` | 502–504 | Transient. |
+
+Codes are open, as enum values are: a client meeting one it does not know falls back on `status`. A
+status this table does not name reads `http-<status>`.
 
 ## What each status means
 

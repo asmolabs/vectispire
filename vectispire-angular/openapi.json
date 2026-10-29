@@ -1608,6 +1608,9 @@
       "ChecklistIncompleteProblem" : {
         "description" : "A checklist-incomplete refusal: an RFC 9457 problem whose lines member names each line kept from the submission or the sign-off, with its problems.",
         "properties" : {
+          "code" : {
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },
@@ -1866,6 +1869,9 @@
       "ChecklistMeasurementProblem" : {
         "description" : "A checklist-measurement-contradicted or checklist-measurement-changed refusal: an RFC 9457 problem whose lines member names each line with its answer, what the rule finds now and, for a sign-off, what it found at the submission.",
         "properties" : {
+          "code" : {
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },
@@ -2337,6 +2343,9 @@
               "$ref" : "#/components/schemas/UnrenderableCell"
             },
             "type" : "array"
+          },
+          "code" : {
+            "type" : "string"
           },
           "detail" : {
             "type" : "string"
@@ -8939,6 +8948,9 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "code" : {
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },
@@ -12060,6 +12072,9 @@
       "WebhookRefusal" : {
         "description" : "A refused delivery: an RFC 9457 problem whose detail says why.",
         "properties" : {
+          "code" : {
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },

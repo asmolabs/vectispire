@@ -19,6 +19,11 @@ after an announcement.
   scan's issue count there, which could read below the sum of the severities. The field names are
   unchanged. **v1 is not served beside it**: a verifier pinning `…/attestation/v1` refuses the new
   statements until it pins v2 ([compliance](../guide/compliance.md#the-evidence-bundle)).
+- **Every problem document carries a `code`** beside its `detail`: a stable token such as
+  `not-found`, `no-such-route`, `invalid-request` or `rate-limited`, and for a conflict naming its
+  cause, the cause itself. A pipeline branches on it instead of matching English
+  ([API errors](errors.md#the-codes)). Additive: nothing else in a refusal changes. The gate's
+  verdict already named each violation's `rule`.
 
 ## 0.11.2 — 2026-10-27
 

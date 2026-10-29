@@ -43,20 +43,24 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
     void anUnknownRoute() throws Exception {
         JsonNode problem = problem(authenticated(get("/api/v1/no-such-route"), asAdmin()), 404);
         assertThat(problem.get("detail").asText()).isEqualTo("Nothing is served at this path.");
+        // Not `not-found`: a wrong URL told apart from an absent row without reading the sentence.
+        assertThat(problem.get("code").asText()).isEqualTo("no-such-route");
     }
 
     @Test
     @DisplayName("a method the route does not take is a problem")
     void aWrongMethod() throws Exception {
-        problem(authenticated(delete("/api/v1/auth/me"), asAdmin()), 405);
+        assertThat(problem(authenticated(delete("/api/v1/auth/me"), asAdmin()), 405).get("code").asText())
+                .isEqualTo("method-not-allowed");
     }
 
     @Test
     @DisplayName("a body in a media type the route does not read is a problem")
     void aWrongContentType() throws Exception {
-        problem(authenticated(post("/api/v1/repositories"), asAdmin())
+        JsonNode problem = problem(authenticated(post("/api/v1/repositories"), asAdmin())
                 .contentType(MediaType.TEXT_PLAIN)
                 .content("x"), 415);
+        assertThat(problem.get("code").asText()).isEqualTo("unsupported-media-type");
     }
 
     @Test
@@ -71,6 +75,7 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
         JsonNode problem = problem(authenticated(post("/api/v1/repositories"), asAdmin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{nope"), 400);
+        assertThat(problem.get("code").asText()).isEqualTo("invalid-request");
         assertThat(problem.get("detail").asText())
                 .doesNotContain("Unexpected character")
                 .doesNotContain("jackson");
@@ -96,18 +101,20 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"), 400);
         assertThat(missing.get("detail").asText()).isEqualTo("MFA token and verification code are required.");
+        assertThat(missing.get("code").asText()).isEqualTo("invalid-request");
 
         JsonNode refused = problem(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"nobody-here\",\"password\":\"wrong\"}"), 401);
         assertThat(refused.get("detail").asText()).isEqualTo("Invalid credentials.");
+        assertThat(refused.get("code").asText()).isEqualTo("authentication-required");
     }
 
     @Test
     @DisplayName("the chain's 401 is a problem, with no challenge a browser would prompt on")
     void theChainsUnauthenticated() throws Exception {
         MvcResult result = mvc.perform(get("/api/v1/issues")).andReturn();
-        assertProblem(result, 401);
+        assertThat(assertProblem(result, 401).get("code").asText()).isEqualTo("authentication-required");
         assertThat(result.getResponse().getHeader("WWW-Authenticate")).isNull();
     }
 
@@ -116,6 +123,7 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
     void theChainsForbidden() throws Exception {
         JsonNode problem = problem(authenticated(get("/api/v1/users"), asReader()), 403);
         assertThat(problem.get("detail").asText()).doesNotContain("ADMIN").doesNotContain("SUPERUSER");
+        assertThat(problem.get("code").asText()).isEqualTo("forbidden");
     }
 
     @Test
@@ -134,6 +142,7 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
         assertThat(limited).as("thirty sign-ins from one address must meet the limiter").isNotNull();
         JsonNode problem = assertProblem(limited, 429);
         assertThat(problem.get("retryAfterSeconds").asLong()).isPositive();
+        assertThat(problem.get("code").asText()).isEqualTo("rate-limited");
         assertThat(limited.getResponse().getHeader("Retry-After")).isNotBlank();
     }
 
@@ -144,7 +153,7 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new byte[2 * 1024 * 1024]))
                 .andReturn();
-        assertProblem(result, 413);
+        assertThat(assertProblem(result, 413).get("code").asText()).isEqualTo("content-too-large");
     }
 
     @Test
@@ -161,6 +170,7 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
         JsonNode problem = json.readTree(result.getResponse().getContentAsString());
         assertThat(problem.get("status").asInt()).isEqualTo(500);
         assertThat(problem.get("instance").asText()).isEqualTo("/api/v1/issues");
+        assertThat(problem.get("code").asText()).isEqualTo("unexpected-failure");
         String reference = problem.get("correlationId").asText();
         assertThat(problem.get("detail").asText()).contains(reference).doesNotContain("t_secret");
         assertThat(result.getResponse().getContentAsString()).doesNotContain("t_secret").doesNotContain("trace");
@@ -181,6 +191,23 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
         JsonNode ofAbsentToAll = problem(authenticated(get("/api/v1/scorecards/repositories/999999"), asAdmin()), 404);
 
         assertThat(ofHidden.get("detail")).isEqualTo(ofAbsent.get("detail")).isEqualTo(ofAbsentToAll.get("detail"));
+        // The code must not tell them apart either, or it would confirm what the 404 hides.
+        assertThat(ofHidden.get("code")).isEqualTo(ofAbsent.get("code")).isEqualTo(ofAbsentToAll.get("code"));
+        assertThat(ofHidden.get("code").asText()).isEqualTo("not-found");
+    }
+
+    @Test
+    @DisplayName("the gate's refusals carry a code a pipeline branches on, not the English it used to parse")
+    void theGatesRefusals() throws Exception {
+        JsonNode malformed = problem(authenticated(post("/api/v1/gate"), asAdmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"), 400);
+        assertThat(malformed.get("code").asText()).isEqualTo("invalid-request");
+
+        // The key a pipeline holds, on a route it may not call: told apart from a malformed request
+        // and from an absent target by the code alone.
+        JsonNode refused = problem(authenticated(get("/api/v1/users"), asReader()), 403);
+        assertThat(refused.get("code").asText()).isEqualTo("forbidden");
     }
 
     private JsonNode problem(MockHttpServletRequestBuilder request, int status) throws Exception {
@@ -195,6 +222,9 @@ class ProblemDetailsRoutesTest extends ApiTestBase {
         JsonNode problem = json.readTree(result.getResponse().getContentAsString());
         assertThat(problem.get("status").asInt()).isEqualTo(status);
         assertThat(problem.path("detail").asText()).as("a sentence the interface can show").isNotBlank();
+        assertThat(problem.path("code").asText())
+                .as("a token a pipeline can branch on, beside the sentence (decision 0043 §6)")
+                .matches("[a-z0-9]+(-[a-z0-9]+)*");
         return problem;
     }
 }

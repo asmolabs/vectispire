@@ -5241,6 +5241,7 @@ export interface components {
         };
         /** @description A checklist-incomplete refusal: an RFC 9457 problem whose lines member names each line kept from the submission or the sign-off, with its problems. */
         ChecklistIncompleteProblem: {
+            code?: string;
             detail?: string;
             instance?: string;
             lines?: components["schemas"]["IncompleteLine"][];
@@ -5339,6 +5340,7 @@ export interface components {
         };
         /** @description A checklist-measurement-contradicted or checklist-measurement-changed refusal: an RFC 9457 problem whose lines member names each line with its answer, what the rule finds now and, for a sign-off, what it found at the submission. */
         ChecklistMeasurementProblem: {
+            code?: string;
             detail?: string;
             instance?: string;
             lines?: components["schemas"]["MeasuredLine"][];
@@ -5520,6 +5522,7 @@ export interface components {
         /** @description A checklist-template-unrenderable or checklist-version-unrenderable refusal: an RFC 9457 problem whose cells member names each cell a sign-off writes that carries a formula other cells depend on — cell, kind shared or array, range. */
         ChecklistUnrenderableProblem: {
             cells?: components["schemas"]["UnrenderableCell"][];
+            code?: string;
             detail?: string;
             instance?: string;
             /** Format: int32 */
@@ -8084,6 +8087,7 @@ export interface components {
         RuleSetLosesIssuesProblem: {
             /** Format: int64 */
             affectedIssues: number;
+            code?: string;
             detail?: string;
             instance?: string;
             losingIssues?: string[];
@@ -9259,6 +9263,7 @@ export interface components {
         };
         /** @description A refused delivery: an RFC 9457 problem whose detail says why. */
         WebhookRefusal: {
+            code?: string;
             detail?: string;
             instance?: string;
             /** Format: int32 */

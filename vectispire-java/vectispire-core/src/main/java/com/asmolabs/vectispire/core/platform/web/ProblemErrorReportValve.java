@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.platform.web;
 
+import com.asmolabs.vectispire.common.domain.errors.ProblemCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Writer;
@@ -74,6 +75,7 @@ public class ProblemErrorReportValve extends ErrorReportValve {
         if (path != null) {
             problem.put("instance", path);
         }
+        problem.put(ProblemCode.MEMBER, ProblemCode.forStatus(code));
 
         try {
             response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
