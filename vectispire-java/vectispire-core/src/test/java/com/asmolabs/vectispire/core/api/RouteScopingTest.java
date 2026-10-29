@@ -205,7 +205,7 @@ class RouteScopingTest {
 
         while (declaration.find()) {
             String body = bodyFrom(source, declaration.end() - 1);
-            if (body != null && RESOLVES_ALLOWANCE.matcher(body).find()) {
+            if (body != null && RESOLVES_ALLOWANCE.matcher(codeOf(body)).find()) {
                 trusted.add(declaration.group(1));
             }
         }
@@ -291,10 +291,58 @@ class RouteScopingTest {
             }
             String body = bodyFrom(source, signature.end() - 1);
             if (body != null) {
-                routes.add(new Route(controller, signature.group(1), decorations + body));
+                // **The signature and the body, as code.** The annotation block came with them, and
+                // with it an `@Operation` description or a javadoc line that merely said "Visibility":
+                // a route was counted as scoped on the strength of its documentation.
+                routes.add(new Route(controller, signature.group(1),
+                        codeOf(source.substring(signature.start(), signature.end() - 1) + body)));
             }
         }
         return routes;
+    }
+
+    /** Comments and string literals, which say things about the code without being it. */
+    private static final Pattern NOT_CODE = Pattern.compile(
+            "\"\"\"[\\s\\S]*?\"\"\"|\"(?:\\\\.|[^\"\\\\])*\"|/\\*[\\s\\S]*?\\*/|//[^\n]*");
+
+    /** The text without its comments and string literals. */
+    static String codeOf(String text) {
+        return NOT_CODE.matcher(text).replaceAll(" ");
+    }
+
+    @Test
+    @DisplayName("an allowance named only in an annotation, a comment or a string does not scope a route")
+    void documentationIsNotCode() {
+        String source = """
+                @RestController
+                public class ProbeController {
+                    @Operation(description = "Filtered by the caller's Visibility")
+                    @GetMapping("/things/{id}")
+                    public Thing thing(@PathVariable long id) {
+                        // The Visibility is resolved by the service.
+                        log.debug("Visibilities.requireVisible is not called here");
+                        return service.thing(id);
+                    }
+
+                    private Thing visibleThing(long id) {
+                        /* Visibility */
+                        return service.thing(id);
+                    }
+                }
+                """;
+
+        assertThat(routesOf("ProbeController", source, false, false))
+                .singleElement()
+                .satisfies(route -> assertThat(isScoped(route, helpersThatResolveAnAllowance(source)))
+                        .as("scoped by its documentation alone")
+                        .isFalse());
+        // And the same route resolving one in code is scoped.
+        String scoped = source.replace("return service.thing(id);\n    }\n\n",
+                "return service.thing(id, visibility.of(principal));\n    }\n\n");
+        assertThat(scoped).isNotEqualTo(source);
+        assertThat(routesOf("ProbeController", scoped, false, false))
+                .singleElement()
+                .satisfies(route -> assertThat(isScoped(route, Set.of())).isTrue());
     }
 
     /** Where the previous member ended, so a route's whole annotation block is in view. */
