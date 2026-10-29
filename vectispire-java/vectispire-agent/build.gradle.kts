@@ -82,14 +82,16 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
         rule {
             element = "BUNDLE"
             limit {
+                // About three points under the 80.4% instruction and 68.1% branch measured on
+                // 2026-10-29, without the cluster-bound classes; first set at 60 and 45.
                 counter = "INSTRUCTION"
-                minimum = "0.60".toBigDecimal()
+                minimum = "0.77".toBigDecimal()
             }
             limit {
                 // Lower than instruction coverage, and honestly so — same reasoning as the other
                 // two modules: a branch is the half of an `if` nobody wrote a case for.
                 counter = "BRANCH"
-                minimum = "0.45".toBigDecimal()
+                minimum = "0.65".toBigDecimal()
             }
         }
     }

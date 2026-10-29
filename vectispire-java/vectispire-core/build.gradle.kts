@@ -515,7 +515,8 @@ tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configure
  * while a service is where the branches live. Four separate floors would encode today's ratios as
  * a target and fail the day somebody moves a method between layers for good reasons.
  *
- * Set just under the measured 71%: a floor catches a regression — a class added with no test, a
+ * Set about three points under the measured figure — 92.0% on 2026-10-29, once the HTTP suites ran in
+ * `test` on MySQL; it was first set at 68 against 71: a floor catches a regression — a class added with no test, a
  * suite deleted in a hurry — and is not an aspiration. The domain keeps its own, higher bar in
  * `vectispire-common`, because that is the layer argued to be exhaustively testable.
  *
@@ -588,7 +589,7 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
             element = "BUNDLE"
             limit {
                 counter = "INSTRUCTION"
-                minimum = "0.68".toBigDecimal()
+                minimum = "0.89".toBigDecimal()
             }
         }
     }
