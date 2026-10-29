@@ -106,7 +106,7 @@ public class PluginService {
      * @throws PluginConflictException an id already registered (409) — ids are never reused
      */
     public PluginView register(PluginManifest requested, RequestActor actor) {
-        PluginManifest manifest = requireManifest(requested).validated();
+        PluginManifest manifest = requireManifest(requested).validatedForRegistration();
         Instant now = clock.instant();
 
         PluginEntity saved = transactions.execute(status -> {
@@ -137,7 +137,7 @@ public class PluginService {
      * every issue's identity and triage. The same manifest again changes nothing and records nothing.
      */
     public PluginView update(String id, PluginManifest requested, RequestActor actor) {
-        PluginManifest manifest = requireManifest(requested).validated();
+        PluginManifest manifest = requireManifest(requested).validatedForRegistration();
         if (!manifest.id().equals(id)) {
             throw new InvalidInputException("The manifest's id \"" + manifest.id() + "\" is not the plugin's \"" + id
                     + "\": an id is never changed, since it names every issue the plugin ever opened.");

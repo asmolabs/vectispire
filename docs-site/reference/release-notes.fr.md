@@ -69,6 +69,16 @@ que deux versions mineures après une annonce.
   le Keycloak du profil `sso` 26.0.8 → 26.8.1, hors d'une ligne que Keycloak ne corrige plus. Le realm
   d'exemple s'importe à l'identique sur 26.8.1.
 
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-non-publie}
+
+- **Le manifeste d'un plugin de scan dit son format**, `schema_version` (`MAJEUR.MINEUR`, `1.0`
+  aujourd'hui), sur le modèle de l'export des plugins de rapport. Facultatif : un manifeste qui ne le
+  porte pas est lu comme `1.0`, et enregistré, conservé et exécuté comme avant sous le même digest ;
+  `GET /api/v1/plugins` le renvoie désormais sur chaque manifeste. Un manifeste d'une autre majeure est
+  refusé, de même qu'à l'enregistrement un manifeste d'une mineure plus récente que celle que connaît le
+  plan de contrôle ([plugins](../administration/plugins.md#la-version-du-manifeste)). L'agent de la
+  version précédente fait tourner tout manifeste `1.x` tel quel.
+
 ## 0.11.2 — 27 octobre 2026
 
 La 0.11.2 exécute les scans sur un cluster Kubernetes sans Docker. Avec `agents.executor: kubernetes`,

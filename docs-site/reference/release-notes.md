@@ -64,6 +64,15 @@ after an announcement.
   same endpoints allowed, the new pause and unpause ones left closed), and the `sso` profile's Keycloak
   26.0.8 → 26.8.1, off a line Keycloak no longer patches. The example realm imports unchanged on 26.8.1.
 
+### Changes an integration can see {#changes-an-integration-can-see-unreleased}
+
+- **A scan plugin's manifest states its format**, `schema_version` (`MAJOR.MINOR`, `1.0` today), on the
+  model of the report plugins' export. Optional: a manifest without it is read as `1.0`, and registered,
+  stored and run as before under the same digest; `GET /api/v1/plugins` now returns it on every
+  manifest. A manifest of another major is refused, and so is one of a later minor than the control plane
+  knows at registration ([plugins](../administration/plugins.md#the-manifests-version)). The previous
+  release's agent runs every `1.x` manifest unchanged.
+
 ## 0.11.2 — 2026-10-27
 
 0.11.2 runs scans on a Kubernetes cluster that has no Docker. With `agents.executor: kubernetes`, the
