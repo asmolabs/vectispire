@@ -68,12 +68,17 @@ final class ExecutorChoice {
                 settings.matcherCacheClaim().isEmpty() ? null : new KubernetesExecutor.MatcherCache(
                         settings.matcherCacheClaim(), matcherDatabase.resolve(VulnerabilityDatabase.GENERATIONS),
                         settings.nodeName()));
+        // After the settings: a placement they refuse stops the start whatever the cluster's address.
+        String target = settings.requireIsolation() ? probeTarget(settings) : null;
+        if (target != null) {
+            checked = checked.cutOffFrom(target);
+        }
         KubernetesExecutor executor = new KubernetesExecutor(cluster.get(), checked);
         // What a crash of this agent left: its pods carry its name, and nobody else removes them.
         executor.sweep();
         requirePodSecurity(executor, settings.namespace());
         if (settings.requireIsolation()) {
-            requireIsolation(executor, probeTarget(settings));
+            requireIsolation(executor, target);
         } else {
             log.warn("vectispire.agent.executor.kubernetes.require-isolation is false: whether scan pods are cut off "
                     + "from the network is not checked. Scanners read hostile trees.");
@@ -85,7 +90,8 @@ final class ExecutorChoice {
      * **Refuses the start unless scan pods are cut off**, offline and online alike, from the API server
      * (decision 0045 §5). A CNI that does not enforce NetworkPolicy accepts the chart's policies and ignores
      * them; an agent that scanned there would run every scanner with the cluster in reach. A probe that could
-     * not run is a refusal too: an unknown is not a proof.
+     * not run is a refusal too: an unknown is not a proof. What it proves is the policies in force; that each
+     * new pod is already under them is checked by the pod itself before its scanner starts.
      */
     static void requireIsolation(KubernetesExecutor executor, String target) {
         int colon = target.lastIndexOf(':');

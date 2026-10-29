@@ -193,9 +193,33 @@ class ExecutorChoiceClusterTest {
     }
 
     @Test
-    void withTheChartsPoliciesItStarts() {
+    void withTheChartsPoliciesItStarts_andItsScannersRunOnceTheirPodIsCutOff() {
         chartPolicies("169.254.0.0/16, " + apiService + "/32, " + apiEndpoint + "/32");
-        assertThat(ExecutorChoice.kubernetes(settings(true), JSON, cluster::api, java.nio.file.Path.of("db")).isAvailable()).isTrue();
+        KubernetesExecutor executor = ExecutorChoice.kubernetes(settings(true), JSON, cluster::api, java.nio.file.Path.of("db"));
+        assertThat(executor.isAvailable()).isTrue();
+        // Through the gate, offline and online: each pod is refused the API server before its scanner starts.
+        var run = com.asmolabs.vectispire.common.scanning.ContainerRun.of(KubernetesExecutor.HELPER_IMAGE,
+                java.util.List.of("sh", "-c", "echo scanned"), java.util.List.of(), "gated run").withEntrypoint(java.util.List.of());
+        assertThat(executor.run(run).stdout()).isEqualTo("scanned\n");
+        assertThat(executor.run(run.withNetwork()).stdout()).isEqualTo("scanned\n");
+    }
+
+    @Test
+    void aScanPodThatStillReachesTheApiServerNeverStartsItsScanner() {
+        // The executor as a start that passed would build it; the policies gone since, or never covering this pod.
+        KubernetesExecutor executor = new KubernetesExecutor(cluster.api(), new KubernetesExecutor.Settings(
+                K3sCluster.NAMESPACE, "vs-agent", KubernetesExecutor.HELPER_IMAGE, "1000:1000", Duration.ofMinutes(3),
+                new com.asmolabs.vectispire.common.scanning.ScannerLimits(128L * 1024 * 1024,
+                        com.asmolabs.vectispire.common.scanning.ScannerLimits.DEFAULT.pids(),
+                        com.asmolabs.vectispire.common.scanning.ScannerLimits.DEFAULT.timeout(), 250_000_000L,
+                        com.asmolabs.vectispire.common.scanning.ScannerLimits.DEFAULT.outputBytes()),
+                null, null, apiService + ":443"));
+        assertThatThrownBy(() -> executor.run(com.asmolabs.vectispire.common.scanning.ContainerRun.of(
+                KubernetesExecutor.HELPER_IMAGE, java.util.List.of("sh", "-c", "echo scanned"), java.util.List.of(), "ungated run")
+                .withEntrypoint(java.util.List.of())))
+                .isInstanceOf(com.asmolabs.vectispire.common.scanning.ScannerFailureException.class)
+                .hasMessageContaining("was not cut off from " + apiService + ":443")
+                .hasMessageContaining("the scanner was not started");
     }
 
     @Test

@@ -76,7 +76,12 @@ Three cheaper shapes were weighed on 2026-10-25 and rejected:
    Networked steps — the matcher's database update, the image copy, cosign, plugins that declare network
    — carry another, allowed out except to the cluster's, private and metadata ranges. A NetworkPolicy the
    CNI does not enforce is accepted and ignored, so **the agent probes at start**: it runs an offline pod
-   that tries to connect out, and refuses to scan if it can.
+   that tries to connect out, and refuses to scan if it can. *Amended on 2026-10-29*: enforced is not yet
+   applied to a pod created since — kube-router, k3s's, lets a new pod through until it has added that
+   pod's rules, measured at 0.3 to 0.7 s on an idle node and past a second on a loaded CI runner. So the
+   probe tries until refused, for at most 30 s, and **every scan pod checks its own isolation** the same
+   way from its receiving container before its scanner may start; one still answered past that bound fails
+   the step.
 6. **Three properties of the closed shape cannot be set per pod, and are accepted with their
    compensations:** the PID limit (the kubelet's `podPidsLimit`, set on the dedicated node pool the
    chart requires); `noexec` and `nosuid` on scratch space (no volume option exists); and `fsize` and the
@@ -176,7 +181,8 @@ above (`kubernetesTest`, in CI's `kubernetes` job, on the runner since `jvm`'s c
   retired generation is pruned from the volume; the end-to-end check finds its claim bound by the matcher.
 - **The probe (§5) runs at every start**: a pod offline and one online try the API server's address with
   `nc`; either reaching it, or a probe that cannot run, stops the agent. On k3s it refuses the namespace
-  with no policy and the online policy whose exclusions miss the API server, and starts under the chart's.
+  with no policy and the online policy whose exclusions miss the API server, and starts under the chart's;
+  a scan pod that still reaches the API server never starts its scanner.
 - **Scan pods' resources are set, not derived** (`cpu-millis`, `memory-mib`): the default's CPU quota is
   this JVM's cores minus one, the agent pod's view of its node, and scan pods asking for nine CPUs on a
   developer's machine were never scheduled — measured.

@@ -527,7 +527,9 @@ the agent and excluded for every scan pod.
 **The agent proves the isolation before it scans.** At start it runs two probe pods, offline and online,
 that try to reach the API server; if either can — a CNI that ignores NetworkPolicy, or the policies
 missing — the agent does not start, and says why in its log. A probe that cannot run stops the start
-too. Only where `agents.networkPolicy.enabled` is false, with its acknowledgement, does the chart tell the
+too. A CNI may apply the policies to a new pod a moment after it starts, so each probe tries until it is
+refused, for at most 30 seconds, and **every scan pod checks the same before its scanner starts**: one still
+reaching the API server after that fails its step. Only where `agents.networkPolicy.enabled` is false, with its acknowledgement, does the chart tell the
 agent not to check.
 
 The vulnerability database, some 3 GB, is kept for scan pods on a claim in the scans' namespace,
