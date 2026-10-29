@@ -451,8 +451,16 @@ public class SettingsAdministrationService {
      * <p>It reports rather than throws: "unreachable" is an answer to the question the test button
      * asks, not an error in asking it. The check runs the same URL validation as a real call, so
      * a refusal here is the refusal a report would get.
+     *
+     * <p><b>The endpoint is named to an administrator only.</b> {@code ai_review_ollama_url} is a
+     * secret the catalog withholds from a security lead, and this check is theirs to run: answering
+     * with the URL, or quoting it in a sentence — the guard's refusals quote the address they
+     * refused — handed back the value withheld one screen away. Reachability and the models are
+     * what the test is for; the address adds nothing a security lead can act on, and {@code url}
+     * is null for them.
      */
-    public EndpointCheck checkAiEndpoint() {
+    public EndpointCheck checkAiEndpoint(Optional<UserView> caller) {
+        boolean named = administrative(caller);
         String model = aiReview.selectedModel();
         AiProvider provider = aiReview.provider();
         // Two forms on purpose: `name` goes into sentences a person reads, `wireName` into the
@@ -464,18 +472,24 @@ public class SettingsAdministrationService {
             url = aiReview.validatedUrl();
         } catch (RuntimeException refused) {
             // A public URL with no acknowledgement lands here. It is a configuration answer, and
-            // the operator needs the reason rather than a red cross.
+            // the operator needs the reason rather than a red cross — but the reason quotes the
+            // address, so only the person allowed to read the address gets it.
             return new EndpointCheck(
-                    false, false, model, aiReview.baseUrl(), List.of(), refused.getMessage(),
+                    false, false, model, named ? aiReview.baseUrl() : null, List.of(),
+                    named
+                            ? refused.getMessage()
+                            : "The configured URL is refused by the outbound policy; an administrator can see why.",
                     provider.wireName(), remoteAllowed);
         }
+        String where = named ? url : "the configured endpoint";
+        String answeredUrl = named ? url : null;
 
         // **Checked before the call, not after it fails.** OpenAI answers an unauthenticated
         // request with a 401 that `availableModels` swallows into "unreachable" — sending the
         // operator to check a network path that is fine, over a key they never set.
         if (provider == AiProvider.OPENAI && !aiReview.hasOpenAiKey()) {
-            return new EndpointCheck(false, false, model, url, List.of(),
-                    "No API key is stored for " + url + ". Set one, or point this at a local endpoint that "
+            return new EndpointCheck(false, false, model, answeredUrl, List.of(),
+                    "No API key is stored for " + where + ". Set one, or point this at a local endpoint that "
                             + "authenticates nobody.",
                     provider.wireName(), remoteAllowed);
         }
@@ -489,8 +503,8 @@ public class SettingsAdministrationService {
                 && !models.equals(AiReview.OPENAI_MODEL_SUGGESTIONS);
 
         if (!reachable) {
-            return new EndpointCheck(false, false, model, url, List.of(),
-                    "No answer from " + url + ". Is " + name + " running, and reachable from this process?",
+            return new EndpointCheck(false, false, model, answeredUrl, List.of(),
+                    "No answer from " + where + ". Is " + name + " running, and reachable from this process?",
                     provider.wireName(), remoteAllowed);
         }
         boolean installed = models.contains(model);
@@ -498,7 +512,7 @@ public class SettingsAdministrationService {
                 true,
                 installed,
                 model,
-                url,
+                answeredUrl,
                 models,
                 installed
                         ? "Reachable, and \"" + model + "\" is available."
