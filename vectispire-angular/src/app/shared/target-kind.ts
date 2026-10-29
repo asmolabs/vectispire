@@ -1,6 +1,5 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from '../core/i18n/i18n.service';
-import { LanguageMemo } from '../core/i18n/language-memo';
 import { keyFor } from '../core/i18n/literal-keys';
 
 /**
@@ -27,9 +26,8 @@ export function targetKindLabel(i18n: Pick<I18nService, 't'>, kind: string | nul
 })
 export class TargetKindPipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
-    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(kind: string | null | undefined): string {
-        return this.memo.get([kind], () => targetKindLabel(this.i18n, kind));
+        return targetKindLabel(this.i18n, kind);
     }
 }

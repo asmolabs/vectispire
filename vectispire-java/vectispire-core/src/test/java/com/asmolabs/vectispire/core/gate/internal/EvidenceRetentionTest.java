@@ -1,9 +1,11 @@
 package com.asmolabs.vectispire.core.gate.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -132,23 +134,32 @@ class EvidenceRetentionTest {
     }
 
     @Test
-    @DisplayName("a failing weekly purge is swallowed like the others")
+    @DisplayName("a failing weekly purge is swallowed like the others, and the next turn purges")
     void aFailingWeeklyPurgeIsSwallowed() {
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
-        when(weekly.purgeEndedBefore(any())).thenThrow(new IllegalStateException("deadlock"));
+        when(weekly.purgeEndedBefore(any())).thenThrow(new IllegalStateException("deadlock")).thenReturn(2);
 
+        assertThatCode(weeklyRetention::run).doesNotThrowAnyException();
         weeklyRetention.run();
+
+        verify(weekly, times(2)).purgeEndedBefore(NOW.minus(Duration.ofDays(400)));
     }
 
     @Test
-    @DisplayName("a failing purge skips its table and does not end the turn")
+    @DisplayName("a failing purge skips its table for the turn, does not end it, and the next turn purges")
     void aFailureIsSwallowed() {
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
-        when(verdicts.deleteBefore(any())).thenThrow(new IllegalStateException("locked"));
+        when(verdicts.deleteBefore(any())).thenThrow(new IllegalStateException("locked")).thenReturn(3);
 
         // Inside the authentication pass, a failing evidence purge skipped its own table and nothing
         // else; as a task of its own it must not end the hourly turn either, which a throwing task
         // does.
+        assertThatCode(verdictRetention::run).doesNotThrowAnyException();
+
+        // Skipped for the turn, not for good: nothing latched, so the next turn asks again and the
+        // window is the same one — a purge that stopped after one deadlock would let the register
+        // grow until somebody deletes it by hand, which is what destroys the proof.
         verdictRetention.run();
+        verify(verdicts, times(2)).deleteBefore(NOW.minus(Duration.ofDays(400)));
     }
 }

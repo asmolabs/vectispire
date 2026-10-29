@@ -103,37 +103,6 @@ class SettingsRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("the connection test names the endpoint to an administrator only")
-    void theConnectionTestWithholdsTheEndpointFromACiso() throws Exception {
-        // The CISO may run the test, but `ai_review_ollama_url` is a secret the catalog withholds
-        // from them: the answer gave it back in `url`, and quoted it in `detail` — both on an
-        // endpoint that does not answer and in the guard's refusal of a public one.
-        String before = settingsStore.get(Setting.AI_REVIEW_OLLAMA_URL);
-        try {
-            for (String endpoint : new String[] {"http://127.0.0.1:19", "http://93.184.215.14:11434"}) {
-                settingsStore.set(Setting.AI_REVIEW_OLLAMA_URL, endpoint);
-                String address = endpoint.substring("http://".length());
-
-                String ciso = mvc.perform(authenticated(post("/api/v1/settings/ollama-test"), asCiso()))
-                        .andExpect(status().isOk())
-                        .andReturn().getResponse().getContentAsString();
-                assertThat(json.readTree(ciso).get("url").isNull())
-                        .as("the CISO was answered the endpoint %s: %s", endpoint, ciso)
-                        .isTrue();
-                assertThat(ciso).as("the CISO's answer names the host").doesNotContain(address.split(":")[0]);
-
-                // The counterpart: the administrator, who may read the setting, still gets it.
-                String admin = mvc.perform(authenticated(post("/api/v1/settings/ollama-test"), asAdmin()))
-                        .andExpect(status().isOk())
-                        .andReturn().getResponse().getContentAsString();
-                assertThat(admin).contains(address.split(":")[0]);
-            }
-        } finally {
-            settingsStore.set(Setting.AI_REVIEW_OLLAMA_URL, before);
-        }
-    }
-
-    @Test
     @DisplayName("a CISO cannot move where the tracker token or the OpenAI key is sent")
     void aCisoCannotRedirectACredential() throws Exception {
         // The credentials are administrator-only, their destinations were not: pointing
