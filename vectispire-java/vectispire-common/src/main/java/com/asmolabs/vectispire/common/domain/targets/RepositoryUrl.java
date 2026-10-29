@@ -107,6 +107,35 @@ public final class RepositoryUrl {
     }
 
     /**
+     * The port a clone of this URL connects to: the one written, or its transport's — 22 for SSH and
+     * the {@code user@host:path} form, 443 for HTTPS, 80 for HTTP, 9418 for {@code git://}. Empty when
+     * no host can be read ({@link #host}).
+     */
+    public static java.util.OptionalInt port(String url) {
+        if (host(url).isEmpty()) {
+            return java.util.OptionalInt.empty();
+        }
+        if (SCP_FORM.matcher(url).matches()) {
+            return java.util.OptionalInt.of(22);
+        }
+        try {
+            URI parsed = new URI(url);
+            if (parsed.getPort() > 0) {
+                return java.util.OptionalInt.of(parsed.getPort());
+            }
+            return switch (parsed.getScheme().toLowerCase(Locale.ROOT)) {
+                case "https" -> java.util.OptionalInt.of(443);
+                case "http" -> java.util.OptionalInt.of(80);
+                case "git" -> java.util.OptionalInt.of(9418);
+                case "ssh", "git+ssh", "ssh+git" -> java.util.OptionalInt.of(22);
+                default -> java.util.OptionalInt.empty();
+            };
+        } catch (Exception unreadable) {
+            return java.util.OptionalInt.empty();
+        }
+    }
+
+    /**
      * Why a URL that {@code java.net.URI} reads could be read differently by the clone, or empty.
      *
      * <p><b>Two parsers read every repository URL, and they disagree.</b> This class validates with

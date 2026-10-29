@@ -291,6 +291,25 @@ public final class OutboundUrlGuard {
         }
     }
 
+    /**
+     * Why a host and port are one of Vectispire's own endpoints — the Docker daemon, the database, the
+     * cluster's API — or empty. Only that question, without a policy on private addresses: for a
+     * repository clone, which is meant to reach an internal forge, but never the infrastructure every
+     * other outbound door already refuses.
+     */
+    public Optional<String> reservedReason(String host, int port, String label) {
+        String hostname = host == null ? "" : host.trim().replaceAll("^\\[|]$", "");
+        if (hostname.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            refuseReserved(hostname, port, resolver.resolve(hostname), label);
+            return Optional.empty();
+        } catch (UnsafeUrlException refused) {
+            return Optional.of(refused.getMessage());
+        }
+    }
+
     private static int portOf(URI parsed, String scheme) {
         if (parsed.getPort() > 0) {
             return parsed.getPort();

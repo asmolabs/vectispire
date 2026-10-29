@@ -50,4 +50,31 @@ class GitHostAllowlistTest {
         assertThatThrownBy(() -> GitHostAllowlist.parse("https://gitlab.corp.example"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("a clone's port is the one written, or its transport's")
+    void aCloneReachesItsTransportsPort() {
+        assertThat(RepositoryUrl.port("https://forge.example/x.git")).hasValue(443);
+        assertThat(RepositoryUrl.port("http://forge.example/x.git")).hasValue(80);
+        assertThat(RepositoryUrl.port("ssh://git@forge.example/x.git")).hasValue(22);
+        assertThat(RepositoryUrl.port("git@forge.example:group/x.git")).hasValue(22);
+        assertThat(RepositoryUrl.port("git://forge.example/x.git")).hasValue(9418);
+        assertThat(RepositoryUrl.port("ssh://git@forge.example:2222/x.git")).hasValue(2222);
+    }
+
+    @Test
+    @DisplayName("a reserved endpoint is refused whether the list is empty or names its host")
+    void aReservedEndpointIsNeverCloned() {
+        GitHostAllowlist.Reserved database = (host, port) -> host.equals("db.internal") && port == 3306
+                ? java.util.Optional.of("db.internal:3306 is the database")
+                : java.util.Optional.empty();
+
+        for (GitHostAllowlist hosts : new GitHostAllowlist[] {
+            GitHostAllowlist.parse("").refusing(database), GitHostAllowlist.parse("db.internal").refusing(database)
+        }) {
+            assertThat(hosts.permits("http://db.internal:3306/x.git")).isFalse();
+            assertThat(hosts.refusal("http://db.internal:3306/x.git")).isEqualTo("db.internal:3306 is the database");
+        }
+        assertThat(GitHostAllowlist.parse("").refusing(database).permits("https://db.internal/x.git")).isTrue();
+    }
 }
