@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.outbound;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
@@ -23,6 +24,28 @@ class OutboundGuardWiringTest {
         assertThatThrownBy(() -> guard.validate("http://127.0.0.1:3306/", OutboundPolicy.INTERNAL_ALLOWED, "Webhook"))
                 .isInstanceOf(UnsafeUrlException.class)
                 .hasMessageContaining("the database");
+    }
+
+    @Test
+    @DisplayName("a repository is not cloned from the database or the daemon, whatever the host list says")
+    void aCloneIsRefusedTheReservedEndpoints() {
+        // Every other outbound door refused them; a repository URL naming one was cloned from.
+        var configuration = new OutboundGuardConfiguration();
+        var guard = OutboundGuardConfiguration.guard("tcp://127.0.0.3:2375", "jdbc:mysql://127.0.0.1:3306/vectispire");
+        var hosts = configuration.gitHostAllowlist("", guard);
+
+        for (String url : new String[] {
+            "http://127.0.0.1:3306/group/project.git",
+            "ssh://git@127.0.0.1:33060/group/project.git",
+            "https://127.0.0.3:2375/group/project.git"
+        }) {
+            assertThat(hosts.permits(url)).as(url).isFalse();
+            assertThat(hosts.refusal(url)).as(url).containsAnyOf("the database", "the Docker daemon");
+        }
+        assertThat(hosts.permits("https://127.0.0.1/group/project.git")).isTrue();
+        assertThat(configuration.gitHostAllowlist("127.0.0.1", guard).permits("http://127.0.0.1:3306/x.git"))
+                .as("listing the host does not open the database's port")
+                .isFalse();
     }
 
     @Test
