@@ -192,6 +192,19 @@ class ScanPodsTest {
     }
 
     @Test
+    void aScannerKilledIsKilledWhetherOrNotTheRuntimeSaysWhy() throws Exception {
+        assertThat(ScanPods.killed(JSON.readTree("""
+                {"exitCode": 137, "reason": "OOMKilled"}"""))).isTrue();
+        // The runtime's report of the kill lost to its report of the exit: what containerd answers then.
+        assertThat(ScanPods.killed(JSON.readTree("""
+                {"exitCode": 137, "reason": "Error"}"""))).isTrue();
+        assertThat(ScanPods.killed(JSON.readTree("""
+                {"exitCode": 1, "reason": "Error"}"""))).isFalse();
+        assertThat(ScanPods.killed(JSON.readTree("""
+                {"exitCode": 0, "reason": "Completed"}"""))).isFalse();
+    }
+
+    @Test
     void anEvictedPodIsAFailure() throws Exception {
         JsonNode status = JSON.readTree("""
                 {"status": {"phase": "Failed", "reason": "Evicted", "message": "ephemeral local storage usage exceeds"}}""");

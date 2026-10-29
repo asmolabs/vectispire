@@ -288,6 +288,23 @@ final class ScanPods {
         return Optional.empty();
     }
 
+    /** The exit code of a process ended by {@code SIGKILL}: 128 plus the signal's number. */
+    static final int KILLED = 128 + 9;
+
+    /**
+     * Was the scanner killed rather than left to exit? {@code OOMKilled} when the runtime says so — but it does
+     * not always: containerd learns of the kill from the cgroup's {@code memory.events} and of the exit from the
+     * reaped process, two events on two paths, and a status the kubelet reads between them says {@code Error},
+     * exit 137, and is not revised. On 2026-10-28 CI's out-of-memory test twice saw the run return instead of
+     * fail: the executor had handed back the kill's 137 as the scanner's own exit — a failure only because the
+     * scanners refuse that code, and a report for a plugin that declares it. So the exit code is evidence too:
+     * nothing in the pod sends the scanner {@code SIGKILL} but the kernel at its memory limit, or the kubelet
+     * stopping a pod that is failing anyway.
+     */
+    static boolean killed(JsonNode terminated) {
+        return "OOMKilled".equals(terminated.path("reason").asText()) || terminated.path("exitCode").asInt() == KILLED;
+    }
+
     /** A label value: 63 characters of {@code [a-z0-9-._]}, starting and ending with an alphanumeric. */
     static String labelValue(String text) {
         String value = text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]+", "-").replaceAll("^[^a-z0-9]+", "");

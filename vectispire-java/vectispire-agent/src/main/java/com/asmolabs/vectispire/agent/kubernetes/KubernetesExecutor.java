@@ -295,9 +295,12 @@ public final class KubernetesExecutor implements ContainerExecutor {
             exec(pod, ScanPods.RECEIVE, List.of("touch", ScanPods.RECEIVED), SMALL, label);
 
             JsonNode terminated = awaitScanner(pod, timeout, label);
-            if ("OOMKilled".equals(terminated.path("reason").asText())) {
-                throw ScannerFailureException.of(label, "Scanner \"" + label + "\" ran out of memory (its limit is "
-                        + settings.limits().memory() / (1024 * 1024) + " MiB) and was stopped.");
+            if (ScanPods.killed(terminated)) {
+                String limit = "(its limit is " + settings.limits().memory() / (1024 * 1024) + " MiB)";
+                throw ScannerFailureException.of(label, "OOMKilled".equals(terminated.path("reason").asText())
+                        ? "Scanner \"" + label + "\" ran out of memory " + limit + " and was stopped."
+                        : "Scanner \"" + label + "\" was killed (exit " + ScanPods.KILLED + ", SIGKILL), most likely "
+                                + "for running out of memory " + limit + " — the runtime does not always say so.");
             }
             int exitCode = terminated.path("exitCode").asInt();
 

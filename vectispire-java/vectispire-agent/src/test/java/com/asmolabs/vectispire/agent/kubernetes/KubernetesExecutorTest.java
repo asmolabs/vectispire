@@ -152,9 +152,21 @@ class KubernetesExecutorTest {
     @Test
     void aScannerOutOfMemoryIsAFailure() {
         KubernetesExecutor small = executorWith(new ScannerLimits(48L * 1024 * 1024, 512, Duration.ofMinutes(2), 500_000_000L, 1024 * 1024));
+        // Either sentence: whether the runtime reports `OOMKilled` or only the exit is containerd's race, not ours
+        // — the next test holds the second case, which this one cannot choose.
         assertThatThrownBy(() -> small.run(shell("a=$(head -c 200000000 /dev/zero | tr '\\0' a); echo ${#a}")))
                 .isInstanceOf(ScannerFailureException.class)
-                .hasMessageContaining("ran out of memory");
+                .hasMessageContaining("out of memory (its limit is 48 MiB)");
+    }
+
+    @Test
+    void aScannerKilledWithoutAReasonIsAFailure() {
+        // What the runtime reports when its out-of-memory event loses the race to the exit: `Error`, exit 137. The
+        // scanner's shell is its container's init, which ignores a SIGKILL from inside, so a child takes it and the
+        // shell passes its 137 on — the same answer, every run.
+        assertThatThrownBy(() -> executor.run(shell("sh -c 'kill -9 $$'; exit $?")))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageContaining("was killed (exit 137, SIGKILL)");
     }
 
     @Test
