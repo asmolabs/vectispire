@@ -83,6 +83,11 @@ public class AgentsController {
             @JsonProperty("scanner_engine") String scannerEngine,
             String capabilities) {}
 
+    /**
+     * @param contractVersion the contract this control plane speaks to this agent, which is the
+     *     agent's own once it is in {@code AgentContract}'s range: answering {@code CURRENT} would have
+     *     an agent of the previous contract log a number it has never spoken
+     */
     public record HelloResponse(
             UUID id,
             String name,
@@ -172,11 +177,12 @@ public class AgentsController {
             case AgentProtocolService.Hello.IncompatibleContract(String announced) -> throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "This agent speaks contract \"" + (announced.isEmpty() ? "unknown" : announced)
-                            + "\" and Vectispire speaks \"" + AgentContract.VERSION + "\". Update the agent.");
-            case AgentProtocolService.Hello.Accepted(int maxConcurrent) -> new HelloResponse(
+                            + "\" and Vectispire serves contract " + AgentContract.served() + ". "
+                            + AgentContract.remedy(announced));
+            case AgentProtocolService.Hello.Accepted(int maxConcurrent, String contract) -> new HelloResponse(
                     agent.id(),
                     agent.name(),
-                    AgentContract.VERSION,
+                    contract,
                     maxConcurrent,
                     agent.credentialsMode());
         };

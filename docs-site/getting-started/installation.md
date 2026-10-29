@@ -206,6 +206,25 @@ counts the proxy's address rather than the caller's and stops protecting anyone.
 
 Both are recorded with their reasoning in the project's threat model.
 
+### One control-plane instance {#one-instance}
+
+**Run one control plane.** A second instance against the same database — a second replica on
+Kubernetes, a second container on the same composition — is not supported in 1.0
+([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md) §4).
+The code is written for several, and three mechanisms are what two instances would lean on:
+
+- **the maintenance tasks**, which every instance runs: each is written to tolerate running twice,
+  and the ones that must run once — scheduling scans — elect a leader by a lease in the database;
+- **the audit chain's lock**: every entry is written under a lock on the chain's head, so that two
+  writers never fork the chain;
+- **the outbox**: the relay claims each notification before delivering it, so that two instances do
+  not send it twice.
+
+Each is tested against MySQL by two sessions or two threads; **none by two running applications**. A
+guarantee no check executes is not one we promise, so high availability is a 1.x goal, with a decision
+of its own once two instances run together in a test. Until then a second instance is at your own risk,
+and a defect only it shows is not treated as one.
+
 ## Kubernetes {#kubernetes}
 
 A Helm chart ships in [`deploy/helm/vectispire/`](https://github.com/asmolabs/vectispire/tree/main/deploy/helm/vectispire).
@@ -343,7 +362,8 @@ the load balancer:
   when the load balancer is the controller's sole way in: otherwise a client writes the header the
   controller passes on, and is believed.
 
-**Two replicas** are possible but not the default. They need:
+**Two replicas are not supported in 1.0** — see [One control-plane instance](#one-instance). Besides
+what that section names, a second replica would need:
 
 - cookie affinity (`ingress.stickySessions`): single sign-on keeps its state in the session of the
   pod that sent the person to the provider;

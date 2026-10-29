@@ -56,6 +56,28 @@ le même démon, et l'accès au démon y est root. Le profil sert à évaluer le
 l'isolation, faites tourner l'agent sur une autre machine et réglez `VECTISPIRE_EMBEDDED_WORKER=false`
 sur le plan de contrôle.
 
+## Mettre à jour : le plan de contrôle d'abord, ses agents ensuite {#upgrading-the-control-plane-first}
+
+Le plan de contrôle sert un agent de **sa propre version mineure et de la précédente** : un plan de
+contrôle 0.12 confie du travail à un agent 0.11. Mettez à jour le plan de contrôle d'abord, puis les
+agents, à votre rythme — sur Kubernetes les deux se déploient à des moments différents, et c'est cette
+fenêtre que cela couvre. L'ordre inverse n'est pas pris en charge : un agent plus récent que son plan
+de contrôle peut annoncer un contrat dont le plan de contrôle n'a jamais entendu parler.
+
+Chaque agent annonce un **numéro de contrat** dans son `hello`, et le plan de contrôle en accepte une
+plage. Un agent hors de la plage est refusé d'emblée par un **409**, sans jamais recevoir un travail
+qu'il lirait de travers, et le refus nomme les deux côtés et le remède — *This agent speaks contract "0"
+and Vectispire serves contract 1. Update the agent.*, ou, pour un agent en avance sur son plan de
+contrôle, *Upgrade the control plane first, then its agents.* L'agent s'arrête sur cette réponse au lieu
+de réessayer. La page **Agents** affiche la version de chaque agent ; le contrat qu'il a annoncé est son
+`contractVersion` dans `GET /api/v1/admin/agents`, et celui que le `hello` répond est ce même numéro.
+
+**Ce qu'une version peut changer pour un agent.** Un changement que l'agent de la mineure précédente ne
+comprendrait pas — une nouvelle enveloppe, un nouveau champ obligatoire — se fait en **deux versions** :
+la première accepte l'ancienne forme et la nouvelle et remet à chaque agent celle qu'il lit, la suivante
+abandonne l'ancienne. Chaque build le vérifie : l'agent de la dernière version publiée, depuis son image
+publiée et signée, prend et termine des analyses contre le plan de contrôle en cours de construction.
+
 ## Mener plusieurs analyses en parallèle {#running-several-scans-at-once}
 
 **Analyses simultanées** (`max_concurrent`) est le nombre d'analyses qu'un agent mène en parallèle :

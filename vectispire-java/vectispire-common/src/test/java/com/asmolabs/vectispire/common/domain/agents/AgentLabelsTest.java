@@ -71,17 +71,4 @@ class AgentLabelsTest {
         assertThat(AgentLabels.accepts(List.of("staging", "production"), Optional.of("production"))).isTrue();
         assertThat(AgentLabels.accepts(List.of("staging"), Optional.of("production"))).isFalse();
     }
-
-    @Test
-    @DisplayName("the contract version is compared strictly")
-    void contractIsStrict() {
-        // A looser comparison looks welcoming and moves the question elsewhere: it would then
-        // be necessary to decide, for every field added, whether an agent that ignores it is
-        // still correct.
-        assertThat(AgentContract.isCompatible(AgentContract.VERSION)).isTrue();
-        assertThat(AgentContract.isCompatible(" 1 ")).isTrue();
-        assertThat(AgentContract.isCompatible("1.1")).isFalse();
-        assertThat(AgentContract.isCompatible("2")).isFalse();
-        assertThat(AgentContract.isCompatible(null)).isFalse();
-    }
 }

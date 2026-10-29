@@ -103,7 +103,9 @@ client writes that header — with every proxy that appends its address named in
 installation guide's [Ingress section](../../../docs-site/getting-started/installation.md#the-ingress)
 details the three.
 
-With `replicaCount: 2`:
+**One replica is what 1.0 supports** (decision 0043 §4); the installation guide's
+[One control-plane instance](../../../docs-site/getting-started/installation.md#one-instance) says why.
+A second one, at your own risk, needs `replicaCount: 2` and:
 
 - set `ingress.stickySessions`: single sign-on keeps its state in the servlet session;
 - set `auditMirror.accessMode: ReadWriteMany`.

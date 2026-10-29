@@ -85,8 +85,10 @@ public class AgentProtocolService {
         /**
          * @param maxConcurrent the limit the queue applies, not the column: a row written before
          *     the bound existed would otherwise announce a limit the claim then refuses to honour
+         * @param contract the agent's own contract, the one this control plane speaks to it — not
+         *     {@code AgentContract.CURRENT}, which an agent of the previous contract never spoke
          */
-        record Accepted(int maxConcurrent) implements Hello {}
+        record Accepted(int maxConcurrent, String contract) implements Hello {}
     }
 
     /**
@@ -206,7 +208,7 @@ public class AgentProtocolService {
                 // overflow a column sized for the version itself.
                 announced.trim());
 
-        return new Hello.Accepted(AgentConcurrency.effective(agent.maxConcurrent()));
+        return new Hello.Accepted(AgentConcurrency.effective(agent.maxConcurrent()), announced.trim());
     }
 
     /**
