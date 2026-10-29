@@ -54,7 +54,7 @@ public final class ReportRunTargets {
             if (key.isEmpty()) {
                 continue;
             }
-            Optional<ScanTarget> target = target(key);
+            Optional<ScanTarget> target = ScanTarget.fromFingerprintKey(key);
             if (target.isEmpty()) {
                 return Optional.empty();
             }
@@ -63,21 +63,4 @@ public final class ReportRunTargets {
         return Optional.of(List.copyOf(targets));
     }
 
-    private static Optional<ScanTarget> target(String key) {
-        int colon = key.indexOf(':');
-        if (colon < 0) {
-            return Optional.empty();
-        }
-        long id;
-        try {
-            id = Long.parseLong(key.substring(colon + 1));
-        } catch (NumberFormatException malformed) {
-            return Optional.empty();
-        }
-        return switch (key.substring(0, colon)) {
-            case "repo" -> Optional.of(new ScanTarget.Repository(id));
-            case "container" -> Optional.of(new ScanTarget.Container(id));
-            default -> Optional.empty();
-        };
-    }
 }

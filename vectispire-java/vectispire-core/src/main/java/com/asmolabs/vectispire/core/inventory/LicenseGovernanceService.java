@@ -28,7 +28,6 @@ import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -748,11 +747,7 @@ public class LicenseGovernanceService {
         if (entry.targetId() == null) {
             return null;
         }
-        return switch (entry.targetKind()) {
-            case "repository" -> new ScanTarget.Repository(entry.targetId());
-            case "container" -> new ScanTarget.Container(entry.targetId());
-            default -> null;
-        };
+        return ScanTarget.of(entry.targetKind(), entry.targetId()).orElse(null);
     }
 
     private static LicenseSummary summarize(List<LicenseEntry> inventory) {

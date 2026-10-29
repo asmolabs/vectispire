@@ -115,12 +115,11 @@ public class RetentionService {
      * outbox relay and the triage expiry that share it.
      */
     private static ScanTarget targetOf(Object[] row) {
-        if (row[1] != null) {
-            return new ScanTarget.Repository(((Number) row[1]).longValue());
-        }
-        if (row[2] != null) {
-            return new ScanTarget.Container(((Number) row[2]).longValue());
-        }
-        return new ScanTarget.Repository(0);
+        ScanTarget target = ScanTarget.ofColumns(asLong(row[1]), asLong(row[2]));
+        return target == null ? new ScanTarget.Repository(0) : target;
+    }
+
+    private static Long asLong(Object column) {
+        return column == null ? null : ((Number) column).longValue();
     }
 }

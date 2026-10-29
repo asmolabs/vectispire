@@ -15,7 +15,6 @@ import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -204,7 +203,7 @@ public class VisibilityService {
         if (TeamRules.KIND_PROJECT.equals(kind)) {
             projects.add(id);
         } else {
-            targetOf(kind, id).ifPresent(visible::add);
+            ScanTarget.of(kind, id).ifPresent(visible::add);
         }
     }
 
@@ -212,13 +211,4 @@ public class VisibilityService {
         return Role.of(user.role()).map(Role::hasGlobalSecurityScope).orElse(false);
     }
 
-    private static Optional<ScanTarget> targetOf(String kind, Long id) {
-        if (TeamRules.KIND_REPOSITORY.equals(kind)) {
-            return Optional.of(new ScanTarget.Repository(id));
-        }
-        if (TeamRules.KIND_CONTAINER.equals(kind)) {
-            return Optional.of(new ScanTarget.Container(id));
-        }
-        return Optional.empty();
-    }
 }
