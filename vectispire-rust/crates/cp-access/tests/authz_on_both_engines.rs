@@ -492,10 +492,16 @@ async fn the_approvers_on(database: &Database, db: &Db) {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_java_matrix_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(vectispire_cp_db::Engine::MySql) {
+        return;
+    }
     the_matrix_on(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_java_matrix_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(vectispire_cp_db::Engine::PostgreSql) {
+        return;
+    }
     the_matrix_on(Engine::PostgreSql).await;
 }

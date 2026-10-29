@@ -10,6 +10,8 @@
 #      are found, not listed**: every `crates/*/tests/golden.rs` that reads VECTISPIRE_GOLDEN_DIR, so that a module
 #      whose replay lives in its own crate adds no line here. Today there is one, cp-agents', which composes every
 #      served module (`targets`, `scanning` and `agents` answer through one another, 2.9; Phase 3's beside them).
+#      `VECTISPIRE_TEST_ENGINES=mysql` replays on MySQL only — what pull requests run, the nightly replaying on both —
+#      and the replay says PostgreSQL was left out (cp-db's `testing`); a misspelt value fails the replay.
 #
 #   crates/cp-contract/scripts/replay-goldens.sh <dir> [--record]     (Docker and, to record, a JDK 25 are required)
 set -eu

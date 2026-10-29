@@ -32,7 +32,7 @@ use support::{Migrated, count, exec, send};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn on_both_engines() {
-    for engine in [Engine::MySql, Engine::PostgreSql] {
+    for engine in Engine::ALL.into_iter().filter(|engine| vectispire_cp_db::testing::runs_on(*engine)) {
         let database = Migrated::start(engine).await;
         let db = database.connect().await;
         every_route_naming_a_target_refuses_a_caller_who_cannot_see_it(&db).await;

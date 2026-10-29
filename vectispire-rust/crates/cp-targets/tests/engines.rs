@@ -45,7 +45,7 @@ fn bool_literal(db: &Db, value: bool) -> &'static str {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn on_both_engines() {
-    for engine in [Engine::MySql, Engine::PostgreSql] {
+    for engine in Engine::ALL.into_iter().filter(|engine| vectispire_cp_db::testing::runs_on(*engine)) {
         let database = Migrated::start(engine).await;
         let db = database.connect().await;
         deletion_takes_the_rows_and_nobody_elses(&db, "repository").await;

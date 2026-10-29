@@ -97,30 +97,48 @@ async fn of_two_instances_starting_together_one_runs(engine: Engine) {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_claim_commits_with_its_work_and_is_refused_after_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     a_claim_commits_with_its_work_and_is_refused_after(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_claim_commits_with_its_work_and_is_refused_after_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     a_claim_commits_with_its_work_and_is_refused_after(Engine::PostgreSql).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_claim_rolled_back_leaves_the_job_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     a_claim_rolled_back_with_its_work_leaves_the_job_to_the_next_start(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_claim_rolled_back_leaves_the_job_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     a_claim_rolled_back_with_its_work_leaves_the_job_to_the_next_start(Engine::PostgreSql).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn of_two_instances_one_runs_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     of_two_instances_starting_together_one_runs(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn of_two_instances_one_runs_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     of_two_instances_starting_together_one_runs(Engine::PostgreSql).await;
 }

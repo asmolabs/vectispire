@@ -15,6 +15,19 @@ use sqlx::{AssertSqlSafe, Row as _};
 use vectispire_cp_db::testing::TestDatabase;
 use vectispire_migrate::{Database, Engine};
 
+/// Whether this run covers `engine` (`VECTISPIRE_TEST_ENGINES`, read by `vectispire_cp_db::testing`); a test left out
+/// says so and returns.
+pub fn runs_on(engine: Engine) -> bool {
+    vectispire_cp_db::testing::runs_on(cp_db_engine(engine))
+}
+
+fn cp_db_engine(engine: Engine) -> vectispire_cp_db::Engine {
+    match engine {
+        Engine::MySql => vectispire_cp_db::Engine::MySql,
+        Engine::PostgreSql => vectispire_cp_db::Engine::PostgreSql,
+    }
+}
+
 /// A database of its own for one test: `vectispire_cp_db::testing`'s.
 #[derive(Debug)]
 pub struct Server {
@@ -24,10 +37,7 @@ pub struct Server {
 
 impl Server {
     pub fn start(engine: Engine) -> Server {
-        let database = TestDatabase::empty(match engine {
-            Engine::MySql => vectispire_cp_db::Engine::MySql,
-            Engine::PostgreSql => vectispire_cp_db::Engine::PostgreSql,
-        });
+        let database = TestDatabase::empty(cp_db_engine(engine));
         Server { engine, database }
     }
 

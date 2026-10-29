@@ -224,11 +224,17 @@ async fn statements(engine: Engine) {
 
 #[tokio::test]
 async fn every_statement_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     statements(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn every_statement_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     statements(Engine::PostgreSql).await;
 }
 
@@ -297,11 +303,17 @@ async fn logging_in(engine: Engine) {
 
 #[tokio::test]
 async fn logging_in_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     logging_in(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn logging_in_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     logging_in(Engine::PostgreSql).await;
 }
 
@@ -369,11 +381,17 @@ async fn second_factor(engine: Engine) {
 
 #[tokio::test]
 async fn the_second_factor_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     second_factor(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn the_second_factor_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     second_factor(Engine::PostgreSql).await;
 }
 
@@ -403,11 +421,17 @@ async fn challenge_shared(engine: Engine) {
 
 #[tokio::test]
 async fn a_challenge_is_shared_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     challenge_shared(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn a_challenge_is_shared_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     challenge_shared(Engine::PostgreSql).await;
 }
 
@@ -431,11 +455,17 @@ async fn long_user_agent(engine: Engine) {
 
 #[tokio::test]
 async fn a_user_agent_past_the_column_is_clipped_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     long_user_agent(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn a_user_agent_past_the_column_is_clipped_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     long_user_agent(Engine::PostgreSql).await;
 }
 
@@ -558,11 +588,17 @@ async fn ceilings(engine: Engine) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn the_ceilings_hold_under_bursts_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     ceilings(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn the_ceilings_hold_under_bursts_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     ceilings(Engine::PostgreSql).await;
 }
 
@@ -619,11 +655,17 @@ async fn raced_statements(engine: Engine) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn raced_statements_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     raced_statements(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn raced_statements_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     raced_statements(Engine::PostgreSql).await;
 }
 
@@ -727,11 +769,17 @@ async fn rate_windows(engine: Engine) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn the_shared_window_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     rate_windows(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn the_shared_window_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     rate_windows(Engine::PostgreSql).await;
 }
 
@@ -792,10 +840,16 @@ async fn cleanup(engine: Engine) {
 
 #[tokio::test]
 async fn the_cleanup_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     cleanup(Engine::MySql).await;
 }
 
 #[tokio::test]
 async fn the_cleanup_on_postgresql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     cleanup(Engine::PostgreSql).await;
 }

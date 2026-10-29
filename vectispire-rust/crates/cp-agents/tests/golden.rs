@@ -417,12 +417,17 @@ async fn the_recorded_traffic_of_the_routes_replays_on_both_engines() {
     // Narrowing knobs while a difference is being chased; a narrowed run always fails at the end, since it proves
     // nothing about what it left out.
     let only = std::env::var("VECTISPIRE_GOLDEN_ONLY").ok();
-    let engines: Vec<Engine> = match std::env::var("VECTISPIRE_GOLDEN_ENGINES").ok().as_deref() {
-        Some("mysql") => vec![Engine::MySql],
-        Some("postgresql") => vec![Engine::PostgreSql],
-        _ => vec![Engine::MySql, Engine::PostgreSql],
+    let pinned: Option<Vec<Engine>> = match std::env::var("VECTISPIRE_GOLDEN_ENGINES").ok().as_deref() {
+        Some("mysql") => Some(vec![Engine::MySql]),
+        Some("postgresql") => Some(vec![Engine::PostgreSql]),
+        _ => None,
     };
-    let narrowed = only.is_some() || engines.len() < 2;
+    let narrowed = only.is_some() || pinned.is_some();
+    // Otherwise the run's engines (`VECTISPIRE_TEST_ENGINES`, cp-db's `testing`): pull requests replay on MySQL and
+    // the nightly on both; an engine left out says so here, and the replay passes on the ones it ran.
+    let engines = pinned.unwrap_or_else(|| {
+        Engine::ALL.into_iter().filter(|engine| vectispire_cp_db::testing::runs_on(*engine)).collect()
+    });
 
     let recording = Recording::open(&dir).unwrap();
     let document = Document::embedded();

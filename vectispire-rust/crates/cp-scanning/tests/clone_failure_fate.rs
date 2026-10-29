@@ -260,10 +260,16 @@ async fn run_fate_suite(engine: Engine) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn clone_failure_fates_on_mysql() {
+    if !vectispire_cp_db::testing::runs_on(Engine::MySql) {
+        return;
+    }
     run_fate_suite(Engine::MySql).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn clone_failure_fates_on_postgres() {
+    if !vectispire_cp_db::testing::runs_on(Engine::PostgreSql) {
+        return;
+    }
     run_fate_suite(Engine::PostgreSql).await;
 }

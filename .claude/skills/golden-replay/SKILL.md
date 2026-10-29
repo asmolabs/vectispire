@@ -27,8 +27,13 @@ place until the line goes. Removing the line is what makes a composed route owed
 ```bash
 cd vectispire-rust
 crates/cp-contract/scripts/record-goldens.sh <dir>   # JDK 25 + Docker; ~15 min; 2 tests fail under the recorder, no others
-crates/cp-contract/scripts/replay-goldens.sh <dir>   # replay-plan, then the replay test on both engines
+crates/cp-contract/scripts/replay-goldens.sh <dir>   # replay-plan, then the replay test on the engines selected
 ```
+
+The engines are `VECTISPIRE_TEST_ENGINES`' (unset: both). CI's `rust-replay` on a pull request replays on
+MySQL alone (`VECTISPIRE_TEST_ENGINES=mysql`); the nightly's `rust-replay` records afresh and replays on
+both — PostgreSQL is the nightly's, and a recording red there only is the port's defect all the same.
+That selection is not a narrowing: `VECTISPIRE_GOLDEN_ENGINES` still is, and still fails the run.
 
 Record **at the commit you replay**: the recordings are the Java tree's, and the Rust line carries Java
 fixes the base may not have. Keep `<dir>` outside the repository (the scratchpad), and re-record after a
@@ -92,8 +97,9 @@ When every recording of a route is green in the measuring run:
    `ceiling` by as many lines as left, in the same commit (a file left with no line is deleted) — nothing else: the
    route is owed because the line is gone;
 2. revert the measuring patch (`git checkout -- crates/cp-agents/tests/golden.rs`, then re-apply your
-   real edit) and run the replay **as CI runs it** — no measuring variable, both engines — before
-   committing. A route green under measurement can still be red when its neighbours are not served:
+   real edit) and run the replay with no measuring variable **and on both engines** (`VECTISPIRE_TEST_ENGINES` unset)
+   before committing — the pull request's job only replays on MySQL, and a route leaving the list on a
+   PostgreSQL red would first be seen by the nightly. A route green under measurement can still be red when its neighbours are not served:
    effects are then applied from the recording rather than produced.
 
 **Never edit `golden/deferred/` to make a run pass.** A line whose recordings all replay green, or that no

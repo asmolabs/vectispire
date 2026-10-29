@@ -77,8 +77,12 @@ These are what the rest of the port follows.
     `jdbc:mysql://127.0.0.1:3306`, and `…_USER`, `…_PASSWORD` an account that may create databases — the Java
     suite's `VECTISPIRE_TEST_DB_*` convention) it is a database `vs_rs_<epoch>_<pid>_<n>` on that server. Two tests
     share the server and nothing else, so a statement on the server's own tables (`pg_stat_activity`,
-    `performance_schema`) filters by the test's database. CI's `rust` job runs one server of each engine as a job
-    service; locally:
+    `performance_schema`) filters by the test's database. **`VECTISPIRE_TEST_ENGINES` selects the engines**:
+    unset means both, otherwise `mysql`, `postgresql` or both comma-separated; a misspelt or empty value fails
+    the run, every engine loop asks `testing::runs_on` and prints `left out: …` for a case it skips, and
+    `TestDatabase::empty` refuses an engine not selected. CI's `rust` job runs on pull requests with
+    `mysql` and one MySQL server as a job service; the nightly's `rust-engines` runs one server of each engine.
+    Locally:
 
     ```sh
     docker run -d --name vs-rs-shared-mysql -e MYSQL_ROOT_PASSWORD=local -p 127.0.0.1:13306:3306 mysql:9.4.0@sha256:…

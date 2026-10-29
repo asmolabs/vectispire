@@ -5,6 +5,7 @@
 #
 # Needs Docker, a JDK 25 (JAVA_HOME or `java` on PATH) and Gradle's cache for vectispire-core. A missing
 # prerequisite fails the run; it never skips (AGENTS.md, "Never skip silently").
+# `VECTISPIRE_TEST_ENGINES` narrows the engines as for every suite (cp-db's `testing`): an engine left out says so.
 set -eu
 cd "$(dirname "$0")/../../.."
 command -v docker >/dev/null || { echo "check-oracle.sh: Docker is required" >&2; exit 1; }
