@@ -4,6 +4,8 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -352,5 +354,51 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             // whose credentials to go after.
             ProblemResponses.write(request, response, HttpStatus.FORBIDDEN, FORBIDDEN);
         };
+    }
+
+    /*
+     * **The chain's filters run in the chain alone.** Each is a bean, so Spring Boot also registered
+     * it with the servlet container, behind Spring Security's own filter: every request went through
+     * each twice, and `OncePerRequestFilter` turned the second pass into a no-op on the routes this
+     * chain serves. The second registration was only ever live where the single sign-on chain answers
+     * instead of this one and lets a request through — an unknown `/oauth2/…` path on its way to a
+     * 404 — and there it ran these filters after the response had been decided. One registration, the
+     * one the HTTP suite exercises, is the one that runs.
+     */
+
+    @Bean
+    static FilterRegistrationBean<ClientAddressFilter> clientAddressInChainOnly(ClientAddressFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<LoginRateLimitFilter> loginRateLimitInChainOnly(LoginRateLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<WebhookRateLimitFilter> webhookRateLimitInChainOnly(WebhookRateLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<RequestBodyLimitFilter> bodyLimitInChainOnly(RequestBodyLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<BearerRateLimitFilter> bearerRateLimitInChainOnly(BearerRateLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<BearerAuthenticationFilter> bearerInChainOnly(BearerAuthenticationFilter filter) {
+        return chainOnly(filter);
+    }
+
+    private static <F extends Filter> FilterRegistrationBean<F> chainOnly(F filter) {
+        FilterRegistrationBean<F> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }
