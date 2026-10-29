@@ -81,20 +81,8 @@ export function frameworkDescription(i18n: Pick<I18nService, 't'>, framework: st
 }
 
 @Pipe({
-    name: 'complianceStatus',
-    // Impure like `translate`: the text changes when the language does.
-    pure: false
-})
-export class ComplianceStatusPipe implements PipeTransform {
-    private readonly i18n = inject(I18nService);
-
-    transform(status: string | null | undefined): string {
-        return complianceStatusLabel(this.i18n, status);
-    }
-}
-
-@Pipe({
     name: 'frameworkLabel',
+    // Impure like `translate`: the text changes when the language does.
     pure: false
 })
 export class FrameworkLabelPipe implements PipeTransform {

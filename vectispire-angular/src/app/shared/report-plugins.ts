@@ -75,8 +75,6 @@ export const MEDIA_TYPE_EXTENSIONS = {
     'text/plain': '.txt'
 } as const satisfies Record<ReportMediaType, string>;
 
-export const MEDIA_TYPES = Object.keys(MEDIA_TYPE_EXTENSIONS) as ReportMediaType[];
-
 /**
  * A report plugin's 409, by cause: `ReportPluginConflict.Cause`, read from the problem's `type` — never
  * from its English `detail`, so the reader gets the sentence in their language.
