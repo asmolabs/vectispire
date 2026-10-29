@@ -257,13 +257,19 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
 }
 
 /**
- * The two supported engines.
+ * The engines the campaign has a task for.
  *
  * A portability defect only shows up by running them — PostgreSQL and MySQL have each produced
  * one that was invisible on the other. The SQLite fixture had a leg here while the HTTP suite ran
  * on it; that suite runs on MySQL now, and the leg went with the engine (decision 0034).
+ *
+ * **Only MySQL is supported** (decision 0043 §3, amended 2026-10-29), so only MySQL is in
+ * `integrationTestAll`, which is what CI and the nightly run. `integrationTestPostgres` stays for
+ * whoever brings PostgreSQL back: its code is kept, and a task that still runs it is what makes that
+ * a matter of checks rather than of writing. Nothing runs it on its own.
  */
 val engines = listOf("postgres", "mysql")
+val supportedEngines = listOf("mysql")
 
 engines.forEach { engine ->
     tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}") {
@@ -332,9 +338,9 @@ tasks.named<Test>("test") {
 }
 
 tasks.register("integrationTestAll") {
-    description = "Runs the campaign on both supported engines."
+    description = "Runs the campaign on every supported engine (MySQL; decision 0043 §3)."
     group = "verification"
-    dependsOn(engines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
+    dependsOn(supportedEngines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
 }
 
 /**

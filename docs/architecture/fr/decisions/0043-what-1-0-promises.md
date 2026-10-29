@@ -1,6 +1,6 @@
-# 0043 — Ce que promet 1.0 : une API additive, des agents d'une version en retard, deux moteurs, une instance, une ligne maintenue
+# 0043 — Ce que promet 1.0 : une API additive, des agents d'une version en retard, un moteur, une instance, une ligne maintenue
 
-**Date :** 2026-10-12 · **Statut :** proposée · **S'appuie sur :** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-10-12 · **Amendée :** 2026-10-29 (§3 : MySQL seul) · **Statut :** proposée · **S'appuie sur :** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 
@@ -65,13 +65,25 @@ c'est possible, et ont tenu pendant une version mineure sans rupture imprévue.
   rencontrerait : sur Kubernetes, le plan de contrôle et les agents se mettent à jour à des moments
   différents, et un refus strict pendant cette fenêtre arrête tous les scans.
 
-### 3. Deux moteurs, tous deux de premier rang, à des versions nommées
+### 3. Un moteur, MySQL, à des versions nommées
 
-- **MySQL 8.4 LTS et 9.x, PostgreSQL 16 et suivantes.** La campagne d'intégration tourne sur la plus
-  ancienne et la plus récente version prise en charge de chacun ; le guide d'installation nomme exactement
-  celles-ci.
-- L'exercice de restauration et le job de mise à niveau (§6) tournent sur les **deux** moteurs.
+- **MySQL 8.4 LTS et 9.x.** La campagne d'intégration tourne sur la plus ancienne et la plus récente
+  version prise en charge ; le guide d'installation nomme exactement celles-ci.
+- L'exercice de restauration et le job de mise à niveau (§6) tournent sur MySQL.
 - Une version de moteur quitte la liste dans une version mineure, annoncée dans les notes de la précédente.
+- **PostgreSQL ne fait pas partie de 1.0** (amendement du 2026-10-29 ; cette section le promettait d'abord à
+  côté de MySQL). Son code reste — les migrations par moteur sous `db/migration/postgresql/`, le pilote, les
+  substitutions du dialecte, `Engine.POSTGRES` — mais aucun job de CI ne l'exécute, et rien ne promet qu'il
+  fonctionne. Une migration dont la structure diverge s'écrit toujours deux fois (`MigrationLayoutTest` le
+  vérifie sans serveur) : le code ne se dégrade pas sur le schéma ; il peut se dégrader sur une requête, et
+  rien ne le dirait.
+- **Pourquoi un seul moteur.** Chaque moteur double la campagne d'intégration, les exercices de mise à
+  niveau et de restauration, et les cas qu'une relecture doit envisager, pour un parc qui tourne sur
+  MySQL — le moteur que livre la composition et celui de la production. Quatre serveurs à garder verts
+  (deux versions de chaque) était le prix de la première rédaction ; deux est celui de celle-ci.
+- **Ramener PostgreSQL** est une version mineure à part entière : sa campagne et ses exercices repassent au
+  vert sur des versions nommées, et le guide d'installation le liste. Le code conservé fait de ce retour
+  une affaire de vérifications plutôt que d'écriture.
 
 ### 4. Une seule instance du plan de contrôle est promise
 
@@ -120,7 +132,8 @@ l'état figerait leurs défauts :
 - Chaque changement côté agent se conçoit en deux temps, et le test de compatibilité fait tourner l'image
   de l'agent de la version précédente à chaque build de `develop` — une CI plus lente, et la seule façon
   dont la promesse tient.
-- La liste des moteurs pris en charge porte la campagne d'intégration à quatre serveurs.
+- La liste des moteurs pris en charge garde la campagne d'intégration à deux serveurs, tous deux MySQL.
+  Une installation sur PostgreSQL passe à MySQL avant 1.0 ou reste en 0.x.
 - Les corrections de sécurité sont reportées sur la mineure précédente pendant trois mois : un coût en
   temps de mainteneur que le second mainteneur est là pour partager.
 - Tant que cela ne tient pas, le projet reste en 0.x et le dit ; rien ici ne change ce que promet 0.11.
@@ -132,5 +145,7 @@ l'état figerait leurs défauts :
 - **Une API interne distincte pour l'interface** — un second contrat à tenir séparé, dont on dépendrait de
   toute façon (§1).
 - **La HA en 1.0** — rien ne l'exécute aujourd'hui (§4).
-- **Un seul moteur** — les deux sont déjà exercés ; en retirer un maintenant jetterait des vérifications
-  qui existent et une installation qui peut en dépendre.
+- **Deux moteurs, PostgreSQL 16 et suivantes à côté de MySQL** — la première rédaction du §3. Écarté le
+  2026-10-29 : les vérifications existaient, mais les garder vertes sur deux versions de chaque moteur coûte
+  plus que ne le rend un parc qui tourne sur MySQL. Le code est conservé pour que le choix reste réversible
+  (§3).

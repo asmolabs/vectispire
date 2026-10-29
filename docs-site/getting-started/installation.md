@@ -9,7 +9,7 @@ install needs neither the agent nor any agent configuration.
 | Requirement | Why |
 |---|---|
 | **Docker**, running and reachable | Every scanner runs as an ephemeral container that Vectispire asks a Docker daemon to start — through a socket proxy in the composition, see below. This is not optional: there is one scan backend and it is Docker. |
-| **MySQL 8** (default) or **PostgreSQL** | Both are supported and exercised by the integration campaign; MySQL is the default and the engine the composition ships. The engine is read from the JDBC URL; there is no separate dialect setting. |
+| **MySQL 8** | The supported engine, exercised by the integration campaign, and the one the composition ships. The engine is read from the JDBC URL; there is no separate dialect setting. PostgreSQL still starts, but is no longer tested and will not be part of 1.0 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md) §3). |
 | **Git** | Vectispire clones what it scans. |
 | **Node 24 (LTS)**, **JDK 25** | Only if you build from source rather than running the published images. Node is pinned by `.nvmrc`; Angular 22 refuses Node 25. |
 
@@ -135,8 +135,8 @@ VECTISPIRE_DB_USER=vectispire
 VECTISPIRE_DB_PASSWORD=…
 ```
 
-That URL is also the default. For PostgreSQL, point the same variable at it —
-`jdbc:postgresql://localhost:5432/vectispire` — and change nothing else. One MySQL server setting matters if you use [report plugins](../administration/report-plugins.md)
+That URL is also the default. PostgreSQL is no longer tested; an existing installation on it points the
+same variable at it — `jdbc:postgresql://localhost:5432/vectispire` — and plans its move to MySQL before 1.0. One MySQL server setting matters if you use [report plugins](../administration/report-plugins.md)
 on large projects: at the default `max_allowed_packet` (64 MiB) a report's export is kept up to about
 32 MiB, and `--max-allowed-packet=160M` restores the whole 64 MiB bound.
 
@@ -242,7 +242,7 @@ Installed and backed up separately. The chart points at it:
   server evaluates in the session's time zone. Do not set `TZ` on the pod.
 - **Back up before every upgrade.** Migrations run at startup and have no way back. Rolling back
   means restoring the backup and the previous image digest. The step from the previous release is
-  executed every night on MySQL and PostgreSQL over a database holding data, which then reads
+  executed every night on MySQL over a database holding data, which then reads
   back unchanged; a release is not cut on a night that failed.
 
 ### Installing

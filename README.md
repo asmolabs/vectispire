@@ -9,7 +9,7 @@ source itself — and keeps every finding as an issue with a history, a triage d
 verdict a CI pipeline can ask for. Every scanner runs in a container with the network disabled,
 on your machines.
 
-A Spring Boot control plane on JDK 25, an Angular interface, MySQL or PostgreSQL, released under
+A Spring Boot control plane on JDK 25, an Angular interface, MySQL, released under
 [Apache 2.0](LICENSE). **The project is pre-1.0**: `0.10.x` is the supported line
 ([SECURITY.md](SECURITY.md)), and the user guide is published at
 <https://asmolabs.github.io/vectispire/>.
@@ -224,8 +224,8 @@ scan claim takes each scan by a conditional update that only one worker can win,
 one owner across the fleet, startup recovery no longer fails another worker's scans, and
 the login throttle is counted in the database rather than in process memory. What it requires:
 
-- **PostgreSQL or MySQL** (`VECTISPIRE_DB_URL`; the engine is read from the URL). Both keep a
-  claimed scan from reaching two workers;
+- **MySQL** (`VECTISPIRE_DB_URL`; the engine is read from the URL), which keeps a claimed scan from
+  reaching two workers;
 - **nothing to run for the schema.** Flyway applies the migrations at startup, and the
   leader lease is what stops two instances migrating at once;
 - nothing else. Sessions live in the database, not in process memory, so a client that
@@ -436,13 +436,18 @@ The database file is not part of the repository (it holds password hashes and en
 
 ### Choosing a database
 
-**Two engines are deployable — PostgreSQL and MySQL — and there is no third.** That is
+**MySQL is the supported engine.** PostgreSQL's code is still here and still starts, but no CI job runs
+it any more, and it will not be part of 1.0
+([decision 0043](docs/architecture/en/decisions/0043-what-1-0-promises.md) §3, amended 2026-10-29): an
+installation on PostgreSQL plans its move to MySQL. What follows is how the project came to two engines,
+and what running both found — kept because the code for both is.
+
+**Two engines were deployable — PostgreSQL and MySQL — and there was never a third.** That is
 [ADR 0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md), which superseded an
 earlier decision to support four; this page said "four" for five days after that reversal, which is
 how a register stops being the thing anybody reads. ADR 0014 kept SQLite as the test suites'
 fixture; [ADR 0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md) moved
-those suites to MySQL and removed SQLite altogether. Both engines are exercised by the full
-integration campaign. Flyway applies native SQL migrations: once
+those suites to MySQL and removed SQLite altogether. The full integration campaign runs on MySQL. Flyway applies native SQL migrations: once
 under `db/migration/common/`, with type placeholders spelled per engine, when only the column types
 differ, and per dialect under `db/migration/{vendor}/` (`postgresql`, `mysql`) when the
 structure does ([ADR 0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). Point `VECTISPIRE_DB_URL` at the engine; it is read from
@@ -473,8 +478,8 @@ Every "no" comes from a defect found by running, and **none of them raises an er
   tampered with. `datetime(6)` is declared once in the migrations rather than
   column by column, and the connection is pinned to UTC for the same reason.
 
-PostgreSQL is the engine where everything above is true without reservation; MySQL is the one the
-code and `docker-compose.yml` pick by default.
+PostgreSQL was the engine where everything above was true without reservation; MySQL is the one the
+code and `docker-compose.yml` pick by default, and the one supported.
 
 
 ## Installing a Semgrep rule set
@@ -525,12 +530,12 @@ Two things to know:
 ```bash
 cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites — on MySQL, needs Docker
 cd vectispire-java && ./gradlew integrationTest    # one engine (MySQL; -Pdialect=postgres), via Testcontainers
-cd vectispire-java && ./gradlew integrationTestAll # both engines — needs Docker
+cd vectispire-java && ./gradlew integrationTestAll # every supported engine (MySQL) — needs Docker
 npm ci && npm run build && npm test                # the Angular interface
 ```
 
 The unit, architecture and HTTP suites run on every push, the last two on MySQL; the integration
-campaign runs against real servers, PostgreSQL and MySQL. **No count is quoted here on
+campaign runs against a real MySQL server. **No count is quoted here on
 purpose** — this page said "around 840" long after the figure had passed 1300, because a number
 in prose is a number nothing re-reads. `scripts/check-doc-facts.py` pins the claims that *can* be
 checked against the tree, and a test count is not one of them: it changes with every commit,

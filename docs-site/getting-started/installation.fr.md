@@ -9,7 +9,7 @@ installation sur une seule machine n'a besoin ni de l'agent ni d'aucune configur
 | Prérequis | Pourquoi |
 |---|---|
 | **Docker**, démarré et joignable | Chaque scanner s'exécute comme un conteneur éphémère que Vectispire demande à un démon Docker de démarrer — à travers un proxy de socket dans la composition, voir ci-dessous. Ce n'est pas facultatif : il y a un seul moteur de scan, et c'est Docker. |
-| **MySQL 8** (défaut) ou **PostgreSQL** | Les deux sont supportés et exercés par la campagne d'intégration ; MySQL est le défaut et le moteur que livre la composition. Le moteur est lu depuis l'URL JDBC ; il n'y a pas de réglage de dialecte séparé. |
+| **MySQL 8** | Le moteur supporté, exercé par la campagne d'intégration, et celui que livre la composition. Le moteur est lu depuis l'URL JDBC ; il n'y a pas de réglage de dialecte séparé. PostgreSQL démarre encore, mais n'est plus testé et ne fera pas partie de 1.0 ([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md) §3). |
 | **Git** | Vectispire clone ce qu'il analyse. |
 | **Node 24 (LTS)**, **JDK 25** | Uniquement si vous construisez depuis les sources plutôt que d'exécuter les images publiées. Node est épinglé par `.nvmrc` ; Angular 22 refuse Node 25. |
 
@@ -139,8 +139,9 @@ VECTISPIRE_DB_USER=vectispire
 VECTISPIRE_DB_PASSWORD=…
 ```
 
-Cette URL est aussi la valeur par défaut. Pour PostgreSQL, pointez la même variable dessus —
-`jdbc:postgresql://localhost:5432/vectispire` — et ne changez rien d'autre. Un réglage du serveur MySQL compte si vous utilisez des [plugins de rapport](../administration/report-plugins.fr.md)
+Cette URL est aussi la valeur par défaut. PostgreSQL n'est plus testé ; une installation existante qui
+l'utilise pointe la même variable dessus — `jdbc:postgresql://localhost:5432/vectispire` — et prévoit son
+passage à MySQL avant 1.0. Un réglage du serveur MySQL compte si vous utilisez des [plugins de rapport](../administration/report-plugins.fr.md)
 sur de grands projets : au `max_allowed_packet` par défaut (64 Mio), l'export d'un rapport est gardé jusqu'à
 environ 32 Mio, et `--max-allowed-packet=160M` rétablit toute la borne de 64 Mio.
 
@@ -251,7 +252,7 @@ Installé et sauvegardé à part. La chart pointe vers lui :
   le serveur évalue dans le fuseau de la session. Ne fixez pas `TZ` sur le pod.
 - **Sauvegardez avant chaque mise à jour.** Les migrations tournent au démarrage et n'ont pas de retour
   arrière. Revenir en arrière, c'est restaurer la sauvegarde et l'empreinte de l'image précédente.
-  Le passage depuis la version précédente est exécuté chaque nuit sur MySQL et PostgreSQL, sur une
+  Le passage depuis la version précédente est exécuté chaque nuit sur MySQL, sur une
   base qui contient des données et qui se relit ensuite à l'identique ; aucune version n'est publiée
   sur une nuit en échec.
 

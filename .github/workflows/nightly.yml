@@ -203,7 +203,9 @@ jobs:
             vectispire-angular/test-results/
           retention-days: 7
 
-  # **The upgrade an installation takes next, executed on both engines** (decision 0043 §3, §6).
+  # **The upgrade an installation takes next, executed on MySQL** (decision 0043 §3, §6). PostgreSQL
+  # left the matrix when §3 was amended to MySQL only (2026-10-29): `scripts/upgrade-drill.sh` still
+  # takes `ENGINE=postgresql`, and nothing runs it.
   # `databases` migrates an empty schema; no job had ever started a new control plane on a database
   # the previous release had been living in, which is the only way an operator ever runs a
   # migration. A NOT NULL column without a default, or a backfill that is wrong, passes on zero rows
@@ -224,10 +226,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
-      # One engine's failure says nothing about the other's; both verdicts are wanted.
+      # A matrix of one, kept as one: bringing an engine back is a line here, not a new job.
       fail-fast: false
       matrix:
-        engine: [mysql, postgresql]
+        engine: [mysql]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

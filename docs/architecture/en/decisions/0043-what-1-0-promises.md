@@ -1,6 +1,6 @@
-# 0043 — What 1.0 promises: an additive API, agents one version behind, two engines, one instance, a supported line
+# 0043 — What 1.0 promises: an additive API, agents one version behind, one engine, one instance, a supported line
 
-**Date:** 2026-10-12 · **Status:** proposed · **Builds on:** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Decider:** Laurent Boucher
+**Date:** 2026-10-12 · **Amended:** 2026-10-29 (§3: MySQL only) · **Status:** proposed · **Builds on:** [0003](0003-long-polling-for-agents.md), [0034](0034-mysql-replaces-the-sqlite-fixture.md), [0035](0035-report-plugins.md), [0038](0038-deploying-on-kubernetes.md) · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -62,12 +62,24 @@ held through one minor release with no unplanned break.
   Kubernetes the control plane and the agents roll at different moments, and a strict refusal during that
   window stops every scan.
 
-### 3. Two engines, both first-class, at named versions
+### 3. One engine, MySQL, at named versions
 
-- **MySQL 8.4 LTS and 9.x, PostgreSQL 16 and later.** The integration campaign runs the oldest and the
-  newest supported version of each; the installation guide names exactly these.
-- The restore drill and the upgrade job (§6) run on **both** engines.
+- **MySQL 8.4 LTS and 9.x.** The integration campaign runs the oldest and the newest supported version;
+  the installation guide names exactly these.
+- The restore drill and the upgrade job (§6) run on MySQL.
 - An engine version leaves the list in a minor release, announced in the release notes of the one before.
+- **PostgreSQL is not part of 1.0** (amended 2026-10-29; this section first promised it beside MySQL). Its
+  code stays — the per-engine migrations under `db/migration/postgresql/`, the driver, the dialect's
+  placeholders, `Engine.POSTGRES` — but no CI job runs it, and nothing promises it works. A migration
+  whose structure diverges is still written twice (`MigrationLayoutTest` holds that without a server), so
+  the code does not rot on the schema; it may on a query, and nothing would say so.
+- **Why one engine.** Each engine doubles the integration campaign, the upgrade and the restore drills,
+  and the cases a reviewer has to reason about, for an installation base that runs MySQL — the engine the
+  composition ships and the one production runs. Four servers to keep green (two versions of each) was
+  the price of the first wording; two is the price of this one.
+- **Bringing PostgreSQL back** is a minor release of its own: its campaign and drills run green again on
+  named versions, and the installation guide lists it. The code kept is what makes that a matter of
+  checks rather than of writing.
 
 ### 4. One control-plane instance is what is promised
 
@@ -110,7 +122,8 @@ are would freeze their defects:
   visible at the pull request, not in a consumer's pipeline.
 - Every agent-facing change is designed in two steps, and the compatibility test runs the previous
   release's agent image on every build of `develop` — slower CI, and the only way the promise holds.
-- The supported engine list grows the integration campaign to four servers.
+- The supported engine list keeps the integration campaign at two servers, both MySQL. An installation on
+  PostgreSQL moves to MySQL before 1.0 or stays on 0.x.
 - Security fixes are backported to the previous minor for three months: a cost in maintainer time that
   the second maintainer is there to share.
 - Until these hold, the project stays 0.x and says so; nothing here changes what 0.11 promises.
@@ -120,5 +133,6 @@ are would freeze their defects:
 - **Strict agent/control-plane lockstep** — simpler, and stops every scan during each rolling upgrade (§2).
 - **A separate internal API for the interface** — a second contract to keep apart, depended on anyway (§1).
 - **HA in 1.0** — nothing executes it today (§4).
-- **One engine** — both are already exercised; dropping one now would discard checks that exist and an
-  installation that may depend on it.
+- **Two engines, PostgreSQL 16 and later beside MySQL** — the first wording of §3. Rejected on
+  2026-10-29: the checks existed, but keeping them green on two versions of each engine costs more than an
+  installation base that runs MySQL returns. The code is kept so that the choice can be reversed (§3).

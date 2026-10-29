@@ -9,7 +9,7 @@ Ce document couvre tout ce qu'il faut pour faire tourner Vectispire en local : p
 | **JDK 25** | La chaîne d'outils Gradle de `vectispire-java/` demande la 25 ; nécessaire seulement pour construire ou lancer depuis les sources. |
 | **Node 24 (LTS)** | Épinglé par `.nvmrc`. Angular 22 refuse Node 25. |
 | **Docker**, démarré et joignable | Vectispire exécute Syft, Grype, gitleaks, checkov et Semgrep comme conteneurs éphémères à travers un démon Docker — dans la composition livrée, à travers un `docker-socket-proxy`, jamais la socket elle-même. C'est aussi ce qui démarre MySQL en développement et pour les campagnes de tests. |
-| **MySQL 8** (défaut) **ou PostgreSQL** | Les deux sont pris en charge et exercés par la campagne d'intégration ; MySQL est ce vers quoi pointe `VECTISPIRE_DB_URL` quand elle n'est pas définie, et ce que livre `docker-compose.yml`. SQLite n'est pas pris en charge et ne fait plus partie de la construction ([ADR 0034](../architecture/fr/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). En développement, un conteneur suffit. |
+| **MySQL 8** | Le moteur pris en charge, exercé par la campagne d'intégration (PostgreSQL démarre encore mais n'est plus testé, et ne fera pas partie de 1.0 — [décision 0043](../architecture/fr/decisions/0043-what-1-0-promises.md) §3) ; MySQL est ce vers quoi pointe `VECTISPIRE_DB_URL` quand elle n'est pas définie, et ce que livre `docker-compose.yml`. SQLite n'est pas pris en charge et ne fait plus partie de la construction ([ADR 0034](../architecture/fr/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). En développement, un conteneur suffit. |
 | **Git** | Pour cloner ce dépôt, et utilisé par Vectispire lui-même pour cloner ce qu'il analyse. |
 
 ## 2. Installation
@@ -49,8 +49,8 @@ Les variables d'environnement qui comptent avant le premier démarrage :
 ## 4. Base de données
 
 MySQL 8 par défaut, sur sa branche LTS 8.4 — le moteur que livre `docker-compose.yml`, épinglé par
-digest, et celui vers lequel pointe `VECTISPIRE_DB_URL` quand rien ne la surcharge. PostgreSQL est
-l'autre moteur supporté ; le moteur est lu depuis l'URL et il n'existe aucun réglage de dialecte
+digest, et celui vers lequel pointe `VECTISPIRE_DB_URL` quand rien ne la surcharge. PostgreSQL n'est
+plus testé et ne fera pas partie de 1.0 ; le moteur est lu depuis l'URL et il n'existe aucun réglage de dialecte
 séparé.
 
 ```bash
@@ -60,7 +60,7 @@ docker run -d --name vectispire-db -p 127.0.0.1:3306:3306 \
   mysql:8.4
 ```
 
-Pour PostgreSQL à la place, pointez `VECTISPIRE_DB_URL` dessus — rien d'autre ne change :
+Une installation existante sur PostgreSQL (non testé, à passer sur MySQL avant 1.0) pointe `VECTISPIRE_DB_URL` dessus :
 
 ```bash
 docker run -d --name vectispire-db -p 127.0.0.1:5432:5432 \
