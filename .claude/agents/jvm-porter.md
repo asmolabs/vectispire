@@ -1,6 +1,6 @@
 ---
 name: jvm-porter
-description: Works on the Vectispire JVM backend in vectispire-java/ — Spring Boot 4.1 / JDK 25, three modules, two deployable database engines (MySQL, PostgreSQL), the unit and HTTP suites on MySQL. Use for any change to the Java control plane or the remote agent.
+description: Works on the Vectispire JVM backend in vectispire-java/ — Spring Boot 4.1 / JDK 25, three modules, one supported database engine (MySQL; PostgreSQL's code kept, untested), the unit and HTTP suites on MySQL. Use for any change to the Java control plane or the remote agent.
 tools: Bash, Read, Edit, Write, Grep, Glob
 model: opus
 ---
@@ -281,8 +281,9 @@ on that engine only (decision 0034 removed the SQLite set). Never both, never on
 V1–V39**, even the identical ones: Flyway checks every applied checksum, and a changed file stops
 every existing installation. A placeholder's value is frozen once a common migration used it.
 
-Run `integrationTestAll` whenever you touch it. It covers **the two deployable engines, PostgreSQL
-and MySQL** — decision 0014, which replaced the earlier claim of four. The unit and HTTP suites run
+Run `integrationTestAll` whenever you touch it. It covers **MySQL, the one supported engine** —
+decision 0043 §3 as amended on 2026-10-29. PostgreSQL's code is kept (migrations, driver, `Engine.POSTGRES`,
+`integrationTestPostgres`) and run by nothing: keep writing a diverging migration twice, but nothing checks it. The unit and HTTP suites run
 on MySQL too (decision 0034, `TestDatabase`): a container per test JVM, or the server
 `VECTISPIRE_TEST_DB_URL` names, as CI's `jvm` job does; without either they fail, never skip. SQLite
 is gone, and H2 stays refused: a test engine nobody deploys hides what the campaign looks for.

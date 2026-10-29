@@ -8,8 +8,8 @@ HTTP.
 ./gradlew build                      # compile + unit, architecture and HTTP suites (on MySQL: Docker)
 ./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: mysql)
-./gradlew integrationTest -Pdialect=postgres
-./gradlew integrationTestAll         # PostgreSQL and MySQL
+./gradlew integrationTestAll         # every supported engine: MySQL (decision 0043 §3)
+./gradlew integrationTestPostgres    # PostgreSQL, unsupported: kept for whoever brings it back
 ```
 
 ## Three modules, and why three
@@ -402,7 +402,7 @@ foreign keys of the seventeen tables that carry one really exist, and that a sec
 nothing.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on
-PostgreSQL and MySQL through Testcontainers. `MigrationPlaceholdersIntegrationTest`
+MySQL through Testcontainers (and on PostgreSQL by `integrationTestPostgres`, which nothing runs). `MigrationPlaceholdersIntegrationTest`
 applies a test-only common migration using every placeholder, through the application's own Flyway,
 and reads back on each engine the declared types and the behaviour — a millisecond kept, an identity
 never reused. **There is no "skip if Docker is missing" guard, deliberately** — a
@@ -416,7 +416,7 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 MySQL — one container per test JVM through Testcontainers, or the server `VECTISPIRE_TEST_DB_URL`
 names, as CI's `jvm` job does with a job service — and without either it fails rather than skips
 (decision 0034, `TestDatabase`). `./gradlew integrationTestAll` runs the schema and concurrency checks
-on PostgreSQL and MySQL through Testcontainers. CI runs it in two places.
+on MySQL through Testcontainers — the one supported engine (decision 0043 §3, amended 2026-10-29). CI runs it in two places.
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
 **when anything engine-sensitive changed** — a migration, a module's `core/<module>/persistence/`
 (every query, `Specification` and entity lives there, which `ArchitectureTest` enforces),

@@ -22,6 +22,10 @@ import org.testcontainers.utility.DockerImageName;
  * "this engine changed its behaviour" into "the build broke this morning". MySQL's is also the unit
  * suite's ({@code TestDatabase.IMAGE}) and CI's job services', and both are the upgrade drill's: moved
  * by hand, held together by {@code scripts/check-db-pins.py}, which fails CI when they disagree.
+ *
+ * <p><b>Only {@link #MYSQL} is supported</b> (decision 0043 §3, amended 2026-10-29) and only it is in
+ * {@code integrationTestAll}. {@link #POSTGRES} is kept with the code it would check, run by nothing
+ * but {@code integrationTestPostgres} on demand.
  */
 public enum Engine {
     POSTGRES("postgres:17.6-alpine"),
@@ -35,7 +39,7 @@ public enum Engine {
 
     /** The engine named by {@code -Pdialect}, defaulting to the one deployments use. */
     public static Engine selected() {
-        String name = System.getProperty("vectispire.db.dialect", "postgres").toUpperCase(Locale.ROOT);
+        String name = System.getProperty("vectispire.db.dialect", "mysql").toUpperCase(Locale.ROOT);
         try {
             return valueOf(name);
         } catch (IllegalArgumentException unknown) {

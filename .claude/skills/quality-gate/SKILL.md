@@ -85,7 +85,8 @@ Migrations, any `core/<module>/persistence/`, `core/config/`, `src/integrationTe
 cd vectispire-java && ./gradlew integrationTestAll
 ```
 
-MySQL and PostgreSQL (Testcontainers, needs Docker). A migration is written once under
+MySQL (Testcontainers, needs Docker) — the one supported engine (decision 0043 §3); PostgreSQL's code is kept and
+run by nothing. A migration is written once under
 `db/migration/common` with the type placeholders when only the types differ, or twice, one per
 dialect, when the structure does (decisions 0027, 0034); `MigrationLayoutTest` in `./gradlew build`
 refuses anything in between.
@@ -97,7 +98,7 @@ also run the way an installation meets it: on a database the last release has wr
 docker build -f Dockerfile -t vectispire:latest . && ENGINE=mysql scripts/upgrade-drill.sh
 ```
 
-(`ENGINE=postgresql` too; the nightly's `upgrade` job runs both.) A field it reads back changed on
+(The nightly's `upgrade` job runs MySQL; `ENGINE=postgresql` still works and nothing runs it.) A field it reads back changed on
 purpose goes into `ci/upgrade/accepted-rewrites.txt` with the migration and the reason, in the
 migration's commit, or the nightly stays red until the next tag. On an arm64
 machine the release image runs emulated: about a minute and a half per engine. The drill verifies
