@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ insert into t_rate_window (window_key, hits, expires_at) values (?, 1, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d8668ad29b8b0bd459827d543321b3d0dc4edd6cc86642c80cf831da4d447bab"
+}

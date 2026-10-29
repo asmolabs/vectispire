@@ -28,7 +28,7 @@ M = [
     ("right proof not cleared", S + "accounts.rs", "attempts.clear(user.id).await?;", "", UNIT),
     ("same password accepted", S + "accounts.rs", "if Some(new_password) == current_password {", "if false {", UNIT),
     ("ill-formed names looked up", S + "accounts.rs", "Some(name) if account_rules::is_well_formed_username(Some(name)) => {", "Some(name) => {", UNIT),
-    ("no rehash", S + "accounts.rs", "if passwords::needs_rehash(found.password.as_ref().map(PasswordHash::encoded)) {", "if false {", UNIT),
+    ("no rehash", S + "accounts.rs", "if passwords::needs_rehash(user.password.as_ref().map(PasswordHash::encoded)) {", "if false {", UNIT),
     ("created without the flag", S + "accounts.rs", "            must_change_password: true,\n            created_at,", "            must_change_password: false,\n            created_at,", UNIT),
     ("save ignores the revocation", S + "persistence/users.rs", "        if revoke_sessions {", "        if false {", ENG),
     ("no session named closes all", S + "persistence/users.rs", "if let Some(keep) = &keep_session {\n            self.credentials.delete_sessions_except(&mut tx, user_id, keep).await?;\n        }",

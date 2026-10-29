@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_user set totp_last_step = ? where id = ? and (totp_last_step is null or totp_last_step < ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "7956f430a351accc8de270218ccc4ea827981715e1a3401b44b763638788c258"
+}

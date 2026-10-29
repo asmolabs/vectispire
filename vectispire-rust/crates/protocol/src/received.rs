@@ -184,33 +184,8 @@ pub enum ReceivedStep {
 /// The reason `ScanArtifacts` gives a `produced` step that came without findings.
 pub const PRODUCED_WITHOUT_FINDINGS: &str = "the executor reported the plugin as run without a list of findings";
 
-/// `Language`'s wire names, in the enum's order.
-pub const LANGUAGES: [&str; 24] = [
-    "apex",
-    "bash",
-    "c",
-    "clojure",
-    "csharp",
-    "dockerfile",
-    "elixir",
-    "go",
-    "html",
-    "java",
-    "javascript",
-    "json",
-    "kotlin",
-    "ocaml",
-    "php",
-    "python",
-    "ruby",
-    "rust",
-    "scala",
-    "solidity",
-    "swift",
-    "terraform",
-    "typescript",
-    "yaml",
-];
+/// `Language`'s wire names, in the enum's order — the domain's, which the checklists' rules read too.
+pub use vectispire_domain::language::LANGUAGES;
 
 const SEVERITIES: [Severity; 6] =
     [Severity::Critical, Severity::High, Severity::Medium, Severity::Low, Severity::Negligible, Severity::Unknown];

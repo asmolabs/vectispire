@@ -65,6 +65,17 @@ class ChecklistReminderTest {
     }
 
     @Test
+    @DisplayName("a long control is cut between characters, never between the halves of a pair")
+    void aCutKeepsPairsWhole() {
+        String control = "x".repeat(ChecklistReminder.CONTROL_SHOWN - 2) + "\uD83D\uDE00" + "tail";
+        Message message = ChecklistReminder.toContact(Optional.empty(), List.of(
+                new ProfileLines(13, "Ledger", "BA", List.of(new Line(1, control)))), MONDAY, Optional.empty());
+
+        assertThat(message.body()).contains("  Line 1: " + "x".repeat(ChecklistReminder.CONTROL_SHOWN - 2) + "…\n")
+                .doesNotContain("\uD83D…");
+    }
+
+    @Test
     @DisplayName("a CISO is told each profile nobody is reminded for, and why")
     void toACiso() {
         Message message = ChecklistReminder.toCiso(List.of(

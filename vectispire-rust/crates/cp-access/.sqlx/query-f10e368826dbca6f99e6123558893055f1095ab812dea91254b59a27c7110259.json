@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "/* mysql */ update t_user set mfa_enabled = false, totp_secret = null, mfa_backup_codes = null, totp_last_step = null, updated_at = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f10e368826dbca6f99e6123558893055f1095ab812dea91254b59a27c7110259"
+}

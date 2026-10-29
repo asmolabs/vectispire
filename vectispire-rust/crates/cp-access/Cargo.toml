@@ -1,6 +1,6 @@
 [package]
 name = "vectispire-cp-access"
-description = "The control plane's access module: accounts and their passwords, who a request is — sessions, API keys, agent keys, the SCIM token — roles and their flags, what a caller may see (VisibilityService), the row guards that refuse with a 404, four-eyes, and who could approve."
+description = "The control plane's access module: accounts and their passwords, the sign-in (throttle, second factor, challenges, the shared rate windows), who a request is — sessions, API keys, agent keys, the SCIM token — roles and their flags, what a caller may see (VisibilityService), the row guards that refuse with a 404, four-eyes, and who could approve."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -38,7 +38,11 @@ uuid = { workspace = true, features = ["v4"] }
 # Without its default features: cp-db's own checked statements are not this crate's, and a cache pass for one engine
 # must not compile the other engine's statements of cp-db against it. A workspace build turns them on anyway.
 vectispire-cp-db = { path = "../cp-db", default-features = false }
+# The second factor's secret and backup codes are encrypted at rest under `TotpService`'s contexts (`crypto` is a
+# shared module: no edge line). The SESSION_CLEANUP task is a `MaintenanceTask` (`maintenance`, shared too).
+vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-http.workspace = true
+vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-domain.workspace = true
 # The password a hash is derived from, wiped when dropped.
 zeroize = "1"
@@ -58,8 +62,11 @@ time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true
 vectispire-cp-arch-tests = { path = "../cp-arch-tests" }
+# The second factor's engine test seals with the real `Encryption`, whose Vault door names these.
+vectispire-cp-outbound = { path = "../cp-outbound" }
 vectispire-migrate = { path = "../migrate" }
 vectispire-testkit = { path = "../testkit" }
+vectispire-tls.workspace = true
 
 [lints]
 workspace = true

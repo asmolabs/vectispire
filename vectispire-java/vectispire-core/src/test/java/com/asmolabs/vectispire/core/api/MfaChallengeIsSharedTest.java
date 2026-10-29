@@ -117,6 +117,25 @@ class MfaChallengeIsSharedTest extends ApiTestBase {
                 .isEmpty();
     }
 
+    @Test
+    @DisplayName("is issued to a browser whose User-Agent is longer than the column")
+    void is_issued_to_a_long_user_agent() throws Exception {
+        // 254 letters then a surrogate pair: a cut at 255 units would split the pair.
+        String userAgent = "a".repeat(254) + "\uD83D\uDE00" + "b".repeat(100);
+        MvcResult result = mvc.perform(post("/api/v1/auth/login")
+                        .header("User-Agent", userAgent)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(new AuthController.LoginRequest(anMfaAccount(), PASSWORD))))
+                .andReturn();
+
+        assertThat(result.getResponse().getStatus())
+                .as("the column holds 255 characters; a longer User-Agent used to fail the insert with a 500")
+                .isEqualTo(200);
+        String mfaToken = json.readTree(result.getResponse().getContentAsString()).get("mfa_token").asText();
+        MfaChallengeEntity stored = challenges.findById(Sessions.hashOf(mfaToken)).orElseThrow();
+        assertThat(stored.getUserAgent()).isEqualTo("a".repeat(254));
+    }
+
     private jakarta.servlet.http.HttpServletRequest request() {
         org.springframework.mock.web.MockHttpServletRequest request =
                 new org.springframework.mock.web.MockHttpServletRequest();

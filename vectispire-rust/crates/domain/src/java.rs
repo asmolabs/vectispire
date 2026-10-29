@@ -31,6 +31,18 @@ pub fn trim(text: &str) -> &str {
     text.trim_matches(|c: char| c <= ' ')
 }
 
+/// `Character.isISOControl`: U+0000–U+001F and U+007F–U+009F.
+pub fn is_iso_control(c: char) -> bool {
+    matches!(c, '\u{0}'..='\u{1f}' | '\u{7f}'..='\u{9f}')
+}
+
+/// `String.compareTo`: by UTF-16 units, which is not the order of `str`'s `Ord` (code points) — an astral
+/// character's surrogates sort before U+E000–U+FFFF. A `TreeSet<String>` Java keeps, and a sort it writes into a
+/// digest, are in this order.
+pub fn compare_utf16(left: &str, right: &str) -> std::cmp::Ordering {
+    left.encode_utf16().cmp(right.encode_utf16())
+}
+
 /// `String.length()`: UTF-16 units, so an astral character counts two.
 pub fn utf16_len(text: &str) -> usize {
     text.chars().map(char::len_utf16).sum()
@@ -139,6 +151,12 @@ pub fn as_text(node: Option<&Value>, default: Option<&str>) -> Option<String> {
         }),
         Some(Value::Array(_) | Value::Object(_)) => Some(String::new()),
     }
+}
+
+/// `String.toUpperCase(Locale.ROOT)`: the unconditional mappings, which Rust's `to_uppercase` applies too — `ß` as
+/// `SS`, a ligature as its letters. Upper-casing has no context-dependent mapping, unlike the sigma below.
+pub fn to_upper_root(text: &str) -> String {
+    text.to_uppercase()
 }
 
 /// `String.toLowerCase(Locale.ROOT)`.

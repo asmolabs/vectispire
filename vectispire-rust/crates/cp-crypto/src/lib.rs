@@ -44,6 +44,18 @@ pub fn forge_connection_context(connection_id: &str) -> String {
     format!("forge_connection:{connection_id}:token")
 }
 
+/// Where an account's TOTP secret lives — `TotpService.TOTP_CONTEXT + ":" + id`. The string is
+/// `user:totp_secret:<id>`, not the constant's name: a factor enrolled on one control plane reads on the other only
+/// under it.
+pub fn totp_secret_context(user_id: i64) -> String {
+    format!("user:totp_secret:{user_id}")
+}
+
+/// Where an account's backup codes live — `TotpService.BACKUP_CONTEXT + ":" + id`, the same rule.
+pub fn backup_codes_context(user_id: i64) -> String {
+    format!("user:backup_codes:{user_id}")
+}
+
 /// `SecretCipher.secretEquals`: for a comparison whose operand is itself a secret, in constant time.
 pub fn secret_equals(left: &str, right: &str) -> bool {
     use subtle::ConstantTimeEq;

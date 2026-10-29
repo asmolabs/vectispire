@@ -4,7 +4,10 @@
 //! ([`account_rules`]), and Argon2id as `PasswordHasher` writes it ([`passwords`]); **the credentials** (task 1.2);
 //! and roles and their flags, what a caller may see, the row guards, four-eyes, and who could approve (task 1.5).
 //! The second factor's codes ([`totp`]) and the sign-in throttle's arithmetic and keys ([`login_throttle`]) are
-//! task 1.3's pure half; its services, single sign-on (1.4) and the routes (1.7) land beside them.
+//! task 1.3's pure half; its services are [`throttle`] (the counters of `t_login_attempt`), [`second_factor`]
+//! (`TotpService`), [`sign_in`] (`AuthService.login`, `AuthenticationFlowService`, `SignInMethodPolicy`),
+//! [`rate_windows`] (`RateWindows`, the webhook's shared budget) and [`session_cleanup`] (the `SESSION_CLEANUP` task).
+//! Single sign-on (1.4) and the routes (1.7) land beside them.
 //!
 //! **A role marker is not authorization** (AGENTS.md, the first trap). The marker half lives in
 //! `vectispire-cp-http` ([`Access`](vectispire_cp_http::Access)), because the chain decides it before any module is
@@ -27,14 +30,20 @@ mod internal;
 pub mod login_throttle;
 pub mod passwords;
 mod persistence;
+pub mod rate_windows;
 pub mod roles;
 pub mod rows;
+pub mod second_factor;
 pub mod security;
+pub mod session_cleanup;
+pub mod sign_in;
 pub mod target_grants;
+pub mod throttle;
 pub mod totp;
 pub mod visibility;
 
 pub use approvers::TriageApprovers;
+pub use persistence::sign_in::SqlSignInStore;
 pub use persistence::{SessionsAndKeys, SqlAccountStore};
 pub use roles::{Role, RoleFlags};
 pub use rows::NotFound;

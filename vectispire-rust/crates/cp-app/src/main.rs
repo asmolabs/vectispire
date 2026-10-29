@@ -445,9 +445,12 @@ async fn serve() -> ExitCode {
         scanned: Vec::new(),
     }));
 
+    // The access module's clock: the credentials, the session cleanup and the shared rate windows read it.
+    let access_clock: vectispire_cp_access::throttle::SharedClock =
+        Arc::new(vectispire_cp_access::credentials::SystemClock);
     let creds = Arc::new(vectispire_cp_access::credentials::CredentialService::new(
         db.clone(),
-        Arc::new(vectispire_cp_access::credentials::SystemClock),
+        access_clock.clone(),
         vectispire_cp_access::credentials::SessionPolicy {
             idle_lifetime: time::Duration::try_from(settings.session.idle_lifetime).unwrap_or(time::Duration::MAX),
             absolute_lifetime: time::Duration::try_from(settings.session.absolute_lifetime)
@@ -506,6 +509,7 @@ async fn serve() -> ExitCode {
         gate.clone(),
         vectispire_cp_settings::Settings::new(db.clone()),
         clock.clone(),
+        vectispire_cp_access::session_cleanup::session_cleanup_task(creds.clone(), db.clone(), access_clock.clone()),
     ) {
         Ok(turns) => turns,
         Err(error) => {
@@ -573,7 +577,14 @@ async fn serve() -> ExitCode {
         anonymous_api_docs: settings.security.anonymous_api_docs,
         ..Default::default()
     };
-    let chain = Arc::new(vectispire_cp_http::Chain::new(chain_config, creds, chain_audit));
+    // The webhook's second budget, counted by every instance in `t_rate_window` (`RateWindows`): without it each
+    // instance behind a load balancer kept a ceiling of its own.
+    let chain = Arc::new(vectispire_cp_http::Chain::new(chain_config, creds, chain_audit).with_shared_webhook_window(
+        vectispire_cp_access::rate_windows::shared_webhook_window(
+            vectispire_cp_access::SqlSignInStore::new(db.clone()),
+            access_clock.clone(),
+        ),
+    ));
     let router = match routes.build(&chain, None) {
         Ok(r) => r,
         Err(error) => {

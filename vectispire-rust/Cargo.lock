@@ -4043,11 +4043,15 @@ dependencies = [
  "unicode-normalization",
  "uuid",
  "vectispire-cp-arch-tests",
+ "vectispire-cp-crypto",
  "vectispire-cp-db",
  "vectispire-cp-http",
+ "vectispire-cp-maintenance",
+ "vectispire-cp-outbound",
  "vectispire-domain",
  "vectispire-migrate",
  "vectispire-testkit",
+ "vectispire-tls",
  "zeroize",
 ]
 
@@ -4166,6 +4170,19 @@ dependencies = [
  "vectispire-cp-db",
  "vectispire-domain",
  "vectispire-migrate",
+ "vectispire-testkit",
+]
+
+[[package]]
+name = "vectispire-cp-checklists"
+version = "0.12.0-dev"
+dependencies = [
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
+ "unicode-general-category",
+ "unicode-normalization",
+ "vectispire-domain",
  "vectispire-testkit",
 ]
 
