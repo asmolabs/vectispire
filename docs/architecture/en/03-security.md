@@ -13,6 +13,7 @@ and it returns a verdict someone has an interest in making lie.
 | Asset | Where | Consequence of a leak |
 |---|---|---|
 | SSH deployment keys | `ssh_key`, AES-GCM encrypted | read access to every watched repository |
+| HTTPS clone tokens | `t_git_token`, AES-GCM encrypted under the row's id; presented to the one host written when the token was added, which nothing edits ([0022](decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | what the token grants on that forge |
 | `ENCRYPTION_KEY` | environment, or a file it names | decrypts **all** the keys above |
 | Access to the Docker daemon | through `docker-socket-proxy`, never the socket file ([0018](decisions/0018-the-docker-socket-is-never-mounted.md)) | root-equivalent on the host that runs it |
 | The gate verdict | `issue`, `gate_policy` | a build that should have failed passes |
