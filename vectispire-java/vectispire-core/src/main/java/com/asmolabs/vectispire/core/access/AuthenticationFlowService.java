@@ -524,7 +524,7 @@ public class AuthenticationFlowService {
             String userAgent) {
 
         UserEntity user = users.findById(account.id()).orElseThrow();
-        AuthService.Reservation attempt = auth.reservePassword(user.getId());
+        AuthService.Reservation attempt = auth.reservePassword(user.getId(), ipAddress);
         if (!attempt.admitted()) {
             audit.record(new AuditLogService.Record(
                     AuditOperation.LOGIN_BLOCKED,
@@ -548,7 +548,7 @@ public class AuthenticationFlowService {
             return new PasswordChange.CurrentPasswordWrong();
         }
         // The password was right: whatever the new one turns out to be, this was not a guess.
-        auth.clearPasswordFailures(user.getId());
+        auth.clearPasswordFailures(user.getId(), ipAddress);
         AccountRules.validatePassword(newPassword).ifPresent(message -> {
             throw new InvalidInputException(message);
         });

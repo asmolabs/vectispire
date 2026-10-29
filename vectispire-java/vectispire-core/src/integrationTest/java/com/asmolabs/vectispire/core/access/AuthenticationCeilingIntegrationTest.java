@@ -82,7 +82,8 @@ class AuthenticationCeilingIntegrationTest {
             CountDownLatch start = new CountDownLatch(1);
             List<Future<AuthService.Outcome>> futures = new ArrayList<>();
             for (int index = 0; index < BURST; index++) {
-                String address = "198.51.100." + index;
+                // One client: the low ceiling is the account's from a client (LoginThrottle).
+                String address = "198.51.100.1";
                 futures.add(pool.submit(() -> {
                     start.await();
                     return auth.login(new AuthService.LoginRequest(name, "wrong", "probe", address)).outcome();

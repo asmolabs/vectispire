@@ -137,4 +137,19 @@ class LoginThrottleTest {
         assertThat(kept).isEqualTo(List.of(NOW.minusSeconds(1), NOW));
         assertThat(LoginThrottle.withinWindow(Collections.emptyList(), NOW)).isEmpty();
     }
+
+    @Test
+    @DisplayName("an account's and a name's counter from one client is apart from another client's and from the global one")
+    void perClientCountersAreApart() {
+        assertThat(LoginThrottle.accountKey(1L, "203.0.113.7"))
+                .isNotEqualTo(LoginThrottle.accountKey(1L, "203.0.113.8"))
+                .isNotEqualTo(LoginThrottle.accountKey(1L))
+                .isNotEqualTo(LoginThrottle.userKey("1", "203.0.113.7"));
+        // A client is its bucket: an IPv6 host picks addresses at will inside its /64.
+        assertThat(LoginThrottle.userKey("Alice", "2001:db8:1:2::1"))
+                .isEqualTo(LoginThrottle.userKey("alice", "2001:db8:1:2::2"));
+        // Bounded whatever the typed name, which no column length knows in advance.
+        assertThat(LoginThrottle.userKey("x".repeat(1000), "203.0.113.7")).hasSizeLessThan(100);
+        assertThat(LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT).isGreaterThan(LoginThrottle.MAX_ATTEMPTS_PER_CLIENT);
+    }
 }

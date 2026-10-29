@@ -71,8 +71,10 @@ class AuthenticationCeilingsTest extends VectispireContextTest {
     void passwords() throws Exception {
         String name = account(false).username();
 
+        // From one client: the low ceiling is the account's from a client (LoginThrottle); from
+        // as many addresses, each would have a budget of its own.
         List<AuthService.Outcome> outcomes = concurrently(index -> () -> auth.login(new AuthService.LoginRequest(
-                name, "wrong-" + index, "probe", "198.51.100." + index)).outcome(), null);
+                name, "wrong-" + index, "probe", "198.51.100.1")).outcome(), null);
 
         assertThat(outcomes).filteredOn(AuthService.Outcome.Invalid.class::isInstance)
                 .hasSizeLessThanOrEqualTo(LoginThrottle.MAX_ATTEMPTS_PER_USER);

@@ -42,6 +42,9 @@ class AuthDatabaseTest extends VectispireContextTest {
     @Autowired
     private LoginAttemptRepository attempts;
 
+    @Autowired
+    private java.time.Clock clock;
+
     @BeforeEach
     void seedAccount() {
         UserEntity user = new UserEntity();
@@ -119,13 +122,46 @@ class AuthDatabaseTest extends VectispireContextTest {
                     .isInstanceOf(AuthService.Outcome.Invalid.class);
         }
 
-        // Each failure writes three rows — the account, the typed name folded, the address — and
-        // the sixth attempt is refused before the password is judged at all, leaving no row of
-        // its own: being refused does not extend the lockout.
-        assertThat(attempts.findAll()).hasSize(3 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
+        // Each failure writes five rows — the account and the typed name folded, each from this
+        // address and from everywhere, and the address — and the sixth attempt is refused before
+        // the password is judged at all, leaving no row of its own: being refused does not extend
+        // the lockout.
+        assertThat(attempts.findAll()).hasSize(5 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
         assertThat(auth.login(request("alice", PASSWORD)).outcome())
                 .isInstanceOf(AuthService.Outcome.Blocked.class);
-        assertThat(attempts.findAll()).hasSize(3 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
+        assertThat(attempts.findAll()).hasSize(5 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
+    }
+
+    @Test
+    @DisplayName("an account locked from one address still opens to the right password from another")
+    void aLockoutStaysWithTheClientThatCausedIt() {
+        // One counter shared by every client let anyone who knew the name keep the account locked,
+        // the right password from the owner's own workstation refused with the rest.
+        for (int attempt = 0; attempt < LoginThrottle.MAX_ATTEMPTS_PER_USER; attempt++) {
+            auth.login(new AuthService.LoginRequest("alice", "wrong", "curl/8", "203.0.113.7"));
+        }
+        assertThat(auth.login(new AuthService.LoginRequest("alice", PASSWORD, "curl/8", "203.0.113.7")).outcome())
+                .isInstanceOf(AuthService.Outcome.Blocked.class);
+
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .isInstanceOf(AuthService.Outcome.Success.class);
+    }
+
+    @Test
+    @DisplayName("failures spread across addresses meet the account's global ceiling")
+    void guessesSpreadAcrossClientsAreBounded() {
+        // Rows rather than fifty Argon2 derivations: the counter is what is under test.
+        Instant now = clock.instant();
+        for (int failure = 0; failure < LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT; failure++) {
+            LoginAttemptEntity row = new LoginAttemptEntity();
+            row.setCounterKey(LoginThrottle.accountKey(users.findByUsername("alice").orElseThrow().getId()));
+            row.setOccurredAt(now.minusSeconds(5));
+            attempts.save(row);
+        }
+
+        assertThat(auth.login(request("alice", PASSWORD)).outcome())
+                .as("a client with no failure of its own, past the account's global ceiling")
+                .isInstanceOf(AuthService.Outcome.Blocked.class);
     }
 
     @Test
@@ -138,11 +174,15 @@ class AuthDatabaseTest extends VectispireContextTest {
                 .isInstanceOf(AuthService.Outcome.Success.class);
         // Five mistypes then the right password is not an attack on the account. The address keeps
         // its two failures — a sign-in to one's own account used to erase what the same address had
-        // tried against others — and the success itself left no row: it is not a failure.
+        // tried against others — as do the account's and the name's global counters, which other
+        // clients may have fed; the success itself left no row: it is not a failure.
+        long id = users.findByUsername("alice").orElseThrow().getId();
         assertThat(attempts.findAll())
                 .extracting(LoginAttemptEntity::getCounterKey)
-                .hasSize(2)
-                .allSatisfy(key -> assertThat(key).startsWith("login:client:"));
+                .containsExactlyInAnyOrder(
+                        LoginThrottle.clientKey("10.0.0.1"), LoginThrottle.clientKey("10.0.0.1"),
+                        LoginThrottle.accountKey(id), LoginThrottle.accountKey(id),
+                        LoginThrottle.userKey("alice"), LoginThrottle.userKey("alice"));
     }
 
     @Test
