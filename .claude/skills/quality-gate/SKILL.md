@@ -199,6 +199,9 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
   the fixed commit instead.
 - The nightly (`nightly.yml`, from `main`) is the only place every suite runs unconditionally. Do not
   cut a release on a nightly that has not been green.
+- **A patch release carries no migration** (decision 0047): a fix that needs a schema change goes into the
+  next minor. `release.yml` refuses a `vX.Y.Z` tag with Z > 0 whose `db/migration/` differs from `vX.Y.0`'s,
+  before building anything — check before tagging rather than after.
 - **A green check is only worth what it read.** The `secrets` job scanned 0 commits for six weeks:
   in its container git refused the checkout ("dubious ownership"), gitleaks logged it, said
   `no leaks found` and exited 0. When you add or change a CI job that runs a scanner in a
