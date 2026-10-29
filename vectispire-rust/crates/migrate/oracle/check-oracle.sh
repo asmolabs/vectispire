@@ -17,5 +17,11 @@ command -v docker >/dev/null || { echo "check-oracle.sh: Docker is required" >&2
 # directory each started a Gradle build of the same tree: one waited for the other's daemon and timed out, or
 # deleted a directory the other was compiling into, and the Java side failed with classes "not found" (CI, PR #71,
 # 2026-10-28). Asked here, alone, the file is kept and every case reads it.
+#
+# **Asked afresh at every run, never taken from a previous one.** CI's cargo cache restores the target directory,
+# this file with it, into a checkout whose `vectispire-java/*/build/` is not built: a kept file named classes that
+# were not there (#78). Checking each entry instead failed too — Gradle lists directories that may never exist (a
+# module without resources), so every case threw the file away and rebuilt it at once, and one read it empty.
+rm -f "${ORACLE_CLASSPATH_FILE:-${CARGO_TARGET_DIR:-target}/flyway-oracle.classpath}"
 crates/migrate/oracle/oracle.sh classpath
 exec cargo test -p vectispire-migrate --locked --features oracle --test oracle -- --test-threads=2 "$@"
