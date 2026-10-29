@@ -9,8 +9,9 @@
 //! [`rate_windows`] (`RateWindows`, the webhook's shared budget) and [`session_cleanup`] (the `SESSION_CLEANUP` task).
 //! The administration services (stage 2b, what the routes of 1.7 call) are [`teams`] (`TeamAdministrationService`,
 //! `TeamChannels`), [`account_targets`] (an account's grants), [`api_key_administration`] and [`account_names`]
-//! (`AccountNames`, `AccountDirectory`), with their refusals in [`administration`]. Single sign-on (1.4), SCIM and
-//! the routes (1.7) land beside them.
+//! (`AccountNames`, `AccountDirectory`), with their refusals in [`administration`]; [`scim`] is SCIM's provisioning
+//! (`ScimProvisioningService`, stage 2c), its users the accounts and its groups the teams. Single sign-on (1.4) and the
+//! routes (1.7) land beside them.
 //!
 //! **A role marker is not authorization** (AGENTS.md, the first trap). The marker half lives in
 //! `vectispire-cp-http` ([`Access`](vectispire_cp_http::Access)), because the chain decides it before any module is
@@ -40,6 +41,7 @@ mod persistence;
 pub mod rate_windows;
 pub mod roles;
 pub mod rows;
+pub mod scim;
 pub mod second_factor;
 pub mod security;
 pub mod session_cleanup;

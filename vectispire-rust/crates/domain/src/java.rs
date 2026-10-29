@@ -131,6 +131,29 @@ pub fn parse_int_in(text: &str) -> Result<i32, String> {
     })
 }
 
+/// `Long.parseLong(String)`, the value or nothing: an optional sign, then at least one digit as
+/// [`read_int`] reads them (`٣` is three), within `long`. Where SCIM reads a member's value, a value that
+/// is not a number is a username, so the refusal's wording is never needed.
+pub fn read_long(text: &str) -> Option<i64> {
+    let mut chars = text.chars().peekable();
+    let first = *chars.peek()?;
+    let negative = first == '-';
+    if first < '0' {
+        if !matches!(first, '-' | '+') {
+            return None;
+        }
+        chars.next();
+        chars.peek()?;
+    }
+    // Accumulated wider than a long and signed at the end, so -9223372036854775808 is one and 9223372036854775808
+    // is not; past the wider type, nothing.
+    let mut magnitude: i128 = 0;
+    for c in chars {
+        magnitude = digit(c).and_then(|d| magnitude.checked_mul(10)?.checked_add(i128::from(d)))?;
+    }
+    i64::try_from(if negative { magnitude.checked_neg()? } else { magnitude }).ok()
+}
+
 /// Jackson's `node.path(field)`: the member of an object, absent for anything else.
 pub fn path<'a>(node: Option<&'a Value>, field: &str) -> Option<&'a Value> {
     node?.as_object()?.get(field)

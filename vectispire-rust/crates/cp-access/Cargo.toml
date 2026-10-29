@@ -25,6 +25,9 @@ base64.workspace = true
 hmac.workspace = true
 http.workspace = true
 rand_core.workspace = true
+# A SCIM PATCH's `value` is whatever tree the directory sent: the operations are read from it as Java reads its
+# `JsonNode`. The workspace's, already linked by the domain.
+serde_json.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "mysql", "postgres", "macros", "time"] }
@@ -62,7 +65,6 @@ axum.workspace = true
 http-body-util.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
-serde_json.workspace = true
 time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util", "time"] }
 tower.workspace = true

@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "/* postgres */ update t_user set display_name = $1, email = $2, keycloak_id = $3, is_active = $4, role = $5, updated_at = $6 where id = $7",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Bool",
+        "Varchar",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "74386c203a00862f23e1e246b4a603406041674c79b3c12db01439515a52c486"
+}

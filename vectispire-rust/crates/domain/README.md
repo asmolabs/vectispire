@@ -34,6 +34,15 @@ display_name, is_masked_form_of}`, `repository_identity`, `image_reference`, `as
 (`TargetRulesReferenceSetTest`, written before the port). `java_uri::Parsed` gained `raw_path`, which `identity`
 reads as `URI.getRawPath`. `schedules` holds only what the listings need; the scheduler's `isDue` is task 2.7's.
 
+## SCIM's pure rules (task 1.7, stage 2c)
+
+`scim` is what `ScimProvisioningService` decides before it reads a row — the page (`Page`, RFC 7644's 1-based
+`startIndex`, a `count` clamped to 500), the two filters it evaluates (`user_filter`, read by hand: Java's `\s`, `.` and
+ASCII-only `(?i)`), how a member is named (`member_ref`, with `java::read_long` as `Long.parseLong`; `member_value_text` as
+Jackson 3's `asString()`) and what a `remove` path takes away (`removal`). Held to `reference/access/scim/`, which
+`ScimReferenceSetTest` writes from the Java service itself (`tests/scim_reference_set.rs`). The service is
+`vectispire-cp-access`'s `scim`.
+
 ## The SIEM's domain (task 4.2, first stage)
 
 `siem` is `common.domain.siem`: the event catalogue (`SecurityEventType`, wire names, signature ids, CEF
