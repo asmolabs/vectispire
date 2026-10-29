@@ -77,14 +77,16 @@ class SessionsTest {
         assertThat(Sessions.hashOf(minted.hash())).isNotEqualTo(minted.hash());
     }
 
-    @Test
-    @DisplayName("extracts a bearer token")
-    void extractsBearerToken() {
-        assertThat(Sessions.bearerToken("Bearer abc123")).contains("abc123");
+    @ParameterizedTest(name = "extracts a bearer token from [{0}]")
+    @ValueSource(strings = {"Bearer abc123", "bearer abc123", "BEARER abc123", "Bearer\tabc123", "  Bearer   abc123  "})
+    void extractsBearerToken(String header) {
+        // One reading for every filter: the ceiling on refused tokens read a space alone, and a tab
+        // took a token past it to the authentication filter, which read any whitespace.
+        assertThat(Sessions.bearerToken(header)).contains("abc123");
     }
 
     @ParameterizedTest(name = "refuses [{0}] without saying which kind of wrong it is")
-    @ValueSource(strings = {"", "   ", "abc123", "bearer abc123", "Bearer ", "Bearer a b", "Basic abc123"})
+    @ValueSource(strings = {"", "   ", "abc123", "Bearer ", "Bearer a b", "Basic abc123", "Bearerabc123"})
     void refusesAnythingElse(String header) {
         // Telling "absent", "malformed" and "unknown" apart would inform somebody probing
         // without helping anybody else.

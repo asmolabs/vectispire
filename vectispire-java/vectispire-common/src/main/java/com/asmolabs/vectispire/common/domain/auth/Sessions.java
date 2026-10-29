@@ -36,7 +36,7 @@ public final class Sessions {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private static final Pattern BEARER = Pattern.compile("^Bearer (\\S+)$");
+    private static final Pattern BEARER = Pattern.compile("^bearer\\s+(\\S+)$", Pattern.CASE_INSENSITIVE);
 
     /**
      * @param absoluteLifetime the ceiling, whatever happens
@@ -159,9 +159,14 @@ public final class Sessions {
     /**
      * Extracts the token from an {@code Authorization} header.
      *
-     * <p>Empty for anything that is not exactly {@code Bearer <token>}. Telling "absent",
-     * "malformed" and "unknown" apart would inform somebody probing, without helping anybody
-     * else.
+     * <p>Empty for anything that is not {@code Bearer <token>}. Telling "absent", "malformed" and
+     * "unknown" apart would inform somebody probing, without helping anybody else.
+     *
+     * <p><b>The one reading of the header</b>, for the sessions, the keys and the ceiling on refused
+     * tokens alike. The scheme is case-insensitive and separated by any whitespace, as RFC 7235
+     * reads it and as the authentication filter always did; the ceiling read {@code "bearer "} with
+     * a space alone, so a token separated by a tab was resolved by the one and never counted by the
+     * other — refused without a ceiling, and without the audit entry the ceiling writes.
      */
     public static Optional<String> bearerToken(String header) {
         if (header == null || header.isBlank()) {

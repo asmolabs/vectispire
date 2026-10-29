@@ -75,7 +75,9 @@ cette base couperait tout le monde au premier réglage manqué.
 ## Provisionnement depuis l'annuaire (SCIM) {#provisioning-from-the-directory-scim}
 
 Un fournisseur d'identité peut créer, modifier, désactiver et supprimer des comptes par SCIM 2.0
-(`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM. Ce jeton vit dans la
+(`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM (`vectispire.scim.token`, ou
+un fichier nommé par `VECTISPIRE_SCIM_TOKEN_FILE`). SCIM activé, un jeton de moins de 32 caractères
+arrête le démarrage : générez-en un avec `openssl rand -base64 32`. Ce jeton vit dans la
 configuration du fournisseur ; ce qu'il peut faire est donc volontairement borné :
 
 - **`/scim` n'accepte que le jeton SCIM.** Une session d'administrateur ou une clé d'API y est refusée

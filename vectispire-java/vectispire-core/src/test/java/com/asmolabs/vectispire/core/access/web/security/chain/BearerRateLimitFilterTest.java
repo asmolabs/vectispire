@@ -87,6 +87,24 @@ class BearerRateLimitFilterTest {
         assertThat(written.toString()).contains("Too many refused credentials");
     }
 
+    @org.junit.jupiter.params.ParameterizedTest(name = "counts a refused token sent as [{0}]")
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"Bearer\tzsk-whatever", "bearer zsk-whatever", "BEARER   zsk-whatever"})
+    void countsEverySeparatorTheAuthenticationFilterReads(String header) throws Exception {
+        // The ceiling read "bearer " with a space alone; the authentication filter, any whitespace.
+        // A tab took every token past the count — and past the audit entry the ceiling writes.
+        HttpServletRequest request = credentialed("203.0.113.10");
+        when(request.getHeader("Authorization")).thenReturn(header);
+
+        for (int attempt = 0; attempt < CAPACITY; attempt++) {
+            filter.doFilterInternal(request, response, refusing());
+        }
+        FilterChain blocked = refusing();
+        filter.doFilterInternal(request, response, blocked);
+
+        verify(blocked, never()).doFilter(any(), any());
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
     /**
      * The property that keeps this filter off the population it is not aimed at.
      *
