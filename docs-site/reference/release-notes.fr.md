@@ -65,9 +65,15 @@ que deux versions mineures après une annonce.
   les codes des autres référentiels ne changent pas.
 - **Les images tierces de la composition avancent**, chacune toujours par étiquette et empreinte d'index :
   MySQL 8.4.11 → 8.4.13 (même ligne LTS, même volume de données), le proxy du socket Docker 0.3.0 → 0.5.0
-  (HAProxy 3 dessous ; les mêmes points d'accès ouverts, les nouveaux pause et unpause laissés fermés), et
-  le Keycloak du profil `sso` 26.0.8 → 26.8.1, hors d'une ligne que Keycloak ne corrige plus. Le realm
-  d'exemple s'importe à l'identique sur 26.8.1.
+  (HAProxy 3 dessous), et le Keycloak du profil `sso` 26.0.8 → 26.8.1, hors d'une ligne que Keycloak ne
+  corrige plus. Le realm d'exemple s'importe à l'identique sur 26.8.1.
+- **Ce que le proxy du socket laisse passer, dit exactement.** `CONTAINERS: 1`, dont les scans ont besoin
+  pour créer, démarrer, lire et supprimer leurs conteneurs, admet toute route `/containers/…`, puisque le
+  proxy la reconnaît comme un préfixe : stop, kill, pause et unpause compris, comme sous 0.3.0. Les
+  `ALLOW_PAUSE` et `ALLOW_UNPAUSE` de 0.5.0 ne peuvent qu'ouvrir ces chemins, jamais les fermer.
+  `EVENTS`, la seule section que l'image ouvre par défaut, est désormais à `0` dans `docker-compose.yml`
+  pour les deux proxies — rien dans Vectispire ne lit le flux d'événements du démon. Une composition à
+  vous devrait la nommer aussi.
 
 ### Changements visibles par une intégration {#changements-visibles-par-une-integration-non-publie}
 

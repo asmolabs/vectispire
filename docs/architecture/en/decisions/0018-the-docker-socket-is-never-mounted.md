@@ -56,6 +56,12 @@ the same reason: a container that talks to the daemon is not somewhere a mutable
 that matter are named explicitly in the compose file rather than left to the default: `EXEC`,
 `SECRETS`, `VOLUMES`, `NETWORKS`, `SWARM`, `BUILD`, `COMMIT`, `SYSTEM`.
 
+*Amended for 0.5.0.* Two of those statements needed the image's own configuration to be true. The
+image's default for `EVENTS` is `1`, so "everything else is refused" held only once the compose file
+named `EVENTS: 0`, which it now does. And `CONTAINERS` is matched as a prefix: it admits every
+`/containers/…` route — stop, kill, pause, unpause — and the `ALLOW_*` switches can only open such a
+path, never close it.
+
 **Measured against a running proxy rather than read off the documentation**, because one of these
 does not behave the way the variable's name suggests:
 
