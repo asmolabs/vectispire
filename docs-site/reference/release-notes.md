@@ -3,8 +3,8 @@
 ## Unreleased
 
 What follows is against 0.11.2, on the way to 1.0. Decision 0043 §6 lists the contracts put right
-before 1.0 freezes them; each removal below is one of them, and is made now rather than two minors
-after it was announced.
+before 1.0 freezes them; each change below is one of them, and is made now rather than two minors
+after an announcement.
 
 ### Before you upgrade {#before-you-upgrade-unreleased}
 
@@ -13,6 +13,12 @@ after it was announced.
   carries an issue: `GET /api/v1/issues`, `GET /api/v1/issues/{id}`, `POST /api/v1/issues/triage`,
   `POST /api/v1/issues/{id}/triage` and `PUT /api/v1/issues/{id}/ticket`. A client that read them reads
   nothing in their place; no field replaces them. The columns stay in the database, unread.
+- **A scan's attestation carries predicate `https://vectispire.dev/attestation/v2`**, from
+  `GET /api/v1/attestations/scans/{scanId}` and in the evidence bundle's `04_attestations/`. Its
+  `findings.total` is every finding of the scan, the unit its severities already counted; v1 put the
+  scan's issue count there, which could read below the sum of the severities. The field names are
+  unchanged. **v1 is not served beside it**: a verifier pinning `…/attestation/v1` refuses the new
+  statements until it pins v2 ([compliance](../guide/compliance.md#the-evidence-bundle)).
 
 ## 0.11.2 — 2026-10-27
 

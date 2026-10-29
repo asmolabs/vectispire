@@ -127,6 +127,16 @@ bundle carries: whoever alters a bundle replaces that file too. Fetch the key fr
 envelope signed over the specification's pre-authentication encoding, so `cosign verify-attestation`
 and in-toto verifiers check it as they would any other.
 
+**Pin the predicate type, and read the counts in findings.** A scan's statement — in the bundle's
+`04_attestations/`, or from `GET /api/v1/attestations/scans/{scanId}` — carries the predicate type
+`https://vectispire.dev/attestation/v2`. Its `findings` counts **findings**, one per place a tool
+reported: `critical` to `low` by severity, `kev` and `secrets` by kind, `total` every finding of the
+scan, so `total` is never below any of the others. The `v1` predicate, served up to 0.11, counted
+`total` in issues — one per fingerprint — beside severities counted in findings, and could read a
+total below the sum of its own severities. v1 is no longer served beside v2: a verifier that pins
+`…/attestation/v1` refuses the new statements, which is the point — change the type it pins and
+read `total` as findings.
+
 ## Supporting records
 
 Three other exports carry weight in the same conversation, all covered under

@@ -134,6 +134,26 @@ class AttestationRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("counts its total in findings like its severities, under predicate v2 (decision 0043 §6)")
+    void oneUnit() throws Exception {
+        ScanEntity scan = scan(repository.getId(), null, "completed", SBOM, Instant.now().minusSeconds(60));
+        // One rule hitting a file twice, and an unrated finding: three findings, which the
+        // pipeline folded into two issues. v1 wrote the 2 here, beside severities counting
+        // findings, and its total came out below the sum of its own severities.
+        finding(scan.getId(), "sast", "high", false);
+        finding(scan.getId(), "sast", "high", false);
+        finding(scan.getId(), "sast", "info", false);
+        scan.setFindingsCount(2);
+        scans.save(scan);
+
+        JsonNode statement = attestation(scan.getId());
+
+        assertThat(statement.path("predicateType").asText()).isEqualTo("https://vectispire.dev/attestation/v2");
+        assertThat(statement.path("predicate").path("findings").path("high").asLong()).isEqualTo(2);
+        assertThat(statement.path("predicate").path("findings").path("total").asLong()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("names a container by image and tag")
     void aContainer() throws Exception {
         ContainerEntity container = new ContainerEntity();

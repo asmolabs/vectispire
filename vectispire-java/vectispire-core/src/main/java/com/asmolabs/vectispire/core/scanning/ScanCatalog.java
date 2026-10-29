@@ -708,6 +708,11 @@ public class ScanCatalog {
         return findings.countByScanIdAndSeverity(scanId, severity);
     }
 
+    /** Every finding the scan recorded, whatever its severity or type. */
+    public long countAllFindings(long scanId) {
+        return findings.countByScanId(scanId);
+    }
+
     public long countKevFindings(long scanId) {
         return findings.countByScanIdAndIsKevTrue(scanId);
     }

@@ -106,7 +106,9 @@ public class AttestationService {
                 scans.countFindings(scanId, Severity.LOW.wireName()),
                 scans.countKevFindings(scanId),
                 scans.countFindingsOfType(scanId, FindingType.SECRET.wireName()),
-                scan.findingsCount());
+                // Findings, like the six above — not `scan.findingsCount()`, which is the scan's
+                // issue count and is what v1 put here (see InTotoAttestation.FindingsSummary).
+                scans.countAllFindings(scanId));
 
         return InTotoAttestation.create(
                 targetName + "/sbom-scan-" + scanId + ".json",
