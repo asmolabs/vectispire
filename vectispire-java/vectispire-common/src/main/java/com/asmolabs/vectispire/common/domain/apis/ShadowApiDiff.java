@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Reconciles discovered code endpoints against declared API contracts.
@@ -80,9 +82,26 @@ public record ShadowApiDiff(
         return trimmed;
     }
 
+    /** A path parameter, in either spelling: {@code {id}} or {@code :id}. */
+    private static final Pattern PARAMETER = Pattern.compile("\\{[^/}]+\\}|:[a-zA-Z0-9_]+");
+
+    /**
+     * The path as a pattern in which each parameter matches one segment and everything else matches
+     * itself.
+     *
+     * <p><b>Everything else quoted.</b> The paths come from the scanned repository — its routes and its
+     * contracts — and were spliced into the pattern as written: a {@code .} matched any character, so
+     * {@code /a.b} documented {@code /aXb}, and a route spelling a quantifier or a group made the match
+     * mean something else, or cost as much as its author wished.
+     */
     private static String toParamRegex(String path) {
-        // Replace {param} or :param with regex pattern [^/]+
-        return "^" + path.replaceAll("\\{[^/]+\\}", "[^/]+")
-                .replaceAll(":[a-zA-Z0-9_]+", "[^/]+") + "$";
+        StringBuilder regex = new StringBuilder("^");
+        Matcher parameter = PARAMETER.matcher(path);
+        int literalFrom = 0;
+        while (parameter.find()) {
+            regex.append(Pattern.quote(path.substring(literalFrom, parameter.start()))).append("[^/]+");
+            literalFrom = parameter.end();
+        }
+        return regex.append(Pattern.quote(path.substring(literalFrom))).append('$').toString();
     }
 }
