@@ -44,6 +44,21 @@ after an announcement.
   cause, the cause itself. A pipeline branches on it instead of matching English
   ([API errors](errors.md#the-codes)). Additive: nothing else in a refusal changes. The gate's
   verdict already named each violation's `rule`.
+- **The CRA's control codes follow Regulation (EU) 2024/2847 as adopted** (decision 0046). They named
+  the 2022 proposal's articles while their titles cited the adopted text:
+
+  | Until 0.11.2 | From this release |
+  |---|---|
+  | `CRA-ART11-NOTIF` | `CRA-ART14-NOTIF` |
+  | `CRA-ART10-SBOM` | `CRA-ANNEX1-SBOM` |
+  | `CRA-ART10-LIFECYCLE` | `CRA-ART13-LIFECYCLE` |
+  | `CRA-ART10-VULN` | `CRA-ANNEX1-VULN` |
+
+  They change wherever a control is named: the compliance and statement-of-applicability responses, the
+  declaration route `PUT /api/v1/compliance/soa/EU_CRA/{controlId}`, the PDF report and the
+  evidence bundle. A pipeline or a template matching on one of the old codes matches the new one instead.
+  Migration V92 rewrites the declarations already stored; audit-log entries written before the upgrade
+  keep the code they recorded. Titles, scores and the other frameworks' codes are unchanged.
 - **The composition's third-party images move**, each still by tag and index digest: MySQL 8.4.11 → 8.4.13
   (same LTS line, same data volume), the Docker socket proxy 0.3.0 → 0.5.0 (HAProxy 3 underneath; the
   same endpoints allowed, the new pause and unpause ones left closed), and the `sso` profile's Keycloak

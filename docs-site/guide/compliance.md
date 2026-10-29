@@ -31,10 +31,11 @@ one. Treat the export as evidence for the technical controls, filed alongside ev
 
 Each control is scored by its category — vulnerabilities, supply chain (the share of targets with
 an SBOM), secrets, secure coding, infrastructure as code, gate governance, audit trail — so its
-title names the requirement it relates to, not everything that requirement asks. `CRA-ART11-NOTIF`,
+title names the requirement it relates to, not everything that requirement asks. `CRA-ART14-NOTIF`,
 for instance, scores the open critical, CISA KEV-listed and overdue vulnerabilities an Article 14
-notification would start from; it neither makes nor tracks the notification. The CRA codes keep the numbering of the 2022 proposal; the titles cite Regulation (EU) 2024/2847 as
-adopted, whose Article 14 reporting obligation applies since 11 September 2026. The formulas are in
+notification would start from; it neither makes nor tracks the notification. The CRA codes name the provisions of Regulation (EU) 2024/2847 as adopted, whose Article 14 reporting
+obligation applies since 11 September 2026; until the release after 0.11.2 they followed the 2022
+proposal's numbering, and the upgrade rewrote stored declarations to the new codes. The formulas are in
 the [compliance reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/COMPLIANCE_AND_REGULATORY.md).
 The same posture yields the same verdict, so a result can be reproduced.
 
