@@ -451,7 +451,11 @@ database. What keeps the shared server clean is the database, not the container:
 `vectispire_test_<epoch seconds>_<random>`, drops it — and any scratch database a test left open —
 when it exits, and at start drops those of ours older than a day, which only a killed JVM leaves.
 Nothing else on the server is touched, and a run in another worktree, whose database is minutes old,
-keeps its own. Two runs starting at once race for the name: the daemon refuses the second create, and
+keeps its own. Two runs share nothing but the server — no table, no lock — so they cannot deadlock
+each other; what they share is its disk. **Every connection of the suite runs without the binary
+log** (`sessionVariables=sql_log_bin=0`): with the log on, a commit on a full disk waits for space
+and the run hangs — an hour and a half on 2026-10-29 — where without it the commit fails at once.
+Two runs starting at once race for the name: the daemon refuses the second create, and
 that run waits for the first one's container instead of making a second. A container a Docker restart
 stopped is replaced; one of another image or Testcontainers version — an older branch's — is left
 alone, the run reuses one without the name, and the log says to remove the old one. To remove it, or
