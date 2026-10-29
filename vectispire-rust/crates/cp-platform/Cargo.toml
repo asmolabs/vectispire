@@ -1,6 +1,6 @@
 [package]
 name = "vectispire-cp-platform"
-description = "The control plane's platform module: the rules behind the settings screen, over the settings store and the audit log."
+description = "The control plane's platform module: the rules behind the settings screen, over the settings store and the audit log, and the audit-log and crypto routes."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,17 +8,33 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# The routes: the server stack is the control plane's (deny.toml lists this crate among axum's wrappers).
+axum.workspace = true
 futures-util.workspace = true
+http.workspace = true
+percent-encoding.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 time = { version = "0.3", features = ["std"] }
+tracing.workspace = true
+uuid = { version = "1", features = ["v4"] }
 vectispire-cp-audit = { path = "../cp-audit" }
+# `SigningKeys`, the crypto routes' service.
+vectispire-cp-crypto = { path = "../cp-crypto" }
 vectispire-cp-db = { path = "../cp-db" }
+vectispire-cp-http.workspace = true
 vectispire-cp-settings = { path = "../cp-settings" }
+vectispire-domain.workspace = true
 
 [dev-dependencies]
+# The contract test: the routes against `openapi.json` and the list of routes not ported.
+vectispire-cp-contract = { path = "../cp-contract" }
+vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-tls.workspace = true
 # A database of its own per test, on a throwaway server or the shared one CI names (cp-db's `testing`).
 vectispire-cp-db = { path = "../cp-db", default-features = false, features = ["test-support"] }
-tokio = { workspace = true, features = ["test-util"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
 vectispire-domain.workspace = true
 vectispire-migrate = { path = "../migrate" }
 vectispire-testkit = { path = "../testkit" }

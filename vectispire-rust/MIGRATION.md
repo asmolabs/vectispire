@@ -161,13 +161,17 @@ Follow-ups found during Phase 1, small enough to go with 1.7 or before it:
 - **Two Argon2 PHC readers** in `cp-access` (`passwords` and `credentials::phc`): keep one.
 - **`cp-platform`'s `Approvers`** is a trait the binary does not fill yet; wire it to `cp-access`'s
   `TriageApprovers`.
-- **The audit log is not built by the binary yet** (`cp-app` has no database). Wire it.
+- ~~**The audit log is not built by the binary yet.**~~ It is (`cp-app/src/main.rs`, with its mirror and the SIEM's
+  listeners), and its reader serves the audit-log routes since the platform port's first stage.
 - **`cp-db`'s comments promise** a test refusing a `query!` without its `/* mysql */` or
   `/* postgres */` tag. It does not exist: write it or remove the claim.
 - **The Java-oracle suite of `cp-audit` and the mutation checks are not in `check.sh`.** Decide which
   belong in CI.
-- **The platform routes** (settings, audit log, crypto), the four credential-storing endpoints and the
-  AI endpoint check wait for their modules.
+- **The platform routes**, in stages (2026-10-28): the audit log's and crypto's six are served and replayed
+  (`rust/platform-stage1`); the settings catalog and save follow once `tickets`' CA pinning and `ai`'s destination
+  guard exist as narrow seams (`access`' `TriageApprovers` is ported and only to be wired); the four
+  credential-storing endpoints, their state reads, the tracker CA and the AI endpoint check wait for `tickets`,
+  `notifications` and `ai` (wave 2).
 
 ### 5.2 Phase 2 — Targets and scanning
 
@@ -293,8 +297,8 @@ What the finished tasks leave to the others:
   question for 2.11:** cp-runtime reads a blank `VECTISPIRE_ENCRYPTION_VAULT_TOKEN` as absent (refused at start);
   check what Spring's binding of an empty variable to `Optional<String>` gives Java before the composition test
   pins either.
-- **`platform`'s `CryptoController`** (the public key, signature verification) waits with the other platform
-  routes (follow-ups of 1.7); `SigningKeys::{public_key_pem, key_id, verify_with}` is its service. The exports
+- **`platform`'s `CryptoController`** (the public key, signature verification) is served since the platform port's
+  first stage, over `SigningKeys::{public_key_pem, key_id, verify_with}`, which the binary now keeps. The exports
   (Phase 5) sign through `SigningKeys::{sign, wrap_and_sign_dsse}`.
 
 - **Targets (2.6), for 2.7 to 2.11 and Phases 3 to 5.** `crates/cp-targets/README.md` has the differences and the

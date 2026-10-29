@@ -2,7 +2,7 @@
 # route: a value the recorder hides, a state the test changes behind the HTTP API, a request this replay does not
 # send. Ended by work on the recorder or on cp-contract's replay, not by a module's port.
 # README.md beside this file says the format and the rules.
-ceiling 87
+ceiling 89
 
 # ── Recordings of the served routes (targets, 2.6) that do not replay yet ──
 golden api.AgentSealingKeyRoutesTest/anAdministratorResetsTheKey--007-POST-api_v1_ssh-keys | the test generates an SSH key at every run and the recorder hides it («pem:…»): the replay would have to generate one of the same kind
@@ -96,3 +96,7 @@ golden api.SiemCollectorCaRoutesTest/theSaveRefusesWhatIsNotACurrentCa--002-PUT-
 golden api.SiemCollectorCaRoutesTest/theSaveRefusesWhatIsNotACurrentCa--003-PUT-api_v1_siem_config | the test pastes a private key where the collector CA goes, to see it refused, and the recorder hides a key (`«pem:private-key»`): the replay cannot send what Java was sent — recording limit
 golden api.SiemCollectorCaRoutesTest/theSaveRefusesWhatIsNotACurrentCa--004-PUT-api_v1_siem_config | the test pastes a private key where the collector CA goes, to see it refused, and the recorder hides a key (`«pem:private-key»`): the replay cannot send what Java was sent — recording limit
 golden api.SiemCollectorCaRoutesTest/theTestVerifiesAgainstThePinnedCa--003-POST-api_v1_siem_test | the connection test reaches a TLS collector the Java test ran on a port of its own, with a certificate its CA issued: nothing listens there during the replay — recording limit
+
+# ── Met by the crypto routes' replay (the platform port's first stage): a signature and a key the test made at run time ──
+golden api.CryptoRoutesTest/aForgeryUnderAnotherKeyIsNamedAsSuch--001-POST-api_v1_crypto_verify | the test generates the forger's key pair at every run and the recorder hides its public key (`«pem:public-key»`): the replay cannot send the key the signature was made with — recording limit
+golden api.CryptoRoutesTest/verifiesSignature--001-POST-api_v1_crypto_verify | the test signs with the Java context's key and the recorder hides the signature (`«secret»`): no signature this replay's key verifies can be rebuilt; the tampered payload (--002) replays green — recording limit

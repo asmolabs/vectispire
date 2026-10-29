@@ -30,6 +30,7 @@ vectispire-cp-inventory = { path = "../cp-inventory" }
 vectispire-cp-maintenance = { path = "../cp-maintenance" }
 vectispire-cp-outbox = { path = "../cp-outbox" }
 vectispire-cp-outbound = { path = "../cp-outbound" }
+vectispire-cp-platform = { path = "../cp-platform" }
 vectispire-cp-runtime = { path = "../cp-runtime" }
 vectispire-cp-rules = { path = "../cp-rules" }
 vectispire-cp-issues = { path = "../cp-issues" }

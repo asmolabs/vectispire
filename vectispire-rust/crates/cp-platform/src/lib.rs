@@ -8,15 +8,20 @@
 //!   `ai`'s destination guard and its acceptance record — are seams ([`Approvers`], [`Tracker`], [`AiDestination`])
 //!   that the binary fills, as `platform` in Java may use any module (decision 0029).
 //!
-//! Not here yet, and said so: the routes (`SettingsController`, `AuditLogController`, `CryptoController`), the four
-//! credential doors that encrypt before storing, and the AI endpoint check — each needs a module of a later phase.
+//! - [`routes`] are `AuditLogController`'s and `CryptoController`'s, over `cp-audit`'s `AuditLogQuery` and `cp-crypto`'s
+//!   `SigningKeys`.
+//!
+//! Not here yet, and said so: `SettingsController`'s routes, the four credential doors that encrypt before storing,
+//! and the AI endpoint check — each needs a module not ported yet (`README.md` says which).
 
 #![forbid(unsafe_code)]
 
 mod forms;
 mod settings;
+mod web;
 
 pub use settings::{
     AdministrationError, AiAfter, AiDestination, Applied, Approvers, Caller, CollaboratorError, Entry,
     SECURITY_SETTING_CHANGED, SettingsAdministration, Tracker,
 };
+pub use web::routes;
