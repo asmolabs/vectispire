@@ -47,6 +47,21 @@ button on the account's row, after a confirmation.
 
 The route is `DELETE /api/v1/users/{id}/password-change-requirement`, for administrators.
 
+### Resetting a second factor
+
+An account whose owner lost the phone and the recovery codes, or that carries a factor its owner did
+not enrol, gets it back from the shield button on its row (offered when a factor is enrolled).
+Removing a factor otherwise needs a current code, which is exactly what such an owner lacks.
+
+- **The factor is removed and the account's sessions close**: a factor somebody else enrolled came
+  with a session of theirs. The account signs in with its password alone until it enrols again.
+- **Its API keys stay.** If the account may be compromised, reset its password too: that revokes them.
+- **Never on one's own account**, and a superuser's only by a superuser.
+- **Recorded** as `USER_UPDATED`, and sent to the SIEM as an account change (`VECTI-SEC-010`).
+- **Idempotent.** An account without a factor is answered as it is, with no entry.
+
+The route is `DELETE /api/v1/users/{id}/second-factor`, for administrators.
+
 ## Roles
 
 Roles decide what a person may **do**; teams decide what they may **see**. The two are independent

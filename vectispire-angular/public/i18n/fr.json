@@ -1,5 +1,6 @@
 {
   "account": {
+      "mfa_password": "Mot de passe actuel",
     "backup_warning": "Notez ces codes de secours maintenant : ils ne seront plus jamais affichés. Chacun ouvre une session une fois, si vous perdez votre téléphone.",
     "change_password": "Changer le mot de passe",
     "identity": "Compte",
@@ -2851,6 +2852,11 @@
     "more": "Plus d'actions"
   },
   "users": {
+      "second_factor_reset": "Réinitialiser",
+      "second_factor_header": "Réinitialiser le second facteur ?",
+      "second_factor_consequence": "{{name}} se connecte avec son seul mot de passe jusqu'à ce qu'il enrôle un nouveau second facteur, et ses sessions ouvertes se ferment. Ses clés d'API restent : si le compte a pu être compromis, réinitialisez aussi son mot de passe. Le journal d'audit consigne qui l'a réinitialisé.",
+      "aria_reset_second_factor": "Réinitialiser le second facteur de {{name}}",
+      "error_second_factor": "Le second facteur n'a pas pu être réinitialisé.",
     "access_for": "Visibilité de",
     "access_header": "Visibilité",
     "access_help": "Ce compte voit ces cibles, plus celles de ses équipes — les deux ensembles s'additionnent. Aucune cible cochée veut dire qu'il ne voit rien. Un projet couvre les dépôts qui y sont rangés au moment de chaque requête, y compris ceux rangés plus tard.",

@@ -76,6 +76,12 @@ export class Account {
 
     code = '';
 
+    /**
+     * The current password, asked at the confirmation: the server enrols a factor only for whoever
+     * proves the password, not for whoever holds a session. Cleared with the enrolment.
+     */
+    password = '';
+
     /** The secret in groups of four: copied by hand, it is copied character by character. */
     readonly readableSecret = computed(() => {
         const secret = this.enrolment()?.secret ?? '';
@@ -110,15 +116,16 @@ export class Account {
      */
     confirm(): void {
         const enrolment = this.enrolment();
-        if (!enrolment || !this.code.trim()) return;
+        if (!enrolment || !this.code.trim() || !this.password) return;
 
         this.busy.set(true);
         this.error.set(null);
-        this.authApi.enableMfa(enrolment.secret, this.code.trim()).subscribe({
+        this.authApi.enableMfa(this.password, enrolment.secret, this.code.trim()).subscribe({
             next: (result) => {
                 this.busy.set(false);
                 this.enrolment.set(null);
                 this.code = '';
+                this.password = '';
                 this.backupCodes.set(result?.backupCodes ?? []);
                 this.session.setMfaEnabled(true);
             },
@@ -133,6 +140,7 @@ export class Account {
     cancel(): void {
         this.enrolment.set(null);
         this.code = '';
+        this.password = '';
         this.error.set(null);
     }
 

@@ -45,6 +45,11 @@ export class AccountsApi {
      * Lifts an account's obligation to change its password. The server accepts it for a federated
      * account other than one's own only, and answers the account as it stands afterwards.
      */
+    /** Clears another account's second factor and closes its sessions — never one's own. */
+    resetSecondFactor(id: number): Observable<UserSummary> {
+        return this.http.delete<UserSummary>(`/api/v1/users/${id}/second-factor`);
+    }
+
     clearPasswordChangeRequirement(id: number): Observable<UserSummary> {
         return this.http.delete<UserSummary>(`/api/v1/users/${id}/password-change-requirement`);
     }

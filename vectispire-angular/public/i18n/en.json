@@ -1,5 +1,6 @@
 {
   "account": {
+      "mfa_password": "Current password",
     "backup_warning": "Write these backup codes down now — they will never be shown again. Each one signs you in once, if you lose your phone.",
     "change_password": "Change password",
     "identity": "Account",
@@ -2633,6 +2634,11 @@
     "more": "More actions"
   },
   "users": {
+      "second_factor_reset": "Reset",
+      "second_factor_header": "Reset the second factor?",
+      "second_factor_consequence": "{{name}} signs in with its password alone until it enrols a new second factor, and its open sessions close. Its API keys stay: if the account may be compromised, reset its password too. The audit log records who reset it.",
+      "aria_reset_second_factor": "Reset the second factor of {{name}}",
+      "error_second_factor": "The second factor could not be reset.",
     "access_for": "Visibility of",
     "access_header": "Visibility",
     "access_help": "This account sees these targets, plus those of its teams — the two sets add up. No target ticked means it sees nothing. A project covers the repositories filed in it at the time of each request, those filed later included.",

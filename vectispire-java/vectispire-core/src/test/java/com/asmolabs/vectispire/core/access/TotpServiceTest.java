@@ -58,7 +58,7 @@ class TotpServiceTest extends VectispireContextTest {
         user = users.save(user);
 
         String secret = totp.setup(UserView.of(user)).secret();
-        List<String> codes = totp.enable(UserView.of(user), secret, Totp.generateCode(secret, now)).backupCodes();
+        List<String> codes = totp.enable(UserView.of(user), "correct horse battery staple", secret, Totp.generateCode(secret, now), "127.0.0.1", null).backupCodes();
         return new Enrolled(users.findById(user.getId()).orElseThrow(), secret, codes, now);
     }
 
@@ -139,7 +139,7 @@ class TotpServiceTest extends VectispireContextTest {
         Enrolled account = enrolled();
         String attacker = totp.setup(UserView.of(account.user())).secret();
 
-        assertThatThrownBy(() -> totp.enable(UserView.of(account.user()), attacker, Totp.generateCode(attacker, clock.instant())))
+        assertThatThrownBy(() -> totp.enable(UserView.of(account.user()), "correct horse battery staple", attacker, Totp.generateCode(attacker, clock.instant()), "127.0.0.1", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already enabled");
         assertThat(totp.verify(account.user(), Totp.generateCode(account.secret(), account.at().plusSeconds(30))))
