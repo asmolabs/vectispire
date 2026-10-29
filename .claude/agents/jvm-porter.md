@@ -285,8 +285,8 @@ on that engine only (decision 0034 removed the SQLite set). Never both, never on
 V1–V39**, even the identical ones: Flyway checks every applied checksum, and a changed file stops
 every existing installation. A placeholder's value is frozen once a common migration used it.
 
-Run `integrationTestAll` whenever you touch it. It covers **MySQL, the one supported engine** —
-decision 0043 §3 as amended on 2026-10-29. PostgreSQL's code is kept (migrations, driver, `Engine.POSTGRES`,
+Run `integrationTestAll` whenever you touch it. It covers **MySQL, the one supported engine**, at its newest and its oldest
+supported version — 9.x and 8.4 LTS, `integrationTestMysql` and `integrationTestMysqlOldest` — decision 0043 §3 as amended on 2026-10-29. PostgreSQL's code is kept (migrations, driver, `Engine.POSTGRES`,
 `integrationTestPostgres`) and run by nothing: keep writing a diverging migration twice, but nothing checks it. The unit and HTTP suites run
 on MySQL too (decision 0034, `TestDatabase`): a container per test JVM, or the server
 `VECTISPIRE_TEST_DB_URL` names, as CI's `jvm` job does; without either they fail, never skip. SQLite
@@ -484,7 +484,8 @@ never inline as well: an inline key is no key on the shipped composition's `mysq
 key beside the named one on the `mysql:9.4` the suites run. Both happened — V1's keys existed twice
 on MySQL 9, and V23's `t_mfa_challenge.user_id` was no key at all on MySQL 8 — and V65
 settled them. `MigrationsTest` now fails on a key that exists twice; it cannot see one that MySQL 8
-alone is missing, because the suites run MySQL 9, so read your migration on both.
+alone is missing, because the unit suite runs MySQL 9 — `integrationTestAll` runs 8.4 as well, so run it on
+any migration, and read your migration on both.
 
 **The audit chain is written one entry at a time, and stays that way.** Every entry locks
 `t_audit_chain_head` (V66) before it reads the head, because concurrent writers forked the chain
