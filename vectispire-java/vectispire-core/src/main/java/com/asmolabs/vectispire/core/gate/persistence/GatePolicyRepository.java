@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.core.gate.persistence;
 
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,8 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 public interface GatePolicyRepository extends JpaRepository<GatePolicyEntity, Long> {
 
     List<GatePolicyEntity> findByIsActiveTrue();
-
-    Optional<GatePolicyEntity> findByTargetKindAndTargetIdAndIsActiveTrue(String targetKind, Long targetId);
 
     @Query("select coalesce(max(p.version), 0) from GatePolicyEntity p where p.targetKind = :kind and p.targetId = :id")
     int highestVersion(@Param("kind") String targetKind, @Param("id") Long targetId);

@@ -52,11 +52,6 @@ public class TargetGrants {
             keys = List.copyOf(keys);
         }
 
-        /** Whether anybody's access changed — the deletion's entry signals it when so. */
-        public boolean changedAccess() {
-            return grants > 0 || !keys.isEmpty();
-        }
-
         /** For the deletion's audit entry: what went with the target, in words. */
         public String summary() {
             return grants + " grant(s) and " + keys.size() + " API key(s) revoked";

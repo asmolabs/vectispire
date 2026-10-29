@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.issues.persistence;
 
-import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -118,8 +117,6 @@ public interface IssueRepository
             @Param("triagedAt") Instant triagedAt,
             @Param("id") Long id,
             Limit limit);
-
-    Optional<IssueEntity> findByFingerprint(String fingerprint);
 
     List<IssueEntity> findByFingerprintIn(java.util.Collection<String> fingerprints);
 
@@ -430,13 +427,6 @@ public interface IssueRepository
     List<IssueEntity> findByStateAndRepoId(String state, Long repoId);
 
     /**
-     * Several targets' issues in one state, for a page that shows many.
-     *
-     * <p>Added for the attack path overview, which asked per repository inside a loop.
-     */
-    List<IssueEntity> findByStateAndRepoIdIn(String state, java.util.Collection<Long> repoIds);
-
-    /**
      * The same, less the settled triage, in whatever narrow shape the caller declares — the attack
      * path overview's read, which must agree with {@link #findUnsettledByRepositoryAndState}: the
      * overview and the single graph were two code paths giving one answer until only one of them
@@ -501,13 +491,6 @@ public interface IssueRepository
     List<Object[]> countUnsettledOfToolWithin(
             @Param("repoIds") Collection<Long> repoIds, @Param("tool") String tool,
             @Param("settled") Collection<String> settled);
-
-    /** The backlog by severity, for the dashboard's headline figures. */
-    @Query("""
-            select i.severity, count(i.id) from IssueEntity i
-             where i.state = :state
-             group by i.severity""")
-    List<Object[]> countOpenBySeverity(@Param("state") String state);
 
     long countByStateAndType(String state, String type);
 
