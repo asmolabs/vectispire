@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The secrets scanner's reading of the file its container leaves, without a daemon: the runner
@@ -34,15 +35,29 @@ class SecretsScannerTest {
 
     /** Runs the scanner with a container that leaves {@code report} behind, or nothing when null. */
     private static Optional<List<SecretsScanner.SecretFinding>> scanLeaving(String report, AtomicReference<Path> left) {
+        return scanLeavingAt(file -> {
+            if (report != null) {
+                Files.writeString(file, report);
+            }
+        }, left);
+    }
+
+    /** What the container leaves at the report's path, under a ceiling of {@link #CEILING} bytes. */
+    interface Leaves {
+        void at(Path report) throws Exception;
+    }
+
+    private static final long CEILING = 4096;
+
+    private static Optional<List<SecretsScanner.SecretFinding>> scanLeavingAt(Leaves leaves, AtomicReference<Path> left) {
         ContainerRunner runner = mock(ContainerRunner.class);
+        when(runner.outputBytes()).thenReturn(CEILING);
         when(runner.run(any())).thenAnswer(call -> {
             ContainerRun run = call.getArgument(0);
             Path mounted = Path.of(run.mounts().getFirst().source());
             Path file = mounted.resolve("vectispire-gitleaks-report.json");
             left.set(file);
-            if (report != null) {
-                Files.writeString(file, report);
-            }
+            leaves.at(file);
             return new ContainerResult("", "", 0);
         });
         return Workspace.withWorkspace(workspace -> new SecretsScanner(runner, ScannerImages.PINNED.gitleaks())
@@ -101,5 +116,31 @@ class SecretsScannerTest {
         assertThatThrownBy(() -> scanLeaving(null, new AtomicReference<>()))
                 .isInstanceOf(ScannerFailureException.class)
                 .hasMessageContaining("without writing its report");
+    }
+
+    @Test
+    @DisplayName("a report larger than a scanner may hand back fails the step and is not read")
+    void anOversizedReportFails() {
+        // The report lies in a directory the container writes; read whole, it was the heap's to hold.
+        AtomicReference<Path> left = new AtomicReference<>();
+        String oversized = "[" + "{\"RuleID\":\"x\"},".repeat((int) CEILING / 10) + "{}]";
+
+        assertThatThrownBy(() -> scanLeaving(oversized, left))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageContaining("larger than the " + CEILING + " bytes");
+        assertThat(left.get()).as("deleted on failure too").doesNotExist();
+    }
+
+    @Test
+    @DisplayName("a report that is a link is not followed: the step fails, and what it points at is left alone")
+    void aLinkedReportFails(@TempDir Path elsewhere) throws Exception {
+        Path outside = Files.writeString(elsewhere.resolve("outside.json"), "[]");
+        AtomicReference<Path> left = new AtomicReference<>();
+
+        // `[]` behind the link would read as a clean tree, if it were read.
+        assertThatThrownBy(() -> scanLeavingAt(file -> Files.createSymbolicLink(file, outside), left))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageContaining("not a regular file");
+        assertThat(outside).hasContent("[]");
     }
 }

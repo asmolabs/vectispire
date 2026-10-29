@@ -10,9 +10,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -115,7 +119,7 @@ public final class SecretsScanner {
 
         Path reportPath = workspace.root().resolve(REPORT_FILENAME);
         try {
-            String content = Files.readString(reportPath);
+            String content = readBounded(reportPath, runner.outputBytes());
             return Optional.of(read(content).orElseThrow(() -> ScannerFailureException.of(LABEL,
                     "gitleaks exited 0, and its report is not the JSON array of findings it writes — empty, "
                             + "truncated or of another shape; it is not read as a tree without secrets.")));
@@ -142,6 +146,42 @@ public final class SecretsScanner {
                 // The workspace removal will get it; this only shortens the window.
             }
         }
+    }
+
+    /**
+     * The report's text, read only if it is a regular file itself and no larger than a scanner may
+     * hand back.
+     *
+     * <p><b>The report lies in a directory the container writes.</b> Read with
+     * {@code Files.readString}, it followed a link to wherever it led and had no ceiling, and on the
+     * Docker executor of the built-in worker the heap it filled is the control plane's. The ceiling
+     * is the executor's {@code outputBytes()}, the bound every other scanner's output already meets,
+     * and it is enforced while reading too, since the file can grow between the check and the read.
+     * Past it, or through a link, the step fails: absent, never empty (decision 0007).
+     */
+    private static String readBounded(Path report, long ceiling) throws IOException {
+        BasicFileAttributes attributes =
+                Files.readAttributes(report, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!attributes.isRegularFile()) {
+            throw ScannerFailureException.of(LABEL, "gitleaks' report is not a regular file; a link or a device is "
+                    + "not read.");
+        }
+        if (attributes.size() > ceiling) {
+            throw tooLarge(ceiling);
+        }
+        // O_NOFOLLOW on the open as well: the entry checked above could have been replaced by a link since.
+        try (InputStream in = Files.newInputStream(report, LinkOption.NOFOLLOW_LINKS)) {
+            byte[] bytes = in.readNBytes((int) Math.min(ceiling + 1, Integer.MAX_VALUE - 8));
+            if (bytes.length > ceiling) {
+                throw tooLarge(ceiling);
+            }
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+    }
+
+    private static ScannerFailureException tooLarge(long ceiling) {
+        return ScannerFailureException.of(LABEL, "gitleaks' report is larger than the " + ceiling
+                + " bytes a scanner may hand back; it is not read, and the tree is not taken as free of secrets.");
     }
 
     /**
