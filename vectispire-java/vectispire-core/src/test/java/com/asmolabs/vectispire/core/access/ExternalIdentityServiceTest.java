@@ -144,6 +144,22 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
         assertThat(trusting.resolve("sub-admin", ISSUER, "admin").keycloakId()).isEqualTo("sub-admin");
     }
 
+    @Test
+    @DisplayName("an account the directory lowered out of a privileged role is not bound on a claim either")
+    void aLoweredAccountIsNotBoundByName() {
+        // The directory may lower a CISO to User; the claim path read the role at the binding as SCIM
+        // did, and bound what was now a plain account to whoever claimed its name.
+        UserEntity lowered = account("lowered", Role.USER);
+        lowered.setScimLoweredFrom(Role.CISO.name());
+        users.save(lowered);
+
+        assertThatThrownBy(() -> identities.resolve("sub-evil", ISSUER, "lowered"))
+                .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
+                .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
+                .isEqualTo(ExternalIdentityService.Refusal.PRIVILEGED);
+        assertThat(users.findById(lowered.getId()).orElseThrow().getKeycloakId()).isNull();
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.EnumSource(Role.class)
     @DisplayName("every role but a plain account's is held back from a claim")

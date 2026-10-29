@@ -219,6 +219,15 @@ public class ExternalIdentityService {
                     + "an account the provider is linked to.");
         }
 
+        if (account.getScimLoweredFrom() != null && !linkPrivileged) {
+            // Lowered by the directory while unbound: a claim binds it no more than SCIM does, until an
+            // administrator has set its role (V93).
+            log.warn("Single sign-on refused: \"{}\" was lowered out of a privileged role by the directory and "
+                    + "is not bound on a claim ({}).", name, issuer);
+            throw new SignInRefusedException(Refusal.PRIVILEGED, "This account held a privileged role until the "
+                    + "directory lowered it, so it is not linked by name until an administrator sets its role.");
+        }
+
         UserEntity allowed = active(account);
         allowed.setKeycloakId(subject);
         return users.save(allowed);

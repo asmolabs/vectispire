@@ -71,7 +71,8 @@ import tools.jackson.databind.JsonNode;
  *       SECURITY_CHAMPION — see {@link #grantable};
  *   <li>an absent role leaves the account's role as it is;
  *   <li>{@code externalId} is set once and never rebound, and an existing account that holds a
- *       privileged role or a local second factor is not bound at all — see {@link #bindOnce};
+ *       privileged role or a local second factor is not bound at all — see {@link #bindOnce} — nor one
+ *       the directory lowered out of a privileged role, until an administrator sets its role;
  *   <li>a role change closes the account's sessions, as a deactivation does.
  * </ul>
  *
@@ -326,6 +327,12 @@ public class ScimProvisioningService {
             }
             bindOnce(user, externalId, linkPrivileged);
         }
+        if (user.getKeycloakId() == null && user.getScimLoweredFrom() == null && heldPrivilege(previousRole)
+                && !heldPrivilege(role)) {
+            // Lowering stays the directory's to do — taking a privilege away must not wait for anybody —
+            // but the account keeps what it held for the binding: see bindOnce.
+            user.setScimLoweredFrom(previousRole);
+        }
         user.setIsActive(nowActive);
         user.setRole(role);
         user.setUpdatedAt(clock.instant());
@@ -511,6 +518,10 @@ public class ScimProvisioningService {
                 && users.findByKeycloakId(externalId).filter(other -> !other.getId().equals(id)).isPresent();
     }
 
+    private static boolean heldPrivilege(String role) {
+        return Role.of(role).map(ExternalIdentityService::privileged).orElse(true);
+    }
+
     /**
      * Sets the identity-provider subject once.
      *
@@ -526,6 +537,11 @@ public class ScimProvisioningService {
      * Vectispire binds a subject to an existing account either, so the refusals say what does work:
      * a new account the directory provisions, given its role by an administrator, or the second
      * factor turned off by its owner. A binding the account already has is not a binding, and passes.
+     *
+     * <p><b>Nor an account the directory has just emptied.</b> The role is read at the binding, and
+     * the directory may lower a role: a CISO lowered to User by one request was bound by the next.
+     * {@code replaceUser} records the role it lowered an unbound account out of, and that record
+     * refuses the binding until an administrator sets the account's role in Vectispire.
      */
     private static void bindOnce(UserEntity user, String externalId, boolean linkPrivileged) {
         if (user.getKeycloakId() != null && !user.getKeycloakId().equals(externalId)) {
@@ -544,6 +560,11 @@ public class ScimProvisioningService {
                         + "not bind it to an identity-provider subject. Provision a new account and have an "
                         + "administrator grant it the role in Vectispire, or allow it with "
                         + "vectispire.oidc.link-privileged-accounts.");
+            }
+            if (user.getScimLoweredFrom() != null && !linkPrivileged) {
+                throw new InvalidInputException("This account held the " + user.getScimLoweredFrom() + " role until "
+                        + "the directory lowered it, so the directory does not bind it to an identity-provider "
+                        + "subject until an administrator sets its role in Vectispire.");
             }
         }
         user.setKeycloakId(externalId);

@@ -312,6 +312,41 @@ class ScimUsersRoutesTest extends ApiTestBase {
         assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
     }
 
+    /**
+     * The role was read at the binding, and the directory may lower one: a first request lowered the
+     * CISO to User, and the next bound it, now that it held nothing. Lowering stays allowed — taking a
+     * privilege away must not wait — and the binding remembers what the account held.
+     */
+    @Test
+    @DisplayName("an account the directory lowered out of a privileged role is not bound until an administrator sets its role")
+    void aLoweredAccountIsNotBound() throws Exception {
+        tokenFor("scim-ciso-lowered", Role.CISO, false);
+        long id = users.findByUsername("scim-ciso-lowered").orElseThrow().getId();
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "roles", List.of(Map.of("value", "USER"))))))
+                .andExpect(status().isOk());
+        assertThat(users.findById(id).orElseThrow().getRole()).isEqualTo(Role.USER.name());
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "externalId", "attacker-subject"))))
+                .andExpect(status().isBadRequest());
+        assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
+
+        // An administrator who sets the role has decided about the account; the directory binds it then.
+        mvc.perform(authenticated(patch("/api/v1/users/" + id), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("role", "USER"))))
+                .andExpect(status().isOk());
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "externalId", "directory-subject"))))
+                .andExpect(status().isOk());
+        assertThat(users.findById(id).orElseThrow().getKeycloakId()).isEqualTo("directory-subject");
+    }
+
     @Test
     @DisplayName("an existing account with a local second factor is not bound to a subject by the directory")
     void aSecondFactorAccountIsNotBound() throws Exception {

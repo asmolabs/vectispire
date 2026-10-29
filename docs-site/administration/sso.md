@@ -112,6 +112,11 @@ token lives in the provider's configuration, so what it may do is deliberately b
 - **An account the directory creates signs in through the provider.** It gets a password nobody
   knows and is not asked to change it.
 - **A role change closes the account's sessions**, as a deactivation does.
+- **Lowering a privileged account does not make it bindable.** The directory may take a role away —
+  a CISO lowered to User is accepted — but while that account is bound to no subject, setting its
+  `externalId` afterwards still answers `400`, and a sign-on does not link it by name either, until an
+  administrator sets its role on the users screen. Otherwise a role the directory may lower but not
+  bind would be bound in two requests instead of one.
 - **`GET /scim/v2/Users` evaluates two filters**: `userName eq "…"` and `externalId eq "…"` (attribute and
   operator in any case, the value a quoted string). Any other — `emails[value eq "…"]`, an `and` or `or`,
   `co`, an unquoted value — answers `400` with `scimType` `invalidFilter` (RFC 7644 §3.4.2.2); it used to

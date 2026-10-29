@@ -120,6 +120,11 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
 - **Un compte créé par l'annuaire se connecte par le fournisseur.** Il reçoit un mot de passe que
   personne ne connaît et n'est pas invité à le changer.
 - **Un changement de rôle ferme les sessions du compte**, comme une désactivation.
+- **Abaisser un compte privilégié ne le rend pas liable.** L'annuaire peut retirer un rôle — un CISO
+  abaissé à User est accepté — mais tant que ce compte n'est lié à aucun sujet, lui donner ensuite un
+  `externalId` répond toujours `400`, et une connexion ne le lie pas non plus par son nom, jusqu'à ce
+  qu'un administrateur fixe son rôle sur l'écran des utilisateurs. Sans quoi un rôle que l'annuaire peut
+  abaisser mais non lier serait lié en deux requêtes au lieu d'une.
 - **`GET /scim/v2/Users` évalue deux filtres** : `userName eq "…"` et `externalId eq "…"` (attribut et
   opérateur en toute casse, la valeur une chaîne entre guillemets). Tout autre — `emails[value eq "…"]`,
   un `and` ou un `or`, `co`, une valeur sans guillemets — répond `400` avec `scimType` `invalidFilter`

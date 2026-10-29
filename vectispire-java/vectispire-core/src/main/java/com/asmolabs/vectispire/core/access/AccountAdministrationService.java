@@ -198,6 +198,12 @@ public class AccountAdministrationService {
             changes.add("password reset");
         }
 
+        if (change.role() != null && user.getScimLoweredFrom() != null) {
+            // An administrator who sets the role has looked at the account: the directory's lowering no
+            // longer holds its binding back (V93).
+            changes.add("role confirmed after the directory lowered it from " + user.getScimLoweredFrom());
+            user.setScimLoweredFrom(null);
+        }
         user.setRole(role);
         user.setIsActive(isActive);
         user.setUpdatedAt(clock.instant());
