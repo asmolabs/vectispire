@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.issues;
 
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import java.time.Instant;
 import java.time.Period;
@@ -88,7 +89,7 @@ public final class Triage {
         return new Decision(
                 request.status(),
                 request.justification(),
-                blankToNull(request.comment()),
+                Texts.blankToNull(request.comment()),
                 request.actor(),
                 asOf,
                 expiryFrom(request.status(), request.expiresIn(), asOf));
@@ -168,8 +169,4 @@ public final class Triage {
 
     /** The only two fields an expiry touches. */
     public record Expiry(TriageStatus status, Instant expiresAt) {}
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
-    }
 }

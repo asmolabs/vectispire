@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.exports;
 
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
@@ -123,8 +124,8 @@ public final class SarifExport {
 
         SarifLog.Driver driver = new SarifLog.Driver(
                 "Vectispire",
-                blankToNull(options.toolVersion()),
-                blankToNull(options.informationUri()),
+                Texts.blankToNull(options.toolVersion()),
+                Texts.blankToNull(options.informationUri()),
                 List.copyOf(rules.values()));
 
         return new SarifLog(
@@ -143,7 +144,7 @@ public final class SarifExport {
      */
     private static String ruleIdOf(ExportableIssue issue) {
         String type = issue.type() == null ? "unspecified" : issue.type().wireName();
-        String identifier = blankToNull(issue.identifier()) == null ? "unspecified" : issue.identifier();
+        String identifier = Texts.blankToNull(issue.identifier()) == null ? "unspecified" : issue.identifier();
         return "vectispire/" + type + "/" + identifier;
     }
 
@@ -156,15 +157,15 @@ public final class SarifExport {
             properties.put("security-severity", securitySeverity);
         }
 
-        String identifier = blankToNull(issue.identifier());
+        String identifier = Texts.blankToNull(issue.identifier());
         return new SarifLog.Rule(
                 ruleId,
                 (identifier != null ? identifier : issue.type() == null ? "" : issue.type().wireName()).replace(" ", ""),
                 new SarifLog.Text(labelOf(issue.type()) + ": " + (identifier != null ? identifier : "unidentified")),
-                blankToNull(issue.description()) == null
+                Texts.blankToNull(issue.description()) == null
                         ? null
                         : new SarifLog.Text(truncate(issue.description(), 1000)),
-                blankToNull(issue.link()),
+                Texts.blankToNull(issue.link()),
                 properties);
     }
 
@@ -206,12 +207,12 @@ public final class SarifExport {
      */
     private static String message(ExportableIssue issue) {
         List<String> parts = new ArrayList<>();
-        if (blankToNull(issue.packageName()) != null) {
-            parts.add(blankToNull(issue.packageVersion()) != null
+        if (Texts.blankToNull(issue.packageName()) != null) {
+            parts.add(Texts.blankToNull(issue.packageVersion()) != null
                     ? issue.packageName() + " " + issue.packageVersion()
                     : issue.packageName());
         }
-        String identifier = blankToNull(issue.identifier());
+        String identifier = Texts.blankToNull(issue.identifier());
         parts.add(identifier != null ? identifier : labelOf(issue.type()));
 
         StringBuilder message = new StringBuilder(String.join(" — ", parts));
@@ -230,7 +231,7 @@ public final class SarifExport {
     }
 
     private static SarifLog.Location location(ExportableIssue issue) {
-        String path = blankToNull(issue.filePath());
+        String path = Texts.blankToNull(issue.filePath());
         SarifLog.PhysicalLocation physical = new SarifLog.PhysicalLocation(
                 // A relative URI, as SARIF requires for source the consumer resolves against
                 // the repository it has just checked out.
@@ -239,7 +240,7 @@ public final class SarifExport {
 
         return new SarifLog.Location(
                 physical,
-                blankToNull(issue.purl()) == null
+                Texts.blankToNull(issue.purl()) == null
                         ? null
                         : List.of(new SarifLog.LogicalLocation(issue.purl(), "package")));
     }
@@ -255,7 +256,7 @@ public final class SarifExport {
         parts.add(issue.triageStatus().wireName());
         addIfPresent(parts, issue.triageJustification());
         addIfPresent(parts, issue.triageComment());
-        if (blankToNull(issue.triagedBy()) != null) {
+        if (Texts.blankToNull(issue.triagedBy()) != null) {
             parts.add("decided by " + issue.triagedBy());
         }
         if (issue.triageExpiresAt() != null) {
@@ -265,16 +266,12 @@ public final class SarifExport {
     }
 
     private static void addIfPresent(List<String> parts, String value) {
-        if (blankToNull(value) != null) {
+        if (Texts.blankToNull(value) != null) {
             parts.add(value);
         }
     }
 
     private static String truncate(String value, int max) {
         return value.length() <= max ? value : value.substring(0, max);
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 }

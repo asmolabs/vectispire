@@ -1,6 +1,5 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from '../core/i18n/i18n.service';
-import { LanguageMemo } from '../core/i18n/language-memo';
 import { keyFor } from '../core/i18n/literal-keys';
 
 /**
@@ -31,9 +30,8 @@ export function policySourceLabel(i18n: Pick<I18nService, 't'>, source: string |
 })
 export class PolicySourcePipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
-    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(source: string | null | undefined): string {
-        return this.memo.get([source], () => policySourceLabel(this.i18n, source));
+        return policySourceLabel(this.i18n, source);
     }
 }

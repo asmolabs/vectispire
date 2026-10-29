@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.audit;
 
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -317,8 +318,8 @@ public class AuditLogService {
         row.setResourceId(truncate(String.valueOf(entry.resourceId()), TEXT_COLUMN));
         row.setDescription(truncate(entry.description(), TEXT_COLUMN));
         row.setUserId(truncate(entry.userId(), TEXT_COLUMN));
-        row.setIpAddress(truncate(blankToNull(entry.ipAddress()), ADDRESS_COLUMN));
-        row.setUserAgent(truncate(blankToNull(entry.userAgent()), TEXT_COLUMN));
+        row.setIpAddress(truncate(Texts.blankToNull(entry.ipAddress()), ADDRESS_COLUMN));
+        row.setUserAgent(truncate(Texts.blankToNull(entry.userAgent()), TEXT_COLUMN));
         row.setPreviousHash(previousHash);
         row.setEntryHash(AuditChain.computeEntryHash(chainEntry(row)));
 
@@ -602,9 +603,5 @@ public class AuditLogService {
         // the row for it — the failure this cut exists to prevent.
         int end = Character.isHighSurrogate(value.charAt(width - 1)) ? width - 1 : width;
         return value.substring(0, end);
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 }
