@@ -295,9 +295,10 @@ final class ScanPods {
      * Was the scanner killed rather than left to exit? {@code OOMKilled} when the runtime says so — but it does
      * not always: containerd learns of the kill from the cgroup's {@code memory.events} and of the exit from the
      * reaped process, two events on two paths, and a status the kubelet reads between them says {@code Error},
-     * exit 137, and is not revised. On 2026-10-28 CI's out-of-memory test twice saw the run return instead of
-     * fail: the executor had handed back the kill's 137 as the scanner's own exit — a failure only because the
-     * scanners refuse that code, and a report for a plugin that declares it. So the exit code is evidence too:
+     * exit 137, and is not revised (containerd#12260, closed unfixed). On 2026-10-28 CI's out-of-memory test
+     * twice saw the run return instead of fail, as that race makes it: the executor handed back the kill's
+     * 137 as the scanner's own exit — a failure only because the built-in scanners refuse that code, and a
+     * report for a plugin that declares it. So the exit code is evidence too:
      * nothing in the pod sends the scanner {@code SIGKILL} but the kernel at its memory limit, or the kubelet
      * stopping a pod that is failing anyway.
      */
