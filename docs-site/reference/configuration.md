@@ -63,7 +63,7 @@ Once any account exists, both are ignored.
 |---|---|---|
 | `VECTISPIRE_OIDC_ISSUER` | *none* | Enables [single sign-on](../administration/sso.md). |
 | `VECTISPIRE_PASSWORD_LOGIN` | `true` | `false` delegates authentication entirely. **Ignored, loudly, with no issuer set** — it would leave no way in. |
-| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Lets a privileged account (any role but USER) be linked on its first sign-on by its username; never one with a local second factor. Only for a realm where nobody chooses their own username. |
+| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Lets a privileged account (any role but USER) be linked on its first sign-on by its username; never one with a local second factor. Only for a realm where nobody chooses their own username. Vectispire warns at start when it is on together with `VECTISPIRE_OIDC_LINK_BY_CLAIM`. |
 | `VECTISPIRE_OIDC_LINK_BY_CLAIM` | `true` | Whether an account is linked on its first sign-on by its username at all. Off, nothing is linked on a claim: accounts are bound by [SCIM](../administration/sso.md#provisioning-from-the-directory-scim), and an identity SCIM did not bind is refused. Turn it off for a realm whose users can choose or edit their username. |
 | `VECTISPIRE_OIDC_REQUIRE_MFA` | `false` | Refuses a single sign-on whose token states no second factor. A federated sign-in skips the local TOTP: the provider owns the second factor. |
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | The RFC 8176 `amr` values that count as a second factor. |

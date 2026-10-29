@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -302,7 +303,11 @@ class ScimUsersRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-ciso-unbound", "externalId", "attacker-subject"))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                // It used to send the directory to "an administrator, in Vectispire", where no route binds a
+                // subject: the refusal names what does work.
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Provision a new account")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("link-privileged-accounts")));
 
         assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
     }
@@ -318,7 +323,8 @@ class ScimUsersRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(put("/scim/v2/Users/" + account.getId()), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-totp-unbound", "externalId", "attacker-subject"))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("turns the second factor off")));
 
         assertThat(users.findById(account.getId()).orElseThrow().getKeycloakId()).isNull();
     }
