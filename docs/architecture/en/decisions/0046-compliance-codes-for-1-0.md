@@ -1,6 +1,6 @@
 # 0046 — The compliance codes 1.0 freezes: the CRA's as adopted, OWASP's 2021 edition
 
-**Date:** 2026-10-29 · **Status:** proposed · **Builds on:** [0043](0043-what-1-0-promises.md) §6 · **Decider:** Laurent Boucher
+**Date:** 2026-10-29 · **Status:** accepted · **Builds on:** [0043](0043-what-1-0-promises.md) §6 · **Decider:** Laurent Boucher
 
 ## Context
 

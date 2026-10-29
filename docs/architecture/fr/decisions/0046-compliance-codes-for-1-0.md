@@ -1,6 +1,6 @@
 # 0046 — Les codes de conformité que 1.0 fige : ceux du CRA tel qu'adopté, l'édition 2021 d'OWASP
 
-**Date :** 2026-10-29 · **Statut :** proposée · **S'appuie sur :** [0043](0043-what-1-0-promises.md) §6 · **Décideur :** Laurent Boucher
+**Date :** 2026-10-29 · **Statut :** acceptée · **S'appuie sur :** [0043](0043-what-1-0-promises.md) §6 · **Décideur :** Laurent Boucher
 
 ## Contexte
 

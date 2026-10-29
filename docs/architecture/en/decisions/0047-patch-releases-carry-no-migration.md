@@ -1,6 +1,6 @@
 # 0047 — A patch release carries no migration
 
-**Date:** 2026-10-29 · **Status:** proposed · **Builds on:** [0043](0043-what-1-0-promises.md) §5, [0027](0027-common-migrations-with-type-placeholders.md) · **Decider:** Laurent Boucher
+**Date:** 2026-10-29 · **Status:** accepted · **Builds on:** [0043](0043-what-1-0-promises.md) §5, [0027](0027-common-migrations-with-type-placeholders.md) · **Decider:** Laurent Boucher
 
 ## Context
 
