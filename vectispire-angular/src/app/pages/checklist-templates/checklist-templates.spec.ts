@@ -24,7 +24,6 @@ import {
     COLUMN_KEYS,
     CONFLICT_TYPES,
     conflictOf,
-    ChecklistTemplates,
     draftFrom,
     EVIDENCE_KIND_KEYS,
     evidenceChangesOf,
@@ -36,7 +35,11 @@ import {
     REFUSAL_KEYS,
     STATUS_KEYS,
     validityAllowed
-} from './checklist-templates';
+} from './templates-model';
+import { ChecklistTemplates } from './checklist-templates';
+import { TemplatePairing } from './template-pairing';
+import { TemplatesPage } from './templates-page';
+import { By } from '@angular/platform-browser';
 
 /**
  * The checklist templates screen (decision 0032 §3, §4, §8).
@@ -48,6 +51,8 @@ import {
  */
 describe('the checklist templates screen', () => {
     let fixture: ComponentFixture<ChecklistTemplates>;
+    /** The screen's state, which its parts share: provided by the page, read through its injector. */
+    const state = () => fixture.debugElement.injector.get(TemplatesPage);
     let http: HttpTestingController;
 
     const TEMPLATE_URL = '/api/v1/checklist-templates';
@@ -301,7 +306,7 @@ describe('the checklist templates screen', () => {
 
         type('#layout-word-yes', 'Oui');
         type('#layout-word-no', 'Non');
-        fixture.componentInstance.setDraft({ offersNotApplicable: true });
+        state().setDraft({ offersNotApplicable: true });
         fixture.detectChanges();
         type('#layout-word-na', 'N/A');
         type('#layout-column-id', 'g');
@@ -341,13 +346,13 @@ describe('the checklist templates screen', () => {
         await start('CISO');
         openDraft(PREVIEW);
 
-        fixture.componentInstance.showSheet('Lists');
+        state().showSheet('Lists');
         const request = http.expectOne((call) => call.url === `${VERSION_URL}/preview`);
         expect(request.request.params.get('sheet')).toBe('Lists');
         request.flush(asSchema('ChecklistTemplatePreview', { ...PREVIEW, sheet: 'Lists', cells: [] }));
-        expect(fixture.componentInstance.layoutDraft()?.sheet).toBe('Lists');
+        expect(state().layoutDraft()?.sheet).toBe('Lists');
         // What was typed stays: choosing a sheet is not starting over.
-        expect(fixture.componentInstance.layoutDraft()?.columns.control).toBe('C');
+        expect(state().layoutDraft()?.columns.control).toBe('C');
     });
 
     // ------------------------------------------------------------------ the pairing
@@ -365,11 +370,12 @@ describe('the checklist templates screen', () => {
         ).toEqual(['1 unchanged', '1 changed', '1 added', '1 removed']);
         expect(text('[data-testid="change-removed"]')).toContain('Secrets are rotated yearly');
 
-        const page = fixture.componentInstance;
-        expect(page.addedOptions().map((option) => option.value)).toEqual([
+        const page = state();
+        const pairing = fixture.debugElement.query(By.directive(TemplatePairing)).componentInstance as TemplatePairing;
+        expect(pairing.addedOptions().map((option) => option.value)).toEqual([
             'text:secrets are rotated every ninety days'
         ]);
-        expect(page.removedOptions().map((option) => option.value)).toEqual(['text:secrets are rotated yearly']);
+        expect(pairing.removedOptions().map((option) => option.value)).toEqual(['text:secrets are rotated yearly']);
         page.pairAdded.set('text:secrets are rotated every ninety days');
         page.pairRemoved.set('text:secrets are rotated yearly');
         fixture.detectChanges();
@@ -882,7 +888,7 @@ describe('the checklist templates screen', () => {
     it('says a first version has nothing to pair with when the server refuses a pair', async () => {
         await start('CISO', 'bob');
         openDraft(CONFIRMED_PREVIEW);
-        const page = fixture.componentInstance;
+        const page = state();
         page.pairAdded.set('text:secrets are rotated every ninety days');
         page.pairRemoved.set('text:secrets are rotated yearly');
         fixture.detectChanges();
