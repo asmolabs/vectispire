@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.agent;
 
+import com.asmolabs.vectispire.common.scanning.LocalHost;
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
@@ -11,9 +12,6 @@ import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.concurrent.CountDownLatch;
@@ -120,7 +118,7 @@ public class AgentRunner implements ApplicationRunner {
         }
 
         AgentProtocol.Identity identity = announce(protocol, new AgentProtocol.Description(
-                hostName(),
+                LocalHost.name(),
                 System.getProperty("os.name") + " " + System.getProperty("os.version"),
                 version,
                 // What the operator reads on the agents screen: the Kubernetes executor says so, whatever
@@ -268,13 +266,5 @@ public class AgentRunner implements ApplicationRunner {
                     + "none. Pin a key from the agents administration screen and configure its private half.");
         }
         return outcome;
-    }
-
-    private static String hostName() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException unknown) {
-            return "unknown-host";
-        }
     }
 }

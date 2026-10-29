@@ -1,9 +1,8 @@
 package com.asmolabs.vectispire.core.reportplugins.internal;
 
+import com.asmolabs.vectispire.common.scanning.LocalHost;
 import com.asmolabs.vectispire.core.reportplugins.ReportExecutor;
 import jakarta.annotation.PreDestroy;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -50,7 +49,7 @@ public class ReportWorker {
      * Host name and a unique suffix, for ScanWorker's reason: two instances on one host must not share a claim. The
      * name cut to what {@code claimed_by} holds with the suffix — a long host name must not fail every take.
      */
-    private final String owner = abbreviated(hostName(), 80) + "/report-" + UUID.randomUUID().toString().substring(0, 8);
+    private final String owner = LocalHost.name(80) + "/report-" + UUID.randomUUID().toString().substring(0, 8);
 
     private final Optional<ReportExecutor> executor;
     private final ReportQueue queue;
@@ -178,17 +177,5 @@ public class ReportWorker {
     void stop() {
         pool.shutdownNow();
         leaseKeeper.shutdownNow();
-    }
-
-    private static String abbreviated(String name, int length) {
-        return name.length() <= length ? name : name.substring(0, length);
-    }
-
-    private static String hostName() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException unknown) {
-            return "unknown-host";
-        }
     }
 }
