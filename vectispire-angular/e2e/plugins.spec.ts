@@ -97,9 +97,17 @@ test.describe('Plugins and SARIF sources', () => {
             (response) => response.url().endsWith('/api/v1/plugins') && response.request().method() === 'POST'
         );
         await page.getByRole('dialog').getByRole('button', { name: 'Register a plugin' }).click();
-        const response = await saved;
-        expect(response.status()).toBe(201);
-        const created = (await response.json()) as components['schemas']['PluginView'];
+        expect((await saved).status()).toBe(201);
+        // **Read back from the server, not from the browser's copy of the response.** Chrome keeps a
+        // response's body only until the page moves on, and here it does at once: the dialog closes and
+        // the list reloads. Reading it afterwards failed one CI run in fourteen ("No data found for
+        // resource with given identifier", 11 of 149 e2e jobs from 2026-10-03 to 2026-10-29), passing on
+        // the retry that hid it. What the server registered is what the screen must show anyway.
+        const token = await adminToken(page);
+        const headers = { Authorization: `Bearer ${token}` };
+        const read = await page.request.get(`/api/v1/plugins/${id}`, { headers });
+        expect(read.ok(), await read.text()).toBe(true);
+        const created = (await read.json()) as components['schemas']['PluginView'];
         expect(created.manifest?.image).toBe(manifest.image);
 
         await expect(page.getByTestId('manifest-digest')).toContainText(created.manifestDigest!, { timeout: 15_000 });
@@ -107,8 +115,6 @@ test.describe('Plugins and SARIF sources', () => {
 
         // **The projects it reads, named by the server.** The screen no longer loads the solution
         // tree for these names; only the real activation view can show that the names arrive.
-        const token = await adminToken(page);
-        const headers = { Authorization: `Bearer ${token}` };
         const solution = await page.request.post('/api/v1/solutions', { headers, data: { name: `${id} solution` } });
         expect(solution.ok(), await solution.text()).toBe(true);
         const solutionId = ((await solution.json()) as { id: number }).id;
