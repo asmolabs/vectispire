@@ -3,8 +3,8 @@
 ## Non publié
 
 Ce qui suit est par rapport à la 0.11.2, en route vers la 1.0. La décision 0043 §6 liste les contrats
-corrigés avant que la 1.0 ne les fige ; chaque retrait ci-dessous en est un, fait maintenant plutôt que
-deux versions mineures après son annonce.
+corrigés avant que la 1.0 ne les fige ; chaque changement ci-dessous en est un, fait maintenant plutôt
+que deux versions mineures après une annonce.
 
 ### Avant la mise à jour {#avant-la-mise-a-jour-non-publie}
 
@@ -14,6 +14,13 @@ deux versions mineures après son annonce.
   `POST /api/v1/issues/triage`, `POST /api/v1/issues/{id}/triage` et `PUT /api/v1/issues/{id}/ticket`.
   Un client qui les lisait ne lit rien à leur place ; aucun champ ne les remplace. Les colonnes restent en
   base, sans lecteur.
+- **L'attestation d'un scan porte le prédicat `https://vectispire.dev/attestation/v2`**, depuis
+  `GET /api/v1/attestations/scans/{scanId}` et dans `04_attestations/` du paquet de preuves. Son
+  `findings.total` compte chaque constat du scan, l'unité que ses sévérités comptaient déjà ; la v1 y
+  mettait le nombre de problèmes du scan, qui pouvait être inférieur à la somme des sévérités. Les noms
+  des champs ne changent pas. **La v1 n'est pas servie à côté** : un vérificateur qui épingle
+  `…/attestation/v1` refuse les nouvelles déclarations jusqu'à ce qu'il épingle la v2
+  ([conformité](../guide/compliance.md#le-paquet-de-preuves)).
 
 ## 0.11.2 — 27 octobre 2026
 

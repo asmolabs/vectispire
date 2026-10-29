@@ -135,6 +135,17 @@ paquet transporte : qui modifie un paquet remplace aussi ce fichier. Récupérez
 est une enveloppe DSSE signée sur l'encodage de pré-authentification de la spécification :
 `cosign verify-attestation` et les vérificateurs in-toto la contrôlent comme n'importe quelle autre.
 
+**Épinglez le type de prédicat, et lisez les comptes en constats.** La déclaration d'un scan — dans
+`04_attestations/` du paquet, ou depuis `GET /api/v1/attestations/scans/{scanId}` — porte le type de
+prédicat `https://vectispire.dev/attestation/v2`. Son `findings` compte des **constats**, un par
+endroit qu'un outil a signalé : `critical` à `low` par sévérité, `kev` et `secrets` par nature,
+`total` chaque constat du scan, si bien que `total` n'est jamais inférieur à aucun des autres. Le
+prédicat `v1`, servi jusqu'à la 0.11, comptait `total` en problèmes — un par empreinte — à côté de
+sévérités comptées en constats, et pouvait afficher un total inférieur à la somme de ses propres
+sévérités. La v1 n'est plus servie à côté de la v2 : un vérificateur qui épingle `…/attestation/v1`
+refuse les nouvelles déclarations, et c'est voulu — changez le type qu'il épingle et lisez `total`
+en constats.
+
 ## Registres à l'appui
 
 Trois autres exports pèsent dans la même conversation, tous couverts sous
