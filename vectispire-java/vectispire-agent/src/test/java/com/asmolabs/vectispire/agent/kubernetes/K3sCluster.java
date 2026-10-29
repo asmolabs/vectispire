@@ -25,7 +25,7 @@ public final class K3sCluster implements AutoCloseable {
 
     /** A version upstream still supports, as 0045 requires of the target. */
     private static final DockerImageName K3S = DockerImageName.parse(
-            "rancher/k3s:v1.34.1-k3s1@sha256:5e0707cfd1239b358ef73f3254bc3eadc027dd30cd5ec6ca41e29e47652a1b8c")
+            "rancher/k3s:v1.34.12-k3s1@sha256:4ea0adb6b0ffedab0c58ffe5c99a49f2f7be871f38636c8baa2692899648d8c5")
             .asCompatibleSubstituteFor("rancher/k3s");
 
     /**

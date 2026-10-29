@@ -31,7 +31,7 @@
 # --- The interface -----------------------------------------------------------------------
 # Its own stage so the JDK image never needs Node. The alternative — one image with both —
 # installs a toolchain into the build layer of something that has no other use for it.
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS ui
+FROM node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS ui
 
 WORKDIR /src
 # Manifests first: the install layer is rebuilt only when dependencies change, not on every
@@ -44,7 +44,7 @@ COPY vectispire-angular/ vectispire-angular/
 RUN npm run build --workspace @vectispire/frontend
 
 # --- The jar -----------------------------------------------------------------------------
-FROM eclipse-temurin:25-jdk-alpine@sha256:3fd2d245c4e0eba615fe366a71b8bd25f5db7104f53e4026b24bf508b880bd2a AS build
+FROM eclipse-temurin:25-jdk-alpine@sha256:1e20ead9eec7234db293f1913438090d533ed47c0b9e12dc8c7627a802a44ed6 AS build
 
 WORKDIR /src
 # The wrapper and the build definition before the sources, for the same layering reason: the
@@ -68,7 +68,7 @@ COPY --from=ui /src/vectispire-angular/dist/vectispire /ui
 RUN ./gradlew --no-daemon :vectispire-core:bootJar -PuiDist=/ui/browser -x test
 
 # --- The image that runs -----------------------------------------------------------------
-FROM eclipse-temurin:25-jre-alpine@sha256:3c0a9084927a221ccd1d007fcaf614465672c0af37aaa834c5184483afe56d61
+FROM eclipse-temurin:25-jre-alpine@sha256:b7528962e65d43064d8a8b67ba175367896bc948363ea2d3fcd7f10d34e1f048
 
 # `git` is what clones the repositories the built-in worker scans. The Docker *client* is not
 # needed: the worker talks to the daemon over the mounted socket, from Java.

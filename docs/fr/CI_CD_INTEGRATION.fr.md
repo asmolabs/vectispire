@@ -90,7 +90,7 @@ stages:
 
 vectispire-security-gate:
   stage: security-gate
-  image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+  image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
   variables:
     VECTISPIRE_URL: "https://vectispire.example.com"
     VECTISPIRE_REPO_ID: "1"
@@ -184,7 +184,7 @@ jobs:
 ### 3. 🪣 Bitbucket Pipelines (`bitbucket-pipelines.yml`)
 
 ```yaml
-image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 
 pipelines:
   default:
