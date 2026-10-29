@@ -161,6 +161,13 @@ they are proposed as different statuses
 | a refusal — Jira *Won't Fix*, *Declined*, *Rejected*; ServiceNow *Won't Fix*, *Risk Accepted*, *Withdrawn*; GitHub *not planned* (`state_reason: not_planned`); GitLab closed with *wontfix* or *won't fix* in its title | `will_not_fix` | none, and a review date proposed ninety days out |
 | an explicit false positive — Jira *False Positive*, *Cannot Reproduce*; ServiceNow *False Positive*, *Not an Issue*; the words *false positive* in a GitHub issue's body or a GitLab issue's title or description | `not_affected` | `vulnerable_code_not_in_execute_path` |
 
+**A GitHub or GitLab number is matched within its repository.** Issue 12 is a repository's, not
+the forge's: an event names the issue it is about by its web address and its repository, and it
+reaches only the findings whose ticket has that address — or, for a reference attached without one,
+the findings of the repository configured under **Settings → Tickets → Project** with the same
+provider. An event about another repository's issue 12 changes nothing. A Jira key or a ServiceNow
+number already carries its namespace, and is matched as it stands.
+
 **A refusal is never proposed as `not_affected`.** It says the team will not fix the vulnerability,
 not that the product is safe from it; before 0.11.0 it was proposed as `not_affected` with
 `inline_mitigations_already_exist`, a mitigation the tracker never mentioned, which the signed

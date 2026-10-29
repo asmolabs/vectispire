@@ -169,6 +169,13 @@ sont deux affirmations différentes, et elles sont proposées sous deux statuts 
 | un refus — Jira *Won't Fix*, *Declined*, *Rejected* ; ServiceNow *Won't Fix*, *Risk Accepted*, *Withdrawn* ; GitHub *not planned* (`state_reason: not_planned`) ; GitLab fermé avec *wontfix* ou *won't fix* dans son titre | `will_not_fix` | aucune, et une date de réexamen proposée à quatre-vingt-dix jours |
 | un faux positif explicite — Jira *False Positive*, *Cannot Reproduce* ; ServiceNow *False Positive*, *Not an Issue* ; les mots *false positive* dans le corps d'une issue GitHub ou dans le titre ou la description d'une issue GitLab | `not_affected` | `vulnerable_code_not_in_execute_path` |
 
+**Un numéro GitHub ou GitLab se compare dans son dépôt.** Le ticket 12 est celui d'un dépôt, pas
+de la forge : un événement nomme le ticket dont il parle par son adresse web et son dépôt, et il
+n'atteint que les constats dont le ticket a cette adresse — ou, pour une référence attachée sans
+adresse, les constats du dépôt configuré dans **Réglages → Tickets → Projet** avec le même
+fournisseur. Un événement sur le ticket 12 d'un autre dépôt ne change rien. Une clé Jira ou un
+numéro ServiceNow porte déjà son espace de noms, et se compare tel quel.
+
 **Un refus n'est jamais proposé comme `not_affected`.** Il dit que l'équipe ne corrigera pas la
 vulnérabilité, pas que le produit en est à l'abri ; avant la 0.11.0, il était proposé comme
 `not_affected` avec `inline_mitigations_already_exist`, une atténuation dont le tracker n'avait
