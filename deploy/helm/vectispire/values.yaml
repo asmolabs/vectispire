@@ -19,14 +19,15 @@ image:
 
 imagePullSecrets: []
 
-# **One at go-live.** The code is written for several instances (decision 0038 §1), and none of its
-# mechanisms has been exercised by two running applications. Two need cookie affinity on the Ingress for
+# **One, and only one is supported in 1.0** (decision 0043 §4). The code is written for several instances
+# (decision 0038 §1), and none of its mechanisms — the maintenance tasks, the audit chain's lock, the
+# outbox — has been exercised by two running applications. Two would also need cookie affinity on the Ingress for
 # single sign-on (`ingress.stickySessions`) and a ReadWriteMany volume for the audit mirror, one file per
 # pod; the chart refuses two replicas with a ReadWriteOnce mirror.
 replicaCount: 1
 
-# The external database. Only MySQL is offered here, the engine the composition ships; PostgreSQL is
-# supported by the application and works with the same keys.
+# The external database. Only MySQL is offered here, at 8.4 LTS or 9.x (decision 0043 §3); PostgreSQL's
+# code is kept and takes the same keys, but nothing tests it and 1.0 does not promise it.
 database:
   # **Required.** One host, no `mysql+srv`: the application must know the database's address to keep
   # webhooks off it, and refuses to start otherwise. TLS through Connector/J's own properties, e.g.

@@ -28,6 +28,17 @@ résultats par le même canal — ou, pour une analyse qu'il n'a pas pu exécute
 termine la tentative comme l'expiration du bail l'aurait fait, mais aussitôt et avec la raison
 (`AgentProtocolService.reportFailure`).
 
+**Le contrat de l'agent est une plage** ([0043](decisions/0043-what-1-0-promises.md) §2). Un agent
+annonce le numéro de contrat avec lequel il a été construit ; le plan de contrôle sert de
+`AgentContract.OLDEST_SERVED` à `CURRENT`, refuse tout autre numéro par un 409 avant de confier le moindre
+travail, et répond à l'agent dans son propre numéro. Le numéro ne bouge que lorsque l'agent précédent lirait
+de travers ce qu'on lui remet — une nouvelle enveloppe, un nouveau champ obligatoire — et un tel changement
+prend **deux versions** : la première relève `CURRENT`, garde l'ancienne forme et choisit par agent selon le
+numéro enregistré à son `hello` ; la suivante relève `OLDEST_SERVED` et supprime l'ancienne forme. 0.11.0
+est la raison pour laquelle c'est écrit : son enveloppe scellée `v2` a atteint les agents 0.10 sous le
+numéro 1 inchangé. Le job `previous-agent` de la CI fait tourner l'image de l'agent de la dernière version,
+vérifiée par cosign, à travers la vérification d'analyse de la composition, contre chaque commit.
+
 ## Une analyse qui n'a pas pu s'exécuter
 
 **Une seule règle, quel que soit l'exécutant qui a échoué.** Le rapport d'un agent, l'échec propre du
