@@ -77,22 +77,21 @@ class CertifiedScopeTest extends VectispireContextTest {
         assertThat(coverage.unaccountedFor())
                 .as("zero here means nobody said, which is why declared() has to be read first")
                 .isZero();
-        assertThat(coverage.freshShareOfScope())
-                .as("a percentage against an unknown denominator will be quoted, so it must not exist")
-                .isEmpty();
     }
 
     @Test
-    @DisplayName("computes the fresh share against the declared scope, not against what it holds")
+    @DisplayName("carries the declared scope beside the fresh count, for a share against the declared scope")
     void freshShareIsAgainstTheDeclaredScope() {
         settings.set(Setting.ISMS_SCOPE_ASSETS, "10");
         long fresh = repository("fresh");
         inScope(fresh);
         scanned(fresh, 0);
 
-        assertThat(scope.coverage(Visibility.everything()).freshShareOfScope())
-                .as("dividing by what the instance holds is how a tool reports 100% on a tenth of an estate")
-                .hasValue(10);
+        // The percentage itself is the interface's (`certified-scope.ts`, `freshShare`): what the
+        // record owes it is the declared count beside the fresh one, never the held one alone.
+        ScopeCoverage coverage = scope.coverage(Visibility.everything());
+        assertThat(coverage.declaredAssets()).isEqualTo(10);
+        assertThat(coverage.scannedRecently()).isEqualTo(1);
     }
 
     @Test

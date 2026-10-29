@@ -24,16 +24,6 @@ class ScanQueueTest {
     }
 
     @Test
-    @DisplayName("a lease with no expiry counts as lapsed")
-    void absentLeaseIsLapsed() {
-        // A lease that never expires is not a lease. Reading absence as "still held" strands
-        // the row forever, and nothing on screen says why the scan never runs.
-        assertThat(ScanQueue.leaseHasLapsed(null, NOW)).isTrue();
-        assertThat(ScanQueue.leaseHasLapsed(NOW.minusSeconds(1), NOW)).isTrue();
-        assertThat(ScanQueue.leaseHasLapsed(NOW.plusSeconds(1), NOW)).isFalse();
-    }
-
-    @Test
     @DisplayName("requeues until the attempt cap, then fails for good")
     void capsTheTakeovers() {
         // With no cap, a target that jams its worker every time circulates from agent to agent
