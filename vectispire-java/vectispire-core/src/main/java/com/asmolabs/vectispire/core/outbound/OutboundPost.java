@@ -113,21 +113,6 @@ public class OutboundPost {
     }
 
     /**
-     * Updates a record with PATCH — the verb ServiceNow's Table API and GitHub's issue API
-     * document for a partial update. Same guard, same pin, same refusal of redirects as a POST.
-     */
-    public String patchForResponse(
-            String url, Object body, OutboundPolicy policy, String label, Map<String, String> headers) {
-        return sendEncoded(PinnedHttpSender.Method.PATCH, url, encode(body), policy, label, headers, TIMEOUT);
-    }
-
-    /** Updates a record with PUT — GitLab's issue API routes nothing else to an existing issue. */
-    public String putForResponse(
-            String url, Object body, OutboundPolicy policy, String label, Map<String, String> headers) {
-        return sendEncoded(PinnedHttpSender.Method.PUT, url, encode(body), policy, label, headers, TIMEOUT);
-    }
-
-    /**
      * Sends with the verb named, verifying the server against a pinned CA when one is given — a tracker
      * on an internal network whose certificate the runtime's store does not know.
      *

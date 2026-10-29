@@ -20,8 +20,6 @@ public interface ApiEndpointRepository extends JpaRepository<ApiEndpointEntity, 
 
     List<ApiEndpointEntity> findByRepositoryIdOrderByPathAsc(Long repositoryId);
 
-    List<ApiEndpointEntity> findByScanIdOrderByPathAsc(Long scanId);
-
     @Query("select e from ApiEndpointEntity e where e.scanId in :scanIds order by e.path asc")
     List<ApiEndpointEntity> findByScanIdIn(@Param("scanIds") Collection<Long> scanIds);
 

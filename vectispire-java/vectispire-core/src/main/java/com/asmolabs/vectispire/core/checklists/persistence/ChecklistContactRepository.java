@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.checklists.persistence;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,9 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 public interface ChecklistContactRepository extends JpaRepository<ChecklistContactEntity, Long> {
 
     List<ChecklistContactEntity> findByProjectIdOrderByProfileAsc(Long projectId);
-
-    /** The links of several projects at once — the weekly reminder's, over every open draft. */
-    List<ChecklistContactEntity> findByProjectIdIn(Collection<Long> projectIds);
 
     Optional<ChecklistContactEntity> findByProjectIdAndProfile(Long projectId, String profile);
 

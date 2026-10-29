@@ -9,24 +9,18 @@ import java.util.stream.Collectors;
  * Supported incident management and issue tracking providers.
  */
 public enum TicketingProvider {
-    JIRA("Jira Software", "https://jira.atlassian.com"),
-    GITHUB("GitHub Issues", "https://github.com"),
-    GITLAB("GitLab Issues", "https://gitlab.com");
+    JIRA("Jira Software"),
+    GITHUB("GitHub Issues"),
+    GITLAB("GitLab Issues");
 
     private final String displayName;
-    private final String defaultBaseUrl;
 
-    TicketingProvider(String displayName, String defaultBaseUrl) {
+    TicketingProvider(String displayName) {
         this.displayName = displayName;
-        this.defaultBaseUrl = defaultBaseUrl;
     }
 
     public String getDisplayName() {
         return displayName;
-    }
-
-    public String getDefaultBaseUrl() {
-        return defaultBaseUrl;
     }
 
     /**

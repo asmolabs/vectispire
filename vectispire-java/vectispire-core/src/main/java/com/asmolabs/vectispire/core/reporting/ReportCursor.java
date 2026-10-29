@@ -190,11 +190,6 @@ public final class ReportCursor {
         y += LINE;
     }
 
-    /** Forces what follows onto a fresh page — for a section that must not start at the bottom. */
-    void breakPage() throws IOException {
-        newPage();
-    }
-
     /**
      * Measures and wraps text into lines fitting within {@code maxWidth}.
      */

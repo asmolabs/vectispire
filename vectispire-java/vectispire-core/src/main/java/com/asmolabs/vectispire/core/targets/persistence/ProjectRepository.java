@@ -10,8 +10,6 @@ public interface ProjectRepository extends JpaRepository<ProjectEntity, Long> {
     /** Unique within its solution, case-insensitively — see {@link SolutionRepository#findByNameIgnoreCase}. */
     Optional<ProjectEntity> findBySolutionIdAndNameIgnoreCase(Long solutionId, String name);
 
-    boolean existsBySolutionId(Long solutionId);
-
     long countBySolutionId(Long solutionId);
 
     /** A solution's projects — what a grant naming one of them is compared with, one parameter whatever their number. */
