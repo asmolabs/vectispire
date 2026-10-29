@@ -41,8 +41,13 @@
 - **Client Address Trust**: `X-Forwarded-For` is honoured only from addresses listed in
   `VECTISPIRE_TRUSTED_PROXIES`, which is empty by default. Trusting the header unconditionally lets
   a caller pick their own bucket, which is a rate limiter that rate-limits nobody.
-- **Persistent Brute-Force Protection (`t_login_attempt`)**: Tracks failed login attempts per
-  username and client ID in database via `LoginThrottle`.
+- **Persistent Brute-Force Protection (`t_login_attempt`)**: Tracks failed login attempts in the
+  database via `LoginThrottle`: per account (and per typed name) from one client — five a quarter
+  of an hour — per account from every client — fifty — and per client across accounts — twenty.
+  The low ceiling is the account's *from one client*: shared by every client, it let anyone who
+  knew a name keep that account locked, and the owner's right password was refused with the rest.
+  Locking an owner out now takes the global ceiling, from ten clients or more. The second-factor
+  budget stays per account: only someone holding the password can spend it.
 - **CI/CD Integration API Keys**: Stored strictly as Argon2id hashes (`vectispire_` prefix) with
   configurable permission scopes and expiration dates.
 

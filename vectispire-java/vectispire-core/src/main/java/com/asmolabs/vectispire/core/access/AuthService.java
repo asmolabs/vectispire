@@ -174,16 +174,22 @@ public class AuthService {
 
     /**
      * A password presented by a signed-in account — changing its own — against the budget of the
-     * sign-in form. A session is not a licence to guess the password behind it: a workstation left
-     * unlocked would otherwise be a password oracle with no ceiling.
+     * sign-in form from the same client, and the account's global one. A session is not a licence
+     * to guess the password behind it: a workstation left unlocked would otherwise be a password
+     * oracle with no ceiling.
      */
-    public Reservation reservePassword(long accountId) {
-        return reserve(Map.of(LoginThrottle.accountKey(accountId), LoginThrottle.MAX_ATTEMPTS_PER_USER));
+    public Reservation reservePassword(long accountId, String ipAddress) {
+        return reserve(Map.of(
+                LoginThrottle.accountKey(accountId, ipAddress), LoginThrottle.MAX_ATTEMPTS_PER_USER,
+                LoginThrottle.accountKey(accountId), LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT));
     }
 
-    /** A right password: the account's counter starts again, as a sign-in's does. */
-    public void clearPasswordFailures(long accountId) {
-        attempts.deleteByCounterKey(LoginThrottle.accountKey(accountId));
+    /**
+     * A right password: the account's counter from this client starts again, as a sign-in's does.
+     * The global one keeps the other clients' failures — see {@link #login}.
+     */
+    public void clearPasswordFailures(long accountId, String ipAddress) {
+        attempts.deleteByCounterKey(LoginThrottle.accountKey(accountId, ipAddress));
     }
 
     /**
@@ -261,11 +267,25 @@ public class AuthService {
         Optional<UserEntity> user = AccountRules.isWellFormedUsername(request.username())
                 ? users.findByUsername(request.username())
                 : Optional.empty();
-        String nameKey = LoginThrottle.userKey(request.username());
-        String clientKey = LoginThrottle.clientKey(String.valueOf(request.ipAddress()));
+        //
+        // **The low ceiling is the account's from this client, not the account's.** One counter
+        // shared by every client let anyone who knew a name keep that account locked — five wrong
+        // passwords a quarter of an hour, the governor's included — and the owner's right password
+        // was refused with the rest. Each counter is kept twice: from this client at the low
+        // ceiling, and from everywhere at one ten times higher, against guessing spread across
+        // machines. See LoginThrottle.
+        String ipAddress = String.valueOf(request.ipAddress());
+        String clientKey = LoginThrottle.clientKey(ipAddress);
         Map<String, Integer> ceilings = new LinkedHashMap<>();
-        user.ifPresent(found -> ceilings.put(LoginThrottle.accountKey(found.getId()), LoginThrottle.MAX_ATTEMPTS_PER_USER));
-        ceilings.put(nameKey, LoginThrottle.MAX_ATTEMPTS_PER_USER);
+        Set<String> fromThisClient = new java.util.HashSet<>();
+        user.ifPresent(found -> {
+            ceilings.put(LoginThrottle.accountKey(found.getId(), ipAddress), LoginThrottle.MAX_ATTEMPTS_PER_USER);
+            ceilings.put(LoginThrottle.accountKey(found.getId()), LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT);
+            fromThisClient.add(LoginThrottle.accountKey(found.getId(), ipAddress));
+        });
+        ceilings.put(LoginThrottle.userKey(request.username(), ipAddress), LoginThrottle.MAX_ATTEMPTS_PER_USER);
+        ceilings.put(LoginThrottle.userKey(request.username()), LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT);
+        fromThisClient.add(LoginThrottle.userKey(request.username(), ipAddress));
         ceilings.put(clientKey, LoginThrottle.MAX_ATTEMPTS_PER_CLIENT);
 
         Reservation throttle = reserve(ceilings);
@@ -310,17 +330,16 @@ public class AuthService {
                             request.username()));
         }
 
-        // **A success clears what it proves, and the address is not among it.** Every counter of
-        // the attempt used to be emptied, the address's included: one sign-in to one's own account
-        // every nineteen tries wiped the address's record of the other nineteen, and the ceiling
-        // meant to slow one password tried across many names slowed nothing. The account and the
-        // name typed start again — five mistypes then the right password is not an attack on
-        // them — and the address keeps its failures; this attempt's own row is taken back, since a
-        // success is not a failure.
+        // **A success clears what it proves, and only that.** Every counter of the attempt used to
+        // be emptied, the address's included: one sign-in to one's own account every nineteen tries
+        // wiped the address's record of the other nineteen, and the ceiling meant to slow one
+        // password tried across many names slowed nothing. The account and the name typed start
+        // again from this client — five mistypes then the right password is not an attack on
+        // them — while the address and the account's global counter keep their failures, which
+        // other clients may have made; this attempt's own rows are taken back, since a success is
+        // not a failure.
         release(throttle);
-        ceilings.keySet().stream()
-                .filter(key -> !key.equals(clientKey))
-                .forEach(attempts::deleteByCounterKey);
+        fromThisClient.forEach(attempts::deleteByCounterKey);
 
         UserEntity found = user.orElseThrow();
         rehashIfStale(found, request.password());

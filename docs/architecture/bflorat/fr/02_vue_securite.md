@@ -45,8 +45,14 @@
   Bloque les attaques
   par déni de service et bursts d'essais bruts avec HTTP `429 Too Many Requests` et en-tête
   `Retry-After` **sans effectuer de requête SQL ni de dérivation de hash Argon2id**.
-- **Protection Brute-Force Persistante (`t_login_attempt`)** : Suivi des échecs de connexion par
-  compte utilisateur et par identifiant client dans la base de données via `LoginThrottle`.
+- **Protection Brute-Force Persistante (`t_login_attempt`)** : Suivi des échecs de connexion dans
+  la base de données via `LoginThrottle` : par compte (et par nom saisi) depuis un client — cinq
+  par quart d'heure —, par compte depuis tous les clients — cinquante — et par client tous comptes
+  confondus — vingt. Le plafond bas est celui du compte *depuis un client* : partagé par tous les
+  clients, il laissait quiconque connaissait un nom garder ce compte verrouillé, et le bon mot de
+  passe de son titulaire était refusé avec le reste. Verrouiller un titulaire demande désormais le
+  plafond global, depuis dix clients ou plus. Le budget du second facteur reste par compte : seul
+  celui qui détient le mot de passe peut le dépenser.
 - **Clés API d'intégration CI/CD** : Stockées uniquement sous forme de hash Argon2id (préfixées
   `vectispire_`) avec périmètres de droits (scopes) et date d'expiration.
 
