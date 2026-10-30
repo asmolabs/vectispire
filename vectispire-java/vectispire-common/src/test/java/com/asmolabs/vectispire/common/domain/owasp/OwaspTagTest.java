@@ -168,8 +168,48 @@ class OwaspTagTest {
 
         assertThat(tagging.ruleFiles()).isEqualTo(4);
         assertThat(tagging.tagged()).isEqualTo(1);
+        assertThat(tagging.byCwe()).isZero();
         assertThat(tagging.untagged()).containsExactly(
                 new OwaspTag.OwaspUntaggedCount(OwaspTag.Untagged.ONLY_2025_EDITION, 2),
                 new OwaspTag.OwaspUntaggedCount(OwaspTag.Untagged.NOT_DECLARED, 1));
+    }
+
+    @Test
+    @DisplayName("places a rule declaring no 2021 category by its CWE, and its own category first")
+    void placedByItsCwe() {
+        String cweOnly = """
+                rules:
+                  - id: java.sqli
+                    metadata:
+                      cwe:
+                        - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+                """;
+        String both = """
+                    metadata:
+                      owasp:
+                        - A01:2021 - Broken Access Control
+                      cwe:
+                        - "CWE-89: SQL injection"
+                """;
+
+        assertThat(OwaspTag.declaredIn(cweOnly)).as("declared, it is not").isEmpty();
+        assertThat(OwaspTag.placedIn(cweOnly)).containsExactly("A03");
+        assertThat(OwaspTag.placedIn(both)).as("the rule's own category is the first word").containsExactly("A01");
+        assertThat(OwaspTag.placedIn("      cwe: CWE-1078\n")).as("a CWE no list holds").isEmpty();
+        assertThat(OwaspTag.placedIn("    message: see CWE-89\n")).as("prose is no declaration").isEmpty();
+    }
+
+    @Test
+    @DisplayName("counts a rule placed by its CWE apart from the tagged and the untagged")
+    void theTallyCountsTheCwe() {
+        OwaspTag.OwaspTagging tagging = OwaspTag.tally(List.of(
+                "      owasp:\n        - A03:2021 - Injection\n",
+                "      owasp:\n        - A10:2025 - X\n      cwe:\n        - CWE-918\n",
+                "      owasp:\n        - A10:2025 - X\n"));
+
+        assertThat(tagging.tagged()).isEqualTo(1);
+        assertThat(tagging.byCwe()).as("a 2025 tag beside a CWE that maps: placed").isEqualTo(1);
+        assertThat(tagging.untagged()).containsExactly(
+                new OwaspTag.OwaspUntaggedCount(OwaspTag.Untagged.ONLY_2025_EDITION, 1));
     }
 }

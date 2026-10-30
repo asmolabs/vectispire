@@ -100,7 +100,12 @@ describe('the rule coverage banner', () => {
             ecosystemsInEstate: ['maven'],
             uncovered: [],
             ruleFiles: 40,
-            owasp: { ruleFiles: 40, tagged: 40 - untagged.reduce((sum, row) => sum + row.ruleFiles, 0), untagged }
+            owasp: {
+                ruleFiles: 40,
+                byCwe: 0,
+                tagged: 40 - untagged.reduce((sum, row) => sum + row.ruleFiles, 0),
+                untagged
+            }
         });
         const notice = () =>
             (fixture.nativeElement as HTMLElement).querySelector('[data-testid="owasp-other-edition"]');

@@ -127,6 +127,24 @@ class OwaspCoverageScopeRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("counts beside the grid the scope's open code findings no category holds")
+    void unplacedCodeFindingsAreCounted() throws Exception {
+        Estate estate = anEstate();
+        // A rule declaring neither a 2021 category nor a CWE the lists hold: placed in no line of the grid.
+        issue(estate.beta(), FindingType.SAST, null);
+
+        assertThat(grid("project_id=" + estate.web(), asAdmin()).path("unplacedCode").asLong())
+                .as("beta's uncategorised finding, beside its two injections")
+                .isEqualTo(1);
+        assertThat(grid("project_id=" + estate.api(), asAdmin()).path("unplacedCode").asLong())
+                .as("alpha's code findings are all placed")
+                .isZero();
+        assertThat(findings(grid("project_id=" + estate.web(), asAdmin()), "A03"))
+                .as("and it is counted in no category")
+                .isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("a project nothing scanned reads unmeasured, however covered its neighbours are — and its open findings are findings")
     void scannedIsAskedOfTheScope() throws Exception {
         Estate estate = anEstate();

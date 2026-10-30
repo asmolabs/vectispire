@@ -1684,6 +1684,8 @@
       "NO_FINDING": "Rien trouvé"
     },
     "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code place ses constats par la catégorie que chaque règle déclare dans ses propres métadonnées — donc une case dépend de ce qui est installé ici, et une catégorie qu'aucun scanner ne mesure peut être déclarée plutôt que laissée grise.",
+    "unplaced_code_one": "{{count}} constat de code ouvert n'est dans aucune catégorie : sa règle ne déclare aucune catégorie OWASP 2021, ni aucune CWE que les listes de 2021 rattachent à une catégorie.",
+    "unplaced_code_other": "{{count}} constats de code ouverts ne sont dans aucune catégorie : leurs règles ne déclarent aucune catégorie OWASP 2021, ni aucune CWE que les listes de 2021 rattachent à une catégorie.",
     "not_covered_note": "« Aucun scanner ici » veut dire qu'aucun scanner de ce déploiement ne produit de constat dans cette catégorie — c'est une propriété du produit, pas un verdict sur le parc.",
     "reason": {
       "NO_SCANNER": "Aucun scanner de ce déploiement ne produit de constat dans cette catégorie.",

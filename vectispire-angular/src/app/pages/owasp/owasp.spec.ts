@@ -36,7 +36,14 @@ function silenceAnchorNavigation(): void {
 }
 
 /** The estate's grid with nothing measured yet, for the cases about the report card beneath it. */
-const EMPTY_GRID = asSchema('DeclaredGrid', { lines: [], covered: 0, withFindings: 0, unmeasured: 0, scope: null });
+const EMPTY_GRID = asSchema('DeclaredGrid', {
+    lines: [],
+    covered: 0,
+    withFindings: 0,
+    unmeasured: 0,
+    unplacedCode: 0,
+    scope: null
+});
 
 describe('the OWASP report screen', () => {
     let fixture: ComponentFixture<Owasp>;
@@ -563,6 +570,7 @@ describe('the current OWASP grid, over a project or a solution', () => {
             covered: 9,
             withFindings: 1,
             unmeasured: 0,
+            unplacedCode: 0,
             scope
         });
     }

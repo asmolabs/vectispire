@@ -183,6 +183,26 @@ public final class OwaspCoverage {
                 : Optional.empty();
     }
 
+    /**
+     * The open code findings the grid places in no category: their rule declares no 2021 category and no
+     * CWE the standard's lists hold ({@link OwaspCwe}) — or the finding was stored before the CWE was read.
+     *
+     * <p><b>Counted, because placed nowhere is not the same as absent.</b> A grid whose ten lines read
+     * "nothing found" over a backlog of uncategorised code findings is the false green this class exists
+     * to remove; the figure says how many of them the categories do not account for.
+     *
+     * @param openCode every open finding of {@link #DECLARES_ITS_CATEGORY}, read over the grid's scope
+     * @param openByCategory the same findings counted by their {@code owasp_category}; a value that is
+     *     not one of {@link #CATEGORIES} places nothing and is left in the remainder
+     */
+    public static long unplacedCode(long openCode, Map<String, Long> openByCategory) {
+        long placed = openByCategory.entrySet().stream()
+                .filter(entry -> CATEGORIES.containsKey(entry.getKey()))
+                .mapToLong(Map.Entry::getValue)
+                .sum();
+        // Never below zero: two reads, and a finding categorised between them would count as minus one.
+        return Math.max(0, openCode - placed);
+    }
 
     /**
      * Whether a target's scans can examine it for this type at all — by what its kind of scan runs, not
