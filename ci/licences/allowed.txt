@@ -1,0 +1,84 @@
+# The licences Vectispire may distribute a component under, and the components reviewed one by one.
+# Read by ci/licences/check.py; the reasoning is docs/en/LICENSES.md.
+#
+#   licence   | <scope: all, or jar,npm,image> | <SPDX id> | <why it can ship inside an Apache-2.0 distribution>
+#   component | <jar|npm|image> | <name> | <the licence it is distributed under> | <the ids its metadata declares, or -> | <why>
+#
+# A jar name is <group>/<artifact>, `<group>/*` for a whole group; an npm name is the package; an image
+# name is the distribution package. A component line vouches for the declared ids it lists and nothing
+# more: a new version declaring another licence fails until it is read again. A component line that
+# matches nothing fails too — the list only holds what ships.
+#
+# **What is never added here**: GPL or AGPL for a jar or the interface, SSPL, the Commons Clause, or a
+# licence nobody has read. LGPL only through a component line saying how it is used.
+
+# ── Permissive: no condition but keeping the notice ─────────────────────────────────────────────────
+licence | all | Apache-2.0 | Vectispire's own licence. Its NOTICE files travel unmodified inside each jar.
+licence | all | MIT | Permissive; the copyright notice is kept (NOTICE, 3rdpartylicenses.txt).
+licence | all | BSD-2-Clause | Permissive; the copyright notice is kept.
+licence | all | BSD-3-Clause | Permissive; the notice is kept, the names not used to endorse. EDL-1.0 is this licence.
+licence | all | ISC | Permissive, MIT-equivalent.
+licence | all | 0BSD | Permissive, no condition at all.
+licence | all | CC0-1.0 | A public-domain dedication.
+licence | all | Public-Domain | No rights reserved.
+licence | all | Zlib | Permissive; altered versions must say so, and nothing is altered.
+licence | all | Python-2.0 | Permissive (npm's argparse); the notice is kept.
+licence | all | BlueOak-1.0.0 | Permissive (npm tooling); the notice is kept.
+
+# ── Weak copyleft, file-level: unmodified, the source stays where its authors publish it ────────────
+licence | all | EPL-2.0 | File-level copyleft: binaries may ship under other terms if the source is available, which it is upstream; nothing here modifies an EPL file. Not combined with GPL code (no Secondary License is relied on).
+licence | all | MPL-2.0 | File-level copyleft (npm's lightningcss, a build tool; the CA bundle in the images): ships unmodified, its source upstream.
+
+# ── One jar, by a decision recorded in NOTICE ─────────────────────────────────────────────────────────
+licence | jar | GPL-2.0-only WITH Universal-FOSS-exception-1.0 | MySQL Connector/J alone (its component line below): the exception permits distribution with Apache-2.0 software. Any other GPL jar is refused.
+
+# ── Images only: separate programs aggregated beside the jar, never linked into it ──────────────────
+licence | image | GPL-2.0-only | Aggregation (busybox, apk-tools, netbase…): separate programs, not linked with Vectispire. The GPL's condition is the source offer NOTICE makes.
+licence | image | GPL-2.0-or-later | As GPL-2.0-only.
+licence | image | GPL-3.0-or-later | Aggregation (coreutils): as GPL-2.0-only; GPL-3.0 §5 permits aggregates.
+licence | image | GPL-3.0-only | As GPL-3.0-or-later.
+licence | image | LGPL-2.1-or-later | Shared libraries of the base image, dynamically linked by the programs beside them; source offer in NOTICE.
+licence | image | LGPL-2.1-only | As LGPL-2.1-or-later.
+licence | image | LGPL-2.0-or-later | As LGPL-2.1-or-later.
+licence | image | LGPL-2.0-only | As LGPL-2.1-or-later.
+licence | image | LGPL-3.0-only | As LGPL-2.1-or-later.
+licence | image | LGPL-3.0-or-later | As LGPL-2.1-or-later.
+licence | image | GPL-2.0-only WITH Classpath-exception-2.0 | The JRE (Eclipse Temurin): the Classpath Exception is what lets an application of any licence run on it.
+licence | image | GPL-3.0-or-later WITH GCC-exception-3.1 | The GCC runtime libraries: the Runtime Library Exception lets any program link them.
+licence | image | Bitstream-Vera | The DejaVu fonts the JRE renders PDFs with: permissive, fonts not sold alone.
+licence | image | Libpng | Permissive (libpng).
+licence | image | bzip2-1.0.6 | Permissive (libbz2).
+licence | image | FTL | FreeType's own licence, BSD-like with credit; chosen over its GPL alternative.
+licence | image | HPND-sell-variant | Permissive (fontconfig).
+licence | image | BSL-1.0 | Boost, permissive.
+licence | image | FSFAP | All-permissive.
+
+# ── Jars ─────────────────────────────────────────────────────────────────────────────────────────────
+component | jar | com.mysql/mysql-connector-j | GPL-2.0-only WITH Universal-FOSS-exception-1.0 | Apache-2.0, BSD-3-Clause, EPL-1.0, GPL-2.0-only, LGPL-2.1-only | The decision NOTICE records: runtimeOnly, reached through the JDBC API, and Oracle's Universal FOSS Exception lists Apache-2.0 among the licences it may be distributed with. The other ids are the third-party code its own notices list.
+component | jar | ch.qos.logback/* | EPL-2.0 | EPL-2.0, LGPL-2.1-only | Dual EPL-2.0 or LGPL-2.1; distributed under EPL-2.0.
+component | jar | jakarta.annotation/jakarta.annotation-api | EPL-2.0 | EPL-2.0, GPL-2.0-only WITH Classpath-exception-2.0 | EPL-2.0 or GPL-2.0 with the Classpath Exception; distributed under EPL-2.0.
+component | jar | jakarta.transaction/jakarta.transaction-api | EPL-2.0 | EPL-2.0, GPL-2.0-only WITH Classpath-exception-2.0 | As jakarta.annotation-api.
+component | jar | jakarta.mail/jakarta.mail-api | EPL-2.0 | EPL-2.0, GPL-2.0-only WITH Classpath-exception-2.0, BSD-3-Clause | EPL-2.0, GPL-2.0 with the Classpath Exception, or EDL-1.0; distributed under EPL-2.0.
+component | jar | org.eclipse.angus/* | EPL-2.0 | EPL-2.0, GPL-2.0-only WITH Classpath-exception-2.0, BSD-3-Clause | Eclipse Angus Mail, the Jakarta Mail implementation: same terms as jakarta.mail-api. Several of its jars carry no licence in their POM; the project's LICENSE.md says EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR BSD-3-Clause.
+component | jar | com.sun.jna/jna | Apache-2.0 | Apache-2.0, LGPL-2.1-only | Dual Apache-2.0 or LGPL-2.1; distributed under Apache-2.0.
+component | jar | com.github.docker-java/* | Apache-2.0 | - | No licence in the POMs syft reads; the project's LICENSE is Apache-2.0.
+component | jar | org.eclipse.jgit/* | BSD-3-Clause | - | No licence in the POMs syft reads; JGit is under EDL-1.0, which is BSD-3-Clause.
+component | jar | org.flywaydb/* | Apache-2.0 | Apache-2.0 | Flyway Community; its database modules carry no licence in their POM. The open-source edition is Apache-2.0.
+component | jar | com.google.guava/listenablefuture | Apache-2.0 | - | Guava's empty placeholder artifact; Guava is Apache-2.0.
+component | jar | org.aspectj.weaver/aspectjweaver | EPL-2.0 | sha256:4e2c7d9f5cc62bfe8ca3461be6fd659f744f508af1207bf5d633fd5f4270bb98 | syft records a hash of the licence file instead of its name; AspectJ is EPL-2.0.
+
+# ── Images ───────────────────────────────────────────────────────────────────────────────────────────
+component | image | gcc-14-base | GPL-3.0-or-later WITH GCC-exception-3.1 | sha256:20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79 | Debian's GCC runtime (distroless): the Runtime Library Exception; syft records the copyright file's hash.
+component | image | libgcc-s1 | GPL-3.0-or-later WITH GCC-exception-3.1 | sha256:20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79 | As gcc-14-base.
+component | image | libstdc++6 | GPL-3.0-or-later WITH GCC-exception-3.1 | sha256:20390f8a6f3b1e4d7cb45dd8652dabb259bbef688cbad839bcdb0b9ba7252f79 | As gcc-14-base.
+component | image | libcrypt1 | LGPL-2.1-or-later | sha256:5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16 | libxcrypt (distroless), LGPL-2.1+ with BSD and public-domain parts; syft records a hash.
+component | image | media-types | Public-Domain | ad-hoc | Debian's MIME table: a list of facts, no licence asserted.
+component | image | base-files | GPL-2.0-or-later | GPL-2.0-only, GPL-2.0-or-later, verbatim | Distroless (the report plugin's image): Debian's base files (/etc/os-release and the like); "verbatim" is the copyright notices kept as they are.
+component | image | libbz2-1.0 | bzip2-1.0.6 | BSD-variant, GPL-2.0-only | Distroless (the report plugin's image): bzip2's library, under its own BSD-like licence; the GPL id covers Debian's packaging.
+component | image | libc-bin | LGPL-2.1-or-later | BSD-2-Clause, BSD-3-clause-Berkeley, BSD-3-clause-Carnegie, BSD-3-clause-Oracle, BSD-3-clause-WIDE, BSD-like-Spencer, BSL-1.0, CORE-MATH, Carnegie, DEC, FSFAP, GPL-2+-with-link-exception, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, IBM, ISC, Inner-Net, LGPL-2.0-only, LGPL-2.0-or-later, LGPL-2.1+-with-link-exception, LGPL-2.1-only, LGPL-2.1-or-later, LGPL-3.0-only, LGPL-3.0-or-later, MIT-like-Lord, PCRE, Public-Domain, SunPro, Unicode-DFS-2016, Univ-Coimbra | Distroless (the report plugin's image): glibc's utilities, as libc6.
+component | image | libc6 | LGPL-2.1-or-later | BSD-2-Clause, BSD-3-clause-Berkeley, BSD-3-clause-Carnegie, BSD-3-clause-Oracle, BSD-3-clause-WIDE, BSD-like-Spencer, BSL-1.0, CORE-MATH, Carnegie, DEC, FSFAP, GPL-2+-with-link-exception, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, IBM, ISC, Inner-Net, LGPL-2.0-only, LGPL-2.0-or-later, LGPL-2.1+-with-link-exception, LGPL-2.1-only, LGPL-2.1-or-later, LGPL-3.0-only, LGPL-3.0-or-later, MIT-like-Lord, PCRE, Public-Domain, SunPro, Unicode-DFS-2016, Univ-Coimbra | Distroless (the report plugin's image): the GNU C library: LGPL-2.1+, dynamically linked by the JRE; the other ids are files of its source tree (the copyright file lists every one).
+component | image | libfreetype6 | FTL | BSD-3-Clause, BSL-1.0, Expat, FSFAP, FTL, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, MIT-Modern-Variant, MIT-SMC, OpenGroup-MIT, Public-Domain, Zlib | Distroless (the report plugin's image): FreeType, under its own licence (chosen over the GPL alternative); the other ids are files of its source tree.
+component | image | libjpeg62-turbo | BSD-3-Clause AND Zlib | BSD-3-Clause, BSD-BY-LC-NE, Expat, NTP, Zlib | Distroless (the report plugin's image): libjpeg-turbo: the IJG terms (BSD-like), BSD-3-Clause and Zlib; the other ids are files of its tree.
+component | image | liblcms2-2 | MIT | GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, IJG, MIT | Distroless (the report plugin's image): Little CMS: MIT; the GPL ids are files of its source tree not in the library.
+component | image | libpng16-16t64 | Libpng | Apache-2.0, BSD-3-Clause, BSD-like-with-advertising-clause, GPL-2.0-only, GPL-2.0-or-later, Libpng, expat | Distroless (the report plugin's image): libpng under its own licence; the other ids are files of its tree.
+component | image | libuuid1 | BSD-3-Clause | BSD-2-Clause, BSD-3-Clause, BSD-4-Clause, BSLA, Expat, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, ISC, LGPL, LGPL-2.0-only, LGPL-2.0-or-later, LGPL-2.1-only, LGPL-2.1-or-later, LGPL-3.0-only, LGPL-3.0-or-later, Public-Domain | Distroless (the report plugin's image): util-linux's libuuid: BSD-3-Clause; the other ids are the rest of util-linux, not in this library.
