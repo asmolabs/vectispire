@@ -203,6 +203,8 @@ export class Containers {
     }
 
     submit(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         const editing = this.editing();
         // **Empty string and not `undefined` when editing.** On the create path an absent field
         // means "no value"; on the update path the server reads absent as "leave alone", so a

@@ -118,6 +118,21 @@ describe('the SSH keys screen', () => {
         expect(errorText()).toContain('ssh_keys.error_load');
     });
 
+    it('is a form requiring the name and the private key, and sends once however often it is submitted', () => {
+        list();
+        fixture.componentInstance.openForm();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#name')!.required).toBe(true);
+        expect(document.querySelector<HTMLTextAreaElement>('#private')!.required).toBe(true);
+        expect(document.querySelector<HTMLTextAreaElement>('#public')!.required).toBe(false);
+
+        fixture.componentInstance.form = { name: 'deploy', privateKey: 'key', publicKey: '' };
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'POST' && call.url === '/api/v1/ssh-keys').length).toBe(1);
+    });
+
     it('sends the typed key trimmed, without an empty public key, then reloads the list', () => {
         list([]);
         click('ssh_keys.add_key_btn');
