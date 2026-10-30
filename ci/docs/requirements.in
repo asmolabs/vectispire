@@ -16,5 +16,5 @@
 # projet. Les plages restent ici pour dire ce qu'on accepte ; ce sont les empreintes qui décident
 # de ce qui s'exécute.
 mkdocs>=1.6,<2
-mkdocs-material>=9.5,<10
+mkdocs-material>=9.8.0,<10
 mkdocs-static-i18n>=1.2,<2

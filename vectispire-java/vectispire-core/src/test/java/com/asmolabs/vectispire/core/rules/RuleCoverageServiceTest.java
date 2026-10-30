@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
@@ -89,6 +90,38 @@ class RuleCoverageServiceTest {
         assertThat(service.declaredOwaspCategories())
                 .as("the shipped rule's and the installed set's, together")
                 .containsExactlyInAnyOrder("A03", "A10");
+    }
+
+    @Test
+    @DisplayName("counts a rule tagged with the 2025 edition alone as untagged, with its reason")
+    void anotherEditionIsCounted() {
+        install(
+                new RuleSet.StoredFile("rule-0001.yaml", "java/ssrf.yaml", """
+                        rules:
+                          - id: team.ssrf
+                            metadata:
+                              owasp:
+                                - A10:2021 - Server-Side Request Forgery
+                        """),
+                new RuleSet.StoredFile("rule-0002.yaml", "java/access.yaml", """
+                        rules:
+                          - id: team.access
+                            metadata:
+                              owasp:
+                                - A01:2025 - Broken Access Control
+                        """));
+
+        OwaspTag.OwaspTagging tagging = service.assess().owasp();
+
+        // The shipped rule (A03:2021) and the SSRF rule are tagged; the 2025-only rule runs, places
+        // nothing, and is the one the coverage has to name.
+        assertThat(tagging.ruleFiles()).isEqualTo(3);
+        assertThat(tagging.tagged()).isEqualTo(2);
+        assertThat(tagging.untagged())
+                .containsExactly(new OwaspTag.OwaspUntaggedCount(OwaspTag.Untagged.ONLY_2025_EDITION, 1));
+        assertThat(service.declaredOwaspCategories())
+                .as("and A01 is not credited to the rules for it")
+                .doesNotContain("A01");
     }
 
     private void install(RuleSet.StoredFile... files) {
