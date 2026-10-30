@@ -16,7 +16,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,6 +84,8 @@ public class SigningKeyService implements SealedStore {
     private final Clock clock;
 
     private volatile KeyMaterial material;
+    /** The refused lines already warned about, so that an anonymous caller cannot fill the log with them. */
+    private final Set<String> warnedLines = ConcurrentHashMap.newKeySet();
     /** Whether this instance has recorded its key as the active one; nothing is signed before it has. */
     private volatile boolean registered;
 
@@ -99,12 +103,26 @@ public class SigningKeyService implements SealedStore {
             String keyId, KeyStatus status, String publicKeyPem, Instant activeFrom, Instant retiredAt) {}
 
     private record Known(String keyId, Instant activeFrom, Instant retiredAt, String der) {
-        static Known parse(String line) {
+        /**
+         * The line, or empty when it cannot be taken as written.
+         *
+         * <p><b>The id is recomputed from the key, never read.</b> Everything else in this service
+         * finds a key by its id — the revocation list, the route that serves one id, the verification
+         * that names the key it matched — and the id was the line's first field, trusted as stored.
+         * Whoever could write the row (a restored dump edited on the way) could then publish a key
+         * under another key's id, or list a revoked key under an id nobody revoked.
+         */
+        static Optional<Known> parse(String line) {
             String[] f = line.split(";", -1);
             if (f.length != 4) {
-                throw new IllegalStateException("Unreadable line in " + KNOWN_KEYS + ": " + line);
+                return Optional.empty();
             }
-            return new Known(f[0], time(f[1]), time(f[2]), f[3]);
+            try {
+                String computed = CosignSigner.computeKeyId(CosignSigner.parsePublicKey(f[3]));
+                return computed.equals(f[0]) ? Optional.of(new Known(f[0], time(f[1]), time(f[2]), f[3])) : Optional.empty();
+            } catch (RuntimeException unreadable) {
+                return Optional.empty();
+            }
         }
 
         static Known of(PublicKey key, Instant activeFrom, Instant retiredAt) {
@@ -300,8 +318,40 @@ public class SigningKeyService implements SealedStore {
     }
 
     private List<Known> known() {
-        String row = settings.internalValue(KNOWN_KEYS).orElse("").trim();
-        return row.isEmpty() ? List.of() : row.lines().filter(l -> !l.isBlank()).map(Known::parse).toList();
+        return read(settings.internalValue(KNOWN_KEYS)).keys();
+    }
+
+    /** The record as read: the lines taken, and the ones refused, kept verbatim. */
+    private record Read(List<Known> keys, List<String> refused) {}
+
+    /**
+     * The record, a line refused when it does not hold together.
+     *
+     * <p><b>A line refused, not the record.</b> Refusing the whole row would take every published key
+     * down with the one line — and with it the revocation list, which is what a consumer needs to read
+     * during an incident. A refused line publishes nothing and verifies nothing, which errs the safe
+     * way: a document signed with that key stops verifying, nothing starts to. The line stays in the
+     * row (a rotation writes it back verbatim) so that whoever investigates finds what was written,
+     * and the warning says once per line and instance that it is there.
+     */
+    private Read read(Optional<String> row) {
+        List<Known> keys = new ArrayList<>();
+        List<String> refused = new ArrayList<>();
+        row.map(String::trim).filter(r -> !r.isEmpty()).ifPresent(r -> r.lines().filter(l -> !l.isBlank()).forEach(line -> {
+            Optional<Known> known = Known.parse(line);
+            if (known.isPresent()) {
+                keys.add(known.get());
+            } else {
+                refused.add(line);
+                if (warnedLines.add(line)) {
+                    String claimed = line.split(";", 2)[0];
+                    log.warn("A line of {} is refused: its key cannot be read, or {} is not the key's own id. "
+                            + "It is neither published nor used to verify.", KNOWN_KEYS,
+                            claimed.substring(0, Math.min(claimed.length(), 64)));
+                }
+            }
+        }));
+        return new Read(List.copyOf(keys), List.copyOf(refused));
     }
 
     /**
@@ -320,13 +370,14 @@ public class SigningKeyService implements SealedStore {
     private void register(KeyMaterial active) {
         for (int attempt = 0; attempt < 5; attempt++) {
             Optional<String> read = settings.internalValue(KNOWN_KEYS);
-            List<Known> before = read.map(String::trim).filter(r -> !r.isEmpty())
-                    .map(r -> r.lines().filter(l -> !l.isBlank()).map(Known::parse).toList()).orElse(List.of());
+            Read record = read(read);
+            List<Known> before = record.keys();
             List<Known> after = reconcile(before, active);
             if (after.equals(before)) {
                 return;
             }
-            String value = after.stream().map(Known::line).collect(Collectors.joining("\n"));
+            String value = Stream.concat(after.stream().map(Known::line), record.refused().stream())
+                    .collect(Collectors.joining("\n"));
             boolean written = read.isEmpty()
                     ? settings.storeInternalIfAbsent(KNOWN_KEYS, value)
                     // In a transaction of its own, like the re-seal: the first signature may be made

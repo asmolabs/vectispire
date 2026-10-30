@@ -340,4 +340,39 @@ class SigningKeyServiceTest extends VectispireContextTest {
                 .isEqualTo(SigningKeyService.KeyStatus.RETIRED);
         assertThat(rotated.verify(PAYLOAD, signedBefore)).isTrue();
     }
+
+    @Test
+    @DisplayName("a recorded key is known by the id its own key gives, never by the id written beside it")
+    void aRecordedIdIsRecomputed() {
+        // The record is the row a restored dump brings back: whoever edits it on the way could list a
+        // key of theirs under one of Vectispire's ids, and every document they sign would verify as
+        // that key's.
+        KeyPair honest = CosignSigner.generateKeyPair();
+        KeyPair forged = CosignSigner.generateKeyPair();
+        String honestId = CosignSigner.computeKeyId(honest.getPublic());
+        String claimed = CosignSigner.computeKeyId(CosignSigner.generateKeyPair().getPublic());
+        String forgedLine = claimed + ";2026-10-01T00:00:00Z;2026-10-02T00:00:00Z;"
+                + java.util.Base64.getEncoder().encodeToString(forged.getPublic().getEncoded());
+        settingsService.storeInternalIfAbsent(SigningKeyService.KNOWN_KEYS, String.join("\n",
+                honestId + ";2026-09-01T00:00:00Z;2026-10-01T00:00:00Z;"
+                        + java.util.Base64.getEncoder().encodeToString(honest.getPublic().getEncoded()),
+                forgedLine,
+                "not a line at all"));
+        String signedByHonest = CosignSigner.sign(PAYLOAD, honest.getPrivate());
+        String signedByForged = CosignSigner.sign(PAYLOAD, forged.getPrivate());
+
+        SigningKeyService service = new SigningKeyService(
+                CosignSigner.toPem(CosignSigner.generateKeyPair().getPrivate()), "", settingsService, encryption);
+
+        assertThat(service.publishedKey(claimed)).isEmpty();
+        assertThat(service.publishedKey(CosignSigner.computeKeyId(forged.getPublic()))).isEmpty();
+        assertThat(service.verify(PAYLOAD, signedByForged)).isFalse();
+        // One bad line hides itself, not the record: the honest key is still published and verifies.
+        assertThat(service.publishedKeys()).extracting(SigningKeyService.PublishedKey::keyId)
+                .containsExactly(service.getKeyId(), honestId);
+        assertThat(service.verify(PAYLOAD, signedByHonest)).isTrue();
+        // And the registration that rewrote the row kept the refused lines for whoever investigates.
+        assertThat(settingsService.internalValue(SigningKeyService.KNOWN_KEYS).orElseThrow())
+                .contains(forgedLine).contains("not a line at all");
+    }
 }
