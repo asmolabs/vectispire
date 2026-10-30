@@ -112,7 +112,8 @@ export class Account {
      *
      * <p>A refusal keeps enrolment open: the code has six digits and thirty seconds of life,
      * getting it wrong is ordinary, and sending the user back to the start would give them a fresh
-     * secret to copy over a typo.
+     * secret to copy over a typo. The password goes, though: it is not kept in the page past the
+     * request it was typed for, whatever the answer.
      */
     confirm(): void {
         const enrolment = this.enrolment();
@@ -131,6 +132,7 @@ export class Account {
             },
             error: (response) => {
                 this.busy.set(false);
+                this.password = '';
                 this.error.set(messageOf(response, this.i18n.t('account.mfa_enable_failed')));
             }
         });
