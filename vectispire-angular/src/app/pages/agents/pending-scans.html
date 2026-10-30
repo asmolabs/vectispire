@@ -1,0 +1,82 @@
+<p-card styleClass="mb-6">
+    <ng-template #title>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="pi pi-clock text-amber-500 text-lg"></i>
+                <span>{{ 'agents.pending_title' | translate }}</span>
+            </div>
+            @if (waiting().length; as count) {
+                <p-tag [value]="'agents.pending_count' | translate: { count: count }" severity="warn" />
+            }
+        </div>
+    </ng-template>
+
+    @if (waiting().length) {
+        <p-table [value]="waiting()" styleClass="p-datatable-sm">
+            <ng-template #header>
+                <tr>
+                    <th class="w-16">{{ 'agents.position' | translate }}</th>
+                    <th>{{ 'agents.target' | translate }}</th>
+                    <th>{{ 'agents.branch' | translate }}</th>
+                    <th>{{ 'agents.labels' | translate }}</th>
+                    <th>{{ 'agents.wait_time' | translate }}</th>
+                    <th class="text-right">{{ 'common.status' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-pend>
+                <tr>
+                    <td>
+                        <span class="font-bold text-surface-500 dark:text-surface-400"
+                            >#{{ pend.positionInQueue }}</span
+                        >
+                    </td>
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <i
+                                [class]="
+                                    pend.targetType === 'repository'
+                                        ? 'pi pi-github text-primary'
+                                        : 'pi pi-box text-purple-500'
+                                "
+                            ></i>
+                            <span class="font-medium">{{ pend.targetName }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="font-mono text-sm">{{ pend.branch || '—' }}</span>
+                    </td>
+                    <td>
+                        @if (pend.requiredLabel) {
+                            <p-tag [value]="pend.requiredLabel" severity="info" />
+                        } @else {
+                            <span class="text-muted-color text-sm">—</span>
+                        }
+                    </td>
+                    <td>
+                        <span class="text-muted-color">{{ pend.waitDurationSeconds | duration }}</span>
+                    </td>
+                    <td class="text-right">
+                        @if (pend.isRoutable) {
+                            <p-tag
+                                [value]="'agents.status_routable' | translate"
+                                severity="success"
+                                icon="pi pi-clock"
+                            />
+                        } @else {
+                            <p-tag
+                                [value]="'agents.status_blocked' | translate"
+                                severity="danger"
+                                icon="pi pi-exclamation-circle"
+                            />
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    } @else {
+        <div class="py-6 text-center text-muted-color flex flex-col items-center justify-center gap-2">
+            <i class="pi pi-sparkles text-2xl text-primary"></i>
+            <span>{{ 'agents.no_pending' | translate }}</span>
+        </div>
+    }
+</p-card>
