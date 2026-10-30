@@ -79,6 +79,9 @@ class GateDatabaseTest extends VectispireContextTest {
     @Autowired
     private EntityManagerFactory entityManagerFactory;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     private ScanTarget audited;
     private ScanTarget neighbour;
     private ScanTarget image;
@@ -163,6 +166,39 @@ class GateDatabaseTest extends VectispireContextTest {
         assertThat(entitiesLoadedEvaluating())
                 .as("whatever the estate holds, one verdict reads a bounded number of rows")
                 .isLessThanOrEqualTo(20);
+    }
+
+    /**
+     * The rule coverage a verdict carries is read from the target's inventory, not from the estate's.
+     *
+     * <p><b>Rows returned, not entities loaded</b>, because that is where the defect hid: the coverage
+     * query returns scalars, so {@link #theCostFollowsTheTargetNotTheEstate} counted zero while every
+     * verdict read every component row of the estate — 390,000 distinct purls and 1.8 s a call on the
+     * 1.0.0-rc.1 load test's estate. The verdict needs the target's ecosystems: two rows here, however
+     * many packages the target or its neighbours hold.
+     */
+    @Test
+    @DisplayName("the coverage a verdict carries reads the target's ecosystems, not the estate's packages")
+    void theCoverageFollowsTheTargetNotTheEstate() {
+        components(scanOf(audited), audited, "npm", 40);
+        components(scanOf(audited), audited, "maven", 40);
+        components(scanOf(neighbour), neighbour, "pypi", 300);
+        components(scanOf(image), image, "deb", 60);
+
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        for (ScanTarget target : List.of(audited, image)) {
+            statistics.clear();
+            gate.evaluate(target, RequestedPolicy.none());
+            long rows = 0;
+            for (String query : statistics.getQueries()) {
+                if (query.contains("from ComponentEntity")) {
+                    rows += statistics.getQueryStatistics(query).getExecutionRowCount();
+                }
+            }
+            assertThat(rows)
+                    .as("one row per ecosystem of %s — not one per package, and nothing of the neighbours", target)
+                    .isEqualTo(target.equals(audited) ? 2 : 1);
+        }
     }
 
     /**
@@ -291,6 +327,28 @@ class GateDatabaseTest extends VectispireContextTest {
         scan.setStatus(status.wireName());
         scan.setCreatedAt(Instant.now());
         scans.save(scan);
+    }
+
+    private long scanOf(ScanTarget target) {
+        scan(target, ScanStatus.COMPLETED);
+        return scans.findAll().stream()
+                .filter(scan -> target.equals(GateService.verdictTarget(scan.getRepoId(), scan.getContainerId())))
+                .mapToLong(ScanEntity::getId)
+                .max()
+                .orElseThrow();
+    }
+
+    /** {@code count} packages of one ecosystem in a scan's inventory, each its own name and version. */
+    private void components(long scanId, ScanTarget target, String ecosystem, int count) {
+        Long repoId = target instanceof ScanTarget.Repository repository ? repository.id() : null;
+        Long containerId = target instanceof ScanTarget.Container container ? container.id() : null;
+        List<Object[]> rows = new java.util.ArrayList<>();
+        for (int index = 0; index < count; index++) {
+            rows.add(new Object[] {scanId, "pkg-" + index, "1." + index,
+                    "pkg:" + ecosystem + "/pkg-" + index + "@1." + index, repoId, containerId});
+        }
+        jdbc.batchUpdate("insert into t_component (scan_id, name, version, purl, repo_id, container_id)"
+                + " values (?, ?, ?, ?, ?, ?)", rows);
     }
 
     private int entitiesLoadedEvaluating() {

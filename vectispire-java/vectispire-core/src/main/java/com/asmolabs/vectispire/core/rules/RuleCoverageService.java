@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.scanning.BundledRules;
 import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
@@ -112,7 +113,7 @@ public class RuleCoverageService {
                 .map(RuleCoverage::ruleTreePath)
                 .forEach(paths::add));
 
-        return RuleCoverage.assess(paths, components.distinctPurls()).withOwasp(owaspTagging());
+        return RuleCoverage.assess(paths, components.distinctPurlTypes()).withOwasp(owaspTagging());
     }
 
     /**
@@ -152,12 +153,12 @@ public class RuleCoverageService {
         List<String> paths = installedRulePaths();
 
         Map<String, List<String>> purlsByTarget = new LinkedHashMap<>();
-        for (Object[] row : components.distinctPurlsByTarget()) {
+        for (Object[] row : components.distinctPurlTypesByTarget()) {
             Long repoId = (Long) row[0];
             Long containerId = (Long) row[1];
-            String purl = (String) row[2];
+            String type = (String) row[2];
             String key = repoId != null ? "repository:" + repoId : "container:" + containerId;
-            purlsByTarget.computeIfAbsent(key, ignored -> new ArrayList<>()).add(purl);
+            purlsByTarget.computeIfAbsent(key, ignored -> new ArrayList<>()).add(type);
         }
 
         Map<String, List<String>> uncovered = new LinkedHashMap<>();
@@ -168,6 +169,24 @@ public class RuleCoverageService {
             }
         });
         return uncovered;
+    }
+
+    /**
+     * The ecosystems no installed rule covers in one target's inventory — {@link
+     * #uncoveredEcosystemsByTarget}'s entry for that target, read from that target's rows alone.
+     *
+     * <p><b>What a gate verdict asks</b>, once per pipeline run. It used to take the estate's whole
+     * answer and keep one entry, which made every verdict read every component row of every target:
+     * 1.8 s a call on the 1.0.0-rc.1 load test's estate (300 targets, a million rows), and the
+     * pipelines' calls queued behind each other on the connection pool.
+     */
+    @Transactional(readOnly = true)
+    public List<String> uncoveredEcosystemsOf(ScanTarget target) {
+        List<String> types = components.distinctPurlTypesOf(target);
+        if (types.isEmpty()) {
+            return List.of();
+        }
+        return List.copyOf(RuleCoverage.assess(installedRulePaths(), types).uncovered());
     }
 
     /** The rule files this instance scans with: the active set, plus what the jar ships. */

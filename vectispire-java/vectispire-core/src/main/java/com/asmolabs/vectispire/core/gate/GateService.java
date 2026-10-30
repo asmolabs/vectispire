@@ -510,8 +510,7 @@ public class GateService {
 
     /** What code analysis could not reach on one target, for the verdict it is about to render. */
     private GateVerdict.Coverage coverageOf(ScanTarget target) {
-        return new GateVerdict.Coverage(
-                ruleCoverage.uncoveredEcosystemsByTarget().getOrDefault(scopeKey(target), List.of()));
+        return new GateVerdict.Coverage(ruleCoverage.uncoveredEcosystemsOf(target));
     }
 
     /** The same, for every target the posture screen lists, read in one query rather than N. */

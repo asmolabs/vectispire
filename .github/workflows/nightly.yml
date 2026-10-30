@@ -205,6 +205,34 @@ jobs:
             vectispire-angular/test-results/
           retention-days: 7
 
+  # **The running control plane, spoken to over HTTP the way a stranger does** — OWASP ZAP's baseline:
+  # the interface spidered (the AJAX spider through a browser too), and every GET of the API contract
+  # sent with an administrator's session, every answer read by ZAP's passive rules. No other check had
+  # ever looked at what the server actually answers as a whole — headers, caching, error bodies, what
+  # the interface's shell discloses. Passive only: `ci/zap/hook.py` says why the API is imported GET by
+  # GET, and an active scan, which writes, is not a nightly's job.
+  #
+  # Fails on a medium or high alert `ci/zap/accepted-alerts.txt` does not cover for that path, and on a
+  # run that saw too little to have an opinion (`ci/zap/gate.py`) — its first local run sent no session
+  # at all, and the report, which lists alerts and nothing else, looked better for it.
+  #
+  # Built through the Dockerfile, the image an installation runs, on the composition's MySQL.
+  zap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -f Dockerfile -t vectispire:latest .
+      - run: ./scripts/zap-baseline.sh
+        env:
+          REPORT_DIR: zap-report
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: zap-baseline
+          path: zap-report/
+          retention-days: 14
+
   # **The upgrade an installation takes next, executed on MySQL** (decision 0043 §3, §6). PostgreSQL
   # left the matrix when §3 was amended to MySQL only (2026-10-29): `scripts/upgrade-drill.sh` still
   # takes `ENGINE=postgresql`, and nothing runs it.

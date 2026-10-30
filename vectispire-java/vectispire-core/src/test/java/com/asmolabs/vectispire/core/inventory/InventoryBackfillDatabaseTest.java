@@ -112,8 +112,9 @@ class InventoryBackfillDatabaseTest extends VectispireContextTest {
         });
         assertThat(components.distinctRepositoriesWithComponents()).containsExactly(repositoryId);
         assertThat(components.distinctContainersWithComponents()).containsExactly(containerId);
-        assertThat(components.distinctPurlsByTarget()).containsExactlyInAnyOrder(
-                new Object[] {repositoryId, null, PURL}, new Object[] {null, containerId, PURL});
+        // The purl's type, which is all rule coverage reads of it.
+        assertThat(components.distinctPurlTypesByTarget()).containsExactlyInAnyOrder(
+                new Object[] {repositoryId, null, "pkg:maven/"}, new Object[] {null, containerId, "pkg:maven/"});
     }
 
     private long repository(String url) {

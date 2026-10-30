@@ -45,7 +45,7 @@ class RuleCoverageServiceTest {
         service = new RuleCoverageService(ruleSets, components);
 
         when(ruleSets.active()).thenReturn(Optional.empty());
-        when(components.distinctPurls()).thenReturn(List.of());
+        when(components.distinctPurlTypes()).thenReturn(List.of());
     }
 
     @Test
