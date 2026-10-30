@@ -65,6 +65,35 @@ describe('a problem document in words', () => {
         expect(messageOf(refused('unexpected-failure', 'Unexpected failure.'), 'x')).toBe('Unexpected failure.');
     });
 
+    it('names the integration of each integration cause, in both languages, and points at the screen', () => {
+        // Decision 0040: the server's `detail` names the PUT route; the reader of this interface has a screen.
+        const conflict = (code: string) =>
+            refused(code, `The integration "forge.gitlab" … PUT /api/v1/integrations/forge.gitlab/enabled.`, {
+                integration: 'forge.gitlab'
+            });
+
+        useEnglish();
+        expect(messageOf(conflict('integration-disabled'), 'x')).toBe(
+            'The integration forge.gitlab is switched off on this installation. A platform governor switches it ' +
+                'back on in Administration → Integrations; the same request then succeeds.'
+        );
+        expect(messageOf(conflict('integration-in-use'), 'x')).toMatch(/^The integration forge\.gitlab is in use/);
+        expect(messageOf(conflict('integration-not-switchable'), 'x')).toMatch(
+            /^The integration forge\.gitlab cannot be switched off in this version/
+        );
+
+        useFrench();
+        expect(messageOf(conflict('integration-in-use'), 'x')).toMatch(/^L'intégration forge\.gitlab est utilisée/);
+    });
+
+    it('reads the detail of an integration cause that does not name its integration', () => {
+        useEnglish();
+
+        expect(messageOf(refused('integration-disabled', 'The integration is disabled.'), 'x')).toBe(
+            'The integration is disabled.'
+        );
+    });
+
     it("shows the English interface the server's own sentence", () => {
         useEnglish();
 

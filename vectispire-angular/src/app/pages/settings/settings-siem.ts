@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -11,6 +12,7 @@ import { IntegrationsApi } from '../../core/api/integrations.api';
 import type { SiemConfig, SiemTestResult } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { INTEGRATIONS_ROUTE, IntegrationRegistry, siemIntegration } from '../../shared/integrations';
 import { SettingsState } from './settings-state';
 
 /**
@@ -24,6 +26,7 @@ import { SettingsState } from './settings-state';
     imports: [
         DatePipe,
         FormsModule,
+        RouterLink,
         ButtonModule,
         CardModule,
         InputTextModule,
@@ -41,6 +44,19 @@ export class SettingsSiem {
     private readonly state = inject(SettingsState);
 
     readonly active = input.required<boolean>();
+
+    readonly integrationsRoute = INTEGRATIONS_ROUTE;
+
+    /**
+     * The transports the platform governor has switched on (decision 0040 §1). The stored one stays in the
+     * list even when it is off — the form would otherwise show a protocol it was never given — and the
+     * card says it is suspended: its events wait in the outbox until it is enabled again.
+     */
+    readonly registry = new IntegrationRegistry();
+    readonly suspendedTransport = computed(() => {
+        const stored = this.siemConfig()?.protocol;
+        return stored && this.registry.isDisabled(siemIntegration(stored)) ? siemIntegration(stored) : null;
+    });
 
     readonly siemConfig = signal<SiemConfig | null>(null);
     readonly savingSiem = signal(false);
@@ -60,6 +76,19 @@ export class SettingsSiem {
 
     constructor() {
         this.state.register(() => this.load(), inject(DestroyRef));
+    }
+
+    /** Whether the protocol list offers this transport: enabled, or the one stored. */
+    offers(protocol: SiemConfig['protocol']): boolean {
+        const stored = this.siemConfig()?.protocol;
+        return this.registry.offers(siemIntegration(protocol), stored ? siemIntegration(stored) : null);
+    }
+
+    /** The option's words, with *suspended* beside the stored transport the governor switched off. */
+    optionLabel(protocol: SiemConfig['protocol'], label: string): string {
+        return this.registry.isDisabled(siemIntegration(protocol))
+            ? this.i18n.t('integrations.option_suspended', { name: label })
+            : label;
     }
 
     /** The authorization header travels with a webhook only; the syslog protocols have nowhere to put it. */
@@ -163,6 +192,7 @@ export class SettingsSiem {
     }
 
     private load(): void {
+        this.registry.load();
         this.integrationsApi.getSiemConfig().subscribe({
             next: (cfg) => {
                 this.siemConfig.set(cfg);

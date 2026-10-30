@@ -1,4 +1,64 @@
 {
+  "integrations": {
+    "title": "Integrations",
+    "subtitle": "The outside systems this installation may talk to — forges, SIEM transports, AI providers, notification channels and trackers — and whether each is switched on.",
+    "rule_governor": "Switching an integration off suspends what uses it; it deletes nothing, and switching it back on resumes everything as it was. One still in use — the SIEM transport the export sends over — is refused until that configuration is changed. Every switch is audited.",
+    "rule_reader": "Only the platform governor switches an integration on or off. A disabled integration is not offered in the forms, and what already uses it is suspended, never deleted.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "changed_by": "Last changed on {{date}} by {{user}}",
+    "changed_at": "Last changed on {{date}}",
+    "never_changed": "Never changed since installation",
+    "switch_off": "Switch off",
+    "switch_on": "Switch on",
+    "aria_switch_off": "Switch off {{name}}",
+    "aria_switch_on": "Switch on {{name}}",
+    "confirm_title": "Switch off {{name}}?",
+    "confirm_kept": "Nothing is deleted: switching it back on resumes everything as it was.",
+    "confirm_accept": "Switch off",
+    "switched_on": "{{name}} is switched on; what it had suspended resumes.",
+    "switched_off": "{{name}} is switched off; what uses it is suspended.",
+    "refused_on": "{{name}} was not switched on: {{reason}}",
+    "refused_off": "{{name}} was not switched off: {{reason}}",
+    "error_load": "The integrations could not be read.",
+    "error_switch": "The switch was refused.",
+    "open_screen": "Administration → Integrations",
+    "option_suspended": "{{name}} — suspended, integration disabled",
+    "suspended_tag": "Suspended — integration disabled",
+    "families": {
+      "forge": "Forges",
+      "siem": "SIEM transports",
+      "ai": "AI providers",
+      "notification": "Notification channels",
+      "tracker": "Trackers"
+    },
+    "suspends": {
+      "forge": "The connections to this forge are suspended: no discovery, import, new token or change-review reading goes through them, and a change-review line they feed reads no data. Their tokens, snapshots and import links are kept, and a new connection of this kind is refused.",
+      "siem": "The SIEM export can no longer send over this transport, and switching it off is refused while the enabled export uses it. Events meant for it wait in the outbox and leave once it is switched back on.",
+      "ai": "The features that read this provider say the AI is unavailable rather than asking another provider. Nothing recorded is lost.",
+      "notification": "This channel sends nothing. Switching it off is refused while a configuration still uses it, so that no alert is lost in silence.",
+      "tracker": "No ticket is opened, closed or synchronised on this tracker, and its webhook deliveries are ignored. The token, the settings and the links between issues and tickets are kept."
+    },
+    "names": {
+      "forge_github": "GitHub",
+      "forge_gitlab": "GitLab",
+      "siem_webhook": "HTTPS webhook",
+      "siem_syslog_udp": "Syslog over UDP",
+      "siem_syslog_tcp": "Syslog over TCP",
+      "siem_syslog_tls": "Syslog over TLS",
+      "ai_ollama": "Ollama",
+      "ai_openai": "OpenAI",
+      "notification_webhook": "Generic webhook",
+      "notification_teams": "Microsoft Teams",
+      "notification_slack": "Slack",
+      "notification_discord": "Discord",
+      "notification_mail": "E-mail",
+      "tracker_gitlab": "GitLab issues",
+      "tracker_github": "GitHub issues",
+      "tracker_jira": "Jira",
+      "tracker_servicenow": "ServiceNow"
+    }
+  },
   "account": {
       "mfa_password": "Current password",
     "backup_warning": "Write these backup codes down now — they will never be shown again. Each one signs you in once, if you lose your phone.",
@@ -1522,6 +1582,7 @@
     "matrix_load_failed": "Could not load the compatibility rules."
   },
   "menu": {
+    "integrations": "Integrations",
     "administration": "Administration",
     "agents": "Agents",
     "api_keys": "API keys",
@@ -1572,6 +1633,7 @@
     "forge_connections": "Forge connections"
   },
   "notifications": {
+    "channel_suspended": "The platform governor switched off {{integration}}: this channel sends nothing until it is switched back on.",
     "alert_teams": "Tell your teams, as it happens, on",
     "channel_configured": "Configured",
     "channel_inactive": "Inactive",
@@ -2190,6 +2252,14 @@
     "error_export": "The export could not be produced."
   },
   "settings": {
+    "siem_suspended": "The transport the export is set to, {{integration}}, is switched off by the platform governor: nothing is sent, and the events wait in the outbox until it is switched back on. Choose another transport, or have it switched on.",
+    "integration_suspended": "Suspended: the platform governor switched off {{integration}}. The value is kept, and used again once it is switched back on.",
+    "integration_unavailable": "Not offered: the platform governor switched off {{integration}}.",
+    "ticket_provider_none": "None — no tracker",
+    "ticket_provider_gitlab": "GitLab issues",
+    "ticket_provider_github": "GitHub issues",
+    "ticket_provider_jira": "Jira",
+    "ticket_provider_servicenow": "ServiceNow",
     "active_cisa_kev": "Active CISA KEV Exploits",
     "ai_provider_ollama": "Ollama — a model on a host you run",
     "ai_provider_openai": "OpenAI-compatible API",
@@ -2588,6 +2658,7 @@
     "target_project": "Project"
   },
   "titles": {
+    "integrations": "Integrations",
     "dashboard": "Dashboard",
     "repositories": "Repositories",
     "containers": "Containers",
@@ -3789,6 +3860,7 @@
       "read_other": "{{count}} certificates read. The server checks that they are CAs and still valid."
     },
     "connections": {
+      "no_forge_enabled": "Every forge is switched off on this installation: no connection can be made until the platform governor switches one on.",
       "title": "Forge connections",
       "subtitle": "A read-only token per GitLab or GitHub, from which repositories are discovered and imported as targets.",
       "add": "Add a connection",
@@ -4113,6 +4185,9 @@
     "in_progress": "No scan of this target has finished yet."
   },
   "problem": {
+    "integration_disabled": "The integration {{integration}} is switched off on this installation. A platform governor switches it back on in Administration → Integrations; the same request then succeeds.",
+    "integration_in_use": "The integration {{integration}} is in use and was not switched off: a configuration still sends over it. Change that configuration first — point the SIEM export at another transport or switch the export off, empty a notification channel’s address — then switch it off.",
+    "integration_not_switchable": "The integration {{integration}} cannot be switched off in this version: its adapters do not consult the registry yet, so the switch would stop nothing. Nothing was changed.",
     "invalid_request": "{{detail}}",
     "authentication_required": "{{detail}}",
     "forbidden": "{{detail}}",

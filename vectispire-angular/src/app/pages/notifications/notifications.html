@@ -63,7 +63,13 @@
                                     c.name
                                 }}</span>
                             </div>
-                            @if (c.configured) {
+                            @if (suspendedIntegration(c.type)) {
+                                <p-tag
+                                    severity="warn"
+                                    data-testid="channel-suspended"
+                                    [value]="'integrations.suspended_tag' | translate"
+                                ></p-tag>
+                            } @else if (c.configured) {
                                 <p-tag
                                     severity="success"
                                     [value]="'notifications.channel_configured' | translate"
@@ -75,6 +81,13 @@
                                 ></p-tag>
                             }
                         </div>
+
+                        @if (suspendedIntegration(c.type); as integration) {
+                            <p class="mt-2 mb-0 text-xs" data-testid="channel-suspended-hint">
+                                {{ 'notifications.channel_suspended' | translate: { integration: integration } }}
+                                <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
+                            </p>
+                        }
 
                         <!-- Destination URL or Recipient -->
                         <div class="mt-3">
@@ -132,7 +145,12 @@
                                 [label]="'notifications.test_send' | translate"
                                 icon="pi pi-send"
                                 class="p-button-sm p-button-outlined"
-                                [disabled]="!c.configured || !isSecurityLead() || testingChannel() === c.type"
+                                [disabled]="
+                                    !c.configured ||
+                                    !isSecurityLead() ||
+                                    testingChannel() === c.type ||
+                                    suspendedIntegration(c.type) !== null
+                                "
                                 [loading]="testingChannel() === c.type"
                                 (click)="testChannel(c.type)"
                             ></button>

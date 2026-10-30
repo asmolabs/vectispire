@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { messageOf } from '@/app/core/api-error';
+import { INTEGRATIONS_ROUTE, IntegrationRegistry, NOTIFICATION_CHANNEL_INTEGRATIONS } from '@/app/shared/integrations';
 
 @Component({
     selector: 'app-notifications',
@@ -42,6 +43,11 @@ export class Notifications implements OnInit {
     readonly testingChannel = signal<string | null>(null);
     readonly testResults = signal<Record<string, NotificationTestResult>>({});
 
+    readonly integrationsRoute = INTEGRATIONS_ROUTE;
+
+    /** Which channels the platform governor has switched off (decision 0040): a configured one reads suspended. */
+    readonly registry = new IntegrationRegistry();
+
     ngOnInit(): void {
         this.loadChannels();
     }
@@ -49,6 +55,7 @@ export class Notifications implements OnInit {
     loadChannels(): void {
         this.loading.set(true);
         this.error.set(null);
+        this.registry.load();
 
         this.integrationsApi.getNotificationChannels().subscribe({
             next: (data) => {
@@ -86,6 +93,12 @@ export class Notifications implements OnInit {
                 }));
             }
         });
+    }
+
+    /** The channel's integration key when the governor has switched it off, null otherwise. */
+    suspendedIntegration(type: string): string | null {
+        const key = NOTIFICATION_CHANNEL_INTEGRATIONS[type];
+        return key && this.registry.isDisabled(key) ? key : null;
     }
 
     getChannelIcon(type: string): string {

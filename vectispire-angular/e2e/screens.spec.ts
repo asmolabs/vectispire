@@ -177,6 +177,27 @@ const FLOOR_IS_THE_ANSWER: readonly RegExp[] = [
     /^\/api\/v1\/ai-advisor\/status$/
 ];
 
+/** The seventeen integrations this version seeds (V94). */
+const INTEGRATION_KEYS = [
+    'forge.github',
+    'forge.gitlab',
+    'siem.webhook',
+    'siem.syslog_udp',
+    'siem.syslog_tcp',
+    'siem.syslog_tls',
+    'ai.ollama',
+    'ai.openai',
+    'notification.webhook',
+    'notification.teams',
+    'notification.slack',
+    'notification.discord',
+    'notification.mail',
+    'tracker.gitlab',
+    'tracker.github',
+    'tracker.jira',
+    'tracker.servicenow'
+];
+
 /**
  * Everything the shell asks for before any screen does, and a floor under the rest.
  *
@@ -304,6 +325,21 @@ async function stubEverything(page: Page): Promise<void> {
         gitlabUrl: null
     });
     await stub(page, '**/api/v1/auth/me', SESSION.user);
+    // **The integrations' registry as an upgrade seeds it**, every one enabled (decision 0040 §5). The forge
+    // connections, the settings and the notification channels read it to filter what they offer, so their
+    // captures would otherwise rest on the catch-all's `{}`.
+    await stub(
+        page,
+        '**/api/v1/integrations',
+        INTEGRATION_KEYS.map((key) => ({
+            key,
+            family: key.slice(0, key.indexOf('.')),
+            name: key.slice(key.indexOf('.') + 1),
+            enabled: true,
+            updatedAt: null,
+            updatedBy: null
+        }))
+    );
     await page.route('**/api/v1/auth/login', (route) =>
         route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESSION) })
     );
@@ -3703,6 +3739,44 @@ test.describe('documentation screenshots', () => {
         await expect(page.getByTestId('connection')).toHaveCount(2, { timeout: 15_000 });
         await expect(page.getByTestId('connection-address').first()).toHaveText('https://git.example.org');
         await shoot(page, 'forge-connections', locale);
+    });
+
+    test('integrations', async ({ page }, testInfo) => {
+        const locale = edition(testInfo.project.name);
+        await stubEverything(page);
+        // The platform governor's view, with its switches: the screen's reason to exist. The login stub is
+        // the floor's, its role replaced.
+        await page.route('**/api/v1/auth/login', (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ ...SESSION, user: { ...SESSION.user, role: 'SUPERUSER' } })
+            })
+        );
+        // GitHub switched off a fortnight ago, syslog over UDP never used here: two gestures, with who made them.
+        const switchedOff: Record<string, string> = {
+            'forge.github': '2026-10-14T08:30:00Z',
+            'siem.syslog_udp': '2026-10-21T16:05:00Z'
+        };
+        await stub(
+            page,
+            '**/api/v1/integrations',
+            INTEGRATION_KEYS.map((key) => ({
+                key,
+                family: key.slice(0, key.indexOf('.')),
+                name: key.slice(key.indexOf('.') + 1),
+                enabled: !(key in switchedOff),
+                updatedAt: switchedOff[key] ?? null,
+                updatedBy: key in switchedOff ? 'c.moreau' : null
+            }))
+        );
+        await enterApp(page, locale);
+        await openScreen(page, '/integrations');
+
+        await expect(page.getByTestId('integration-forge.github').getByTestId('integration-state')).toBeVisible({
+            timeout: 15_000
+        });
+        await shoot(page, 'integrations', locale);
     });
 
     test('forge discovery, selection and import', async ({ page }, testInfo) => {
