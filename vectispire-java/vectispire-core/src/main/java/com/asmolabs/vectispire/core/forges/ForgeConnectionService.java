@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.forges.ForgeEdition;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.PinnedCa;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
@@ -25,8 +26,8 @@ import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkRepository;
-import com.asmolabs.vectispire.core.forges.persistence.ForgeReviewReadingRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeReviewReadingRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -132,8 +133,16 @@ public class ForgeConnectionService implements SealedStore {
         this.transactions = new TransactionTemplate(transactions);
     }
 
-    public List<ForgeConnectionView> list() {
-        return connections.findAllByOrderByNameAsc().stream().map(this::viewOf).toList();
+    /**
+     * The connections by name — unique — all of them or one page.
+     *
+     * @param limit rows per page, or null for every connection ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ForgeConnectionView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<ForgeConnectionEntity> every = connections.findAllByOrderByNameAsc();
+        return window.map(page -> page.of(every)).orElse(every).stream().map(this::viewOf).toList();
     }
 
     public ForgeConnectionView get(UUID id) {

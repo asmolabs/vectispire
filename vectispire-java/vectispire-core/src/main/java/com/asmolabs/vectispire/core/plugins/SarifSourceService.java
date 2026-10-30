@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.sarif.SarifReport;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.ApiKeyAdministrationService;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -90,8 +92,16 @@ public class SarifSourceService {
             String slug, String name, UUID apiKeyId, Long projectId, Long repositoryId, List<String> tools,
             List<String> kinds) {}
 
-    public List<SarifSourceView> list() {
-        List<SarifSourceEntity> rows = sources.findAllByOrderBySlugAsc();
+    /**
+     * The declared sources by slug, all of them or one page, the page's keys alone named.
+     *
+     * @param limit rows per page, or null for every source ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<SarifSourceView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<SarifSourceEntity> every = sources.findAllByOrderBySlugAsc();
+        List<SarifSourceEntity> rows = window.map(page -> page.of(every)).orElse(every);
         Map<UUID, String> keyNames = apiKeys.names(rows.stream().map(SarifSourceEntity::getApiKeyId).toList());
         return rows.stream().map(row -> SarifSourceView.of(row, keyNames.get(row.getApiKeyId()))).toList();
     }

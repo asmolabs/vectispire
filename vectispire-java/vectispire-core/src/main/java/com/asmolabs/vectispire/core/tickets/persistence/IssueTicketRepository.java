@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public interface IssueTicketRepository extends JpaRepository<IssueTicketEntity, Long> {
 
-    List<IssueTicketEntity> findByIssueIdOrderByCreatedAtDesc(Long issueId);
+    List<IssueTicketEntity> findByIssueIdOrderByCreatedAtDescIdDesc(Long issueId);
 
     @Transactional
     void deleteByIssueIdIn(java.util.Collection<Long> issueIds);

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
@@ -120,8 +121,16 @@ public class ReportPluginService {
 
     // ------------------------------------------------------------------ reading
 
-    public List<ReportPluginView> list() {
-        List<ReportPluginEntity> rows = plugins.findAllByOrderByIdAsc();
+    /**
+     * The registered report plugins by id, all of them or one page, the page's manifests alone read.
+     *
+     * @param limit rows per page, or null for every plugin ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ReportPluginView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<ReportPluginEntity> every = plugins.findAllByOrderByIdAsc();
+        List<ReportPluginEntity> rows = window.map(page -> page.of(every)).orElse(every);
         Map<String, List<ReportPluginManifestEntity>> history = manifests
                 .findByPluginIdInOrderByRegisteredAtDescDigestAsc(rows.stream().map(ReportPluginEntity::getId).toList())
                 .stream()
@@ -375,10 +384,19 @@ public class ReportPluginService {
 
     // ------------------------------------------------------------------ activations
 
-    /** The report plugins switched on for a project the caller sees whole; 404 otherwise. */
-    public List<ReportPluginActivationView> activations(long projectId, VisibilityService.Allowance allowance) {
+    /**
+     * The report plugins switched on for a project the caller sees whole, by plugin id, all of them or one page;
+     * 404 otherwise, before the window is read.
+     *
+     * @param limit rows per page, or null for every activation ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ReportPluginActivationView> activations(
+            long projectId, VisibilityService.Allowance allowance, Integer limit, Integer offset) {
         requireWholeProject(projectId, allowance);
-        List<ReportPluginActivationEntity> rows = activations.findByProjectIdOrderByPluginIdAsc(projectId);
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<ReportPluginActivationEntity> every = activations.findByProjectIdOrderByPluginIdAsc(projectId);
+        List<ReportPluginActivationEntity> rows = window.map(page -> page.of(every)).orElse(every);
         Map<String, String> names = plugins.findAllById(rows.stream().map(ReportPluginActivationEntity::getPluginId).toList())
                 .stream()
                 .collect(Collectors.toMap(ReportPluginEntity::getId, ReportPluginEntity::getName));

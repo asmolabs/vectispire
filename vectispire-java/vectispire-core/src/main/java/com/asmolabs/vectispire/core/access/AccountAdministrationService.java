@@ -11,16 +11,17 @@ import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.internal.AccountAdminService;
 import com.asmolabs.vectispire.core.access.internal.GrantTargets;
-import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
-import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -81,7 +82,12 @@ public class AccountAdministrationService {
     public record AccountView(UserView user, long activeSessions) {}
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
-    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {}
+    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {
+
+        /** By kind, then id: the primary key's order after the owner's column. */
+        static final Comparator<TargetAssignment> ORDER =
+                Comparator.comparing(TargetAssignment::kind).thenComparing(TargetAssignment::id);
+    }
 
     public record NewAccount(String username, String password, String role, String email, String displayName) {}
 
@@ -399,12 +405,21 @@ public class AccountAdministrationService {
      *
      * <p>A project grant is listed as the project, not as its repositories: the grant is what an
      * administrator made and can revoke, and what it resolves to changes as repositories are filed.
+     *
+     * <p>By kind, then id — the primary key's order, made explicit so that the pages are the list cut on every
+     * engine — all of them or one page, named for the page's rows only.
+     *
+     * @param limit rows per page, or null for every target ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses — after the account's 404
      */
-    public List<GrantableTargets.TargetGrant> targets(long id) {
+    public List<GrantableTargets.TargetGrant> targets(long id, Integer limit, Integer offset) {
         requireAccount(id);
-        return targets.named(assignments.findByUserId(id).stream()
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<TargetAssignment> every = assignments.findByUserId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
-                .toList());
+                .sorted(TargetAssignment.ORDER)
+                .toList();
+        return targets.named(window.map(page -> page.of(every)).orElse(every));
     }
 
     /**

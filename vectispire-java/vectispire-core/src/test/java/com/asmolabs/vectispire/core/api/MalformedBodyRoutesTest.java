@@ -106,10 +106,10 @@ class MalformedBodyRoutesTest extends ApiTestBase {
         assertThat(link(admin, path, "K".repeat(129), "https://jira.example.com/browse/SEC-1")).isEqualTo(400);
         assertThat(link(admin, path, "SEC-1", "https://jira.example.com/" + "u".repeat(500))).isEqualTo(400);
         assertThat(link(admin, path, "SEC-1", " ")).isEqualTo(400);
-        assertThat(tickets.findByIssueIdOrderByCreatedAtDesc(id)).isEmpty();
+        assertThat(tickets.findByIssueIdOrderByCreatedAtDescIdDesc(id)).isEmpty();
 
         assertThat(link(admin, path, " SEC-1 ", "https://jira.example.com/browse/SEC-1")).isEqualTo(201);
-        assertThat(tickets.findByIssueIdOrderByCreatedAtDesc(id)).singleElement()
+        assertThat(tickets.findByIssueIdOrderByCreatedAtDescIdDesc(id)).singleElement()
                 .satisfies(ticket -> assertThat(ticket.getTicketKey()).isEqualTo("SEC-1"));
     }
 

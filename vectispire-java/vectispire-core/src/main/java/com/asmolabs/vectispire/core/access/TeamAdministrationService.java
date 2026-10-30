@@ -130,7 +130,12 @@ public class TeamAdministrationService {
     }
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
-    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {}
+    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {
+
+        /** By kind, then id: the primary key's order after the owner's column. */
+        static final Comparator<TargetAssignment> ORDER =
+                Comparator.comparing(TargetAssignment::kind).thenComparing(TargetAssignment::id);
+    }
 
     /**
      * The teams by name, all of them or one page. A name is unique whatever its casing, so the order is one a
@@ -240,9 +245,20 @@ public class TeamAdministrationService {
                 "Team deleted: " + team.getName() + " (" + members + " member(s), " + owned + " target(s))");
     }
 
-    public List<Long> members(long id) {
+    /**
+     * The team's members by account id, all of them or one page.
+     *
+     * <p>Sorted here rather than left to the table: the pages of a list are that list cut, which needs an order
+     * every engine agrees on. It is the primary key's, which MySQL answered before paging existed.
+     *
+     * @param limit rows per page, or null for every member ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses — after the team's 404
+     */
+    public List<Long> members(long id, Integer limit, Integer offset) {
         requireTeam(id);
-        return memberships.findByTeamId(id).stream().map(row -> row.getId().userId()).toList();
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<Long> every = memberships.findByTeamId(id).stream().map(row -> row.getId().userId()).sorted().toList();
+        return window.map(page -> page.of(every)).orElse(every);
     }
 
     /**
@@ -277,12 +293,23 @@ public class TeamAdministrationService {
         return wanted;
     }
 
-    /** What the team owns, each target named — a project grant included, which no selector lists. */
-    public List<GrantableTargets.TargetGrant> targets(long id) {
+    /**
+     * What the team owns, each target named — a project grant included, which no selector lists.
+     *
+     * <p>By kind, then id — the primary key's order, made explicit for the same reason as {@link #members}'s — all
+     * of them or one page, named for the page's rows only.
+     *
+     * @param limit rows per page, or null for every target ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses — after the team's 404
+     */
+    public List<GrantableTargets.TargetGrant> targets(long id, Integer limit, Integer offset) {
         requireTeam(id);
-        return grantable.named(targets.findByTeamId(id).stream()
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<TargetAssignment> every = targets.findByTeamId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
-                .toList());
+                .sorted(TargetAssignment.ORDER)
+                .toList();
+        return grantable.named(window.map(page -> page.of(every)).orElse(every));
     }
 
     /**

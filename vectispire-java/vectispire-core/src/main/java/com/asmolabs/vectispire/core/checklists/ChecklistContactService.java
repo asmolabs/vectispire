@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.checklists.ChecklistReminder.Gap;
 import com.asmolabs.vectispire.common.domain.checklists.ContactProfiles;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.AccountDirectory;
 import com.asmolabs.vectispire.core.access.AccountNames;
@@ -128,13 +129,22 @@ public class ChecklistContactService {
         return new ChecklistContactsView(projectId, checklist.getRevision(), draft, profiles);
     }
 
-    /** The accounts a profile of this project may be linked to, by user name. */
-    public List<ChecklistContactCandidate> candidates(long projectId, VisibilityService.Allowance allowance) {
+    /**
+     * The accounts a profile of this project may be linked to, by user name, all of them or one page — cut from
+     * the accounts that can fill the project's checklist, never from every account. The project's 404 comes first.
+     *
+     * @param limit rows per page, or null for every candidate ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ChecklistContactCandidate> candidates(
+            long projectId, VisibilityService.Allowance allowance, Integer limit, Integer offset) {
         Guarded guarded = requireWhole(projectId, allowance);
-        return accounts.active().stream()
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<ChecklistContactCandidate> every = accounts.active().stream()
                 .filter(account -> canFill(account, guarded.project().projectId(), guarded.repositoryIds()))
                 .map(account -> new ChecklistContactCandidate(account.id(), nameOf(account).orElse(null)))
                 .toList();
+        return window.map(page -> page.of(every)).orElse(every);
     }
 
     /**

@@ -470,8 +470,14 @@ public class RepositoryAdministrationService {
      *
      * <p>Grouped over the rows the caller sees and computed from the URLs as they are, not from the
      * stored identity: a row the keying has not reached yet is listed all the same.
+     *
+     * <p>With a window, one page of groups — never a group cut in two, which would read as a target filed once.
+     *
+     * @param limit groups per page, or null for every group ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
      */
-    public List<Duplicated> duplicates(Visibility allowed) {
+    public List<Duplicated> duplicates(Visibility allowed, Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         Map<RepositoryIdentity, List<Listed>> byTarget = new java.util.LinkedHashMap<>();
         list(allowed).stream()
                 .sorted(java.util.Comparator.comparing(listed -> listed.repository().id()))
@@ -479,10 +485,11 @@ public class RepositoryAdministrationService {
                                 listed.repository().url(), listed.repository().branch(), listed.repository().subPath())
                         .ifPresent(identity -> byTarget.computeIfAbsent(identity, ignored -> new java.util.ArrayList<>())
                                 .add(listed)));
-        return byTarget.entrySet().stream()
+        List<Duplicated> every = byTarget.entrySet().stream()
                 .filter(group -> group.getValue().size() > 1)
                 .map(group -> new Duplicated(group.getKey(), List.copyOf(group.getValue())))
                 .toList();
+        return window.map(page -> page.of(every)).orElse(every);
     }
 
     /** One target filed more than once, and each of its filings. */

@@ -63,7 +63,7 @@ class ForgeConnectionKeyRotationTest {
                 mock(ForgeImportLinkRepository.class), mock(ForgeReviewReadingRepository.class), probes, during,
                 mock(AuditLogService.class), mock(ForgeTokenWatch.class), Clock.systemUTC(), mock(PlatformTransactionManager.class));
 
-        assertThat(service.list()).singleElement()
+        assertThat(service.list(null, null)).singleElement()
                 .satisfies(view -> assertThat(view.encryptionState()).isEqualTo("previous_key"));
 
         ForgeConnectionView saved = service.update(id, new ForgeConnectionService.Change("GitLab", null, null),

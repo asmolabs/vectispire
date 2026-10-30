@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.tickets;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
 import com.asmolabs.vectispire.core.access.RowVisibility;
@@ -15,6 +16,7 @@ import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,9 +54,19 @@ public class TicketLinkService {
         return RowVisibility.requireVisibleIssue(issues.issue(issueId).orElse(null), TicketLinkService::targetOf, visibility);
     }
 
-    public List<IssueTicketView> list(long issueId, Visibility visibility) {
+    /**
+     * The issue's tickets, newest first and by id among those linked in the same instant — all of them or one
+     * page. The issue's visibility is checked first, so a refused window says nothing of a hidden issue.
+     *
+     * @param limit rows per page, or null for every ticket ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<IssueTicketView> list(long issueId, Visibility visibility, Integer limit, Integer offset) {
         visibleIssue(issueId, visibility);
-        return tickets.findByIssueIdOrderByCreatedAtDesc(issueId).stream().map(IssueTicketView::of).toList();
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<IssueTicketView> every =
+                tickets.findByIssueIdOrderByCreatedAtDescIdDesc(issueId).stream().map(IssueTicketView::of).toList();
+        return window.map(page -> page.of(every)).orElse(every);
     }
 
     /**

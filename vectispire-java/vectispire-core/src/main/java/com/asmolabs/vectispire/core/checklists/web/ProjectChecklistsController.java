@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.checklists.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
@@ -19,6 +20,7 @@ import com.asmolabs.vectispire.core.checklists.ChecklistRevisionSummary;
 import com.asmolabs.vectispire.core.checklists.ChecklistView;
 import com.asmolabs.vectispire.core.checklists.ProjectChecklistService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -128,8 +130,14 @@ public class ProjectChecklistsController {
     @GetMapping
     @RequiresAccount
     public List<ChecklistRevisionSummary> list(
-            @PathVariable long projectId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return checklists.list(projectId, allowanceOf(principal));
+            @PathVariable long projectId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return checklists.list(projectId, allowanceOf(principal), limit, offset);
     }
 
     @Operation(summary = "Read project checklist context", description = "The project's name, as a checklist's "

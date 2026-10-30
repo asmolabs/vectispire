@@ -1,9 +1,12 @@
 package com.asmolabs.vectispire.core.targets.web;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.targets.GitTokenAdministrationService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,8 +48,13 @@ public class GitTokensController {
     public record GitTokenCreateRequest(String name, String host, String username, String token) {}
 
     @GetMapping
-    public List<GitTokenSummary> list() {
-        return administration.list().stream().map(GitTokensController::summaryOf).toList();
+    public List<GitTokenSummary> list(
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return administration.list(limit, offset).stream().map(GitTokensController::summaryOf).toList();
     }
 
     @PostMapping

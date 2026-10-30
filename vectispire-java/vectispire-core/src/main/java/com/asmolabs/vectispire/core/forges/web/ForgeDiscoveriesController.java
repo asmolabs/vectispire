@@ -1,11 +1,14 @@
 package com.asmolabs.vectispire.core.forges.web;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.forges.ForgeDiscoveryService;
 import com.asmolabs.vectispire.core.forges.ForgeDiscoveryView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -60,8 +63,15 @@ public class ForgeDiscoveriesController {
 
     @Operation(summary = "List forge discoveries", description = "The connection's last fifty discoveries, newest first.")
     @GetMapping
-    public List<ForgeDiscoveryView> listForgeDiscoveries(@PathVariable UUID connectionId) {
-        return discoveries.list(connectionId);
+    public List<ForgeDiscoveryView> listForgeDiscoveries(
+            @PathVariable UUID connectionId,
+            @Parameter(description = "Rows per page, 1 to " + ListWindow.MAX_LIMIT + "; 400 beyond. Absent, with no offset, the "
+                    + "latest 50 discoveries are answered, as before paging existed.",
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return discoveries.list(connectionId, limit, offset);
     }
 
     @Operation(summary = "Read forge discovery", description = "What a screen polls: state (pending, running, completed, "

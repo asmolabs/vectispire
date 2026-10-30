@@ -154,7 +154,7 @@ class BuildSbomCompletionIntegrationTest {
                 "spring-core", "6.1.14 both UNKNOWN Apache-2.0",
                 "spring-jcl", "6.1.14 build null Apache-2.0",
                 "left-pad", "1.3.0 scanner null null"));
-        assertThat(builds.history(repository)).singleElement()
+        assertThat(builds.history(repository, Optional.empty())).singleElement()
                 .satisfies(view -> assertThat(view.completedScanId()).isEqualTo(scan));
 
         new TransactionTemplate(transactions).execute(status -> builds.record(new BuildSbomInventory.Accepted(1L,

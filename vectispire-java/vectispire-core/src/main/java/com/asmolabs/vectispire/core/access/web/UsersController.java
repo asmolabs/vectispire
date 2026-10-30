@@ -2,8 +2,8 @@ package com.asmolabs.vectispire.core.access.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
-import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
+import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -171,8 +171,14 @@ public class UsersController {
 
     /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
     @GetMapping("/{id}/targets")
-    public List<GrantableTargets.TargetGrant> targets(@PathVariable long id) {
-        return accounts.targets(id);
+    public List<GrantableTargets.TargetGrant> targets(
+            @PathVariable long id,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return accounts.targets(id, limit, offset);
     }
 
     /** Replaces the set wholesale, so that removing a target is something the screen can do. */
