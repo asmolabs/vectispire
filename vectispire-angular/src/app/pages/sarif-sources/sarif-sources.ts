@@ -247,6 +247,8 @@ export class SarifSources {
     }
 
     declare(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         if (!this.canDeclare()) return;
         this.saving.set(true);
         this.formError.set(null);

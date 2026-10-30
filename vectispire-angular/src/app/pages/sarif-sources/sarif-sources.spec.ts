@@ -165,6 +165,29 @@ describe('the declared sources', () => {
         expect(kinds('future')).toEqual(['spdx']);
     });
 
+    it('is a form requiring the slug and the name, which a submit cannot get past', async () => {
+        await start('SUPERUSER');
+        fixture.componentInstance.openDeclare();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#source-slug')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#source-name')!.required).toBe(true);
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        http.expectNone({ method: 'POST', url: '/api/v1/sarif-sources' });
+
+        (document.querySelector('#source-kind-coverage') as HTMLInputElement).click();
+        (document.querySelector('#source-kind-sarif') as HTMLInputElement).click();
+        Object.assign(fixture.componentInstance.draft, {
+            slug: 'cov-ci',
+            name: 'Coverage CI',
+            scopeId: 12,
+            apiKeyId: REPORTS_KEY
+        });
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match({ method: 'POST', url: '/api/v1/sarif-sources' }).length).toBe(1);
+    });
+
     it('asks for the tools only while SARIF is among the kinds, and sends none without it', async () => {
         await start('SUPERUSER');
         const page = fixture.componentInstance;

@@ -257,15 +257,17 @@
     [modal]="true"
     [style]="{ width: '48rem', maxWidth: '95vw' }"
 >
-    <div class="flex flex-col gap-3">
+    <form class="flex flex-col gap-3" (ngSubmit)="saveManifest()">
         <label for="report-manifest" class="font-medium">{{ 'report_plugins.field_manifest' | translate }}</label>
         <textarea
             pTextarea
             id="report-manifest"
+            required
             name="report-manifest"
             rows="16"
             class="font-mono text-xs w-full"
             spellcheck="false"
+            [ngModelOptions]="{ standalone: true }"
             [ngModel]="manifestText()"
             (ngModelChange)="manifestText.set($event)"
         ></textarea>
@@ -288,7 +290,7 @@
         @if (manifestError(); as message) {
             <p-message severity="error" [closable]="false" data-testid="manifest-error">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="manifestVisible.set(false)" />
         <p-button
@@ -310,7 +312,7 @@
     [modal]="true"
     [style]="{ width: '36rem', maxWidth: '95vw' }"
 >
-    <div class="flex flex-col gap-3">
+    <form class="flex flex-col gap-3" (ngSubmit)="withdraw()">
         <p class="m-0 text-sm font-mono break-all">{{ withdrawing()?.manifest?.digest }}</p>
         <p class="m-0 text-sm">{{ 'report_plugins.withdraw_explain' | translate }}</p>
         <label for="report-withdrawal-justification" class="font-medium">{{
@@ -319,9 +321,11 @@
         <textarea
             pTextarea
             id="report-withdrawal-justification"
+            required
             name="report-withdrawal-justification"
             rows="4"
             [maxlength]="withdrawalMax"
+            [ngModelOptions]="{ standalone: true }"
             [ngModel]="withdrawalText()"
             (ngModelChange)="withdrawalText.set($event)"
         ></textarea>
@@ -332,7 +336,7 @@
         @if (withdrawalError(); as message) {
             <p-message severity="error" [closable]="false" data-testid="withdrawal-error">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeWithdrawal()" />
         <p-button

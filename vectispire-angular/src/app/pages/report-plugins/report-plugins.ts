@@ -183,6 +183,8 @@ export class ReportPlugins {
     }
 
     saveManifest(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         const manifest = this.manifestCheck()?.manifest;
         if (!manifest) return;
         const target = this.manifestFor();
@@ -274,8 +276,12 @@ export class ReportPlugins {
     }
 
     withdraw(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.withdrawalBusy()) return;
         const target = this.withdrawing();
-        if (!target) return;
+        // The bounds the button is disabled outside of: a submit of the form must not get past them.
+        const length = this.withdrawalLength();
+        if (!target || length < WITHDRAWAL_MIN || length > WITHDRAWAL_MAX) return;
         this.withdrawalBusy.set(true);
         this.withdrawalError.set(null);
         this.api

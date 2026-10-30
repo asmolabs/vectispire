@@ -163,6 +163,8 @@ export class Teams {
     }
 
     save(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         const existing = this.editing();
         const payload = { name: this.form.name, description: this.form.description || null };
         this.saving.set(true);
