@@ -1,0 +1,171 @@
+<p-dialog
+    [header]="editing() ? ('repositories.header_edit' | translate) : ('repositories.header_add' | translate)"
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+>
+    <form id="repository-form" class="flex flex-col gap-4" (ngSubmit)="submit()">
+        <div class="flex flex-col gap-2">
+            <label for="url" class="font-medium">{{ 'repositories.url_label' | translate }}</label>
+            <input
+                pInputText
+                id="url"
+                required
+                [attr.aria-invalid]="!!formError()"
+                [attr.aria-describedby]="formError() ? 'repository-form-error' : null"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.url"
+                (ngModelChange)="onUrlChange()"
+                placeholder="https://github.com/org/repo.git"
+            />
+            <small class="text-muted-color">{{ 'repositories.url_hint' | translate }}</small>
+            @if (urlCarriesSecret()) {
+                <p-message id="url-carries-secret" severity="warn" [closable]="false">{{
+                    'repositories.url_carries_secret' | translate
+                }}</p-message>
+            }
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="tier" class="font-medium">{{ 'repositories.target_tier' | translate }}</label>
+            <select
+                id="tier"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.tier"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="TIER_1_MISSION_CRITICAL">{{ 'repositories.tier_option_1' | translate }}</option>
+                <option value="TIER_2_BUSINESS_OPERATIONAL">{{ 'repositories.tier_option_2' | translate }}</option>
+                <option value="TIER_3_INTERNAL">{{ 'repositories.tier_option_3' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="branch" class="font-medium">{{ 'repositories.branch' | translate }}</label>
+            <input
+                pInputText
+                id="branch"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.branch"
+                placeholder="main"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="name" class="font-medium"
+                >{{ 'repositories.name_label' | translate }}
+                <span class="text-muted-color font-normal">{{ 'common.optional' | translate }}</span></label
+            >
+            <input pInputText id="name" [ngModelOptions]="{ standalone: true }" [(ngModel)]="form.name" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="sub-path" class="font-medium"
+                >{{ 'repositories.subpath_label' | translate }}
+                <span class="text-muted-color font-normal">{{ 'common.optional' | translate }}</span></label
+            >
+            <input
+                pInputText
+                id="sub-path"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.subPath"
+                placeholder="services/billing"
+            />
+            <small class="text-muted-color">
+                {{ 'repositories.subpath_hint_before' | translate }}
+                <strong>{{ 'repositories.subpath_hint_strong' | translate }}</strong
+                >{{ 'repositories.subpath_hint_after' | translate }}
+            </small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="agent-label" class="font-medium"
+                >{{ 'repositories.agent_label' | translate }}
+                <span class="text-muted-color font-normal">{{ 'common.optional' | translate }}</span></label
+            >
+            <input
+                pInputText
+                id="agent-label"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.requiredAgentLabel"
+                placeholder="customer-network"
+            />
+            <small class="text-muted-color">
+                {{ 'repositories.agent_hint' | translate }}
+            </small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="credential-kind" class="font-medium">{{ 'repositories.credential_label' | translate }}</label>
+            <p-select
+                inputId="credential-kind"
+                [options]="credentialKinds()"
+                optionLabel="label"
+                optionValue="value"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.credentialKind"
+                styleClass="w-full"
+            />
+        </div>
+        @if (form.credentialKind === 'ssh') {
+            <div class="flex flex-col gap-2">
+                <label for="ssh-key" class="font-medium">{{ 'repositories.ssh_key_label' | translate }}</label>
+                <p-select
+                    inputId="ssh-key"
+                    [options]="sshKeyOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="form.sshKeyId"
+                    styleClass="w-full"
+                />
+                <small class="text-muted-color">
+                    {{ 'repositories.key_hint_before' | translate }}
+                    <a routerLink="/ssh-keys" class="underline">{{ 'repositories.key_hint_link' | translate }}</a>
+                    {{ 'repositories.key_hint_mid' | translate }}
+                    <strong>{{ 'repositories.key_hint_strong' | translate }}</strong
+                    >{{ 'repositories.key_hint_after' | translate }}
+                </small>
+            </div>
+        }
+        @if (form.credentialKind === 'https') {
+            <div class="flex flex-col gap-2">
+                <label for="https-token" class="font-medium">{{ 'repositories.https_token_label' | translate }}</label>
+                <p-select
+                    inputId="https-token"
+                    [options]="httpsTokenOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [placeholder]="'repositories.https_token_placeholder' | translate"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="form.httpsTokenId"
+                    styleClass="w-full"
+                />
+                @if (httpsTokenOptions().length === 0) {
+                    <small id="no-token-for-host" class="text-muted-color">
+                        {{ 'repositories.https_token_none_for_host' | translate: { host: urlHost() ?? '' } }}
+                        <a routerLink="/git-tokens" class="underline">{{
+                            'repositories.https_token_link' | translate
+                        }}</a>
+                    </small>
+                } @else {
+                    <small class="text-muted-color">{{ 'repositories.https_token_hint' | translate }}</small>
+                }
+            </div>
+        }
+        <app-schedule-fields
+            idPrefix="repository"
+            [(interval)]="form.scanIntervalMinutes"
+            [(cron)]="form.scanCron"
+            [(manualOnly)]="form.scanManualOnly"
+            [defaultMinutes]="defaultScanMinutes()"
+        />
+        @if (formError(); as message) {
+            <!-- The server's wording is what names the rejected cron field by field; a generic
+                 "invalid" would send somebody back to guessing. -->
+            <p-message severity="error" [closable]="false" id="repository-form-error">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button
+            [label]="editing() ? ('common.save' | translate) : ('common.add' | translate)"
+            [loading]="saving()"
+            (onClick)="submit()"
+        />
+    </ng-template>
+</p-dialog>

@@ -1,0 +1,22 @@
+<p-dialog
+    [header]="'repositories.delete_confirm' | translate"
+    [(visible)]="page.deleteVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    @if (page.pendingDelete(); as repository) {
+        <p class="m-0">
+            <span class="font-medium">{{ repository.url }}</span
+            >{{ 'repositories.delete_body' | translate: { count: repository.openIssues } }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="page.deleteVisible.set(false)" />
+        <p-button
+            [label]="'common.delete' | translate"
+            severity="danger"
+            [loading]="page.saving()"
+            (onClick)="confirmDelete()"
+        />
+    </ng-template>
+</p-dialog>

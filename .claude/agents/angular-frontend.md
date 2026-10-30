@@ -134,7 +134,9 @@ disagreeing with it reads as a wrong figure.
 
 Standalone components, `inject()`, signals, `LatestRequest` for requests whose answers can overtake
 each other. Comments explain why, not what, in English — match the surrounding density. Keep the
-e2e selectors (`id`s, test ids) the Playwright specs use; grep `e2e/` before moving markup.
+e2e selectors (`id`s, test ids) the Playwright specs use; grep `e2e/` before moving markup. Grep
+`ci/` and `scripts/` too before moving code out of a file: `ci/check-cli-pin.sh` reads the CLI's pinned
+digest out of the repositories screen's source, and the split that moved it turned `docs-consistency` red.
 
 ## Testing
 
