@@ -42,15 +42,28 @@ linking on unverified claims. **A control lifted is a credential to remove**: wh
 guard on a credential (the forced password change), ask whether that credential still works afterwards,
 by every way in — a binding to a provider subject never stopped the password sign-in from reading the
 stored hash, so lifting the flag on a federated account left an administrator's password valid for good,
-and the held session opened with it became a full one.
+and the held session opened with it became a full one. **A ceiling counted per account is a lockout
+anyone can apply** — five failures from any client once locked the governor out; ask who can exhaust a
+throttle for somebody else. **Two readers of one header or setting disagree**: the bearer ceiling read
+`Bearer` and one space, the authentication filter any whitespace, so a token after a tab was resolved
+and never counted. Look for a second parser of anything a guard reads.
+
+**A rule checked at one step, walked around in two.** The SCIM directory could lower an unbound
+security lead to User in one request and bind it to a subject in the next, because binding read the
+role at the binding. When a guard reads a state an outside system (directory, forge, tracker) can
+change, ask what that system can do in two requests.
 
 **Trust boundaries.** An actor or author taken from a payload, a webhook, an uploaded document
 instead of the principal. Anonymous routes (`@OpenToAnonymous`, webhooks, badges) and what they move
-or reveal when no secret is configured.
+or reveal when no secret is configured. An identifier an outside system sends matched outside its
+namespace: the tracker webhook matched the bare ticket number, and an event about issue 12 of any
+GitHub repository moved every finding whose ticket was 12 in another.
 
 **Outbound and untrusted input.** Destinations a non-administrator can set (webhooks, trackers,
 SIEM, AI endpoints) reaching internal services — the Docker socket proxy and the database above all;
-the guard is `OutboundUrlGuard` → `PinnedHttpSender`. Paths built from user data (`subPath`, ticket
+the guard is `OutboundUrlGuard` → `PinnedHttpSender`. Every way out counts, not only HTTP: a
+repository URL naming the daemon, the database or the cluster API was cloned from until
+`GitHostAllowlist` asked `ReservedEndpoints` too. Paths built from user data (`subPath`, ticket
 references pasted into URLs). Repository content parsed in the JVM: symlinks, size, regex cost.
 Where a credential goes: a clone token bound to its host (`HostBoundCredentials`), no HTTP redirect
 followed by JGit or `PinnedHttpSender`, a sealed secret never accepted in clear once sealing was
@@ -72,7 +85,12 @@ does not match its published half; a verification route that accepts the caller'
 without PAE. **A `Sensitivity.SECRET` setting copied into a message** — an audit description, a SIEM
 event, a chat or mail alert — leaves the screen that withholds it: the tracker token alerts carried the
 tracker's URL into the chained audit log the auditor reads and to every channel. Follow each setting a
-sentence is built from to its sensitivity.
+sentence is built from to its sensitivity — a connection test's answer included: the model endpoint's
+test once named the endpoint to anyone allowed to press it. **A refusal that depends on the value sent
+is an oracle**: an administrator-only secret setting was accepted from anyone when it matched the
+stored value. **A key rotation is finished when every sealed store says so**: three stores were checked
+and eight were not, so removing the old key broke second factors, signatures and the SIEM header. A new
+sealed value implements `SealedStore`; check that `EncryptionCensus` counts it.
 
 **Deployment.** The compose topology — which service reaches the Docker proxy, with which rights,
 on which network as the database; workflow permissions and third-party code running next to them.
@@ -82,7 +100,22 @@ Three things already found here, each verified on a running stack: a secret in a
 container on the host by the container's own address, before network isolation applies; and a
 service `internal: true` networks cannot reach is still reachable through the control plane if a
 setting's URL may name it — `OutboundUrlGuard`'s reserved endpoints are what refuse that. Claim a
-topology property only after checking it from a container, not from reading the file.
+topology property only after checking it from a container, not from reading the file. The same holds
+in a cluster: a NetworkPolicy is not in force when a pod starts (kube-router lets a new pod through for
+its first fraction of a second), so an isolation claim is checked from the pod, after it is observed.
+
+## Reviewing a diff
+
+A diff is reviewed for what it removes as much as for what it adds. **Look for silent reverts
+mechanically**, not by reading: on 2026-10-30 eight commits made from a working tree older than their
+branch's base put back the previous content of 22 files and undid three merged changes (#142–#144,
+one of them a security fix), with messages that described only the intended change. For each
+non-merge commit in the range, flag any file whose new content equals an older version of itself, and
+any commit removing three or more lines an earlier commit of the range added; then read each hit.
+Run `git show --remerge-diff` on every merge in the range to see how its conflicts were resolved — a
+resolution that keeps one side is a change nobody reviewed. On refactors, check that an authorization
+call, an outbound guard, a transaction boundary or a filter's order did not move; on paging, that the
+visibility check or the 404 comes before the window is read.
 
 ## Report format
 
