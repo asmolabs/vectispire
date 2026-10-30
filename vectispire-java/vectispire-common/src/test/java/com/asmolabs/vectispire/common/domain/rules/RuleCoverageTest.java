@@ -100,6 +100,24 @@ class RuleCoverageTest {
                 .isEqualTo(Set.of(Language.JAVA, Language.JAVASCRIPT));
     }
 
+    /**
+     * The inventory hands the assessment each purl's type prefix rather than the purl, so the database
+     * returns one row per ecosystem instead of one per package (1.0.0-rc.1 load test). That is only
+     * the same answer while the prefix is all the assessment reads.
+     */
+    @Test
+    @DisplayName("reads a purl's type prefix as it reads the purl")
+    void aTypePrefixIsAPurl() {
+        List<String> rules = List.of("semgrep/python/eval.yaml", "semgrep/java/xss.yaml");
+
+        RuleCoverage.Assessment fromPurls = RuleCoverage.assess(rules, List.of(
+                "pkg:maven/org.acme/thing@1.2", "pkg:npm/%40scope/left-pad@1.0", "pkg:golang/github.com/acme/x@1.0"));
+        RuleCoverage.Assessment fromTypes = RuleCoverage.assess(rules, List.of("pkg:maven/", "pkg:npm/", "pkg:golang/"));
+
+        assertThat(fromTypes).isEqualTo(fromPurls);
+        assertThat(fromTypes.uncovered()).containsExactlyInAnyOrder("npm", "golang");
+    }
+
     @Test
     @DisplayName("a stored file is read by its original upstream path, never its storage name")
     void ruleTreePath() {

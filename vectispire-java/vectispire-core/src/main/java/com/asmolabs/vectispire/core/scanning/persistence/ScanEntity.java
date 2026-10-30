@@ -45,6 +45,16 @@ public class ScanEntity {
     @Column(name = "sbom")
     private String sbom;
 
+    /**
+     * Whether {@link #sbom} is set, computed by the database at each write of it (V98) — what a query
+     * asks instead of {@code sbom is null}, which on MySQL reads the document back to answer.
+     *
+     * <p>Read-only here and read by queries alone: the engine writes it, and an entity's copy is not
+     * refreshed when {@code sbom} changes in memory, so no getter offers a value that may be stale.
+     */
+    @Column(name = "has_sbom", insertable = false, updatable = false)
+    private boolean hasSbom;
+
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "cves")
     private String cves;

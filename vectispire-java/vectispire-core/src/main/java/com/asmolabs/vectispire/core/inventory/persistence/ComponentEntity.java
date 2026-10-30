@@ -52,6 +52,17 @@ public class ComponentEntity {
     @Column(name = "purl", length = 500)
     private String purl;
 
+    /**
+     * The purl up to its first slash ({@code pkg:npm/}), computed by the database at each write of
+     * {@link #purl} (V96) — what rule coverage asks of the inventory, read from an index rather than
+     * from the rows.
+     *
+     * <p>Read-only here and read by queries alone: an entity's copy is not refreshed when {@code purl}
+     * changes in memory, so no getter offers a value that may be stale.
+     */
+    @Column(name = "purl_type", length = 500, insertable = false, updatable = false)
+    private String purlType;
+
     @Column(name = "type", length = 50)
     private String type;
 

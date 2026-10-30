@@ -72,20 +72,36 @@ public class InventoryQueryService {
     public record Results(List<Occurrence> occurrences, int total, boolean truncated) {}
 
     /**
-     * Every distinct package URL the inventory holds — what rule coverage compares the rule sets with.
+     * Every distinct package-URL type the inventory holds, as the purl's prefix ({@code pkg:npm/}) —
+     * what rule coverage compares the rule sets with, and all it reads of a purl.
      *
-     * <p>This method and the three below exist because the components table is this module's: rule
+     * <p>This method and the ones below exist because the components table is this module's: rule
      * coverage and the compliance summary read it through the repository while the code was
      * packaged by layer, a dependency on inventory neither showed. Each delegates to the query it
      * replaces, with no transaction of its own, as before.
+     *
+     * <p><b>Folded from {@link #distinctPurlTypesByTarget}</b>, a loose scan of an index (a row per
+     * target and type), rather than asked of the table: a distinct over the type alone cannot skip
+     * through that index and read all of it, a million entries on the 1.0.0-rc.1 load test's estate.
      */
-    public List<String> distinctPurls() {
-        return components.distinctPurls();
+    public List<String> distinctPurlTypes() {
+        return components.distinctPurlTypesByTarget().stream()
+                .map(row -> (String) row[2])
+                .distinct()
+                .toList();
     }
 
-    /** Every distinct package URL with the target its scan was of, as {@code ComponentRepository} returns them. */
-    public List<Object[]> distinctPurlsByTarget() {
-        return components.distinctPurlsByTarget();
+    /** Every distinct package-URL type with the target its scan was of, as {@code ComponentRepository} returns them. */
+    public List<Object[]> distinctPurlTypesByTarget() {
+        return components.distinctPurlTypesByTarget();
+    }
+
+    /** The package-URL types of one target's inventory, keyed as {@link #distinctPurlTypesByTarget} keys it. */
+    public List<String> distinctPurlTypesOf(ScanTarget target) {
+        return switch (target) {
+            case ScanTarget.Repository repository -> components.distinctPurlTypesOfRepository(repository.id());
+            case ScanTarget.Container container -> components.distinctPurlTypesOfContainer(container.id());
+        };
     }
 
     /** The repositories whose scans produced an inventory. */

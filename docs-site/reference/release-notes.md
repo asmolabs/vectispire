@@ -48,11 +48,15 @@ What follows is against 0.11.2.
   matter of checks. The campaign now runs every release on the oldest and the newest supported MySQL,
   8.4 and 9.4. An installation on PostgreSQL still starts on it, unsupported: plan the move to MySQL
   before 1.0.
-- **Four migrations, V92 to V95**, applied at the first start. V92 rewrites the stored CRA control codes
+- **Seven migrations, V92 to V98**, applied at the first start. V92 rewrites the stored CRA control codes
   (below); V93 adds a column to the accounts table; V94 creates the integrations' registry,
   `t_integration`, and seeds the seventeen integrations of today enabled, so the upgrade changes nothing
-  until a governor acts; V95 adds the ticket sweep's claim, two nullable columns on `t_issue`.
-  **Back up the database first**: going back to 0.11.2
+  until a governor acts; V95 adds the ticket sweep's claim, two nullable columns on `t_issue`. V96 to V98
+  are the load test's fixes (*Performance*, below): V96 adds a generated column and an index to the
+  component inventory, V97 an index to the scans, V98 a generated column to the scans. **V96 and V98
+  rebuild their table**, which reads each row once: on the load test's estate — a million component rows,
+  900 scans holding 300 MB of SBOMs — the three took 10 s together on MySQL 9.4; plan for longer on a
+  larger inventory, before the control plane answers. **Back up the database first**: going back to 0.11.2
   means restoring that backup.
 - **One control-plane instance is what is supported**
   ([installation](../getting-started/installation.md#one-instance)). The maintenance tasks, the audit
@@ -427,6 +431,25 @@ risk where a fix would be a decision of its own:
 
 ### Performance {#performance-100-rc1}
 
+- **The first load test**, on an estate of 300 targets, 75,000 issues and a million component rows
+  (the report and the harness: `docs/analysis/en/2026-10-30_load_test_1.0.0-rc.1.en.md`, `load/`; the
+  sizing it supports: [Sizing](../administration/sizing.md)). Under two pipeline gate calls a second the
+  control plane did not hold: the gate read the whole inventory at each verdict, held the ten database
+  connections, and every other route queued behind it — sign-ins at 47 s, a third of the agents' claims
+  timed out. Three fixes, the same estate, unloaded:
+    - **A gate verdict reads its target's ecosystems, not every package of the estate** (V96): 1.85 s →
+      45 ms. The dashboard (2.9 s → 0.5 s), the security overview (2.0 s → 0.17 s) and the OWASP grid
+      (0.75 s → 0.37 s) asked the same of every target, and now read one index entry per target and
+      ecosystem.
+    - **Whether a scan holds its SBOM is a column** (V98): MySQL read every stored SBOM to test it for
+      null, twice per call of the licence summary (1.2 s → 20 ms), the scorecards (1.35 s → 0.2 s), the
+      posture analytics (1.4 s → 0.27 s) and the licence inventory.
+    - **The scan history is read from an index** (V97): the scans list and the dashboard's recent scans
+      sorted the whole table, SBOMs included — 630 ms → 110 ms.
+- Measured after the fixes, with ten very active people, two gate calls a second and scans finishing: no
+  error, the gate under 0.1 s and every screen under 0.6 s at p95 but the dashboard (2.1 s), the
+  inventory search, the licence inventory and the OWASP grid (about 1 s). At fifty such people the
+  database's four cores were saturated; what uses them is in the report, with what each would take.
 - The interface's first download falls from 932 kB to 612 kB: the shell and the Lara and Nora themes load
   when needed, and the build now fails if an eager import pulls a screen back in.
 - Translations, the OWASP weekly heatmap and the repositories, agents, issues, solutions, project
