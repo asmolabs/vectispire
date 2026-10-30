@@ -13,7 +13,22 @@
 
 @if (grid(); as data) {
     <div class="card mb-4">
-        <div class="font-semibold text-xl mb-1">{{ 'owasp_grid.title' | translate }}</div>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <div class="font-semibold text-xl">{{ 'owasp_grid.title' | translate }}</div>
+            <p-button
+                [label]="'owasp_grid.export_csv' | translate"
+                icon="pi pi-download"
+                severity="secondary"
+                size="small"
+                data-testid="grid-export-csv"
+                (onClick)="exportCsv()"
+            />
+        </div>
+        @if (exportError(); as message) {
+            <p-message severity="error" [closable]="false" styleClass="mb-3 w-full" data-testid="grid-export-error">
+                {{ message }}
+            </p-message>
+        }
         <p class="text-muted-color mb-4" style="max-width: 68ch">{{ 'owasp_grid.subtitle' | translate }}</p>
         <!--
             Whose grid this is, and — when the reader sees only part of the project — that every figure

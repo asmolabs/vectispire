@@ -17,6 +17,9 @@ public interface TicketReferences {
      * @param reference trimmed, non-empty, and within the column's length
      * @return empty when the reference is acceptable; otherwise the sentence the person who typed
      *     it is answered with
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException while the
+     *     configured tracker's integration is switched off (decision 0040 §3): 409, not a 400 about the
+     *     reference — the same reference is accepted once it is switched back on
      */
     Optional<String> refusal(String reference);
 }

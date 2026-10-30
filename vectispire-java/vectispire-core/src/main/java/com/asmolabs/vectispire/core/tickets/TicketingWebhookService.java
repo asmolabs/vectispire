@@ -2,18 +2,21 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.text.LogText;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
 import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueTriageService;
 import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.tickets.internal.WebhookRefusals;
 import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryRepository;
 import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryEntity;
@@ -24,6 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -56,6 +61,13 @@ public class TicketingWebhookService {
     private final WebhookDeliveryRepository deliveries;
     private final WebhookRefusals refusals;
     private final java.time.Clock clock;
+    private final Integrations integrations;
+
+    /**
+     * The trackers whose deliveries were last found ignored, by the registry's key: so that the log says when a
+     * suspension begins and when it ends, never on every delivery it ignores.
+     */
+    private final Set<String> ignoring = ConcurrentHashMap.newKeySet();
 
     /** How long a delivery's body is remembered for the replay check. */
     private static final java.time.Duration REPLAY_WINDOW = java.time.Duration.ofDays(30);
@@ -68,7 +80,8 @@ public class TicketingWebhookService {
             TicketService tickets,
             WebhookDeliveryRepository deliveries,
             WebhookRefusals refusals,
-            java.time.Clock clock) {
+            java.time.Clock clock,
+            Integrations integrations) {
         this.issues = issues;
         this.triageService = triageService;
         this.audit = audit;
@@ -77,6 +90,7 @@ public class TicketingWebhookService {
         this.deliveries = deliveries;
         this.refusals = refusals;
         this.clock = clock;
+        this.integrations = integrations;
     }
 
     public sealed interface Outcome {
@@ -92,6 +106,13 @@ public class TicketingWebhookService {
 
         /** This exact body was already acted on: a replay, or the tracker's own redelivery. */
         record AlreadyProcessed() implements Outcome {}
+
+        /**
+         * Authenticated, and read no further: the tracker's integration is switched off (decision 0040 §3).
+         *
+         * @param integration the registry's key a governor re-enables it by, {@code tracker.gitlab}
+         */
+        record IgnoredIntegrationDisabled(Integration integration) implements Outcome {}
 
         record NoMatchingIssue(String ticketRef) implements Outcome {}
 
@@ -157,6 +178,34 @@ public class TicketingWebhookService {
             }
             log.info("{} webhook body already processed; ignored.", provider);
             return new Outcome.AlreadyProcessed();
+        }
+
+        // **A suspended tracker's delivery is accepted and ignored** (decision 0040 §3) — after the secret, so that
+        // a stranger is refused as before and learns nothing of the switch, and before anything is read.
+        // Not a 409: a tracker retries a delivery that failed, and GitLab disables a webhook after repeated
+        // failures, so a refusal here would leave the webhook broken once the governor switched the tracker back
+        // on. Nothing of it is applied — but its body is in the replay table already, above: left out, a delivery
+        // captured while the tracker was off could be sent again once it was back on and be acted on then. The
+        // owner's call of 2026-10-14; the cost is that the tracker's own redelivery of an ignored event is not
+        // applied after re-enabling either.
+        // The configured tracker's suspension counts whatever path the delivery came by: one secret authenticates every
+        // provider's path, and a Jira-shaped body naming a GitLab ticket matches it, so checking only the path's
+        // integration let a suspended GitLab's tickets be synced through /webhook/jira.
+        Integration integration = tickets.standing()
+                .filter(standing -> standing.state() == TrackerState.SUSPENDED)
+                .map(TicketService.Standing::integration)
+                .orElse(Integration.of(provider));
+        if (!integrations.isEnabled(integration)) {
+            if (ignoring.add(integration.key())) {
+                log.info("Ticket webhook: the {} integration is disabled. Its deliveries are authenticated, answered "
+                        + "200 and ignored — no triage and no ticket state is changed — until a platform governor "
+                        + "re-enables it with PUT /api/v1/integrations/{}/enabled.", integration.key(), integration.key());
+            }
+            return new Outcome.IgnoredIntegrationDisabled(integration);
+        }
+        if (ignoring.remove(integration.key())) {
+            log.info("Ticket webhook: the {} integration is enabled again; its deliveries are applied again.",
+                    integration.key());
         }
 
         JsonNode payload;

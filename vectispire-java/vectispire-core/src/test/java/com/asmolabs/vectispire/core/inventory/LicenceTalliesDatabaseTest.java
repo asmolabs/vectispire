@@ -110,7 +110,8 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
     /**
      * The estate's readers that used to narrow the estate's inventory after reading it — the portfolio
      * scorecard, the summaries, a restricted reader's inventory — against that very computation: the
-     * administrator's inventory, which still reads every scan, narrowed here as it was there.
+     * administrator's inventory read from every scan ({@code readInventory}, the read the inventory
+     * served from memory replaced), narrowed here as it was there.
      */
     @Test
     @DisplayName("the portfolio's licence term, the summaries and a reader's inventory are the narrowed estate's, served warm or cold")
@@ -148,7 +149,7 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
         // Cold for the restricted reader, then for the administrator, then warm for both.
         for (int round = 0; round < 2; round++) {
             for (Visibility allowed : List.of(restricted, Visibility.everything())) {
-                List<LicenseEntry> estate = licences.getInventory(Visibility.everything(), null, null);
+                List<LicenseEntry> estate = licences.readInventory(Visibility.everything());
                 List<LicenseEntry> seen = estate.stream().filter(entry -> allowed.permits(ownerOf(entry))).toList();
 
                 assertThat(licences.getInventory(allowed, null, null)).containsExactlyInAnyOrderElementsOf(seen);
@@ -165,7 +166,7 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
 
         // The oracle is not empty where it matters: the scans attached to no target weigh for the
         // administrator, a blank licence is there, the older row's purl is kept.
-        List<LicenseEntry> estate = licences.getInventory(Visibility.everything(), null, null);
+        List<LicenseEntry> estate = licences.readInventory(Visibility.everything());
         assertThat(estate).filteredOn(entry -> "general".equals(entry.targetKind()) && !entry.compliant()).isNotEmpty();
         assertThat(estate).extracting(LicenseEntry::license).contains("");
         assertThat(estate).filteredOn(entry -> "z".equals(entry.packageName()))
@@ -284,7 +285,7 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
 
     /** The count the ranking used to take: the refused entries of the inventory, by target. */
     private Map<ScanTarget, Long> fromInventory(Visibility allowed) {
-        return licences.getInventory(allowed, null, null).stream()
+        return licences.readInventory(allowed).stream()
                 .filter(entry -> !entry.compliant() && entry.targetId() != null && !"general".equals(entry.targetKind()))
                 .collect(Collectors.groupingBy(LicenceTalliesDatabaseTest::targetOf, Collectors.counting()));
     }

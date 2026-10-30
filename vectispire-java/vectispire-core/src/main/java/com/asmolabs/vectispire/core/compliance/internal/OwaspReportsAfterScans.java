@@ -88,7 +88,12 @@ public class OwaspReportsAfterScans {
         /** The repository's report is being written now; nothing is held. */
         ALREADY_RUNNING,
         /** One of the two switches is off; nothing is held. */
-        SWITCHED_OFF
+        SWITCHED_OFF,
+        /**
+         * The configured provider's integration is disabled (decision 0040, lot I5); nothing is held. Not held for
+         * later: the report a scan asks for is about that scan, and the next scan asks again once it is back on.
+         */
+        PROVIDER_DISABLED
     }
 
     private final OwaspReviewService reviews;
@@ -136,6 +141,10 @@ public class OwaspReportsAfterScans {
     public Offer offer(long repositoryId, long scanId) {
         if (!switchedOn(settings)) {
             return Offer.SWITCHED_OFF;
+        }
+        if (!reviews.providerEnabled()) {
+            log.info("OWASP report after scan {} not asked: the AI provider is disabled on this installation.", scanId);
+            return Offer.PROVIDER_DISABLED;
         }
         if (Long.valueOf(repositoryId).equals(writing) || reviews.isRunning(repositoryId)) {
             log.debug("OWASP report of repository {} is being written; scan {} asks for nothing more.", repositoryId, scanId);

@@ -84,9 +84,40 @@ veut Ollama et jamais OpenAI, Teams et jamais Discord, le dit une fois.
 
 | Lot | Contenu | Taille |
 |---|---|---|
-| I1 | Le registre, son réglage, la route du gouverneur et l'audit ; 409 sur les routes d'une intégration désactivée | M |
+| I1 | Le registre dans une table à lui (`t_integration`, pas un réglage : un réglage ne garde ni qui l'a basculé ni quand), la route du gouverneur et l'audit ; 409 sur les routes d'une intégration désactivée | M |
 | I2 | Connexions forge : l'état suspendu, découverte et lecture des relectures sautées avec leur raison | M |
 | I3 | SIEM : les transports dans le registre, le refus d'un transport en service | S |
 | I4 | L'écran *Administration → Intégrations*, les formulaires filtrés ; la documentation en anglais et en français | M |
-| I5 | Fournisseurs d'IA : le registre, *IA indisponible — fournisseur désactivé* dans les fonctions qui le lisent | S |
-| I6 | Canaux de notification (le refus en service) et trackers (suspendus) | M |
+| I5 | Fournisseurs d'IA : le registre, *IA indisponible — fournisseur désactivé* dans les fonctions qui le lisent — **construit pour la 1.0.0-rc.1** | S |
+| I6 | Canaux de notification (le refus en service) et trackers (suspendus) — **les deux moitiés construites pour la 1.0.0-rc.1** | M |
+
+**Tant que le lot d'une famille n'était pas construit, sa désactivation était refusée** (amendé pour la
+1.0.0-rc.1, et clos dans celle-ci). I1 listait toutes les familles : un gouverneur pouvait donc désactiver
+un fournisseur d'IA ou un canal de notification qu'aucun adaptateur ne vérifiait — enregistré et
+journalisé, cela n'arrêtait rien, contre le §1. Le registre refusait `enabled: false` pour ces familles —
+409 `integration-not-switchable` — jusqu'à ce qu'I5 et la moitié notifications d'I6 fassent consulter le
+registre par chacune de leurs entrées. Les deux sont construits dans la même version : toute famille peut
+désormais être désactivée, et le refus, sa cause et `IntegrationFamily.suspendable` disparaissent — aucune
+version ne les a livrés. Une famille ajoutée plus tard est branchée dans le changement qui la liste.
+
+**Comment I5 et I6 tiennent le §1 et le §3** (1.0.0-rc.1) :
+
+- **IA.** Chaque appel à un modèle sort par une méthode d'`AiReviewService`, qui demande au registre le
+  fournisseur qu'elle a lu une fois et auquel elle se tient — son URL, sa clé, sa requête — : un
+  fournisseur désactivé est refusé, jamais remplacé par l'autre. Les fonctions qui le lisent — le rapport
+  OWASP depuis le bouton ou après un scan, l'explication du conseiller, le test du point d'accès — refusent
+  avant d'enregistrer quoi que ce soit, par un 409 `integration-disabled` ouvert par *AI unavailable —
+  provider disabled* ; le statut du conseiller indique `providerEnabled: false` et n'interroge rien. Choisir
+  un fournisseur désactivé, ou activer la revue sur l'un d'eux, est refusé comme le choix d'un tracker :
+  vérifié, pas retenu — rien n'est perdu si une bascule tombe entre la vérification et l'écriture.
+- **Notifications.** Un canal est en service quand il a où envoyer : son URL (Teams avec son interrupteur
+  activé), ses destinataires ou les rappels des checklists (le courriel), le webhook propre d'une équipe (le
+  webhook générique). La réponse et les réglages qui configurent un canal sont une seule lecture
+  (`NotificationDestinations`), pour que le refus ne puisse pas manquer une destination que
+  l'enregistrement connaît. Un enregistrement qui configure un canal retient sa ligne `for share` dans la
+  transaction qui l'écrit — l'enregistrement des réglages est devenu une transaction pour cela, et le
+  webhook d'une équipe une autre — comme le fait l'export SIEM : une bascule attend l'enregistrement et le
+  lit en service, un enregistrement après la bascule le lit désactivé. Chaque canal consulte le registre à
+  sa propre entrée, pas au relais, car le rapport hebdomadaire, les rappels, les alertes de jeton et le
+  bouton de test atteignent les canaux sans lui ; une ligne en file pour un canal désactivé à la main est
+  retenue, sans tentative comptée, jamais envoyée ni abandonnée.

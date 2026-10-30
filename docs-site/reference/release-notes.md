@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## Unreleased
+## 1.0.0-rc.1
 
 The release before 1.0, and a trial of it: what 1.0 will promise
 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md))
@@ -29,9 +29,17 @@ minor behind keeps working, the API contracts §6 named are put right now rather
 announcement, and a full security review of `develop` is closed — every finding fixed or documented as a
 residual risk. Several of those fixes refuse something 0.11.2 accepted, so read *Before you upgrade* in
 full: an installation with SCIM enabled and a short token does not start until the token is replaced.
+It also carries the first lots of
+[decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md):
+the platform governor switches the forges, the SIEM transports and the trackers on or off, on a screen of
+its own, *Administration → Integrations*, and the forms stop offering what is switched off.
 What follows is against 0.11.2.
 
-### Before you upgrade {#before-you-upgrade-unreleased}
+### Before you upgrade {#before-you-upgrade-100-rc1}
+
+- **1.0.0-rc.1 is the release candidate 1.0 is measured against.** Every promise of decision 0043 is in
+  place in it; 1.0.0 follows once it has run in real use with no unplanned break. What breaks in it is a
+  defect to report, not a change to expect.
 
 **Database and deployment**
 
@@ -40,8 +48,11 @@ What follows is against 0.11.2.
   matter of checks. The campaign now runs every release on the oldest and the newest supported MySQL,
   8.4 and 9.4. An installation on PostgreSQL still starts on it, unsupported: plan the move to MySQL
   before 1.0.
-- **Two migrations, V92 and V93**, applied at the first start. V92 rewrites the stored CRA control codes
-  (below); V93 adds a column to the accounts table. **Back up the database first**: going back to 0.11.2
+- **Four migrations, V92 to V95**, applied at the first start. V92 rewrites the stored CRA control codes
+  (below); V93 adds a column to the accounts table; V94 creates the integrations' registry,
+  `t_integration`, and seeds the seventeen integrations of today enabled, so the upgrade changes nothing
+  until a governor acts; V95 adds the ticket sweep's claim, two nullable columns on `t_issue`.
+  **Back up the database first**: going back to 0.11.2
   means restoring that backup.
 - **One control-plane instance is what is supported**
   ([installation](../getting-started/installation.md#one-instance)). The maintenance tasks, the audit
@@ -183,7 +194,7 @@ What follows is against 0.11.2.
   the latest minor receives every fix, the previous one security fixes for three months after its
   successor. How a removal from the API is announced is written at the top of this page.
 
-### Changes an integration can see {#changes-an-integration-can-see-unreleased}
+### Changes an integration can see {#changes-an-integration-can-see-100-rc1}
 
 - **SCIM: an `externalId` another account holds is a 409 `uniqueness`**, on `POST /scim/v2/Users` and on a
   `PUT` that binds an unbound account, with nothing written — what a directory reads as "already
@@ -198,19 +209,151 @@ What follows is against 0.11.2.
   at the SIEM, forge connection and tracker CA fields. A bundle already stored is read as it was
   accepted, so a working connection does not stop.
 - **The agent's `hello` refusal** names the served contract range and which side to upgrade.
+- **Twenty-two more list routes page on request**, by the rule every inventory list has used since
+  0.11.1: `limit` 1 to 500 (400 beyond, never a silent clamp), and `offset` zero or a multiple of `limit`,
+  read only together with a `limit`. **A request without them gets what it got before**: the whole list,
+  or for the histories already capped — forge discoveries, and SARIF, coverage, test-report and build-SBOM
+  imports — the latest fifty, now with pages reaching the older ones. They include team members and
+  targets, an account's targets, Git tokens, SSH keys, an issue's tickets, plugins and report plugins,
+  SARIF sources, forge connections, checklist templates and a project's checklists; the REST reference
+  lists them. Additive: optional query parameters only.
+- **The triage history says what a queued request asked for.** A decision that queued a settling status
+  for a second person (`toStatus` `pending_approval`) carries `requestedStatus` — `not_affected`,
+  `will_not_fix` or `fixed` — in `GET /api/v1/history/repositories/{id}` and in `decisions[]` of
+  `GET /api/v1/issues/{id}`; null on every other entry, and on a request queued before 0.11.0 recorded it.
+  The history CSV gains a last column, `decision_requested_status`, so a sheet reading columns by position
+  reads the same cells; the PDF prints `asking for <status>` on the request's line. Additive.
+- **The OWASP figures say what they leave out.** `GET /api/v1/rule-sets/coverage` gains `owasp`: how many
+  rule files are placed in a category of the 2021 edition, by their own tag or by CWE (`byCwe`), and those that are not,
+  by reason (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`, `NOT_DECLARED`; read an unknown reason by its
+  name). `GET /api/v1/owasp/coverage` gains `unplacedCode`, the open code findings no category holds.
+  Both additive.
+- **Two routes.** `GET /api/v1/integrations`, for any account, lists every integration with `key`,
+  `family`, `name`, `enabled`, `updatedAt` and `updatedBy` — the last two `null` until a governor switches
+  it, and `updatedBy` `null` too for a reader without a governance role.
+  `PUT /api/v1/integrations/{key}/enabled` with `{"enabled": true|false}` is the platform governor's
+  alone: 404 for an unknown key, 400 without `enabled`, and the same state again changes and records
+  nothing ([REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
+  Their operation ids in `openapi.json` are `listIntegrations` and `setIntegrationEnabled`; every id
+  0.11.x publishes keeps its name.
+- **Two 409 causes**, each naming the key in the member `integration`:
+  `urn:vectispire:problem:integration-disabled` on a gesture that needs a disabled integration — opened,
+  for a feature that reads an AI provider, by *AI unavailable — provider disabled*; and
+  `urn:vectispire:problem:integration-in-use` on the governor's switch, for the SIEM transport an enabled
+  export sends over and for a notification channel with somewhere to send ([409 causes](errors.md#409-causes)). The `integration-disabled` detail, and the
+  reason a checklist line fed by a suspended forge connection carries, name the route that enables the
+  integration, `PUT /api/v1/integrations/{key}/enabled`, for a client of the API; the interface shows a
+  sentence of its own for each of the three causes, in its language, naming the key and the screen. The
+  type and the member are what a client reads, and they are as stated.
+- **A forge connection carries `state`** — `active`, or `suspended` while its forge's integration is
+  disabled — **and `integration`**, `forge.gitlab` or `forge.github`, the key that resumes it.
+- **The tracker token's state carries `state` and `integration`.** `GET` and
+  `PUT /api/v1/settings/ticket-token` answer `state` — `active`, or `suspended` while the tracker's
+  integration is disabled — and `integration`, the key that resumes it (`tracker.jira`…); both are `null`
+  while no tracker is chosen. `PUT /api/v1/issues/{id}/ticket` and `POST /api/v1/issues/{issueId}/tickets`
+  answer 409 `integration-disabled` for a suspended tracker, where they answered 200 and 201.
+- **`PUT /api/v1/settings` refuses a disabled tracker.** Saving `ticket_provider` naming a tracker whose
+  integration is disabled answers 409 `integration-disabled`, naming it in `integration`, and writes
+  nothing of the save, where it answered 200. `none`, and the tracker already configured sent back
+  unchanged, are saved as before.
+- **The ticket webhook of a disabled tracker answers 200 and applies nothing.** An authenticated delivery
+  to `POST /api/v1/tickets/webhook/{provider}` while that tracker's integration is disabled is answered
+  `200`, `matched: false`, with `actionTaken` beginning `ignored_integration_disabled`; a delivery without
+  the secret is refused `401` or `403` as before. Not a 409: the tracker would retry, and GitLab disables a
+  webhook after repeated failures. Its body enters the replay check: the same delivery sent again after
+  re-enabling is answered *"Delivery already processed"*, and a change made in the tracker meanwhile is
+  not caught up. The configured tracker's suspension holds on every provider's path, which the one
+  webhook secret opens alike: a delivery to another tracker's path is ignored too while it lasts.
+- **A new no-data reason, `forge_integration_disabled`**, in a checklist measurement's `reason` and
+  everywhere that list of reasons is answered; a client switching over the reasons meets one it did not
+  know.
+- **A new audit operation, `INTEGRATION_ENABLED_CHANGED`**, sent to the SIEM as `VECTI-SEC-019`, the
+  security setting change ([SIEM event catalogue](../integrations/siem.md#event-catalogue)).
+- **The OWASP grid as CSV: `GET /api/v1/owasp/coverage/export.csv`.** One row per category in the
+  standard's order — state, open findings, the reason as a code and as a sentence in `language` (`en`,
+  the default, or `fr`; anything else is a 400), the category's declaration, and the scope on every row —
+  with the grid's `project_id` / `solution_id` and the grid's refusals. A new route.
+- **The evidence bundle gains `15_owasp_top10_coverage.json`**, the OWASP Top 10:2021 grid with its
+  declarations at the time of export, within the caller's allowance: a key restricted to some targets
+  takes the grid of those targets. The manifest's `version` is `1.5`. A tool that checks the list of
+  files against a fixed set sees one more.
 
-### New {#new-unreleased}
+### New {#new-100-rc1}
 
 - **`/actuator/encryption`**, the sealed stores' census, and the second-factor reset — both above.
 - **The agent of the previous release is tested on every change**: CI runs the newest release's signed
   agent image against the control plane being built, and fails unless it claims and finishes scans.
 - **The OWASP coverage page names the edition it scores**, the OWASP Top 10's 2021 edition. 1.0 stays on
   it; the 2025 edition will be added beside it later.
+- **The OWASP grid exports to CSV**, from **Export CSV** on the grid, for the scope on screen and with
+  its reasons in the interface's language; and the signed evidence bundle now carries the grid.
 - **Every create and edit dialog is a form**: Enter submits it, a second submit while one is in flight
   sends nothing, and the fields the server requires are marked. The server still decides, in its own
   words.
+- **The integrations' registry.** Each outside system is an integration keyed `<family>.<name>`: the
+  forges (`forge.github`, `forge.gitlab`), the SIEM transports (`siem.webhook`, `siem.syslog_udp`,
+  `siem.syslog_tcp`, `siem.syslog_tls`), the AI providers (`ai.ollama`, `ai.openai`), the notification
+  channels (`notification.webhook`, `.teams`, `.slack`, `.discord`, `.mail`) and the trackers
+  (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Every one of them starts enabled; one added
+  later — Bitbucket first — arrives disabled. The switch is on *Administration → Integrations* (below), or
+  through the API. **Every family acts on it in this release.**
+- ***Administration → Integrations*, the registry's screen.** Every account reads it, by family, with each
+  integration's state and its last change — when, and by whom for a governance role; the platform governor
+  alone is offered a switch. Switching off asks first and says what is suspended and that nothing is
+  deleted; switching on resumes without asking. A refusal is shown on the row it names, by its cause —
+  `integration-in-use` with what still uses it, or any other in the server's words. The forms
+  follow it: the forge connection form, the SIEM protocol, the tracker — now a list rather than a text
+  field — the AI provider and the notification channels' addresses offer no disabled integration for a new
+  choice, and a configuration already on one reads *suspended* with a link to the screen
+  ([integrations](../administration/integrations.md)).
+- **An AI provider may be disabled while in use, and nothing answers in its place.** Every feature that
+  reads it — the OWASP report from the button or after a scan, the advisor's explanation, the endpoint
+  test — then answers 409 `integration-disabled`, *AI unavailable — provider disabled*, before anything is
+  recorded, and the other provider is never asked: an Ollama review does not quietly move to OpenAI.
+  `GET /api/v1/ai-advisor/status` gains `providerEnabled`, and lists suggestions without asking a disabled
+  provider. Choosing a disabled provider in the settings, or turning model review on over one, is refused
+  409 `integration-disabled` ([AI review](../administration/settings.md#ai-review)).
+- **A notification channel with somewhere to send cannot be disabled**: 409 `integration-in-use`, the
+  refusal listing what uses it — a URL or recipients in the notification settings, a team's own webhook,
+  the checklist reminders. A channel not in use may be: it leaves the Notification Center's list, its test
+  answers 409 `integration-disabled`, configuring it is refused 409 `integration-disabled` with nothing of
+  the save written, nothing is queued for it, and a row queued for it all the same waits in the outbox,
+  uncounted, until it is on again ([each channel is an integration](../integrations/notifications.md#channel-integrations)).
+  A save that configures a channel and the governor's switch are ordered by the channel's row, as for a
+  SIEM transport. `PUT /api/v1/settings` now writes its values in one transaction.
+- **A scan's delta reaches Teams, Slack, Discord or mail with no webhook configured.** Whether a delta was
+  built was decided by the generic webhook alone — the global URL or a team's — so a deployment announcing
+  only to another channel was never sent one.
+- **A forge whose integration is disabled suspends its connections, never deletes them.** Each keeps its
+  row, its encrypted token, its snapshot, its import links and its change-review readings, and reads
+  *Suspended — integration disabled* on the forge connections screen. Nothing goes to that forge:
+  creating a connection of that kind, a discovery, an import's preview and the import, a new token and a
+  new network statement or CA answer 409 `integration-disabled`; renaming, deleting and reading still
+  work. A discovery queued before the switch waits, `pending` and uncounted. A `change_review` line it
+  fed reads no data with `forge_integration_disabled` — never a pass, even over a reading that passed
+  before. Switching the forge back on resumes everything as it was
+  ([forge connections](../administration/forge-connections.md#when-the-forges-integration-is-disabled)).
+- **The SIEM transport in use cannot be disabled, and a disabled one sends nothing and loses nothing.**
+  The governor's switch of the transport an enabled export sends over answers 409 `integration-in-use`:
+  point the export elsewhere, or switch it off, first. `PUT /api/v1/siem/config` with `enabled: true`
+  over a disabled transport, and `POST /api/v1/siem/test` of one, answer 409 `integration-disabled`;
+  switching the export off is always saved. Should a transport be off under an enabled export all the
+  same — a row changed by hand — its events wait in the outbox, pending, no attempt counted, offered again
+  every five minutes, and leave once it is enabled again
+  ([SIEM](../integrations/siem.md#each-transport-is-an-integration)).
+- **A tracker whose integration is disabled is suspended, never deleted.** With the configured tracker's
+  integration off, nothing reaches it and its token does not leave its row: the hourly sweep opens and
+  closes no ticket and says so once in the log, not every hour; the daily token check asks nothing and
+  announces nothing — a tracker switched off is not a token that stopped working; saving a token stores it
+  without asking the tracker. Attaching a ticket by hand to that tracker, or choosing it in the settings,
+  answers 409 `integration-disabled`. Its inbound webhook is still authenticated, then answered and
+  ignored: no triage is queued from it, and the server log says so once per suspension rather than at
+  every delivery. The
+  token, the settings, the pinned CA and the issues' references are kept, the tracker card reads
+  *Suspended — integration disabled*, and switching it back on resumes everything as it was
+  ([tickets](../integrations/ticketing.md#tracker-suspended)).
 
-### Security {#security-unreleased}
+### Security {#security-100-rc1}
 
 From a full review of `develop` before this release. Every finding is fixed, or documented as a residual
 risk where a fix would be a decision of its own:
@@ -231,6 +374,11 @@ risk where a fix would be a decision of its own:
   network policy can reach a new pod a moment after it starts; each scan pod now checks before its scanner
   runs, and fails the step if the cut never comes. Where the policy drops rather than refuses, this costs
   up to two seconds a pod. The executor's isolation probe waits the same way before it decides.
+- **On the Kubernetes executor, the agent sends its service account's token only to the cluster's API
+  server.** It reads the address from `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT`, which a
+  variable in the pod's spec replaces, and now refuses to start unless that host resolves only to the
+  addresses of `kubernetes.default.svc`. Do not set either variable in `agents.extraEnv`; the agent's pod
+  needs the cluster's DNS.
 - **A scanner killed at its memory limit is a failure** even when the container runtime does not report
   `OOMKilled`, so a killed run's partial output is never read as a report.
 - **Declared and discovered API paths are compared literally beside their parameters, in bounded time.**
@@ -244,8 +392,21 @@ risk where a fix would be a decision of its own:
   reads zero across the interface's whole tree, development dependencies included (vitest 4.1.12,
   happy-dom 21, Playwright 1.64.1).
 
-### Fixed {#fixed-unreleased}
+### Fixed {#fixed-100-rc1}
 
+- **A code finding whose rule declares a CWE but no OWASP category is placed by its CWE**, from OWASP's
+  own lists of the CWEs each category of the 2021 edition maps. Most upstream rules declare only a CWE, so their
+  findings entered no category and the category read "nothing found". An existing issue gets its
+  category at its target's next scan; fingerprints do not change, so no triage is lost. Expect the OWASP
+  grid's figures to move after that scan. Findings from a previous-minor agent, which does not send the
+  CWE, stay unplaced and are counted under the grid.
+- **A rule tagged only with another OWASP edition** (`A01:2025`) ran and its findings reached the backlog,
+  but the grid placed none of them without saying why. 1.0 still scores the 2021 edition (decision 0046);
+  the rule sets screen now names how many rule files declare only another edition.
+- **The French interface showed the server's English sentence** for a gate violation's reason and for
+  every refusal. Both are now translated from the violation's `rule` and the problem's `code`; where a
+  value is not a field of its own (a policy's threshold, the uncovered ecosystems), the server's sentence
+  stays as the line's tooltip.
 - A sign-in with a User-Agent longer than 255 characters answered 500 for an account with a second factor,
   after its password had been accepted.
 - Enabling a second factor with a secret containing no Base32 letter answered 500; it is a 400.
@@ -258,14 +419,26 @@ risk where a fix would be a decision of its own:
 - The high-impact fixes on the posture page are read inside one transaction.
 - The API chain's filters ran a second time, as no-ops, outside the chain; they run in the chain only.
 - Temporary directories left by the rule catalogue fetch are removed like every other.
+- **Two control planes no longer open two tickets for one issue.** Every instance runs the hourly ticket sweep,
+  and two passes that overlapped both asked the tracker for the same issue. The sweep now claims each issue
+  before asking (migration V95, two nullable columns on `t_issue`): a pass that loses the claim leaves the issue
+  to the other, a refused attempt gives the claim up, and a claim whose instance died is taken over after ten
+  minutes. One instance, what this release supports (above), never met this.
 
-### Performance {#performance-unreleased}
+### Performance {#performance-100-rc1}
 
 - The interface's first download falls from 932 kB to 612 kB: the shell and the Lara and Nora themes load
   when needed, and the build now fails if an eager import pulls a screen back in.
 - Translations, the OWASP weekly heatmap and the repositories, agents, issues, solutions, project
   checklist and checklist templates pages compute once what they used to recompute on every change.
 - API discovery reconciles endpoints with ingress paths by prefix lookup rather than comparing every pair.
+- The licence inventory and the licence conflicts asked for no target — the administrator's licence
+  screen — are served from memory: each target's entries are kept beside the licence tallies and read
+  again only when that target's scans, components or build SBOMs move, or when the target is deleted;
+  the policy and the targets' names are applied at each call. About 250 ms a call falls to about
+  40 ms on two hundred targets of two scans and 250 components. The answers do not change, order
+  included. The control plane holds up to about 50 MB more per thousand such targets once their
+  inventory has been asked for, less where targets share components.
 
 ## 0.11.2 — 2026-10-27
 

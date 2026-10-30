@@ -1,6 +1,7 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
@@ -25,7 +26,7 @@ describe('the tracker token, its expiry and its refusal', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [SettingsTicketing],
-            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), SettingsState]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), SettingsState]
         }).compileComponents();
 
         TestBed.inject(I18nService).translations.set({
@@ -34,7 +35,9 @@ describe('the tracker token, its expiry and its refusal', () => {
                 token_refused: 'Refused (HTTP {{status}}) since {{date}}',
                 token_expiry_unknown: 'Expiry unknown',
                 token_expires_on: 'Expires on {{date}}',
-                token_expiry_declared: '(declared)'
+                token_expiry_declared: '(declared)',
+                tracker_suspended_tag: 'Suspended',
+                tracker_suspended: 'The {{integration}} integration is disabled.'
             },
             forges: {
                 connections: {
@@ -158,6 +161,38 @@ describe('the tracker token, its expiry and its refusal', () => {
         const page = await loaded({ configured: true, expiresAt: null, expirySource: 'unknown' });
 
         expect(page.querySelector('[data-testid="ticket-token-expiry-unknown"]')).not.toBeNull();
+    });
+
+    it('says the tracker is suspended, naming its integration, while the governor has it switched off', async () => {
+        const page = await loaded({
+            configured: true,
+            expiresAt: null,
+            expirySource: 'unknown',
+            state: 'suspended',
+            integration: 'tracker.jira'
+        });
+
+        const suspended = page.querySelector('[data-testid="tracker-suspended"]')?.textContent ?? '';
+        expect(suspended).toContain('Suspended');
+        expect(suspended).toContain('The tracker.jira integration is disabled.');
+        // With the way to the screen that switches it back on.
+        expect(page.querySelector('[data-testid="tracker-suspended-link"]')?.getAttribute('href')).toBe(
+            '/integrations'
+        );
+        // The token is kept, and its life still shown.
+        expect(page.querySelector('[data-testid="ticket-token-health"]')).not.toBeNull();
+    });
+
+    it('says nothing of a suspension while the tracker is active', async () => {
+        const page = await loaded({
+            configured: true,
+            expiresAt: null,
+            expirySource: 'unknown',
+            state: 'active',
+            integration: 'tracker.jira'
+        });
+
+        expect(page.querySelector('[data-testid="tracker-suspended"]')).toBeNull();
     });
 
     it('says nothing of a token that is not stored', async () => {

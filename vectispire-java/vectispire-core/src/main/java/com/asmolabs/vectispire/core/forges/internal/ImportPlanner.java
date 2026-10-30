@@ -96,6 +96,7 @@ public class ImportPlanner {
     private final GitTokenAdministrationService tokens;
     private final SshKeyAdministrationService keys;
     private final TargetSchedules schedules;
+    private final ForgeIntegrations integrations;
     private final Clock clock;
 
     public ImportPlanner(
@@ -107,6 +108,7 @@ public class ImportPlanner {
             GitTokenAdministrationService tokens,
             SshKeyAdministrationService keys,
             TargetSchedules schedules,
+            ForgeIntegrations integrations,
             Clock clock) {
         this.connections = connections;
         this.discoveries = discoveries;
@@ -116,6 +118,7 @@ public class ImportPlanner {
         this.tokens = tokens;
         this.keys = keys;
         this.schedules = schedules;
+        this.integrations = integrations;
         this.clock = clock;
     }
 
@@ -322,8 +325,14 @@ public class ImportPlanner {
      * @throws InvalidInputException a request out of its bounds or naming what does not exist — refused whole, in
      *     words; a repository the import could not create is not refused here but listed, {@code refused}, so that
      *     the preview can show it against its row
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException the connection is
+     *     suspended, its forge's integration disabled. Here rather than at the routes: every preview, every import
+     *     and every import's replanning after a lost race plans, and none of them calls the forge — the import acts
+     *     on what a discovery said, so the forge's switch is asked where that is read (decision 0040 §1). The
+     *     selection's own reads and ticks stay open: they change nothing outside the connection's snapshot.
      */
     public Plan plan(Source source, ForgeImportRequest request) {
+        integrations.requireEnabled(source.kind());
         if (request == null) {
             throw new InvalidInputException("Describe the import: the discovery, the repositories and their credentials.");
         }

@@ -238,10 +238,12 @@ analysed data decides is read with its worst input in mind.
 **An `in (:list)` whose list the data sizes is a query that fails one day.** One bind parameter per
 element, and the PostgreSQL driver refuses a statement past 65,535 (a MySQL server-side prepared
 statement too, though a client-side one accepts it). A test past the limit proves the batching on
-PostgreSQL only — say so in its javadoc rather than claim both engines. The claim's exclusion of every waiting repository carrying a
+PostgreSQL only, which nothing runs since 1.0 left it (decision 0043 §3) — say so in its javadoc rather
+than claim a check the campaign makes. The claim's exclusion of every waiting repository carrying a
 credential failed at every poll on a large enough queue, and `findAllById` is the same statement. Walk
-in pages (`ScanQueue.eligible`, keyset on the order's own key) or batch the lookup
-(`TargetCatalog.carryingCredentials`, 1,000 at a time), and test past the limit on the engines.
+in pages (`ScanQueue.eligible`, keyset on the order's own key) or batch the lookup through `Batches.of`
+(`TargetCatalog.carryingCredentials`, 1,000 at a time) — one way to cut a lookup, not a `subList` loop
+of your own.
 
 **A scanner that is not root cannot assume its `/tmp` is writable.** The daemon copies the image's own
 mode onto a tmpfs mounted over it: the matcher's image ships a root-only `/tmp`, and once it ran as the
@@ -262,6 +264,15 @@ check that scans through the file as shipped, with every scanner at its pinned d
 against a one-advisory database published in the executor's cache, not the publisher's 3 GB) and each
 required to report what the fixture planted for it. On Docker Desktop it puts the scans' directories
 in the VM, because on a shared path a scanner running as root reads the 0700 workspace and passes.
+
+**A network policy is not in force when the pod starts.** On k3s, kube-router adds a pod's own chain
+once it learns of the pod and lets it through until then — measured: twenty new pods under a deny-all
+policy applied a minute earlier all reached the API server for their first 0.3 to 0.7 seconds. The
+isolation probe that tried once a second in passed on an idle machine and failed once on a loaded
+runner, and every scan pod opened the same window in production. So the Kubernetes executor waits
+until the pod is cut off before the scanner starts (the receiving init container, bounded by
+`ISOLATION_SETTLES`) and fails the step if it never is. An isolation property is observed from the
+pod before work that depends on it begins, never assumed from the object having been applied.
 
 **Anything entering an issue's fingerprint is a data contract.** A rule id, a finding type, a
 path normalization. Change one and every existing issue is resolved and recreated, losing its
@@ -307,6 +318,10 @@ reaper container failing to start or to connect ("Can not connect to Ryuk") fail
 user in the JVM at once. With reuse on, `:test` registers nothing with it, so
 `TESTCONTAINERS_RYUK_DISABLED=true ./gradlew build` is a fair workaround; never for
 `integrationTest*`, whose containers only the reaper removes. Say in your report which you used.
+**A test hung inside a commit is a full disk before it is a deadlock**: MySQL does not fail a commit
+that must write its binary log on a full disk, it waits and retries every minute — a run hung an hour
+and a half that way. `TestDatabase` opens every connection with `sql_log_bin=0`, so a full disk fails
+the run instead of hanging it; a connection you open in a test goes through it.
 
 **Every `@Modifying` query carries `@Transactional`**, and so does every derived `deleteBy…`.
 Spring Data does not add it. Without it the method works whenever a caller happens to have a
@@ -425,10 +440,60 @@ balancer every audit entry and every throttle would name the balancer. A caller 
 reads `TrustedProxies.resolvedClientAddress(request)`, which `ClientAddressFilter` fills at the head
 of the chain; `ArchitectureTest.onlyTrustedProxiesReadsThePeerAddress` refuses any other reader.
 
+**A filter that is a bean runs twice unless you say otherwise.** Spring Boot registers every `Filter`
+bean with the servlet container as well as the chain that adds it, so the six filters of the API chain
+each ran a second time after `FilterChainProxy` — a no-op under `OncePerRequestFilter` on the routes
+the chain serves, live after the response was decided on a path the sign-on chain lets through. A new
+filter of `access.web.security.chain` comes with a disabled `FilterRegistrationBean`;
+`ChainFiltersRegisteredOnceTest` fails on one without it.
+
+**A value two readers parse is parsed once.** The bearer ceiling recognised `Bearer` and one space,
+the authentication filter any whitespace: a token after a tab was resolved by one and never counted
+by the other, escaping the ceiling and its audit entry. The same holds for configuration: a key read
+by two `@Value`s carries two defaults (`oidc.link-privileged-accounts` for sign-on and SCIM, five
+`http.max-body.*` for the filter and the service behind it), and a change to one accepts at one door
+what the other refuses. A setting is bound once, in a `@Validated` `@ConfigurationProperties` record
+(`OidcProperties`, `RequestBodyLimits`, `SecurityLimits`), and **moving a key from `@Value` moves its
+default with it** — a record component with none binds `0` or `null`, so where the shipped value
+stays on the consumer (`SecurityLimits`), the consumer substitutes it for an unset one, and a test
+says so.
+
+**A ceiling counted per account is a lockout anyone can apply.** Five failures from any client locked
+the account — the governor's included — for whoever knew its name, and its owner's right password
+was refused with the rest. `LoginThrottle` counts each account from one client at five and from every
+client at fifty (`MAX_ATTEMPTS_PER_ACCOUNT`), a success clears this client's counters only, and which
+counters an attempt meets never depends on whether the account exists. A new throttle on a name the
+caller types asks the same two questions: who can exhaust it for somebody else, and does its key
+differ between an existing account and an absent one.
+
+**A list route pages through `ListWindow`, and the window comes after the visibility.** `limit` 1 to
+500 with a 400 beyond, never a silent clamp; `offset` zero or a multiple of `limit`, read only with a
+`limit`; the page cut from what the caller sees, after the parent's 404 — a refused window must say
+nothing about a target the caller cannot see. **With no parameter a route answers what it answered
+before**: after 1.0 a default page smaller than the list could never be introduced, since it would
+silently truncate what existing clients read, while an optional parameter can be added at any time.
+One vocabulary (`limit`/`offset`) for every list, never a second one beside it.
+
+**An external number is unique only in its namespace.** The tracker webhook matched findings on the
+bare ticket number, and a GitHub or GitLab number belongs to a repository: an event about issue 12 of
+any repository moved every finding whose ticket was 12 in another. Match what the source names in
+full (the issue's URL, the repository configured for the tracker); a Jira key or a ServiceNow number
+carries its namespace already. The same question applies to any identifier an outside system sends.
+
+**A refusal that depends on the value sent answers whether the value is right.** An administrator-only
+setting was accepted from anyone when it matched the stored one, so a screen saving every field it
+shows was not locked out — and for a `SECRET` setting that told a non-administrator whether a guessed
+value was the stored one. A secret setting is refused from a non-administrator whatever it holds.
+
 **Roles are a separation of duties, not a ladder.** The platform governor (SUPERUSER) decides the
 rules — four-eyes, visibility — and takes no triage decision; only a governor administers the
 governor role, and nobody changes their own role (`AccountRules`). The SCIM token grants no
-administrative role and cannot touch an administrative account. When you add a route that settles,
+administrative role and cannot touch an administrative account. **A rule checked at one step is
+walked around in two**: the directory may lower a role, and binding read the role at the binding — so
+one request lowered an unbound security lead to User and a second bound it to a subject. An account
+the directory lowered out of a privileged role records it (`scim_lowered_from`) and is bound by
+neither SCIM nor a sign-on claim until an administrator sets its role. When a guard reads a state an
+outside system can change, ask what that system can do in two requests. When you add a route that settles,
 approves or grants something, check it against `Role`'s flags (`canCauseEffects`,
 `canApproveTriage`, `governsPlatform`), not only against its marker: `@RequiresSecurityLead` admits
 the governor.
@@ -449,7 +514,18 @@ one screen and none from the other. Keep the body private and the wrapper the on
 resolves, pins and classifies the address and refuses redirects. Never build an `HttpClient` of
 your own — nor a `RestClient`, `RestTemplate`, `WebClient` or `URLConnection`, which
 `onlyTheOutboundDoorSpeaksHttpOutwards` refuses everywhere, the door included. A destination a non-administrator can set must not be able to reach the Docker proxy or
-the database host.
+the database host. **A clone is an outbound door too**: a repository URL naming the daemon, the
+database (and its X port) or the cluster API was accepted and cloned from, because `GitHostAllowlist`
+asked only whether the host was listed. It now asks `OutboundUrlGuard.reservedReason` whatever the
+list says, with the transport's port when none is written. A new way to reach a host — a protocol,
+a fetch of a manifest — goes through `ReservedEndpoints` the same way.
+
+**A new sealed value joins the census.** After a rotation of `ENCRYPTION_KEY` the procedure declared
+itself finished once three stores were moved, and removing the old key then refused every second
+factor, stopped every signature and dropped the SIEM's header. A module that seals something
+implements `SealedStore`, so `EncryptionCensus` (`/actuator/encryption`) counts it and the rotation is
+not finished while it still depends on a previous key; say what re-seals it (a load, the next use, the
+operator setting it again).
 
 **Figures of risk leave settled triage out** — grades, rankings, plans, attack paths, per-severity
 backlogs — with `not in (TriageStatus.settledWireNames())`, never `in (unsettled)`: a status this

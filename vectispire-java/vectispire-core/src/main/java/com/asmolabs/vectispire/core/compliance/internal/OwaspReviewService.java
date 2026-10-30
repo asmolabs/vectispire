@@ -189,11 +189,21 @@ public class OwaspReviewService {
         return results.existsByStatusAndDeadlineAtAfter(AiReviewStatus.RUNNING.wireName(), clock.instant());
     }
 
+    /** Whether the configured provider's integration is on — what the writer after scans asks before it holds a request. */
+    public boolean providerEnabled() {
+        return models.providerEnabled();
+    }
+
     private AiReviewResultEntity review(RepositoryView repository, java.util.function.Supplier<ScanView> scanOf) {
         if (!models.isEnabled()) {
             throw new ReviewRefusedException(
                     "Model review is switched off. Turn it on under Settings → Model review.");
         }
+        // **Refused before anything is recorded** when the governor has switched the provider off (decision 0040,
+        // lot I5): 409 integration-disabled, "AI unavailable — provider disabled". Recorded instead, it would be a
+        // failed report on the page for a request that never left — and the call below asks the registry again,
+        // so a switch landing in between is a failed row with that sentence, never the other provider.
+        models.requireProviderEnabled();
 
         Duration timeout = models.timeout();
         AiReviewResultEntity requested = transactions.execute(status -> request(repository, scanOf.get(), timeout));

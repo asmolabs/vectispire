@@ -88,7 +88,7 @@ class TicketTrackerCaTest {
         OutboundUrlGuard guard = new OutboundUrlGuard();
         PinnedHttpSender sender = new PinnedHttpSender();
         service = new TicketService(settings, encryption, new OutboundPost(sender, guard, json),
-                new OutboundJson(sender, guard, json), json, Clock.systemUTC(), new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()));
+                new OutboundJson(sender, guard, json), json, Clock.systemUTC(), new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()), TrackerIntegrations.allEnabled());
     }
 
     @AfterEach
@@ -187,7 +187,7 @@ class TicketTrackerCaTest {
         service = new TicketService(settings,
                 new EncryptionService(new EncryptionProperties(Optional.of(EncryptionKey.generate()), List.of())),
                 new OutboundPost(sender, guard, json), new OutboundJson(sender, guard, json), json,
-                Clock.fixed(Instant.now().plus(Duration.ofDays(400)), ZoneOffset.UTC), new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()));
+                Clock.fixed(Instant.now().plus(Duration.ofDays(400)), ZoneOffset.UTC), new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()), TrackerIntegrations.allEnabled());
 
         assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
         assertThat(service.closeTicket("#7", "clean scan")).isFalse();
@@ -221,7 +221,8 @@ class TicketTrackerCaTest {
         when(policies.findByIsActiveTrue()).thenReturn(List.of());
         when(issues.findActionableWithoutTicket(anyString(), any(), any())).thenReturn(List.of(critical()));
         TicketSweepService sweep = new TicketSweepService(new IssueCatalog(issues), new ActiveGatePolicies(policies),
-                naming, service, mock(AuditLogService.class));
+                naming, service, mock(AuditLogService.class), java.time.Clock.systemUTC());
+        when(issues.claimTicket(anyLong(), anyString(), any(), any())).thenReturn(1);
 
         assertThat(sweep.sweep(20)).isZero();
         verify(issues, never()).attachTicket(anyLong(), anyString(), anyString());

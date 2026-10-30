@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.notifications.internal;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.DiscordEmbed;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
 import com.asmolabs.vectispire.common.domain.notifications.TokenAlertMessages;
@@ -9,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.settings.ExportProperties;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +29,16 @@ public class DiscordNotificationChannel implements NotificationChannel, AlertCha
     private final SettingsService settings;
     private final OutboundPost post;
     private final ExportProperties deployment;
+    private final Integrations integrations;
     private final java.time.Clock clock;
 
     public DiscordNotificationChannel(
-            SettingsService settings, OutboundPost post, ExportProperties deployment, java.time.Clock clock) {
+            SettingsService settings,
+            OutboundPost post,
+            ExportProperties deployment,
+            java.time.Clock clock,
+            Integrations integrations) {
+        this.integrations = integrations;
         this.settings = settings;
         this.post = post;
         this.deployment = deployment;
@@ -49,6 +57,8 @@ public class DiscordNotificationChannel implements NotificationChannel, AlertCha
 
     @Override
     public void deliver(NotificationPayload payload) {
+        // Before anything is read or built: nothing of a disabled channel runs (decision 0040, lot I6).
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.DISCORD);
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;
@@ -70,6 +80,7 @@ public class DiscordNotificationChannel implements NotificationChannel, AlertCha
     /** A token's change of state, to the same URL and under the same private-address rule as a scan's delta. */
     @Override
     public void deliverAlert(TokenAlert alert, String messageId) {
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.DISCORD);
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;

@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -11,6 +12,7 @@ import { SettingsApi } from '../../core/api/settings.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { daysLeft, expiryState, type ExpiryState } from '../../shared/forge-words';
+import { INTEGRATIONS_ROUTE } from '../../shared/integrations';
 import { SettingsState } from './settings-state';
 
 /**
@@ -23,7 +25,7 @@ import { SettingsState } from './settings-state';
  */
 @Component({
     selector: 'app-settings-ticketing',
-    imports: [DatePipe, FormsModule, ButtonModule, CardModule, InputTextModule, TagModule, TranslatePipe],
+    imports: [DatePipe, FormsModule, RouterLink, ButtonModule, CardModule, InputTextModule, TagModule, TranslatePipe],
     templateUrl: './settings-ticketing.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }
@@ -34,6 +36,8 @@ export class SettingsTicketing {
     private readonly state = inject(SettingsState);
 
     readonly active = input.required<boolean>();
+
+    readonly integrationsRoute = INTEGRATIONS_ROUTE;
 
     readonly tokenConfigured = signal(false);
 

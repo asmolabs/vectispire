@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.text.LogText;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.ActiveGatePolicies;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
@@ -21,6 +22,7 @@ import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,11 @@ import org.springframework.stereotype.Service;
  * backlog and opening a ticket per violation would be the same query, but an issue's ticket
  * would then depend on which <em>other</em> issues happen to be open — and "why does this one
  * have a ticket and that one not" has to have an answer about the issue itself.
+ *
+ * <p><b>A suspended tracker is said once, not every hour</b> (decision 0040 §3). While the governor has the
+ * configured tracker's integration switched off, the pass opens nothing and closes nothing — the issues keep
+ * their references, and those resolved meanwhile are closed when it is switched back on — and the log says so
+ * when the suspension begins and when it ends, never on every pass that finds it unchanged.
  */
 @Service
 public class TicketSweepService {
@@ -48,23 +55,41 @@ public class TicketSweepService {
     private static final String SCOPE_REPOSITORY = "repository";
     private static final String SCOPE_CONTAINER = "container";
 
+    /**
+     * This process, as the holder of the claims it takes: every instance runs the sweep (`MaintenanceTask`), and
+     * the claim is what keeps two of them from asking the tracker for the same issue (V95).
+     */
+    static final String INSTANCE = java.util.UUID.randomUUID().toString().replace("-", "");
+
+    /**
+     * How long a claim holds: far longer than a tracker call, so it is only ever waited out when its instance died
+     * between the claim and the reference — and then the issue is tried again by the next pass after it lapses.
+     */
+    static final java.time.Duration CLAIM = java.time.Duration.ofMinutes(10);
+
     private final IssueCatalog issues;
     private final ActiveGatePolicies policies;
     private final TargetNaming names;
     private final TicketService tickets;
     private final AuditLogService audit;
+    private final java.time.Clock clock;
+
+    /** The integration the last pass found suspended, empty when none: so that only a change is logged. */
+    private final AtomicReference<String> suspension = new AtomicReference<>("");
 
     public TicketSweepService(
             IssueCatalog issues,
             ActiveGatePolicies policies,
             TargetNaming names,
             TicketService tickets,
-            AuditLogService audit) {
+            AuditLogService audit,
+            java.time.Clock clock) {
         this.issues = issues;
         this.policies = policies;
         this.names = names;
         this.tickets = tickets;
         this.audit = audit;
+        this.clock = clock;
     }
 
     /** One pass. Returns how many tickets were opened. */
@@ -86,6 +111,9 @@ public class TicketSweepService {
      * deadlocked against itself — found by running it.
      */
     public int sweep(int limit) {
+        if (suspended()) {
+            return 0;
+        }
         if (!tickets.isEnabled()) {
             return 0;
         }
@@ -123,19 +151,34 @@ public class TicketSweepService {
                 continue;
             }
 
-            Optional<TicketService.Ticket> ticket = tickets.createForIssue(
-                    IssueViews.forTicket(issue), targetNames.of(issue.repoId(), issue.containerId()));
-            // Left without a reference on purpose: the next pass will try again.
+            // **Claimed before the tracker is asked.** Every instance runs this sweep, and a tracker does not
+            // deduplicate: without the claim, two passes that overlapped both opened a ticket for the issue.
+            // Lost: another instance is asking for it now, or it has a reference already.
+            java.time.Instant now = clock.instant();
+            if (!issues.claimTicket(issue.id(), INSTANCE, now, now.plus(CLAIM))) {
+                continue;
+            }
+            Optional<TicketService.Ticket> ticket;
+            try {
+                ticket = tickets.createForIssue(
+                        IssueViews.forTicket(issue), targetNames.of(issue.repoId(), issue.containerId()));
+            } catch (RuntimeException failed) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
+                throw failed;
+            }
+            // Left without a reference on purpose, and the claim given up: the next pass will try again.
             if (ticket.isEmpty()) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
                 continue;
             }
 
             created++;
             // **Only onto an issue that still carries no reference.** One a person attached while the
             // tracker answered is kept; the ticket just opened exists all the same, and is said to,
-            // in the log and in the audit entry, for whoever has to close it.
+            // in the log and in the audit entry, for whoever has to close it. Attaching clears the claim.
             boolean recorded = issues.attachTicket(issue.id(), ticket.get().reference(), ticket.get().url()) == 1;
             if (!recorded) {
+                issues.releaseTicketClaim(issue.id(), INSTANCE);
                 log.warn("Ticket {} was opened on the tracker for issue {}, which carries another reference attached "
                         + "meanwhile: the new ticket is not recorded on the issue and may need closing by hand.",
                         LogText.of(ticket.get().reference()), issue.id());
@@ -188,6 +231,26 @@ public class TicketSweepService {
             log.info("{} resolved ticket(s) automatically closed on tracker.", closed);
         }
         return closed;
+    }
+
+    /** Whether the configured tracker is suspended, logged when that changes since the last pass. */
+    private boolean suspended() {
+        String now = tickets.standing()
+                .filter(standing -> standing.state() == TrackerState.SUSPENDED)
+                .map(standing -> standing.integration().key())
+                .orElse("");
+        String before = suspension.getAndSet(now);
+        if (!now.equals(before)) {
+            if (!now.isEmpty()) {
+                log.info("Ticket sweep: the {} integration is disabled. No ticket is opened or closed, and nothing is "
+                        + "sent to the tracker; its token, its settings and the issues' tickets are kept, and the sweep "
+                        + "resumes when a platform governor re-enables it.", now);
+            } else if (!before.isEmpty()) {
+                log.info("Ticket sweep: the {} integration is enabled again; tickets are opened and closed again.",
+                        before);
+            }
+        }
+        return !now.isEmpty();
     }
 
     /**

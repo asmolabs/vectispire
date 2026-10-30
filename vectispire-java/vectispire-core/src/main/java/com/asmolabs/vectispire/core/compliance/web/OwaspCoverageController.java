@@ -6,17 +6,17 @@ import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.compliance.OwaspCoverageService;
+import com.asmolabs.vectispire.core.compliance.OwaspGridService;
 import com.asmolabs.vectispire.core.compliance.OwaspWeeklyHistoryService;
 import com.asmolabs.vectispire.core.compliance.StatementOfApplicabilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -60,74 +60,21 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiresAccount
 public class OwaspCoverageController {
 
-    /**
-     * The key the Top 10 declarations are filed under.
-     *
-     * <p><b>The Top 10 does not join {@code ComplianceFramework}, and that is deliberate.</b> The
-     * compliance engine does not evaluate OWASP: adding it to the enum would make it appear in
-     * evaluations, summaries and the statement of applicability, where it has no business. The
-     * declaration table's {@code framework} column is a free string, which is all this key needs.
-     */
-    static final String FRAMEWORK = "OWASP_2021";
-
-    private final OwaspCoverageService coverage;
+    private final OwaspGridService grids;
     private final OwaspWeeklyHistoryService weekly;
     private final VisibilityService visibility;
     private final StatementOfApplicabilityService declarations;
 
     public OwaspCoverageController(
-            OwaspCoverageService coverage,
+            OwaspGridService grids,
             OwaspWeeklyHistoryService weekly,
             VisibilityService visibility,
             StatementOfApplicabilityService declarations) {
-        this.coverage = coverage;
+        this.grids = grids;
         this.weekly = weekly;
         this.visibility = visibility;
         this.declarations = declarations;
     }
-
-    /**
-     * One row of the grid, and what the organisation states about it.
-     *
-     * @param declaration {@code null} when nobody has stated anything. <b>That permanent grey
-     *     square is what this route exists to remove</b>: two Top 10 categories are beyond any
-     *     static analysis — insecure design cannot be read out of code, and a missing log leaves,
-     *     by definition, no trace. Leaving them grey is honest and carries no review; declaring
-     *     them says who asserts it, on what evidence, and when it is looked at again.
-     * @param because the reason in English, kept for every reader that does not translate — an export, a
-     *     script, a client older than {@code reason}
-     * @param reason the same reason as a code and the values its sentence is made of, which a screen
-     *     renders in its reader's language (decision 0019). Added beside {@code because}, never in its place
-     */
-    public record DeclaredCoverageLine(
-            String id,
-            String title,
-            OwaspCoverage.State state,
-            long findings,
-            String because,
-            OwaspCoverage.CoverageReason reason,
-            Declaration declaration) {
-
-        static DeclaredCoverageLine of(OwaspCoverage.CoverageLine line, Declaration declaration) {
-            return new DeclaredCoverageLine(
-                    line.id(), line.title(), line.state(), line.findings(), line.because(), line.reason(), declaration);
-        }
-    }
-
-    /**
-     * @param lines the grid in the standard's order, each row with its declaration if it has one
-     * @param scope the project or solution the grid was computed over, as the weekly route states it;
-     *     null for the reader's estate. The declarations are the category's, whatever the scope
-     * @param unplacedCode open code findings of the scope that no category holds — their rule declares no
-     *     2021 category and no CWE the standard's lists hold. Counted beside the grid, never in a line
-     */
-    public record DeclaredGrid(
-            List<DeclaredCoverageLine> lines,
-            int covered,
-            int withFindings,
-            int unmeasured,
-            OwaspWeeklyHistoryService.OwaspWeeklyScope scope,
-            long unplacedCode) {}
 
     /**
      * The grid, over the reader's estate or one project or solution of it. The scope's rules, the
@@ -145,25 +92,45 @@ public class OwaspCoverageController {
             + "holds: their rule declares no 2021 category, and no CWE the OWASP 2021 lists map to one.")
     @ApiResponse(responseCode = "200", description = "Grid returned")
     @GetMapping
-    public DeclaredGrid grid(
+    public OwaspGridService.DeclaredGrid grid(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(name = "project_id", required = false) Long projectId,
             @RequestParam(name = "solution_id", required = false) Long solutionId) {
-        OwaspCoverageService.ScopedGrid scoped = coverage.grid(projectId, solutionId, allowanceOf(principal));
-        OwaspCoverage.Grid grid = scoped.grid();
+        return grids.grid(projectId, solutionId, allowanceOf(principal));
+    }
 
-        Map<String, Declaration> byCategory = declarations.declarations(FRAMEWORK).stream()
-                .collect(Collectors.toMap(Declaration::controlId, Function.identity()));
-
-        return new DeclaredGrid(
-                grid.lines().stream()
-                        .map(line -> DeclaredCoverageLine.of(line, byCategory.get(line.id())))
-                        .toList(),
-                grid.covered(),
-                grid.withFindings(),
-                grid.unmeasured(),
-                scoped.scope(),
-                scoped.unplacedCode());
+    /**
+     * The grid as a file, for a register kept outside this product. The scope, its refusals and the reader
+     * are the grid's: an export is the same read written down, and a second door with a looser lock is the
+     * leak the evidence bundle once was.
+     *
+     * <p><b>The file is named by the scope's kind and number, never its name</b>: a project's name is chosen
+     * by whoever may create one, and a header is not the place to find out what it can hold.
+     */
+    @Operation(operationId = "exportOwaspCoverageCsv", summary = "OWASP Top 10:2021 coverage as CSV",
+            description = "The grid of GET /api/v1/owasp/coverage as a CSV attachment, one row per category in the "
+                    + "standard's order, CRLF-terminated, every cell quoted and neutralized against spreadsheet formulas. "
+                    + "Columns: category, title, state, findings, reason_code, reason (in language: en, the default, or "
+                    + "fr; any other answers 400), the category's declaration (applicability, justification, "
+                    + "implementation, evidence source, external evidence, owner, decided by and at, review due), and the "
+                    + "scope (kind: project, solution or estate; id, name, partial) on every row. project_id and "
+                    + "solution_id narrow it as they narrow the grid, with the same refusals: both answer 400, and a "
+                    + "project or a solution that does not exist and one the caller sees nothing of both answer 404.")
+    @ApiResponse(responseCode = "200", description = "CSV returned")
+    @GetMapping(value = "/export.csv", produces = "text/csv")
+    public ResponseEntity<String> exportCsv(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestParam(name = "project_id", required = false) Long projectId,
+            @RequestParam(name = "solution_id", required = false) Long solutionId,
+            @RequestParam(required = false) String language) {
+        String document = grids.csv(projectId, solutionId, allowanceOf(principal), language);
+        String filename = projectId != null ? "vectispire-owasp-coverage-project-" + projectId + ".csv"
+                : solutionId != null ? "vectispire-owasp-coverage-solution-" + solutionId + ".csv"
+                : "vectispire-owasp-coverage.csv";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(filename).build().toString())
+                .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
+                .body(document);
     }
 
     /**
@@ -241,7 +208,7 @@ public class OwaspCoverageController {
         }
 
         return declarations.declare(
-                FRAMEWORK,
+                OwaspGridService.FRAMEWORK,
                 category,
                 new StatementOfApplicabilityService.Submission(
                         body.applicability(),

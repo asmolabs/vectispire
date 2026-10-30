@@ -1,9 +1,12 @@
-# The operationIds 0.11.0 and 0.11.1 publish, one per line: method, path, operationId.
+# The operationIds 0.11.0 and 0.11.1 publish, one per line: method, path, operationId, and those
+# the integrations' registry adds in 1.0.0-rc.1.
 #
 # Read by PublishedOperationIdsTest. Taken from the document the application serves on develop at
 # 75c23643, which equals the committed vectispire-angular/openapi.json there and v0.11.0-rc.3's;
 # 0.11.1's release commit added the five operations it publishes (the password-change lift and
-# the checklist contacts), each with an id of its own.
+# the checklist contacts), each with an id of its own. The registry's two (GET /api/v1/integrations,
+# PUT /api/v1/integrations/{key}/enabled) were added from the document served once the
+# integrations' registry was rebased onto 0.11.1; none of the lines before them moved.
 # It is a copy and not the committed openapi.json on purpose: that file is rewritten by the same
 # flag that regenerates it, so a shifted id would be "fixed" by the regeneration that published
 # it. This one moves only by hand.
@@ -98,6 +101,7 @@ GET /api/v1/history/repositories repositories
 GET /api/v1/history/repositories/{id} dossier
 GET /api/v1/history/repositories/{id}/export.csv csv_1
 GET /api/v1/history/repositories/{id}/export.pdf pdf_2
+GET /api/v1/integrations listIntegrations
 GET /api/v1/inventory/search search
 GET /api/v1/inventory/versions versions
 GET /api/v1/issues list_20
@@ -295,6 +299,7 @@ PUT /api/v1/compliance/soa/{framework}/{controlId} declare_1
 PUT /api/v1/forge-connections/{id}/token replaceForgeConnectionToken
 PUT /api/v1/gate/policies/global storeGlobal
 PUT /api/v1/gate/policies/{kind}/{id} storeForTarget
+PUT /api/v1/integrations/{key}/enabled setIntegrationEnabled
 PUT /api/v1/issues/{id}/ticket attachTicket
 PUT /api/v1/licenses/policy updatePolicy
 PUT /api/v1/owasp/coverage/{category}/declaration declare

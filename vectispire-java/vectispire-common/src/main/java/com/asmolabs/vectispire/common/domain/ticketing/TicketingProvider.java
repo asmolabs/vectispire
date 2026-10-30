@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.ticketing;
 
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -21,6 +22,18 @@ public enum TicketingProvider {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    /**
+     * The tracker this provider's tickets live in, whose integration the governor switches (decision 0040 §3). A
+     * switch rather than a lookup by name, so that a provider added here without a tracker does not compile.
+     */
+    public TicketProvider tracker() {
+        return switch (this) {
+            case JIRA -> TicketProvider.JIRA;
+            case GITHUB -> TicketProvider.GITHUB;
+            case GITLAB -> TicketProvider.GITLAB;
+        };
     }
 
     /**

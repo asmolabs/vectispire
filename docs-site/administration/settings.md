@@ -112,7 +112,10 @@ the roles whose controls that evidence proves do not decide how long it survives
 ## Notifications
 
 Webhook, Teams and e-mail destinations, their secrets, and the weekly posture report.
-Covered under [Notifications](../integrations/notifications.md).
+Covered under [Notifications](../integrations/notifications.md). Each channel is an integration the
+platform governor may switch off once nothing is configured for it; giving a disabled channel a URL,
+recipients or its switch is refused 409 `integration-disabled`, and nothing of that save is written
+([each channel is an integration](../integrations/notifications.md#channel-integrations)).
 
 **Remind checklist contacts weekly** (`checklist_reminders_enabled`, **off by default**) sends, once a
 week, each account a project linked to a profile of its checklist's contact column the lines of that
@@ -129,7 +132,15 @@ verified against (`ticket_ca_pem`, PEM, in place of the runtime's trust store), 
 date for a tracker that does not report it (`ticket_token_expires_on`, administrator-only). Covered under
 [Tracker tickets](../integrations/ticketing.md) and [a tracker behind an internal
 CA](../integrations/ticketing.md#internal-ca); the token's expiry and refusal are shown on the tracker
-card ([when the token expires](../integrations/ticketing.md#token-expiry)).
+card ([when the token expires](../integrations/ticketing.md#token-expiry)). The provider is chosen from a
+list — *None* and the trackers whose integration is enabled on
+[*Administration → Integrations*](integrations.md); the one configured stays in it, marked *suspended*,
+while its integration is off. The AI provider's list and the notification channels' addresses follow the
+same rule. Choosing a tracker
+(`ticket_provider`) whose integration the platform governor has disabled is refused 409
+`integration-disabled`, and nothing of that save is written; `none` is always saved, and so is the
+tracker already configured, sent back unchanged while it is
+[suspended](../integrations/ticketing.md#tracker-suspended).
 
 ## AI review
 
@@ -159,6 +170,16 @@ to the source the day the code review exists.
   OpenAI**, a third party applying its own retention and jurisdiction. Check your contract with the
   provider on retention and training, and whether the code you scan is yours to send. Pointed at
   vLLM, LM Studio, llama.cpp or an internal gateway, the code stays on your network.
+
+**Each provider is an integration** — `ai.ollama`, `ai.openai` — that the platform governor may
+disable through `PUT /api/v1/integrations/{key}/enabled`, the one configured included: nothing
+recorded is lost. Disabled, every feature that reads it — the OWASP report from the button or after a
+scan, the advisor's explanation, the endpoint test — answers 409 `integration-disabled`, *AI unavailable
+— provider disabled*, and **is never answered by the other provider**: a review moved without a word
+from the Ollama you run to OpenAI's hosted API would send the findings to a third party nobody chose.
+The advisor's status reports `providerEnabled: false` and lists suggestions without asking it. Choosing
+a disabled provider (`ai_review_provider`), or turning `ai_review_enabled` on over one, is refused 409
+`integration-disabled`, and nothing of that save is written.
 
 **A public endpoint is refused until it is acknowledged.** Both URLs go through the outbound guard;
 a destination outside your network — OpenAI's API, or a public Ollama — needs **Allow a public model

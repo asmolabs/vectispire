@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -151,8 +152,8 @@ public class SettingsController {
             HttpServletRequest request) {
 
         String token = body == null || body.token() == null ? "" : body.token();
-        return TicketTokenState.of(
-                !token.isBlank(), administration.setTicketToken(token, RequestActors.of(principal, request)));
+        TrackerTokenState.Health health = administration.setTicketToken(token, RequestActors.of(principal, request));
+        return TicketTokenState.of(!token.isBlank(), health, tickets.standing());
     }
 
     /**
@@ -187,6 +188,11 @@ public class SettingsController {
      * @param refusedStatus the HTTP status the tracker refused it with, since {@code refusedSince}; null while it
      *     accepts it, or has not been asked
      * @param checkedAt when the tracker last answered the daily check
+     * @param state {@code active}, or {@code suspended} while the platform governor has the tracker's integration
+     *     switched off (decision 0040 §3) — nothing is sent to it then, and the token is kept; null while no tracker
+     *     is chosen
+     * @param integration the registry's key of the chosen tracker, {@code tracker.jira}: what re-enables it; null
+     *     while no tracker is chosen
      */
     public record TicketTokenState(
             boolean configured,
@@ -194,23 +200,28 @@ public class SettingsController {
             String expirySource,
             Integer refusedStatus,
             java.time.Instant refusedSince,
-            java.time.Instant checkedAt) {
+            java.time.Instant checkedAt,
+            String state,
+            String integration) {
 
-        static TicketTokenState of(boolean configured, TrackerTokenState.Health health) {
+        static TicketTokenState of(
+                boolean configured, TrackerTokenState.Health health, Optional<TicketService.Standing> standing) {
             return new TicketTokenState(
                     configured,
                     health.expiresAt().orElse(null),
                     health.expirySource().wireName(),
                     health.refused().map(TrackerTokenState.Refusal::status).orElse(null),
                     health.refused().map(TrackerTokenState.Refusal::since).orElse(null),
-                    health.checkedAt().orElse(null));
+                    health.checkedAt().orElse(null),
+                    standing.map(known -> known.state().wireName()).orElse(null),
+                    standing.map(known -> known.integration().key()).orElse(null));
         }
     }
 
-    /** The token's state, without ever returning it. */
+    /** The token's state, without ever returning it — nor decrypting it for anyone but this answer's "configured". */
     @GetMapping("/ticket-token")
     public TicketTokenState ticketTokenState() {
-        return TicketTokenState.of(!tickets.token().isEmpty(), tickets.tokenHealth());
+        return TicketTokenState.of(tickets.hasToken(), tickets.tokenHealth(), tickets.standing());
     }
 
     /**

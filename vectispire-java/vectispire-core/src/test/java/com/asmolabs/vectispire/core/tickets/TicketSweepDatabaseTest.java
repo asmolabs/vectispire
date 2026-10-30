@@ -132,4 +132,60 @@ class TicketSweepDatabaseTest extends VectispireContextTest {
         issue.setTimesSeen(1);
         return issues.save(issue).getId();
     }
+
+    @Test
+    @DisplayName("two sweeps at once open one ticket: the issue is claimed before the tracker is asked")
+    void twoOverlappingSweepsOpenOneTicket() throws Exception {
+        long id = issue(Severity.CRITICAL, TriageStatus.UNDER_REVIEW);
+        java.util.concurrent.CountDownLatch asking = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        when(tickets.createForIssue(any(), anyString())).thenAnswer(call -> {
+            asking.countDown();
+            release.await(30, java.util.concurrent.TimeUnit.SECONDS);
+            return Optional.of(new TicketService.Ticket("#1", "https://tracker.invalid/1"));
+        });
+
+        // The first pass is asking the tracker; the second runs whole meanwhile, as another instance's would.
+        var first = java.util.concurrent.CompletableFuture.supplyAsync(() -> sweep.sweep(20));
+        assertThat(asking.await(30, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        int second = sweep.sweep(20);
+        release.countDown();
+
+        assertThat(second).isZero();
+        assertThat(first.get(30, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(1);
+        org.mockito.Mockito.verify(tickets, org.mockito.Mockito.times(1)).createForIssue(any(), anyString());
+        IssueEntity stored = issues.findById(id).orElseThrow();
+        assertThat(stored.getTicketRef()).isEqualTo("#1");
+        assertThat(stored.getTicketClaimedBy()).as("attaching clears the claim").isNull();
+    }
+
+    @Test
+    @DisplayName("an issue another instance is asking a ticket for is left to it, until its claim lapses")
+    void anotherInstancesClaimIsHonouredUntilItLapses() {
+        long id = issue(Severity.CRITICAL, TriageStatus.UNDER_REVIEW);
+        java.time.Instant now = java.time.Instant.now();
+        assertThat(issues.claimTicket(id, "another-instance", now.plus(java.time.Duration.ofMinutes(5)), now)).isOne();
+
+        assertThat(sweep.sweep(20)).isZero();
+        org.mockito.Mockito.verify(tickets, org.mockito.Mockito.never()).createForIssue(any(), anyString());
+
+        // That instance died between its claim and the reference: once the claim lapses, the issue is taken over.
+        issues.releaseTicketClaim(id, "another-instance");
+        assertThat(issues.claimTicket(id, "another-instance", now.minusSeconds(1), now.minusSeconds(60))).isOne();
+        assertThat(sweep.sweep(20)).isEqualTo(1);
+        assertThat(issues.findById(id).orElseThrow().getTicketRef()).isEqualTo("#1");
+    }
+
+    @Test
+    @DisplayName("a tracker that answers nothing gives the claim up, so the next pass tries again")
+    void aRefusalReleasesTheClaim() {
+        long id = issue(Severity.CRITICAL, TriageStatus.UNDER_REVIEW);
+        when(tickets.createForIssue(any(), anyString())).thenReturn(Optional.empty());
+
+        assertThat(sweep.sweep(20)).isZero();
+        IssueEntity stored = issues.findById(id).orElseThrow();
+        assertThat(stored.getTicketRef()).isNull();
+        assertThat(stored.getTicketClaimedBy()).isNull();
+        assertThat(stored.getTicketClaimUntil()).isNull();
+    }
 }

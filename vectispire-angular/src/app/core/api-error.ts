@@ -49,6 +49,8 @@ export interface ProblemWords {
     detail: string;
     retryAfterSeconds?: number;
     correlationId?: string;
+    /** The registry's key a 409 `integration-*` names (decision 0040), `forge.gitlab`. */
+    integration?: string;
 }
 
 /** Answers a sentence for a code it knows, nothing for one it does not. */
@@ -73,7 +75,13 @@ function translateProblem(response: unknown): string | undefined {
     if (!translator) return undefined;
     const body = (response as { error?: unknown } | null)?.error;
     if (!body || typeof body !== 'object') return undefined;
-    const problem = body as { code?: unknown; detail?: unknown; retryAfterSeconds?: unknown; correlationId?: unknown };
+    const problem = body as {
+        code?: unknown;
+        detail?: unknown;
+        retryAfterSeconds?: unknown;
+        correlationId?: unknown;
+        integration?: unknown;
+    };
     if (typeof problem.code !== 'string' || typeof problem.detail !== 'string' || !problem.detail.trim()) {
         return undefined;
     }
@@ -81,7 +89,8 @@ function translateProblem(response: unknown): string | undefined {
         code: problem.code,
         detail: problem.detail.trim(),
         retryAfterSeconds: typeof problem.retryAfterSeconds === 'number' ? problem.retryAfterSeconds : undefined,
-        correlationId: typeof problem.correlationId === 'string' ? problem.correlationId : undefined
+        correlationId: typeof problem.correlationId === 'string' ? problem.correlationId : undefined,
+        integration: typeof problem.integration === 'string' ? problem.integration : undefined
     });
     return sentence?.trim() || undefined;
 }

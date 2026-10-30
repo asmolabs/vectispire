@@ -49,7 +49,7 @@ class TicketServiceTest {
         post = mock(OutboundPost.class);
         service = new TicketService(
                 settings, encryption, post, mock(OutboundJson.class), new ObjectMapper(), java.time.Clock.systemUTC(),
-                new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()));
+                new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()), TrackerIntegrations.allEnabled());
 
         when(settings.get(any())).thenReturn("");
         when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.GITLAB.wireName());

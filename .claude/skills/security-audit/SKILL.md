@@ -9,7 +9,10 @@ description: Runs a security review of Vectispire in four parallel read-only are
 
 - **Whole application** (default): the four areas below.
 - **A change**: pass the diff range (`git diff <base>..HEAD`) to each reviewer and ask them to review
-  the change *and* what it touches, not the whole codebase.
+  the change *and* what it touches, not the whole codebase. Split by side (back end, front end) rather
+  than by area when the range is mostly refactoring, and ask for the silent-revert and merge-resolution
+  checks of the agent's "Reviewing a diff": a range of parallel work once carried eight commits that
+  undid three merged changes, one of them a security fix, under messages that did not say so.
 
 ## 2. Fan out — four `security-reviewer` agents, in parallel, in the background
 

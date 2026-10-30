@@ -826,6 +826,28 @@ jobs:
             vectispire-agent.cdx.json
           retention-days: 30
 
+  # **The licences of what ships, refused when nobody has reviewed them.** Every runtime jar in the two
+  # jars' SBOMs, every package the interface is built from (`package-lock.json`, development tools aside),
+  # judged against `ci/licences/allowed.txt` — licences with the reason each may ship inside an Apache-2.0
+  # distribution, and the components reviewed one by one — and `NOTICE` held to the jars: a component
+  # under another licence than Apache-2.0 that it does not name fails. The images' operating-system
+  # packages are judged in `images`, where the images exist. The verdict on a new licence is a person's,
+  # written in that file; this only makes sure nobody skips the question.
+  licences:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [sbom]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+          path: sbom
+      - run: |
+          python3 ci/licences/check.py ci/licences/allowed.txt --notice NOTICE \
+            --sbom sbom/vectispire-jvm.cdx.json --sbom sbom/vectispire-agent.cdx.json \
+            --npm-lock package-lock.json
+
   vulnerabilities:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -993,6 +1015,23 @@ jobs:
           grep -q "reads major 1 only" "$work/stderr"
           [ ! -e "$work/out3/summary.xlsx" ] || { echo "another major wrote a document"; exit 1; }
           echo "another major: exit 2, its reason on stderr, nothing written"
+      # **The images' own packages, under a reviewed licence** (`ci/licences/check.py`, the `image` lines of
+      # its allowlist): busybox, the JRE, glibc and the rest of the base layers. Read from the images just
+      # built, by the Syft `sbom` pins, so a base image moved by digest is judged before it ships.
+      - name: the images' packages are under reviewed licences
+        run: |
+          syft=anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026
+          ./scripts/pull-pinned-image.sh "$syft"
+          mkdir -p image-sboms
+          for image in vectispire vectispire-agent vectispire-report-demo; do
+            docker save "$image:latest" -o "image-sboms/$image.tar"
+            docker run --rm -v "$PWD/image-sboms:/work" "$syft" "docker-archive:/work/$image.tar" -q \
+              -o "cyclonedx-json=/work/$image.cdx.json"
+            rm "image-sboms/$image.tar"
+          done
+          python3 ci/licences/check.py ci/licences/allowed.txt \
+            --image image-sboms/vectispire.cdx.json --image image-sboms/vectispire-agent.cdx.json \
+            --image image-sboms/vectispire-report-demo.cdx.json
       # The credentials are the step's environment and `-e NAME` hands them on by name: `-e
       # NAME=value` is an argument of the docker client, which `ps` shows to the whole runner.
       # Throwaway values, but the same rule as everywhere else, so the pattern copied is the right one.

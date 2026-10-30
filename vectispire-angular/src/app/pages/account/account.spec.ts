@@ -158,6 +158,9 @@ describe('the account screen', () => {
         expect(page.enrolment()).not.toBeNull();
         expect(page.mfaEnabled()).toBe(false);
         expect(page.error()).toContain('Invalid TOTP verification code.');
+        // The code stays for its typo to be corrected; the password does not outlive its request.
+        expect(page.code).toBe('000000');
+        expect(page.password).toBe('');
     });
 
     it('exige un code pour retirer le facteur, et le garde actif si le serveur refuse', () => {

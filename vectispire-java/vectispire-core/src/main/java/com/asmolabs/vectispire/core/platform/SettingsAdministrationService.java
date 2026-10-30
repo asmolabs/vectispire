@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -15,7 +16,9 @@ import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.notifications.NotificationDestinations;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import com.asmolabs.vectispire.core.tickets.TrackerTokenState;
@@ -27,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The rules behind the settings screen: what a reader may see of the catalog, what a save may
@@ -65,6 +69,10 @@ public class SettingsAdministrationService {
     private final TicketService tickets;
     private final NotificationService notifications;
     private final AuditLogService audit;
+    private final Integrations integrations;
+    private final NotificationDestinations destinations;
+    /** The save's writes, in one transaction: the channels it configures are held in it (decision 0040, lot I6). */
+    private final TransactionTemplate transactions;
     private final Clock clock;
 
     public SettingsAdministrationService(
@@ -74,6 +82,9 @@ public class SettingsAdministrationService {
             TicketService tickets,
             NotificationService notifications,
             AuditLogService audit,
+            Integrations integrations,
+            NotificationDestinations destinations,
+            TransactionTemplate transactions,
             Clock clock) {
         this.settings = settings;
         this.aiReview = aiReview;
@@ -81,6 +92,9 @@ public class SettingsAdministrationService {
         this.tickets = tickets;
         this.notifications = notifications;
         this.audit = audit;
+        this.integrations = integrations;
+        this.destinations = destinations;
+        this.transactions = transactions;
         this.clock = clock;
     }
 
@@ -150,6 +164,11 @@ public class SettingsAdministrationService {
      *
      * <p>All validated before any is written: a partial write would leave the configuration
      * half-way between two intended states.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException 409 {@code
+     *     integration-disabled} when {@code ticket_provider} moves to a tracker whose integration is disabled, when
+     *     {@code ai_review_provider} moves to a disabled AI provider or {@code ai_review_enabled} is turned on over
+     *     one, and when a notification channel whose integration is disabled is given somewhere to send
      */
     public Applied update(Map<String, String> body, Optional<UserView> writer, RequestActor actor) {
         if (body == null || body.isEmpty()) {
@@ -263,6 +282,21 @@ public class SettingsAdministrationService {
             if (setting == Setting.TICKET_CA && !value.isEmpty() && !value.equals(settings.get(setting).trim())) {
                 tickets.caToPin(value);
             }
+            // **A tracker whose integration is disabled is not chosen** (decision 0040 §1): 409
+            // `integration-disabled`, naming it, as every other gesture that would start using it is refused.
+            // `none` is always saved — it uses nothing. Only on a change of tracker: the configured one switched
+            // off is *suspended* (0040 §3), a state the governor's switch makes on purpose and that keeps
+            // everything, and refusing its value sent back unchanged — by a client saving the whole section —
+            // would refuse the project, the labels and the CA beside it for a tracker this save does not move.
+            // Checked, not held as the SIEM transport is: a switch that lands between this check and the write
+            // leaves a configured tracker suspended, which is the state the switch exists to make, not a loss.
+            if (setting == Setting.TICKET_PROVIDER) {
+                TicketProvider chosen = TicketProvider.fromWireName(value).orElse(TicketProvider.NONE);
+                if (chosen.isEnabled()
+                        && chosen != TicketProvider.fromWireName(settings.get(setting)).orElse(TicketProvider.NONE)) {
+                    integrations.requireEnabled(Integration.of(chosen));
+                }
+            }
             // A date the screen announces from, so a typo is refused here rather than read as "unknown".
             if (setting == Setting.TICKET_TOKEN_EXPIRES_ON && !value.isEmpty()
                     && com.asmolabs.vectispire.common.domain.forges.TokenExpiry.ofDate(value).isEmpty()) {
@@ -281,6 +315,24 @@ public class SettingsAdministrationService {
                 pending.getOrDefault(Setting.AI_REVIEW_ALLOW_REMOTE, previousAcknowledgement));
         AiProvider providerAfter = AiProvider.of(
                 pending.getOrDefault(Setting.AI_REVIEW_PROVIDER, settings.get(Setting.AI_REVIEW_PROVIDER)));
+        // **A disabled AI provider is not chosen** (decision 0040, lot I5): 409 integration-disabled, naming it, when
+        // the provider moves to it or model review is turned on over it. Only on those changes: a provider the
+        // governor switches off while it is configured is a state the switch makes on purpose — the features say
+        // "AI unavailable" — and a screen sending the section back unchanged must not be refused for it. Checked,
+        // not held: nothing is lost if a switch lands between this check and the write.
+        boolean providerMoves = pending.containsKey(Setting.AI_REVIEW_PROVIDER)
+                && providerAfter != AiProvider.of(settings.get(Setting.AI_REVIEW_PROVIDER));
+        boolean reviewTurnsOn = "true".equals(pending.get(Setting.AI_REVIEW_ENABLED))
+                && !settings.isEnabled(Setting.AI_REVIEW_ENABLED);
+        if (providerMoves || reviewTurnsOn) {
+            integrations.requireEnabled(Integration.of(providerAfter));
+        }
+        // **Nor is a disabled notification channel configured** (lot I6): a URL, recipients or a switch that would
+        // send to it. Asked once, by the hold in the write's transaction below, which refuses a channel that is off
+        // before a value is written — a check here as well would read a state the hold reads again. In the enum's
+        // order, so two saves holding two channels take their rows alike.
+        List<Integration> channelsConfigured = destinations.configuredBy(pending).stream().sorted()
+                .map(Integration::of).toList();
         String urlAfter = providerAfter == AiProvider.OPENAI
                 ? pending.getOrDefault(Setting.AI_REVIEW_OPENAI_URL, aiReview.openAiUrl())
                 : pending.getOrDefault(Setting.AI_REVIEW_OLLAMA_URL, aiReview.ollamaUrl());
@@ -320,21 +372,28 @@ public class SettingsAdministrationService {
             aiReview.requireLocalUnlessAcknowledged(providerAfter, urlAfter, remoteAfter);
         }
 
-        changes.forEach(change -> settings.set(change.setting(), change.value()));
+        // **One transaction for the writes**, which each committed alone: the notification channels this save
+        // configures are held in it (`Integrations.holdEnabled`), so a governor's switch arriving
+        // meanwhile waits for the write and then reads the channel as in use — and a save arriving after the switch
+        // reads it off and is refused, nothing written. The audit entry is recorded after it commits.
+        transactions.executeWithoutResult(status -> {
+            channelsConfigured.forEach(integrations::holdEnabled);
+            changes.forEach(change -> settings.set(change.setting(), change.value()));
 
-        // **The acceptance is stamped here, by the server, or erased here.** Recorded after the
-        // write so it describes a configuration that exists, and only on the transition — saving
-        // an unrelated setting while the switch is already on must not rewrite whose decision it
-        // was, or the record would name whoever edited the screen last.
-        if (pending.containsKey(Setting.AI_REVIEW_ALLOW_REMOTE)
-                && !pending.get(Setting.AI_REVIEW_ALLOW_REMOTE).equals(previousAcknowledgement)) {
-            if (remoteAfter) {
-                aiReview.recordRiskAcknowledgement(
-                        writer.map(user -> user.username()).orElse(""), clock.instant());
-            } else {
-                aiReview.clearRiskAcknowledgement();
+            // **The acceptance is stamped here, by the server, or erased here.** Recorded after the
+            // write so it describes a configuration that exists, and only on the transition — saving
+            // an unrelated setting while the switch is already on must not rewrite whose decision it
+            // was, or the record would name whoever edited the screen last.
+            if (pending.containsKey(Setting.AI_REVIEW_ALLOW_REMOTE)
+                    && !pending.get(Setting.AI_REVIEW_ALLOW_REMOTE).equals(previousAcknowledgement)) {
+                if (remoteAfter) {
+                    aiReview.recordRiskAcknowledgement(
+                            writer.map(user -> user.username()).orElse(""), clock.instant());
+                } else {
+                    aiReview.clearRiskAcknowledgement();
+                }
             }
-        }
+        });
 
         Applied applied = new Applied(
                 changes.size(),
@@ -460,7 +519,12 @@ public class SettingsAdministrationService {
      * is null for them.
      */
     public EndpointCheck checkAiEndpoint(Optional<UserView> caller) {
+        // **The test is a call like any other** (decision 0040, lot I5): a provider switched off is not asked, and
+        // the answer is the refusal every feature gives — not "unreachable", which would send the operator to
+        // check a network path that is fine.
+        aiReview.requireProviderEnabled();
         boolean named = administrative(caller);
+
         String model = aiReview.selectedModel();
         AiProvider provider = aiReview.provider();
         // Two forms on purpose: `name` goes into sentences a person reads, `wireName` into the

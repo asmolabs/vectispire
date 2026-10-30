@@ -248,6 +248,8 @@ agents:
   knownHosts: ""
   pluginRegistry: ""
   pluginSignatureRequired: true
+  # Rendered into the agent's container as written. Never KUBERNETES_SERVICE_HOST or _PORT: they would
+  # replace the kubelet's, and the agent refuses to start on an API server address that is not the cluster's.
   extraEnv: []
   resources:
     requests:

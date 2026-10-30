@@ -295,7 +295,9 @@ est nommée par son identifiant et son SHA-256, que portent les preuves de la me
 celles du serveur, en anglais, comme tous les résumés de mesure.
 
 **Pas de données, jamais une réussite :** `never_examined` (pas encore lu — la première lecture vient dans
-l'heure), `forge_unlinked`, `forge_unreadable` (le jeton s'est vu refuser le projet, ses merge requests ou
+l'heure), `forge_integration_disabled` (le gouverneur de la plateforme a désactivé l'intégration de la
+forge : la connexion est [suspendue](forge-connections.fr.md#quand-lintegration-de-la-forge-est-desactivee),
+rien n'est lu, et une lecture prise avant n'est pas jugée), `forge_unlinked`, `forge_unreadable` (le jeton s'est vu refuser le projet, ses merge requests ou
 ses pull requests — les preuves donnent la réponse de la forge, `HTTP 403` et la permission à accorder),
 `review_incomplete` (plus de 500 changements fusionnés dans la fenêtre, ou une lecture plus étroite que la
 fenêtre de la règle juste après qu'elle a été élargie), `no_change_merged` (rien de fusionné dans la

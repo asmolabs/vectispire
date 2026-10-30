@@ -553,7 +553,15 @@ public enum AuditOperation {
      * week and the recipient, and a reminder whose entry exists for this week is not sent again. One entry per
      * recipient, so that a relay refusing one address does not resend the others' next hour.
      */
-    CHECKLIST_REMINDER_SENT;
+    CHECKLIST_REMINDER_SENT,
+
+    /**
+     * The platform governor switched an integration on or off (decision 0040): a forge kind, a SIEM
+     * transport, an AI provider, a notification channel or a tracker. The resource is the integration's
+     * key; the entry says which way. Its own operation rather than {@code SETTING_UPDATED}, so an auditor
+     * finds what the installation was allowed to reach, and when, without reading every settings change.
+     */
+    INTEGRATION_ENABLED_CHANGED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {
