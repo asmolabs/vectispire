@@ -195,7 +195,12 @@ const LINKS: Record<string, string> = {
     '/sarif-sources': 'Declared sources',
 
     // Decision 0032 §8: governance reads the checklist templates, the security leads write them.
-    '/checklist-templates': 'Checklist templates'
+    '/checklist-templates': 'Checklist templates',
+
+    // Decision 0040: every account reads the registry; the entry sits before the settings' "Integrations &
+    // SIEM", which the same words would also find, so `first()` lands on this one.
+    '/integrations': 'Integrations',
+    '/forge-connections': 'Forge connections'
 };
 
 /** The role accounts' password, and the one the first use rotates it to. */

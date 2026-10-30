@@ -1,4 +1,64 @@
 {
+  "integrations": {
+    "title": "Intégrations",
+    "subtitle": "Les systèmes extérieurs auxquels cette installation peut parler — forges, transports SIEM, fournisseurs d'IA, canaux de notification et trackers — et si chacun est activé.",
+    "rule_governor": "Désactiver une intégration suspend ce qui l'utilise ; rien n'est supprimé, et la réactiver reprend tout comme avant. Une intégration encore utilisée — le transport SIEM par lequel l'export envoie — est refusée tant que cette configuration n'est pas modifiée. Chaque bascule est auditée.",
+    "rule_reader": "Seul le gouverneur de la plateforme active ou désactive une intégration. Une intégration désactivée n'est pas proposée dans les formulaires, et ce qui l'utilise déjà est suspendu, jamais supprimé.",
+    "enabled": "Activée",
+    "disabled": "Désactivée",
+    "changed_by": "Basculée le {{date}} par {{user}}",
+    "changed_at": "Basculée le {{date}}",
+    "never_changed": "Jamais basculée depuis l'installation",
+    "switch_off": "Désactiver",
+    "switch_on": "Activer",
+    "aria_switch_off": "Désactiver {{name}}",
+    "aria_switch_on": "Activer {{name}}",
+    "confirm_title": "Désactiver {{name}} ?",
+    "confirm_kept": "Rien n'est supprimé : la réactiver reprend tout comme avant.",
+    "confirm_accept": "Désactiver",
+    "switched_on": "{{name}} est activée ; ce qu'elle suspendait reprend.",
+    "switched_off": "{{name}} est désactivée ; ce qui l'utilise est suspendu.",
+    "refused_on": "{{name}} n'a pas été activée : {{reason}}",
+    "refused_off": "{{name}} n'a pas été désactivée : {{reason}}",
+    "error_load": "Les intégrations n'ont pas pu être lues.",
+    "error_switch": "La bascule a été refusée.",
+    "open_screen": "Administration → Intégrations",
+    "option_suspended": "{{name}} — suspendu, intégration désactivée",
+    "suspended_tag": "Suspendu — intégration désactivée",
+    "families": {
+      "forge": "Forges",
+      "siem": "Transports SIEM",
+      "ai": "Fournisseurs d'IA",
+      "notification": "Canaux de notification",
+      "tracker": "Trackers"
+    },
+    "suspends": {
+      "forge": "Les connexions à cette forge sont suspendues : aucune découverte, aucun import, aucun nouveau jeton ni aucune lecture de revue des changements ne passe par elles, et une ligne de revue des changements qu'elles alimentent ne lit aucune donnée. Leurs jetons, leurs instantanés et leurs liens d'import sont gardés, et une nouvelle connexion de ce type est refusée.",
+      "siem": "L'export SIEM ne peut plus envoyer par ce transport, et sa désactivation est refusée tant que l'export activé l'utilise. Les événements qui lui sont destinés attendent dans l'outbox et partent dès sa réactivation.",
+      "ai": "Les fonctions qui lisent ce fournisseur disent l'IA indisponible plutôt que d'interroger un autre fournisseur. Rien de ce qui est enregistré n'est perdu.",
+      "notification": "Ce canal n'envoie plus rien. Sa désactivation est refusée tant qu'une configuration l'utilise encore, pour qu'aucune alerte ne se perde en silence.",
+      "tracker": "Aucun ticket n'est ouvert, fermé ni synchronisé sur ce tracker, et ses livraisons de webhook sont ignorées. Le jeton, les réglages et les liens entre vulnérabilités et tickets sont gardés."
+    },
+    "names": {
+      "forge_github": "GitHub",
+      "forge_gitlab": "GitLab",
+      "siem_webhook": "Webhook HTTPS",
+      "siem_syslog_udp": "Syslog sur UDP",
+      "siem_syslog_tcp": "Syslog sur TCP",
+      "siem_syslog_tls": "Syslog sur TLS",
+      "ai_ollama": "Ollama",
+      "ai_openai": "OpenAI",
+      "notification_webhook": "Webhook générique",
+      "notification_teams": "Microsoft Teams",
+      "notification_slack": "Slack",
+      "notification_discord": "Discord",
+      "notification_mail": "E-mail",
+      "tracker_gitlab": "Tickets GitLab",
+      "tracker_github": "Tickets GitHub",
+      "tracker_jira": "Jira",
+      "tracker_servicenow": "ServiceNow"
+    }
+  },
   "account": {
       "mfa_password": "Mot de passe actuel",
     "backup_warning": "Notez ces codes de secours maintenant : ils ne seront plus jamais affichés. Chacun ouvre une session une fois, si vous perdez votre téléphone.",
@@ -1522,6 +1582,7 @@
     "matrix_load_failed": "Impossible de charger les règles de compatibilité."
   },
   "menu": {
+    "integrations": "Intégrations",
     "administration": "Administration",
     "agents": "Agents",
     "api_keys": "Clés API",
@@ -1572,6 +1633,7 @@
     "forge_connections": "Connexions de forge"
   },
   "notifications": {
+    "channel_suspended": "Le gouverneur de la plateforme a désactivé {{integration}} : ce canal n'envoie rien jusqu'à sa réactivation.",
     "alert_teams": "Alertez vos équipes en temps réel sur",
     "channel_configured": "Configuré",
     "channel_inactive": "Inactif",
@@ -2190,6 +2252,14 @@
     "error_export": "L'export n'a pas pu être produit."
   },
   "settings": {
+    "siem_suspended": "Le transport choisi pour l'export, {{integration}}, est désactivé par le gouverneur de la plateforme : rien n'est envoyé, et les événements attendent dans l'outbox jusqu'à sa réactivation. Choisissez un autre transport, ou faites-le réactiver.",
+    "integration_suspended": "Suspendu : le gouverneur de la plateforme a désactivé {{integration}}. La valeur est gardée, et resservira dès sa réactivation.",
+    "integration_unavailable": "Non proposé : le gouverneur de la plateforme a désactivé {{integration}}.",
+    "ticket_provider_none": "Aucun — pas de tracker",
+    "ticket_provider_gitlab": "Tickets GitLab",
+    "ticket_provider_github": "Tickets GitHub",
+    "ticket_provider_jira": "Jira",
+    "ticket_provider_servicenow": "ServiceNow",
     "active_cisa_kev": "Exploits CISA KEV actifs",
     "ai_provider_ollama": "Ollama — un modèle sur une machine que vous exploitez",
     "ai_provider_openai": "API compatible OpenAI",
@@ -2806,6 +2876,7 @@
     "target_project": "Projet"
   },
   "titles": {
+    "integrations": "Intégrations",
     "dashboard": "Tableau de bord",
     "repositories": "Dépôts Git",
     "containers": "Conteneurs",
@@ -4007,6 +4078,7 @@
       "read_other": "{{count}} certificats lus. Le serveur vérifie qu'il s'agit d'AC encore valides."
     },
     "connections": {
+      "no_forge_enabled": "Toutes les forges sont désactivées sur cette installation : aucune connexion ne peut être créée tant que le gouverneur de la plateforme n'en a pas réactivé une.",
       "title": "Connexions de forge",
       "subtitle": "Un jeton en lecture seule par GitLab ou GitHub, d'où les dépôts sont découverts puis importés comme cibles.",
       "add": "Ajouter une connexion",
@@ -4331,6 +4403,8 @@
     "in_progress": "Aucune analyse de cette cible n'est encore terminée."
   },
   "problem": {
+    "integration_disabled": "L'intégration {{integration}} est désactivée sur cette installation. Un gouverneur de la plateforme la réactive dans Administration → Intégrations ; la même requête réussit alors.",
+    "integration_in_use": "L'intégration {{integration}} est encore utilisée et n'a pas été désactivée : modifiez d'abord ce qui l'utilise — le serveur précise : {{detail}}",
     "invalid_request": "Requête refusée — le serveur précise : {{detail}}",
     "authentication_required": "Identification requise : aucun identifiant, ou un identifiant qui n'est pas valide. Reconnectez-vous, ou vérifiez la clé.",
     "forbidden": "Votre compte n'a pas le droit de faire ceci.",

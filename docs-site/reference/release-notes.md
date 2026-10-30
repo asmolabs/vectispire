@@ -31,7 +31,8 @@ residual risk. Several of those fixes refuse something 0.11.2 accepted, so read 
 full: an installation with SCIM enabled and a short token does not start until the token is replaced.
 It also carries the first lots of
 [decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md):
-the platform governor switches the forges, the SIEM transports and the trackers on or off.
+the platform governor switches the forges, the SIEM transports and the trackers on or off, on a screen of
+its own, *Administration → Integrations*, and the forms stop offering what is switched off.
 What follows is against 0.11.2.
 
 ### Before you upgrade {#before-you-upgrade-100-rc1}
@@ -241,8 +242,9 @@ What follows is against 0.11.2.
   `urn:vectispire:problem:integration-in-use` on the governor's switch, for the SIEM transport an enabled
   export sends over and for a notification channel with somewhere to send ([409 causes](errors.md#409-causes)). The `integration-disabled` detail, and the
   reason a checklist line fed by a suspended forge connection carries, name the route that enables the
-  integration, `PUT /api/v1/integrations/{key}/enabled`, rather than a screen this release does not have;
-  the type and the member are what a client reads, and they are as stated.
+  integration, `PUT /api/v1/integrations/{key}/enabled`, for a client of the API; the interface shows a
+  sentence of its own for each of the three causes, in its language, naming the key and the screen. The
+  type and the member are what a client reads, and they are as stated.
 - **A forge connection carries `state`** — `active`, or `suspended` while its forge's integration is
   disabled — **and `integration`**, `forge.gitlab` or `forge.github`, the key that resumes it.
 - **The tracker token's state carries `state` and `integration`.** `GET` and
@@ -293,8 +295,17 @@ What follows is against 0.11.2.
   `siem.syslog_tcp`, `siem.syslog_tls`), the AI providers (`ai.ollama`, `ai.openai`), the notification
   channels (`notification.webhook`, `.teams`, `.slack`, `.discord`, `.mail`) and the trackers
   (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Every one of them starts enabled; one added
-  later — Bitbucket first — arrives disabled. The switch is through the API for now; there is no screen
-  yet. **Every family acts on it in this release.**
+  later — Bitbucket first — arrives disabled. The switch is on *Administration → Integrations* (below), or
+  through the API. **Every family acts on it in this release.**
+- ***Administration → Integrations*, the registry's screen.** Every account reads it, by family, with each
+  integration's state and its last change — when, and by whom for a governance role; the platform governor
+  alone is offered a switch. Switching off asks first and says what is suspended and that nothing is
+  deleted; switching on resumes without asking. A refusal is shown on the row it names, by its cause —
+  `integration-in-use` with what still uses it, or any other in the server's words. The forms
+  follow it: the forge connection form, the SIEM protocol, the tracker — now a list rather than a text
+  field — the AI provider and the notification channels' addresses offer no disabled integration for a new
+  choice, and a configuration already on one reads *suspended* with a link to the screen
+  ([integrations](../administration/integrations.md)).
 - **An AI provider may be disabled while in use, and nothing answers in its place.** Every feature that
   reads it — the OWASP report from the button or after a scan, the advisor's explanation, the endpoint
   test — then answers 409 `integration-disabled`, *AI unavailable — provider disabled*, before anything is

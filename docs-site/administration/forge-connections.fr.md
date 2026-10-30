@@ -216,8 +216,11 @@ ici : la découverte qui le rencontre échoue avec `token_rejected`, dans la lis
 ## Quand l'intégration de la forge est désactivée
 
 Le gouverneur de la plateforme décide des forges auxquelles cette installation parle, `forge.gitlab` et
-`forge.github`, dans le registre des intégrations ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
-En désactiver une **suspend** les connexions de ce type ; rien n'est supprimé.
+`forge.github`, dans [*Administration → Intégrations*](integrations.fr.md) ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+En désactiver une **suspend** les connexions de ce type ; rien n'est supprimé. La liste les lit chacune
+*Suspendue — intégration désactivée*, dit ce que cela veut dire et renvoie vers cet écran ; le formulaire
+d'une nouvelle connexion ne propose que les forges activées, et les deux désactivées, le dit et ne crée
+rien.
 
 - **La connexion est gardée telle quelle** : sa ligne, son jeton chiffré, son instantané, la provenance de
   ce qu'elle a importé et ses lectures de revues des changements. Elle se lit `"state": "suspended"`, à

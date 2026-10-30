@@ -229,11 +229,20 @@ export class AppMenu {
             // they do not lose the page: the route and the server stay readable by every account,
             // and a scan listing a plugin as absent still links to it. Pushed at section level, so
             // every account that sees this section sees it, whichever of the two conditions opened it.
-            adminItems.push({
-                label: this.i18n.t('menu.plugins'),
-                icon: 'pi pi-fw pi-th-large',
-                routerLink: ['/plugins']
-            });
+            adminItems.push(
+                {
+                    label: this.i18n.t('menu.plugins'),
+                    icon: 'pi pi-fw pi-th-large',
+                    routerLink: ['/plugins']
+                },
+                // The integrations' registry (decision 0040), at section level for the plugins' reason: every
+                // account reads it, so every account that sees this section sees it. Switched by the governor.
+                {
+                    label: this.i18n.t('menu.integrations'),
+                    icon: 'pi pi-fw pi-power-off',
+                    routerLink: ['/integrations']
+                }
+            );
 
             if (this.session.canReadGovernance()) {
                 adminItems.push(

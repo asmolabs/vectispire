@@ -7,6 +7,7 @@ import { Notifications } from './notifications';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
+import { flushRegistry } from '@/app/core/testing/integrations.fixtures';
 
 /**
  * The notification channels screen. Sending a test posts into somebody's Slack, so the button is a
@@ -74,6 +75,20 @@ describe('the notification channels screen', () => {
             list();
 
             expect(testButtons().map((button) => button.disabled)).toEqual([false, true]);
+        });
+
+        it('marks a configured channel the governor switched off as suspended, links to the switch, and tests nothing', () => {
+            list();
+            flushRegistry(http, ['notification.slack']);
+            fixture.detectChanges();
+
+            const page = fixture.nativeElement as HTMLElement;
+            const states = [...page.querySelectorAll('p-tag')].map((tag) => tag.textContent.trim());
+            expect(states).toEqual(['integrations.suspended_tag', 'notifications.channel_inactive']);
+            expect(page.querySelector('[data-testid="channel-suspended-hint"] a')?.getAttribute('href')).toBe(
+                '/integrations'
+            );
+            expect(testButtons().map((button) => button.disabled)).toEqual([true, true]);
         });
 
         it('shows what the channel answered to a test', () => {

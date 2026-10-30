@@ -7,6 +7,7 @@ import type {
 } from '../api.models';
 import type { SettingsApi } from '../api/settings.api';
 import { asSchema, type AnswerOf } from './contract';
+import { registry } from './integrations.fixtures';
 
 /**
  * The tracker token's state as `GET /api/v1/settings/ticket-token` sends it: what a case does not
@@ -96,7 +97,9 @@ const UNCONFIGURED: Record<string, object> = {
     '/api/v1/settings/ai-openai-key': secretState(false),
     '/api/v1/settings/ticket-ca': NO_TICKET_CA,
     '/api/v1/siem/config': SIEM_UNCONFIGURED,
-    '/api/v1/threat-intel/status': THREAT_INTEL_NEVER_SYNCED
+    '/api/v1/threat-intel/status': THREAT_INTEL_NEVER_SYNCED,
+    // The integrations' registry as an upgrade seeds it: every one enabled, nothing filtered (decision 0040 §5).
+    '/api/v1/integrations': registry()
 };
 
 export function unconfigured(url: string): object {

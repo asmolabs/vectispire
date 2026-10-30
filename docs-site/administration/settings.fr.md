@@ -141,7 +141,11 @@ et la date d'expiration du jeton pour un tracker qui ne la donne pas (`ticket_to
 un administrateur).
 Couvert sous [Tickets](../integrations/ticketing.md) et [un tracker derrière une CA
 interne](../integrations/ticketing.md#internal-ca) ; l'expiration et le refus du jeton sont affichés
-sur la carte du tracker ([quand le jeton expire](../integrations/ticketing.md#token-expiry)). Choisir un
+sur la carte du tracker ([quand le jeton expire](../integrations/ticketing.md#token-expiry)). Le
+fournisseur se choisit dans une liste — *Aucun* et les trackers dont l'intégration est activée dans
+[*Administration → Intégrations*](integrations.fr.md) ; celui qui est configuré y reste, marqué
+*suspendu*, tant que son intégration est désactivée. La liste des fournisseurs d'IA et les adresses des
+canaux de notification suivent la même règle. Choisir un
 tracker (`ticket_provider`) dont le gouverneur de la plateforme a désactivé l'intégration est refusé 409
 `integration-disabled`, et rien de cet enregistrement n'est écrit ; `none` s'enregistre toujours, de même
 que le tracker déjà configuré, renvoyé inchangé pendant qu'il est

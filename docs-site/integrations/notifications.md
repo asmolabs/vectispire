@@ -96,9 +96,9 @@ and the events subscribed to.
 
 The five channels are integrations the platform governor switches on and off — `notification.webhook`
 (the generic webhook, a team's own included), `notification.teams`, `notification.slack`,
-`notification.discord` and `notification.mail`, all enabled to begin with — through the API,
-`PUT /api/v1/integrations/{key}/enabled` with `{"enabled": false}`. There is no screen for it in this
-release; *Administration → Integrations* comes in a later one ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+`notification.discord` and `notification.mail`, all enabled to begin with — on
+[*Administration → Integrations*](../administration/integrations.md), or through the API,
+`PUT /api/v1/integrations/{key}/enabled` with `{"enabled": false}` ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
 
 **A channel with somewhere to send cannot be disabled.** Its URL set (for Teams, with its switch on),
 its e-mail recipients set or the weekly checklist reminders on (mail), a team with a webhook of its own

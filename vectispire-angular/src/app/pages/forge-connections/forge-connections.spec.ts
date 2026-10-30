@@ -8,6 +8,7 @@ import { useEnglish } from '@/app/core/testing/english';
 import { asSchemaList } from '@/app/core/testing/contract';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { CONNECTION, CONNECTION_ID } from '@/app/core/testing/forges.fixtures';
+import { flushRegistry } from '@/app/core/testing/integrations.fixtures';
 import {
     CA_PROBLEM_KEYS,
     CLONE_CREDENTIAL_KEYS,
@@ -173,6 +174,42 @@ describe('the forge connections screen', () => {
         // Everything it holds is still shown: a suspended connection is kept, not emptied.
         expect(text('[data-testid="connection-token"]', suspended)).toBe('GitLab group or project token (read_api)');
         expect(missingFromBundles(['forges.connections.suspended', 'forges.connections.suspended_hint'])).toEqual([]);
+        // Said in the text, not in a tooltip alone, with where it is switched back on.
+        expect(text('[data-testid="connection-suspended-hint"]', suspended)).toContain('forge.gitlab integration');
+        expect(suspended.querySelector('[data-testid="connection-suspended-link"]')?.getAttribute('href')).toBe(
+            '/integrations'
+        );
+        expect(active.querySelector('a[href="/integrations"]')).toBeNull();
+    });
+
+    // Decision 0040 §1: a forge the platform governor switched off leaves the form; its connections stay listed.
+    it('offers no forge the governor switched off for a new connection, and opens on one still offered', async () => {
+        list();
+        flushRegistry(http, ['forge.gitlab']);
+        await settle();
+        await click('[data-testid="add-connection"]', dom());
+
+        const kinds = [...document.querySelectorAll<HTMLOptionElement>('#forge-kind option')].map((o) => o.value);
+        expect(kinds).toEqual(['github']);
+        expect(fixture.componentInstance.form.kind).toBe('github');
+        expect(field('[data-testid="no-forge-enabled"]')).toBeNull();
+    });
+
+    it('says every forge is switched off, links to the integrations screen, and sends nothing', async () => {
+        list();
+        flushRegistry(http, ['forge.gitlab', 'forge.github']);
+        await settle();
+        await click('[data-testid="add-connection"]', dom());
+
+        expect(document.querySelectorAll('#forge-kind option').length).toBe(0);
+        expect(text('[data-testid="no-forge-enabled"]', document)).toContain('Every forge is switched off');
+        expect(document.querySelector('[data-testid="no-forge-enabled"] a')?.getAttribute('href')).toBe(
+            '/integrations'
+        );
+        expect(document.querySelector<HTMLButtonElement>('[data-testid="create-submit"] button')!.disabled).toBe(true);
+        Object.assign(fixture.componentInstance.form, { name: 'acme', token: 'glpat-x' });
+        document.querySelector('form')!.dispatchEvent(new Event('submit'));
+        expect(http.match({ method: 'POST', url: '/api/v1/forge-connections' }).length).toBe(0);
     });
 
     it('announces an expiry within fourteen days, and an expired token', async () => {

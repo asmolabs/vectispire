@@ -1,0 +1,157 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">{{ 'integrations.title' | translate }}</h1>
+    <p class="text-muted-color mt-1 mb-0">{{ 'integrations.subtitle' | translate }}</p>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full" data-testid="integrations-error">{{
+        message
+    }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full" data-testid="integrations-notice">{{
+        message
+    }}</p-message>
+}
+
+<!-- Said to every reader, governor included: a switch suspends, it never deletes. -->
+<p-message severity="info" [closable]="false" styleClass="mb-4 w-full" data-testid="integrations-rule">
+    @if (governs()) {
+        {{ 'integrations.rule_governor' | translate }}
+    } @else {
+        {{ 'integrations.rule_reader' | translate }}
+    }
+</p-message>
+
+@if (loading()) {
+    <p class="text-muted-color" data-testid="integrations-loading">{{ 'common.loading' | translate }}</p>
+}
+
+<div class="flex flex-col gap-4">
+    @for (group of groups(); track group.family) {
+        <p-card [attr.data-testid]="'family-' + group.family">
+            <ng-template #title>{{ group.title }}</ng-template>
+            <ul class="list-none m-0 p-0 flex flex-col divide-y divide-surface-200 dark:divide-surface-700">
+                @for (entry of group.entries; track entry.key) {
+                    <li class="py-3 flex flex-col gap-2" [attr.data-testid]="'integration-' + entry.key">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-medium" data-testid="integration-name">{{
+                                        label(entry.key)
+                                    }}</span>
+                                    <span class="font-mono text-xs text-muted-color">{{ entry.key }}</span>
+                                    @if (entry.enabled) {
+                                        <p-tag
+                                            severity="success"
+                                            data-testid="integration-state"
+                                            [value]="'integrations.enabled' | translate"
+                                        />
+                                    } @else {
+                                        <p-tag
+                                            severity="warn"
+                                            data-testid="integration-state"
+                                            [value]="'integrations.disabled' | translate"
+                                        />
+                                    }
+                                </div>
+                                <small class="text-muted-color block mt-1" data-testid="integration-changed">
+                                    @if (entry.updatedAt) {
+                                        @if (entry.updatedBy) {
+                                            {{
+                                                'integrations.changed_by'
+                                                    | translate
+                                                        : {
+                                                              date: (entry.updatedAt | date: 'dd/MM/yyyy HH:mm') ?? '',
+                                                              user: entry.updatedBy
+                                                          }
+                                            }}
+                                        } @else {
+                                            {{
+                                                'integrations.changed_at'
+                                                    | translate
+                                                        : { date: (entry.updatedAt | date: 'dd/MM/yyyy HH:mm') ?? '' }
+                                            }}
+                                        }
+                                    } @else {
+                                        {{ 'integrations.never_changed' | translate }}
+                                    }
+                                </small>
+                            </div>
+                            @if (governs()) {
+                                <div class="shrink-0">
+                                    @if (entry.enabled) {
+                                        <p-button
+                                            size="small"
+                                            severity="secondary"
+                                            [outlined]="true"
+                                            icon="pi pi-power-off"
+                                            [attr.data-testid]="'switch-off-' + entry.key"
+                                            [label]="'integrations.switch_off' | translate"
+                                            [ariaLabel]="
+                                                'integrations.aria_switch_off' | translate: { name: label(entry.key) }
+                                            "
+                                            [loading]="busy() === entry.key"
+                                            [disabled]="busy() !== null"
+                                            (onClick)="switchOff(entry)"
+                                        />
+                                    } @else {
+                                        <p-button
+                                            size="small"
+                                            icon="pi pi-play"
+                                            [attr.data-testid]="'switch-on-' + entry.key"
+                                            [label]="'integrations.switch_on' | translate"
+                                            [ariaLabel]="
+                                                'integrations.aria_switch_on' | translate: { name: label(entry.key) }
+                                            "
+                                            [loading]="busy() === entry.key"
+                                            [disabled]="busy() !== null"
+                                            (onClick)="switchOn(entry)"
+                                        />
+                                    }
+                                </div>
+                            }
+                        </div>
+                        @if (refusal()?.key === entry.key) {
+                            <p-message
+                                severity="error"
+                                [closable]="false"
+                                styleClass="w-full"
+                                data-testid="integration-refused"
+                                >{{ refusal()?.message }}</p-message
+                            >
+                        }
+                    </li>
+                }
+            </ul>
+        </p-card>
+    }
+</div>
+
+<!-- Switching off only: it says what stops, and that nothing is deleted and everything resumes. -->
+<p-dialog
+    [header]="'integrations.confirm_title' | translate: { name: confirming() ? label(confirming()!.key) : '' }"
+    [visible]="confirming() !== null"
+    (visibleChange)="$event ? null : confirming.set(null)"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+    [breakpoints]="{ '640px': '95vw' }"
+>
+    @if (confirming(); as entry) {
+        <div class="flex flex-col gap-3" data-testid="confirm-switch-off">
+            @if (suspends(entry); as what) {
+                <p class="m-0" data-testid="confirm-suspends">{{ what }}</p>
+            }
+            <p class="m-0" data-testid="confirm-kept">{{ 'integrations.confirm_kept' | translate }}</p>
+        </div>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="confirming.set(null)" />
+        <p-button
+            data-testid="confirm-switch-off-accept"
+            severity="warn"
+            [label]="'integrations.confirm_accept' | translate"
+            (onClick)="confirmSwitchOff()"
+        />
+    </ng-template>
+</p-dialog>

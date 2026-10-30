@@ -30,7 +30,7 @@
                                             />
                                         } @else {
                                             <p-toggleswitch
-                                                [disabled]="isReadOnlyHere(setting)"
+                                                [disabled]="isReadOnlyHere(setting) || isUnavailable(setting)"
                                                 [inputId]="setting.key"
                                                 [ngModel]="state.values()[setting.key] === 'true'"
                                                 (ngModelChange)="state.set(setting.key, $event ? 'true' : 'false')"
@@ -77,6 +77,20 @@
                                                 [fluid]="true"
                                                 styleClass="w-full sm:w-96"
                                             />
+                                        } @else if (setting.key === 'ticket_provider') {
+                                            <!-- A choice, like the AI provider: the trackers the platform
+                                                 governor has not switched off, and the one configured. -->
+                                            <p-select
+                                                [disabled]="isReadOnlyHere(setting)"
+                                                [inputId]="setting.key"
+                                                [options]="trackers()"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                [ngModel]="state.values()[setting.key]"
+                                                (ngModelChange)="state.set(setting.key, $event)"
+                                                [fluid]="true"
+                                                styleClass="w-full sm:w-96"
+                                            />
                                         } @else if (setting.key === 'ticket_token_expires_on') {
                                             <input
                                                 pInputText
@@ -103,7 +117,7 @@
                                         } @else {
                                             <input
                                                 pInputText
-                                                [disabled]="isReadOnlyHere(setting)"
+                                                [disabled]="isReadOnlyHere(setting) || isUnavailable(setting)"
                                                 [id]="setting.key"
                                                 class="w-full sm:w-96 max-w-full"
                                                 [ngModel]="state.values()[setting.key]"
@@ -121,6 +135,36 @@
                             <small class="text-muted-color flex items-center gap-1">
                                 <i class="pi pi-lock text-xs"></i>{{ 'settings.governor_only' | translate }}
                             </small>
+                        }
+
+                        @if (integrationState(setting); as switched) {
+                            <!-- The integration this setting configures is switched off (decision 0040): kept and
+                                 suspended when configured, not offered when it is not. -->
+                            @if (switched.state === 'suspended') {
+                                <small
+                                    class="text-orange-600 dark:text-orange-400 flex flex-wrap items-center gap-1"
+                                    [attr.data-testid]="'integration-suspended-' + setting.key"
+                                >
+                                    <i class="pi pi-pause-circle text-xs"></i
+                                    >{{
+                                        'settings.integration_suspended'
+                                            | translate: { integration: switched.integration }
+                                    }}
+                                    <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
+                                </small>
+                            } @else if (isUnavailable(setting)) {
+                                <small
+                                    class="text-muted-color flex flex-wrap items-center gap-1"
+                                    [attr.data-testid]="'integration-unavailable-' + setting.key"
+                                >
+                                    <i class="pi pi-power-off text-xs"></i
+                                    >{{
+                                        'settings.integration_unavailable'
+                                            | translate: { integration: switched.integration }
+                                    }}
+                                    <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
+                                </small>
+                            }
                         }
 
                         @if (setting.key === 'ticket_ca_pem' && ticketCa()?.pinned) {

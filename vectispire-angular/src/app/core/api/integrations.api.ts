@@ -1,10 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { SiemConfig, SiemTestResult, NotificationChannelStatus, NotificationTestResult } from '../api.models';
+import {
+    Integration,
+    SiemConfig,
+    SiemTestResult,
+    NotificationChannelStatus,
+    NotificationTestResult
+} from '../api.models';
 
 /**
- * Outbound integrations: the SIEM forwarder and the notification channels.
+ * Outbound integrations: the registry that switches them (decision 0040), the SIEM forwarder and the
+ * notification channels.
  *
  * One stateless client per domain, named `*.api.ts` / `*Api` so that it is never mistaken for a
  * `*.service.ts` or a store holding state, and so that `scripts/check-dead-api-methods.mjs` knows
@@ -15,6 +22,16 @@ import { SiemConfig, SiemTestResult, NotificationChannelStatus, NotificationTest
 @Injectable({ providedIn: 'root' })
 export class IntegrationsApi {
     private readonly http = inject(HttpClient);
+
+    /** Every account reads it: the forms filter what they offer with it. */
+    listIntegrations(): Observable<Integration[]> {
+        return this.http.get<Integration[]>('/api/v1/integrations');
+    }
+
+    /** The platform governor's alone; a refusal is a 409 whose `code` says why (`integration-in-use`…). */
+    setIntegrationEnabled(key: string, enabled: boolean): Observable<Integration> {
+        return this.http.put<Integration>(`/api/v1/integrations/${encodeURIComponent(key)}/enabled`, { enabled });
+    }
 
     getSiemConfig(): Observable<SiemConfig> {
         return this.http.get<SiemConfig>('/api/v1/siem/config');

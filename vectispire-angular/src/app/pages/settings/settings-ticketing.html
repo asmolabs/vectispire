@@ -40,6 +40,9 @@
                     <span>{{
                         'settings.tracker_suspended' | translate: { integration: tokenState()?.integration ?? '' }
                     }}</span>
+                    <a [routerLink]="integrationsRoute" data-testid="tracker-suspended-link">{{
+                        'integrations.open_screen' | translate
+                    }}</a>
                 </div>
             }
             @if (tokenConfigured() && tokenState(); as token) {

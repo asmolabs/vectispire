@@ -100,9 +100,9 @@ les événements auxquels s'abonner.
 
 Les cinq canaux sont des intégrations que le gouverneur de la plateforme active et désactive —
 `notification.webhook` (le webhook générique, celui propre à une équipe compris), `notification.teams`,
-`notification.slack`, `notification.discord` et `notification.mail`, tous activés au départ — par
-l'API, `PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": false}`. Il n'y a pas d'écran pour
-cela dans cette version ; *Administration → Intégrations* viendra dans une version suivante ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+`notification.slack`, `notification.discord` et `notification.mail`, tous activés au départ — dans
+[*Administration → Intégrations*](../administration/integrations.fr.md), ou par l'API,
+`PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": false}` ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
 
 **Un canal qui a où envoyer ne peut pas être désactivé.** Son URL renseignée (pour Teams, avec son
 interrupteur activé), ses destinataires de courriel renseignés ou les rappels hebdomadaires des checklists

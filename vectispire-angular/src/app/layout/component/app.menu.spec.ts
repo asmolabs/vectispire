@@ -53,6 +53,8 @@ describe('the sidebar', () => {
             expect(holding(fixture, '/audit-log')).toEqual(['Administration']);
             // Governance reading, as `GET /api/v1/report-plugins` is (decision 0035 §4).
             expect(holding(fixture, '/report-plugins')).toEqual(['Administration']);
+            // Read by every account, like `GET /api/v1/integrations` (decision 0040), so filed at section level.
+            expect(holding(fixture, '/integrations')).toEqual(['Administration']);
         });
     }
 
@@ -80,6 +82,7 @@ describe('the sidebar', () => {
             expect(holding(fixture, '/plugins')).toEqual([]);
             expect(holding(fixture, '/audit-log')).toEqual([]);
             expect(holding(fixture, '/report-plugins')).toEqual([]);
+            expect(holding(fixture, '/integrations')).toEqual([]);
             expect(sections(fixture).has('Administration')).toBe(false);
             // The positive control: the sidebar did render for this account.
             expect(holding(fixture, '/issues')).toEqual(['Security']);

@@ -228,6 +228,7 @@ nav:
       - API keys: administration/api-keys.md
       - SSH keys: administration/ssh-keys.md
       - Forge connections: administration/forge-connections.md
+      - Integrations: administration/integrations.md
       - Gate policies: administration/gate-policies.md
       - Agents: administration/agents.md
       - Semgrep rule sets: administration/rule-sets.md

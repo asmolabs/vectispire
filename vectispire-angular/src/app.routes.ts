@@ -80,6 +80,13 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/plugins/plugins').then((m) => m.Plugins)
             },
             {
+                // Readable by every account, like the server's GET (decision 0040): the forms filter what
+                // they offer with it. The switches are offered to the platform governor only.
+                path: 'integrations',
+                title: 'titles.integrations',
+                loadComponent: () => import('./app/pages/integrations/integrations').then((m) => m.Integrations)
+            },
+            {
                 // Governance reading, like the server's GET (decision 0035 §4): the registry says which
                 // code may produce documents under the installation's key. The writes are offered to the
                 // platform governor and the approval to the security leads.
