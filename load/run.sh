@@ -56,7 +56,10 @@ for vus in $LEVELS; do
   # The database's and the load generator's CPU, since both share the Docker VM's: a level whose MySQL
   # sits at the VM's ceiling is measuring the machine, and a pool raised there buys nothing.
   ( while true; do
-      docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' "$DB" $(docker ps -q --filter label=com.asmolabs.vectispire.loadtest=k6) 2>/dev/null \
+      # No `mapfile`: macOS ships bash 3.2, where an empty array is also unbound under `set -u`.
+      generators=()
+      while IFS= read -r id; do generators+=("$id"); done < <(docker ps -q --filter label=com.asmolabs.vectispire.loadtest=k6)
+      docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' "$DB" ${generators[@]+"${generators[@]}"} 2>/dev/null \
         | sed "s/^/$(date +%H:%M:%S) /"
       sleep 3
     done ) > "$dir/docker-stats.txt" &

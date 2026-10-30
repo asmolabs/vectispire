@@ -21,7 +21,7 @@ time_it() {
   local name="$1" tok="$2" path="$3"; shift 3
   [[ "$name" =~ $FILTER ]] || return 0
   local out
-  out="$(for i in 1 2 3; do curl -s -o /dev/null -w '%{http_code} %{time_total}\n' -H "Authorization: Bearer $tok" "$@" "$BASE$path"; done)"
+  out="$(for _ in 1 2 3; do curl -s -o /dev/null -w '%{http_code} %{time_total}\n' -H "Authorization: Bearer $tok" "$@" "$BASE$path"; done)"
   printf '%-26s %s\n' "$name" "$(echo "$out" | awk '{c=$1; t[NR]=$2*1000} END {printf "%s  %6.0f %6.0f %6.0f ms", c, t[1], t[2], t[3]}')"
 }
 
