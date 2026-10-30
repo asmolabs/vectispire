@@ -38,7 +38,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * the adapters will call.
  *
  * <p><b>{@code t_integration} is not emptied between tests</b> (see {@code TableEmptyingTest}): its rows
- * are V92's seed, and emptied every integration would read disabled. Each case here puts the rows back as
+ * are V94's seed, and emptied every integration would read disabled. Each case here puts the rows back as
  * it found them, so the one asserting the seed reads what the migration wrote, whatever ran before it.
  */
 @DisplayName("integrations' registry, through the routes")
@@ -123,7 +123,7 @@ class IntegrationsRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("an integration with no row — one added after V92 — reads disabled, and is refused")
+    @DisplayName("an integration with no row — one added after V94 — reads disabled, and is refused")
     void absentIsDisabled() throws Exception {
         Integration openAi = Integration.of(AiProvider.OPENAI);
         jdbc.update("delete from t_integration where integration_key = ?", openAi.key());

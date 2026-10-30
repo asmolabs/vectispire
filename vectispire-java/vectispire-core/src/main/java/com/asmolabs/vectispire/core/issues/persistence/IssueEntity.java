@@ -225,7 +225,7 @@ public class IssueEntity {
 
     /**
      * The instance whose ticket sweep is asking the tracker for this issue's ticket, until {@link #ticketClaimUntil}
-     * — so that two instances never both ask (V93). Written by conditional updates only, never by saving the row.
+     * — so that two instances never both ask (V95). Written by conditional updates only, never by saving the row.
      */
     @Column(name = "ticket_claimed_by", length = 64)
     private String ticketClaimedBy;

@@ -380,7 +380,7 @@ public class IssueCatalog {
 
     /**
      * Claims the issue for {@code holder}'s ticket sweep until {@code until}: true when the sweep may ask the
-     * tracker, false when the issue has a reference or another instance is asking for one — see V93.
+     * tracker, false when the issue has a reference or another instance is asking for one — see V95.
      */
     @Transactional
     public boolean claimTicket(long issueId, String holder, Instant at, Instant until) {

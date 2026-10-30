@@ -57,7 +57,7 @@ public class TicketSweepService {
 
     /**
      * This process, as the holder of the claims it takes: every instance runs the sweep (`MaintenanceTask`), and
-     * the claim is what keeps two of them from asking the tracker for the same issue (V93).
+     * the claim is what keeps two of them from asking the tracker for the same issue (V95).
      */
     static final String INSTANCE = java.util.UUID.randomUUID().toString().replace("-", "");
 

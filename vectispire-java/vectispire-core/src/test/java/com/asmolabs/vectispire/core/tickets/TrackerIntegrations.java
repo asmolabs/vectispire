@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.core.settings.Integrations;
 
 /**
- * The integrations' registry for a {@link TicketService} built by hand: every tracker enabled, as V92 seeds them, so
+ * The integrations' registry for a {@link TicketService} built by hand: every tracker enabled, as V94 seeds them, so
  * that a test about something else is not about the switch (decision 0040 §3). {@code TrackerSuspensionTest} switches.
  */
 final class TrackerIntegrations {

@@ -8,7 +8,7 @@ import java.time.Instant;
 
 /**
  * Whether one integration is switched on (decision 0040). The table knows no list: which keys exist is
- * the domain's {@code Integration.all()}, and a key without a row reads disabled — see V92.
+ * the domain's {@code Integration.all()}, and a key without a row reads disabled — see V94.
  */
 @Entity
 @Table(name = "t_integration")
@@ -21,7 +21,7 @@ public class IntegrationEntity {
     @Column(name = "enabled", nullable = false)
     private Boolean enabled;
 
-    /** Null for a row nobody has changed since V92 seeded it. */
+    /** Null for a row nobody has changed since V94 seeded it. */
     @Column(name = "updated_at")
     private Instant updatedAt;
 
