@@ -306,7 +306,7 @@ What follows is against 0.11.2.
   integration's state and its last change — when, and by whom for a governance role; the platform governor
   alone is offered a switch. Switching off asks first and says what is suspended and that nothing is
   deleted; switching on resumes without asking. A refusal is shown on the row it names, by its cause —
-  `integration-in-use`, `integration-not-switchable`, or one a newer server adds, in its words. The forms
+  `integration-in-use` with what still uses it, or any other in the server's words. The forms
   follow it: the forge connection form, the SIEM protocol, the tracker — now a list rather than a text
   field — the AI provider and the notification channels' addresses offer no disabled integration for a new
   choice, and a configuration already on one reads *suspended* with a link to the screen

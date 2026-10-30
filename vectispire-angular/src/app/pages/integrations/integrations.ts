@@ -44,8 +44,8 @@ interface Refusal {
  * resumes it; a confirmation in front of the harmless direction teaches people to dismiss the other.
  *
  * **A refusal is shown by its cause, through `messageOf`**: `integration-in-use` (the SIEM export sends
- * over it), `integration-not-switchable` (its adapters do not ask the registry yet) and whatever cause a
- * newer server adds, read by the problem's `code` and never by its status alone.
+ * over it, a notification setting still names the channel — the server's `detail` lists which) and whatever
+ * cause a newer server adds, read by the problem's `code` and never by its status alone.
  */
 @Component({
     selector: 'app-integrations',

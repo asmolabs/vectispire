@@ -77,13 +77,15 @@ describe('a problem document in words', () => {
             'The integration forge.gitlab is switched off on this installation. A platform governor switches it ' +
                 'back on in Administration → Integrations; the same request then succeeds.'
         );
-        expect(messageOf(conflict('integration-in-use'), 'x')).toMatch(/^The integration forge\.gitlab is in use/);
-        expect(messageOf(conflict('integration-not-switchable'), 'x')).toMatch(
-            /^The integration forge\.gitlab cannot be switched off in this version/
+        // In use: the server's detail lists what uses it, kept whole in English and quoted in French.
+        expect(messageOf(conflict('integration-in-use'), 'x')).toBe(
+            'The integration "forge.gitlab" … PUT /api/v1/integrations/forge.gitlab/enabled.'
         );
 
         useFrench();
-        expect(messageOf(conflict('integration-in-use'), 'x')).toMatch(/^L'intégration forge\.gitlab est utilisée/);
+        expect(messageOf(conflict('integration-in-use'), 'x')).toMatch(
+            /^L'intégration forge\.gitlab est encore utilisée .* le serveur précise : The integration "forge\.gitlab"/
+        );
     });
 
     it('reads the detail of an integration cause that does not name its integration', () => {

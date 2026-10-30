@@ -336,8 +336,8 @@ Ce qui suit est par rapport à la 0.11.2.
   l'état de chaque intégration et sa dernière modification — quand, et par qui pour un rôle de
   gouvernance ; seul le gouverneur de la plateforme se voit proposer une bascule. Désactiver demande
   d'abord et dit ce qui est suspendu et que rien n'est supprimé ; activer reprend sans rien demander. Un
-  refus s'affiche sur la ligne qu'il nomme, selon sa cause — `integration-in-use`,
-  `integration-not-switchable`, ou une qu'un serveur plus récent ajoute, dans ses mots. Les formulaires
+  refus s'affiche sur la ligne qu'il nomme, selon sa cause — `integration-in-use` avec ce qui l'utilise
+  encore, ou toute autre dans les mots du serveur. Les formulaires
   suivent : le formulaire de connexion de forge, le protocole SIEM, le tracker — désormais une liste plutôt
   qu'un champ de texte —, le fournisseur d'IA et les adresses des canaux de notification ne proposent
   aucune intégration désactivée pour un nouveau choix, et une configuration qui en utilise déjà une se lit

@@ -4404,8 +4404,7 @@
   },
   "problem": {
     "integration_disabled": "L'intégration {{integration}} est désactivée sur cette installation. Un gouverneur de la plateforme la réactive dans Administration → Intégrations ; la même requête réussit alors.",
-    "integration_in_use": "L'intégration {{integration}} est utilisée et n'a pas été désactivée : une configuration envoie encore par elle. Modifiez d'abord cette configuration — dirigez l'export SIEM vers un autre transport ou désactivez l'export, videz l'adresse d'un canal de notification — puis désactivez-la.",
-    "integration_not_switchable": "L'intégration {{integration}} ne peut pas être désactivée dans cette version : ses adaptateurs ne consultent pas encore le registre, la bascule n'arrêterait donc rien. Rien n'a été modifié.",
+    "integration_in_use": "L'intégration {{integration}} est encore utilisée et n'a pas été désactivée : modifiez d'abord ce qui l'utilise — le serveur précise : {{detail}}",
     "invalid_request": "Requête refusée — le serveur précise : {{detail}}",
     "authentication_required": "Identification requise : aucun identifiant, ou un identifiant qui n'est pas valide. Reconnectez-vous, ou vérifiez la clé.",
     "forbidden": "Votre compte n'a pas le droit de faire ceci.",

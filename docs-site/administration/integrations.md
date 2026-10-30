@@ -65,10 +65,9 @@ the reason, in the interface's language. Nothing is changed and nothing is recor
 
 | Cause | When | What to do |
 |---|---|---|
-| `integration-in-use` | The integration is still in use — the SIEM transport the enabled export sends over. | Change that configuration first: point the export at another transport, or switch it off, in the [SIEM settings](../integrations/siem.md); then switch it off here. |
-| `integration-not-switchable` | An AI provider or a notification channel, in this version: their adapters do not consult the registry yet, so the switch would stop nothing. | Turn the AI review off in the [settings](settings.md#ai-review), or empty a channel's address in the notification settings. Switching one on is accepted. |
+| `integration-in-use` | The integration is still in use — the SIEM transport the enabled export sends over, or a notification channel a setting still configures. The reason lists what uses it. | Change that configuration first: point the export at another transport, or switch it off, in the [SIEM settings](../integrations/siem.md); empty the channel's address in the notification settings. Then switch it off here. |
 
-A cause this version does not know is shown in the server's words. The causes are those of
+Any other cause is shown in the server's words. The causes are those of
 [the API reference](../reference/errors.md#409-causes).
 
 ## What the forms offer

@@ -193,41 +193,49 @@ describe('the integrations screen', () => {
         );
         await settle();
 
+        // The server's own words in English: they say what uses it, which is what has to change.
         const refused = text('[data-testid="integration-refused"]', row('siem.syslog_tls'));
-        expect(refused).toMatch(/^Syslog over TLS was not switched off: The integration siem\.syslog_tls is in use/);
-        expect(refused).toContain('point the SIEM export at another transport');
+        expect(refused).toBe(
+            'Syslog over TLS was not switched off: The integration "siem.syslog_tls" is in use: the SIEM export sends over it.'
+        );
         // Beside the one it names, and nowhere else; the state did not move.
         expect(dom().querySelectorAll('[data-testid="integration-refused"]').length).toBe(1);
         expect(text('[data-testid="integration-state"]', row('siem.syslog_tls'))).toBe('Enabled');
     });
 
-    it('shows a family not switchable yet refused by its cause, naming it', async () => {
+    it('switches an AI provider off like any other, saying the AI features stop rather than move elsewhere', async () => {
         await start('SUPERUSER');
 
         await press('switch-off-ai.openai');
         expect(text('[data-testid="confirm-suspends"]', document)).toContain('AI is unavailable');
         await press('confirm-switch-off-accept');
-        refuse('integration-not-switchable', 'ai.openai', 'The integration "ai.openai" cannot be disabled yet.');
+        http.expectOne({ method: 'PUT', url: '/api/v1/integrations/ai.openai/enabled' }).flush(
+            integration('ai.openai', { enabled: false, updatedAt: '2026-10-30T10:00:00Z', updatedBy: 'someone' })
+        );
         await settle();
 
-        expect(text('[data-testid="integration-refused"]', row('ai.openai'))).toBe(
-            'OpenAI was not switched off: The integration ai.openai cannot be switched off in this version: its ' +
-                'adapters do not consult the registry yet, so the switch would stop nothing. Nothing was changed.'
-        );
+        expect(text('[data-testid="integration-state"]', row('ai.openai'))).toBe('Disabled');
     });
 
-    it('shows a notification channel in use refused as the server will say it, by the same cause', async () => {
-        // The backend's lot I6 answers `integration-in-use` for a channel a configuration uses: read by its code,
-        // the screen needs no change for it.
+    it('shows a notification channel in use refused by the same cause, with what still uses it, in French too', async () => {
+        // Lot I6 answers `integration-in-use` for a channel a setting configures, the uses listed in `detail`.
         await start('SUPERUSER');
+        useFrench();
+        await settle();
 
         await press('switch-off-notification.teams');
         await press('confirm-switch-off-accept');
-        refuse('integration-in-use', 'notification.teams', 'The integration "notification.teams" is in use.');
+        refuse(
+            'integration-in-use',
+            'notification.teams',
+            'The integration "notification.teams" is in use: notification_teams_url is set.'
+        );
         await settle();
 
-        expect(text('[data-testid="integration-refused"]', row('notification.teams'))).toMatch(
-            /^Microsoft Teams was not switched off: The integration notification\.teams is in use/
+        expect(text('[data-testid="integration-refused"]', row('notification.teams'))).toBe(
+            "Microsoft Teams n'a pas été désactivée : L'intégration notification.teams est encore utilisée et n'a " +
+                "pas été désactivée : modifiez d'abord ce qui l'utilise — le serveur précise : The integration " +
+                '"notification.teams" is in use: notification_teams_url is set.'
         );
     });
 

@@ -68,10 +68,9 @@ enregistré :
 
 | Cause | Quand | Que faire |
 |---|---|---|
-| `integration-in-use` | L'intégration est encore utilisée — le transport SIEM par lequel l'export activé envoie. | Modifier d'abord cette configuration : diriger l'export vers un autre transport, ou le désactiver, dans les [réglages SIEM](../integrations/siem.fr.md) ; puis la désactiver ici. |
-| `integration-not-switchable` | Un fournisseur d'IA ou un canal de notification, dans cette version : leurs adaptateurs ne consultent pas encore le registre, la bascule n'arrêterait donc rien. | Désactiver la revue par IA dans les [réglages](settings.fr.md#revue-par-ia), ou vider l'adresse d'un canal dans les réglages des notifications. En activer un est accepté. |
+| `integration-in-use` | L'intégration est encore utilisée — le transport SIEM par lequel l'export activé envoie, ou un canal de notification qu'un réglage configure encore. La raison liste ce qui l'utilise. | Modifier d'abord cette configuration : diriger l'export vers un autre transport, ou le désactiver, dans les [réglages SIEM](../integrations/siem.fr.md) ; vider l'adresse du canal dans les réglages des notifications. Puis la désactiver ici. |
 
-Une cause que cette version ne connaît pas s'affiche dans les mots du serveur. Les causes sont celles de
+Toute autre cause s'affiche dans les mots du serveur. Les causes sont celles de
 [la référence de l'API](../reference/errors.fr.md#causes-dun-409).
 
 ## Ce que proposent les formulaires

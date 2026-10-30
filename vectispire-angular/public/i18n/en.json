@@ -4186,8 +4186,7 @@
   },
   "problem": {
     "integration_disabled": "The integration {{integration}} is switched off on this installation. A platform governor switches it back on in Administration → Integrations; the same request then succeeds.",
-    "integration_in_use": "The integration {{integration}} is in use and was not switched off: a configuration still sends over it. Change that configuration first — point the SIEM export at another transport or switch the export off, empty a notification channel’s address — then switch it off.",
-    "integration_not_switchable": "The integration {{integration}} cannot be switched off in this version: its adapters do not consult the registry yet, so the switch would stop nothing. Nothing was changed.",
+    "integration_in_use": "{{detail}}",
     "invalid_request": "{{detail}}",
     "authentication_required": "{{detail}}",
     "forbidden": "{{detail}}",
