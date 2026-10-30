@@ -154,6 +154,7 @@ plugins:
             Settings: Réglages
             Audit log: Journal d'audit
             Rotation and purge: Rotation et purge
+            Sizing: Dimensionnement
             Reference: Référence
             Configuration: Configuration
             API errors: Erreurs de l'API
@@ -238,6 +239,7 @@ nav:
       - Settings: administration/settings.md
       - Audit log: administration/audit-log.md
       - Rotation and purge: administration/maintenance.md
+      - Sizing: administration/sizing.md
   - Reference:
       - Configuration: reference/configuration.md
       - API errors: reference/errors.md

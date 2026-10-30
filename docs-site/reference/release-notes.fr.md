@@ -51,11 +51,16 @@ Ce qui suit est par rapport à la 0.11.2.
   revenir par l'ajout de vérifications. La campagne fait tourner chaque version sur le plus ancien et le
   plus récent MySQL pris en charge, 8.4 et 9.4. Une installation sur PostgreSQL démarre encore dessus, sans
   prise en charge : prévoyez le passage à MySQL avant la 1.0.
-- **Quatre migrations, V92 à V95**, appliquées au premier démarrage. V92 réécrit les codes des contrôles
+- **Sept migrations, V92 à V98**, appliquées au premier démarrage. V92 réécrit les codes des contrôles
   CRA enregistrés (plus bas) ; V93 ajoute une colonne à la table des comptes ; V94 crée le registre des
   intégrations, `t_integration`, et y inscrit activées les dix-sept intégrations d'aujourd'hui, de sorte que
   la mise à jour ne change rien tant qu'un gouverneur n'agit pas ; V95 ajoute la réclamation du balayage des
-  tickets, deux colonnes nulles sur `t_issue`. **Sauvegardez d'abord la base** :
+  tickets, deux colonnes nulles sur `t_issue`. V96 à V98 sont les corrections du test de charge
+  (*Performances*, plus bas) : V96 ajoute une colonne générée et un index à l'inventaire des composants,
+  V97 un index aux scans, V98 une colonne générée aux scans. **V96 et V98 reconstruisent leur table**, ce
+  qui relit chaque ligne une fois : sur le parc du test de charge — un million de lignes de composants,
+  900 scans portant 300 Mo de SBOM — les trois ont pris 10 s ensemble sur MySQL 9.4 ; prévoyez davantage
+  sur un inventaire plus grand, avant que le plan de contrôle ne réponde. **Sauvegardez d'abord la base** :
   revenir à la 0.11.2 veut dire restaurer cette sauvegarde.
 - **Une seule instance du plan de contrôle est prise en charge**
   ([installation](../getting-started/installation.md#one-instance)). Les tâches de maintenance, le verrou
@@ -476,6 +481,27 @@ risque résiduel là où une correction serait une décision à part entière :
 
 ### Performances {#performances-100-rc1}
 
+- **Le premier test de charge**, sur un parc de 300 cibles, 75 000 constats et un million de lignes de
+  composants (le rapport et le banc : `docs/analysis/fr/2026-10-30_test_de_charge_1.0.0-rc.1.fr.md`,
+  `load/` ; le dimensionnement qu'il appuie : [Dimensionnement](../administration/sizing.md)). Sous deux
+  appels de barrière par seconde venus des pipelines, le plan de contrôle ne tenait pas : la barrière lisait
+  tout l'inventaire à chaque verdict, occupait les dix connexions à la base, et toutes les autres routes
+  attendaient derrière elle — connexions à 47 s, un tiers des réclamations des agents expirées. Trois
+  corrections, même parc, sans charge :
+    - **Un verdict de barrière lit les écosystèmes de sa cible, pas chaque paquet du parc** (V96) :
+      1,85 s → 45 ms. Le tableau de bord (2,9 s → 0,5 s), la vue d'ensemble de sécurité
+      (2,0 s → 0,17 s) et la grille OWASP (0,75 s → 0,37 s) demandaient la même chose de chaque cible, et
+      lisent désormais une entrée d'index par cible et par écosystème.
+    - **Savoir si un scan garde son SBOM est une colonne** (V98) : MySQL relisait chaque SBOM stocké pour
+      le tester à nul, deux fois par appel du résumé des licences (1,2 s → 20 ms), des scorecards
+      (1,35 s → 0,2 s), de l'analyse de posture (1,4 s → 0,27 s) et de l'inventaire des licences.
+    - **L'historique des scans est lu dans un index** (V97) : la liste des scans et les scans récents du
+      tableau de bord triaient toute la table, SBOM compris — 630 ms → 110 ms.
+- Mesuré après les corrections, dix personnes très actives, deux appels de barrière par seconde et des
+  scans qui se terminent : aucune erreur, la barrière sous 0,1 s et chaque écran sous 0,6 s au p95 sauf le
+  tableau de bord (2,1 s), la recherche d'inventaire, l'inventaire des licences et la grille OWASP
+  (environ 1 s). À cinquante personnes de ce rythme, les quatre cœurs de la base étaient saturés ; ce qui
+  les occupe est dans le rapport, avec ce que chaque point demanderait.
 - Le premier téléchargement de l'interface passe de 932 ko à 612 ko : la coquille et les thèmes Lara et
   Nora se chargent à la demande, et la construction échoue désormais si un import immédiat ramène un
   écran dans ce premier téléchargement.
