@@ -256,11 +256,11 @@ Ce qui suit est par rapport à la 0.11.2.
   ([référence de l'API REST](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
   Leurs identifiants d'opération dans `openapi.json` sont `listIntegrations` et `setIntegrationEnabled` ;
   chaque identifiant que publie une 0.11.x garde son nom.
-- **Trois causes de 409**, chacune nommant la clé dans le membre `integration` :
-  `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée ;
+- **Deux causes de 409**, chacune nommant la clé dans le membre `integration` :
+  `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée —
+  ouverte, pour une fonction qui lit un fournisseur d'IA, par *AI unavailable — provider disabled* ; et
   `urn:vectispire:problem:integration-in-use` sur la bascule du gouverneur, pour le transport SIEM par
-  lequel un export activé envoie ; et `urn:vectispire:problem:integration-not-switchable` sur la bascule du
-  gouverneur, pour un fournisseur d'IA ou un canal de notification, que rien ne suspend encore
+  lequel un export activé envoie et pour un canal de notification qui a où envoyer
   ([causes d'un 409](errors.fr.md#causes-dun-409)). Le `detail` de
   `integration-disabled`, et la raison que porte une ligne de checklist alimentée par une connexion de
   forge suspendue, nomment la route qui active l'intégration, `PUT /api/v1/integrations/{key}/enabled`,
@@ -323,13 +323,28 @@ Ce qui suit est par rapport à la 0.11.2.
   `ai.openai`), les canaux de notification (`notification.webhook`, `.teams`, `.slack`, `.discord`,
   `.mail`) et les gestionnaires de tickets (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Toutes
   commencent activées ; une intégration ajoutée plus tard — Bitbucket d'abord — arrive désactivée. La
-  bascule passe par l'API pour l'instant ; il n'y a pas encore d'écran. **Les forges, les transports
-  SIEM et les gestionnaires de tickets en tiennent compte dans cette version** ; les fournisseurs d'IA
-  et les canaux de notification pas encore, aussi **le registre refuse-t-il de les désactiver** :
-  `enabled: false` sur une clé `ai.*` ou `notification.*` répond 409 `integration-not-switchable`, la clé
-  dans le membre `integration`, sans rien changer ni rien auditer. Une bascule qui n'arrêterait rien se
-  lirait comme une garantie qu'elle n'est pas. En attendant, désactivez la revue par IA dans les réglages,
-  et videz l'URL d'un canal dans les réglages de notification.
+  bascule passe par l'API pour l'instant ; il n'y a pas encore d'écran. **Toutes les familles en
+  tiennent compte dans cette version.**
+- **Un fournisseur d'IA peut être désactivé en service, et rien ne répond à sa place.** Chaque fonction qui
+  le lit — le rapport OWASP depuis le bouton ou après un scan, l'explication du conseiller, le test du
+  point d'accès — répond alors 409 `integration-disabled`, *AI unavailable — provider disabled*, avant
+  d'enregistrer quoi que ce soit, et l'autre fournisseur n'est jamais interrogé : une revue Ollama ne passe
+  pas en silence chez OpenAI. `GET /api/v1/ai-advisor/status` gagne `providerEnabled`, et liste des
+  suggestions sans interroger un fournisseur désactivé. Choisir un fournisseur désactivé dans les réglages,
+  ou activer la revue sur l'un d'eux, est refusé avec un 409 `integration-disabled`
+  ([revue par IA](../administration/settings.md#revue-par-ia)).
+- **Un canal de notification qui a où envoyer ne peut pas être désactivé** : 409 `integration-in-use`, le
+  refus listant ce qui l'utilise — une URL ou des destinataires dans les réglages de notification, le
+  webhook propre d'une équipe, les rappels des checklists. Un canal inutilisé peut l'être : il quitte la
+  liste du centre de notifications, son test répond 409 `integration-disabled`, le configurer est refusé
+  avec un 409 `integration-disabled` sans rien écrire de l'enregistrement, rien n'est mis en file pour lui,
+  et une ligne en file pour lui malgré tout attend dans la file d'envoi, sans tentative comptée, jusqu'à ce
+  qu'il soit réactivé ([chaque canal est une intégration](../integrations/notifications.md#channel-integrations)).
+  Un enregistrement qui configure un canal et la bascule du gouverneur sont ordonnés par la ligne du canal,
+  comme pour un transport SIEM. `PUT /api/v1/settings` écrit désormais ses valeurs en une transaction.
+- **Le delta d'un scan atteint Teams, Slack, Discord ou le courriel sans webhook configuré.** Qu'un delta
+  soit construit dépendait du seul webhook générique — l'URL globale ou celle d'une équipe — si bien
+  qu'une installation qui n'annonçait que sur un autre canal n'en recevait jamais.
 - **Une forge dont l'intégration est désactivée suspend ses connexions, sans jamais les supprimer.**
   Chacune garde sa ligne, son jeton chiffré, son instantané, ses liens d'import et ses lectures de revues
   des changements, et se lit *Suspendue — intégration désactivée* sur l'écran des connexions de forge.

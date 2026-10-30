@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
+import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
@@ -15,6 +17,7 @@ import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,6 +49,14 @@ import org.springframework.stereotype.Service;
  * LM Studio, llama.cpp, an internal gateway — is reachable with it off, because nothing leaves.
  * Keying the rule on the provider name instead would have made "openai" mean "remote" even when
  * it points at localhost, and would have let a public Ollama through under a different name.
+ *
+ * <p><b>The provider is an integration the platform governor may switch off</b> (decision 0040 §3, lot I5),
+ * and every call to a model leaves through {@code chat} or {@link #availableModels}, which ask the
+ * registry first. Disabled, the features answer <em>AI unavailable — provider disabled</em> ({@link
+ * #unavailable}) and <b>never the other provider</b>: the configured one is read once per call, and the
+ * URL, the key and the request are that one's. A review moved without a word from the Ollama the operator
+ * runs to OpenAI's hosted API would send the findings to a third party nobody chose for them — the reason
+ * {@link AiProvider#of} falls back to Ollama, kept here in the other direction.
  */
 @Service
 public class AiReviewService implements SealedStore {
@@ -57,6 +68,11 @@ public class AiReviewService implements SealedStore {
     private final OutboundPost post;
     private final ObjectMapper json;
     private final EncryptionService encryption;
+    private final Integrations integrations;
+
+    /** What every refusal of a disabled provider opens with: the reader asked for a report, not for a key. */
+    public static final String UNAVAILABLE = "AI unavailable — provider disabled. Nothing is sent to the other "
+            + "provider in its place.";
 
     /** Binds the stored key to its row, so a ciphertext moved elsewhere does not decrypt. */
     private static final String OPENAI_KEY_CONTEXT = "ai_review_openai_key";
@@ -66,12 +82,42 @@ public class AiReviewService implements SealedStore {
             OutboundJson get,
             OutboundPost post,
             ObjectMapper json,
-            EncryptionService encryption) {
+            EncryptionService encryption,
+            Integrations integrations) {
         this.settings = settings;
         this.get = get;
         this.post = post;
         this.json = json;
         this.encryption = encryption;
+        this.integrations = integrations;
+    }
+
+    /** Whether the configured provider's integration is on: what a screen asks before it offers a model's answer. */
+    public boolean providerEnabled() {
+        return integrations.isEnabled(Integration.of(provider()));
+    }
+
+    /**
+     * Refuses when the configured provider is switched off — what a feature calls before it records or asks
+     * anything, so that the refusal reaches the person who asked rather than a row they find later.
+     *
+     * @throws IntegrationDisabledException 409 {@code integration-disabled}, naming the provider, opened by
+     *     {@link #UNAVAILABLE}
+     */
+    public void requireProviderEnabled() {
+        requireEnabled(provider());
+    }
+
+    private void requireEnabled(AiProvider provider) {
+        Integration integration = Integration.of(provider);
+        if (!integrations.isEnabled(integration)) {
+            throw unavailable(integration);
+        }
+    }
+
+    /** The refusal of a feature whose provider is disabled: the integration's own, opened by {@link #UNAVAILABLE}. */
+    public static IntegrationDisabledException unavailable(Integration provider) {
+        return new IntegrationDisabledException(provider, UNAVAILABLE);
     }
 
     public boolean isEnabled() {
@@ -115,12 +161,17 @@ public class AiReviewService implements SealedStore {
      * database or may predate the guard.
      */
     public String validatedUrl() {
-        String url = baseUrl();
+        return validatedUrl(provider());
+    }
+
+    /** This provider's URL — the one a call read once and holds to, never re-read halfway through it. */
+    private String validatedUrl(AiProvider provider) {
+        String url = provider == AiProvider.OPENAI ? openAiUrl() : ollamaUrl();
         if (!AiReview.isApiRoot(url)) {
             throw new InvalidInputException(
-                    "The " + provider().wireName() + " URL carries a query or a fragment; it must be the API root alone.");
+                    "The " + provider.wireName() + " URL carries a query or a fragment; it must be the API root alone.");
         }
-        return trimTrailingSlashes(post.validate(url, policy(), provider().wireName() + " URL"));
+        return trimTrailingSlashes(post.validate(url, policy(), provider.wireName() + " URL"));
     }
 
     /** Stores the URL after validating it — the entry point is where a mistake costs least. */
@@ -211,8 +262,8 @@ public class AiReviewService implements SealedStore {
      * header, where it fails as "invalid API key" and sends the operator to rotate a key that was
      * never the problem. Missing is diagnosable; wrong is not.
      */
-    private Map<String, String> authentication() {
-        if (provider() != AiProvider.OPENAI) {
+    private Map<String, String> authentication(AiProvider provider) {
+        if (provider != AiProvider.OPENAI) {
             return Map.of();
         }
         String stored = settings.get(Setting.AI_REVIEW_OPENAI_KEY).trim();
@@ -234,16 +285,24 @@ public class AiReviewService implements SealedStore {
      * <p><b>Never throws</b>: when Ollama is unreachable a short list of suggestions is
      * returned instead — never presented as installed, only as something reasonable to type
      * during setup.
+     *
+     * <p>A provider whose integration is disabled is not asked at all, and answers the suggestions too: the
+     * advisor's status reads this for every signed-in account, and a list of models is not worth a request to
+     * a host the governor switched off. The test button refuses before it gets here.
      */
     public List<String> availableModels() {
         AiProvider provider = provider();
         boolean openAi = provider == AiProvider.OPENAI;
         List<String> suggestions = openAi ? AiReview.OPENAI_MODEL_SUGGESTIONS : AiReview.FALLBACK_MODEL_SUGGESTIONS;
+        if (!integrations.isEnabled(Integration.of(provider))) {
+            return suggestions;
+        }
         try {
             List<String> models = new ArrayList<>();
             // Two catalogues, two shapes: Ollama lists what is installed under `models[].name`,
             // OpenAI lists what the account may call under `data[].id`.
-            get.get(validatedUrl() + (openAi ? "/models" : "/api/tags"), policy(), provider.wireName(), authentication())
+            get.get(validatedUrl(provider) + (openAi ? "/models" : "/api/tags"), policy(), provider.wireName(),
+                            authentication(provider))
                     .ifPresent(payload -> {
                         for (JsonNode model : payload.path(openAi ? "data" : "models")) {
                             String name = model.path(openAi ? "id" : "name").asText("");
@@ -281,9 +340,16 @@ public class AiReviewService implements SealedStore {
      * response. Everything above this — the prompt, the delimiters, the parsing of findings — is
      * shared, because a review that meant something different depending on the provider would make
      * two products out of one feature.
+     *
+     * <p><b>The registry is asked here, on every call</b>, whoever the caller — a report asked from the button
+     * or after a scan, an advice. The provider is read once and nothing below reads it again, so a provider
+     * switched off is refused, never swapped for the other one.
+     *
+     * @throws IntegrationDisabledException when the configured provider is disabled, opened by {@link #UNAVAILABLE}
      */
     private String chat(List<Map<String, String>> messages) {
         AiProvider provider = provider();
+        requireEnabled(provider);
         boolean openAi = provider == AiProvider.OPENAI;
 
         Map<String, Object> body = openAi
@@ -291,11 +357,11 @@ public class AiReviewService implements SealedStore {
                 : Map.of("model", selectedModel(), "messages", messages, "stream", false);
 
         String response = post.postForResponse(
-                validatedUrl() + (openAi ? "/chat/completions" : "/api/chat"),
+                validatedUrl(provider) + (openAi ? "/chat/completions" : "/api/chat"),
                 body,
                 policy(),
                 provider.wireName(),
-                authentication(),
+                authentication(provider),
                 timeout());
 
         try {
@@ -332,6 +398,10 @@ public class AiReviewService implements SealedStore {
      *     own {@code isKev} reads false before the catalogue was ever read, and was sent to the
      *     model as {@code KEV: false} — a fact nobody had established
      * @param language the language the model is asked to answer in: the reader's
+     * @throws IntegrationDisabledException with model review on and its provider disabled, opened by {@link
+     *     #UNAVAILABLE}. Not the deterministic advice, which answers when review is off or a model failed: a
+     *     reader who would have had the model's words would get this product's without being told why, and
+     *     no screen could say the provider is off
      */
     public AiVulnerabilityAdvice explainVulnerability(
             IssueView issue, Exploitation exploitation, AdviceLanguage language) {
@@ -341,6 +411,7 @@ public class AiReviewService implements SealedStore {
         String fix = present(issue.fixVersions());
 
         if (isEnabled()) {
+            requireProviderEnabled();
             try {
                 // **`not_affected` is not among the choices offered, and that is deliberate.** The
                 // model is told nothing about whether the code calls the package, because nothing
@@ -407,6 +478,9 @@ public class AiReviewService implements SealedStore {
                             // render this product's words over the model's.
                             null);
                 }
+            } catch (IntegrationDisabledException switchedOff) {
+                // Switched off between the question above and the call: the same refusal, never the fallback.
+                throw switchedOff;
             } catch (Exception e) {
                 log.info("Ollama inference not available or failed, falling back to deterministic advice: {}", e.getMessage());
             }

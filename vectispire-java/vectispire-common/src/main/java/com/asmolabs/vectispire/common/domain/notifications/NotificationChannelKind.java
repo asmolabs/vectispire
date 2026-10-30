@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.common.domain.notifications;
 
+import java.util.Arrays;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * The destinations a scan's delta can be announced to, each configured on the settings screen and
@@ -36,5 +38,10 @@ public enum NotificationChannelKind {
     /** The outbox {@code message_type} a delivery to this channel is queued under. Stored: it does not move. */
     public String outboxType() {
         return outboxType;
+    }
+
+    /** The channel an outbox row of this type is delivered to; empty for a type no channel carries. */
+    public static Optional<NotificationChannelKind> byOutboxType(String type) {
+        return Arrays.stream(values()).filter(kind -> kind.outboxType.equals(type)).findFirst();
     }
 }

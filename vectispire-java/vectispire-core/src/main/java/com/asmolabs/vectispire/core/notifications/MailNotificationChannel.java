@@ -1,13 +1,16 @@
 package com.asmolabs.vectispire.core.notifications;
 
 import com.asmolabs.vectispire.common.domain.notifications.MailMessage;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
 import com.asmolabs.vectispire.common.domain.notifications.TokenAlertMessages;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.notifications.internal.AlertChannel;
+import com.asmolabs.vectispire.core.notifications.internal.ChannelGate;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.settings.ExportProperties;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.Arrays;
 import java.util.List;
@@ -31,6 +34,11 @@ import org.springframework.stereotype.Service;
  *
  * <p>Absent when no host is configured, so a deployment that does not send mail carries no
  * sender, no channel and nothing queued — the same shape as the single sign-on.
+ *
+ * <p><b>Every way out asks the registry first</b> (decision 0040, lot I6): the scan's delta and the token
+ * alert from the outbox, held while {@code notification.mail} is off; the weekly report and the checklist
+ * reminders, which have no queue, refused — 409 {@code integration-disabled} — and tried again at their next
+ * tick, when their own callers have not already stood down.
  */
 @Service
 public class MailNotificationChannel implements NotificationChannel, AlertChannel {
@@ -44,16 +52,19 @@ public class MailNotificationChannel implements NotificationChannel, AlertChanne
     private final Optional<JavaMailSender> sender;
     private final ExportProperties deployment;
     private final String from;
+    private final Integrations integrations;
 
     public MailNotificationChannel(
             SettingsService settings,
             Optional<JavaMailSender> sender,
             ExportProperties deployment,
-            @org.springframework.beans.factory.annotation.Value("${vectispire.mail.from:vectispire@localhost}") String from) {
+            @org.springframework.beans.factory.annotation.Value("${vectispire.mail.from:vectispire@localhost}") String from,
+            Integrations integrations) {
         this.settings = settings;
         this.sender = sender;
         this.deployment = deployment;
         this.from = from;
+        this.integrations = integrations;
     }
 
     @Override
@@ -75,6 +86,7 @@ public class MailNotificationChannel implements NotificationChannel, AlertChanne
 
     @Override
     public void deliver(NotificationPayload payload) {
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.MAIL);
         JavaMailSender mailer = sender.orElseThrow(() ->
                 new IllegalStateException("No mail relay is configured on this deployment."));
         List<String> to = recipients();
@@ -113,6 +125,7 @@ public class MailNotificationChannel implements NotificationChannel, AlertChanne
      * the send from being recorded as having happened.
      */
     public void sendText(String subject, String body) {
+        ChannelGate.requireEnabled(integrations, NotificationChannelKind.MAIL);
         JavaMailSender mailer = sender.orElseThrow(() ->
                 new IllegalStateException("No mail relay is configured on this deployment."));
         List<String> to = recipients();
@@ -137,6 +150,11 @@ public class MailNotificationChannel implements NotificationChannel, AlertChanne
         return sender.isPresent();
     }
 
+    /** Whether {@code notification.mail} is on (decision 0040): what a caller with no queue asks before it prepares a send. */
+    public boolean isSwitchedOn() {
+        return ChannelGate.isOn(integrations, NotificationChannelKind.MAIL);
+    }
+
     /**
      * Sends a message to the addresses given rather than to the e-mail recipients: the weekly checklist
      * reminder, which writes to each contact and each CISO at their account's own address (decision 0044).
@@ -146,6 +164,7 @@ public class MailNotificationChannel implements NotificationChannel, AlertChanne
      * failure</b>, like the rest: the caller records a reminder as sent only once it has been.
      */
     public void sendTextTo(List<String> to, String subject, String body) {
+        ChannelGate.requireEnabled(integrations, NotificationChannelKind.MAIL);
         JavaMailSender mailer = sender.orElseThrow(() ->
                 new IllegalStateException("No mail relay is configured on this deployment."));
         if (to.isEmpty()) {
@@ -168,6 +187,8 @@ public class MailNotificationChannel implements NotificationChannel, AlertChanne
     /** A token's change of state, to the same recipients through the same relay; throws on failure, like the rest. */
     @Override
     public void deliverAlert(TokenAlert alert, String messageId) {
+        // Held, not refused: this one came from the outbox, and waits there for the channel to be on again.
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.MAIL);
         MailMessage.Content content = TokenAlertMessages.mail(alert, deployment.publicUrl().orElse(null), messageId);
         sendText(content.subject(), content.body());
     }

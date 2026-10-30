@@ -4,40 +4,29 @@ package com.asmolabs.vectispire.common.domain.integrations;
  * What kind of outside system an integration talks to (decision 0040). The family is the first segment
  * of every integration's key, which is what keeps {@code gitlab} the forge and {@code gitlab} the
  * tracker two switches rather than one.
+ *
+ * <p><b>Every family's adapters ask the registry</b>, so every integration may be switched off — unless
+ * what its owner reports is still using it ({@link IntegrationInUseException}). Until lots I5 and I6 the AI
+ * providers and the notification channels were refused the switch-off ({@code integration-not-switchable}):
+ * recorded and audited, a disabled provider would have gone on receiving the findings, because nothing of
+ * the review asked. A family added later is wired in the same change that lists it, or the list shows a
+ * suspension nothing honours.
  */
 public enum IntegrationFamily {
-    FORGE("forge", true),
-    SIEM("siem", true),
-    /** Lot I5 is not built: nothing of the AI review asks the registry before it calls a model. */
-    AI("ai", false),
-    /** The notification half of lot I6 is not built: no channel asks the registry before it sends. */
-    NOTIFICATION("notification", false),
-    TRACKER("tracker", true);
+    FORGE("forge"),
+    SIEM("siem"),
+    AI("ai"),
+    NOTIFICATION("notification"),
+    TRACKER("tracker");
 
     private final String wireName;
-    private final boolean suspendable;
 
-    IntegrationFamily(String wireName, boolean suspendable) {
+    IntegrationFamily(String wireName) {
         this.wireName = wireName;
-        this.suspendable = suspendable;
     }
 
     /** The key's first segment and the form the API answers. Stored in every key: it does not move. */
     public String wireName() {
         return wireName;
-    }
-
-    /**
-     * Whether this version's adapters of the family stop when their integration is disabled — "disabled is
-     * unreachable" (0040 §1) holds for them.
-     *
-     * <p><b>A family that does not is refused the switch-off</b> ({@link IntegrationNotSwitchableException}),
-     * never accepted. The registry recorded and audited a disabled AI provider while the review went on
-     * sending the code to it: a governor reading the list, an auditor reading the entry, both believed a
-     * guarantee no line of code kept. Turn this on in the lot that makes the family's every entry ask the
-     * registry, not before.
-     */
-    public boolean suspendable() {
-        return suspendable;
     }
 }

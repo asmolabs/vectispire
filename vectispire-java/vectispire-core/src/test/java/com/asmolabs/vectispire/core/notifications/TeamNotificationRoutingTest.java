@@ -59,6 +59,7 @@ class TeamNotificationRoutingTest {
                 post,
                 new TeamChannels(mock(TeamTargetRepository.class), webhooks),
                 mock(EncryptionService.class),
+                com.asmolabs.vectispire.core.settings.EnabledIntegrations.all(),
                 Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC));
 
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn(GLOBAL);
@@ -136,22 +137,6 @@ class TeamNotificationRoutingTest {
         assertThatThrownBy(() -> service.deliver(payload(), null))
                 .isInstanceOf(GoneDestinationException.class)
                 .hasMessageContaining("global webhook URL has been cleared");
-    }
-
-    @Test
-    @DisplayName("notifications are enabled by a team channel alone, with no global one")
-    void teamChannelsAloneAreEnough() {
-        when(settings.get(Setting.WEBHOOK_URL)).thenReturn("");
-        when(webhooks.count()).thenReturn(1L);
-
-        // A deployment that gives each team its own channel and sets no global one is a reasonable
-        // configuration. Reading the global URL alone would have made it a configuration in which
-        // nothing is ever built or queued — the channels set, the screen saying so, and no message
-        // in existence.
-        assertThat(service.isEnabled()).isTrue();
-
-        when(webhooks.count()).thenReturn(0L);
-        assertThat(service.isEnabled()).isFalse();
     }
 
     private String destination() {

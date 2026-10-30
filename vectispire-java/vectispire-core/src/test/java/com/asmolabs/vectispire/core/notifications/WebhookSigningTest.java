@@ -61,7 +61,8 @@ class WebhookSigningTest {
         post = mock(OutboundPost.class);
         encryption = mock(EncryptionService.class);
         service = new NotificationService(
-                settings, post, new TeamChannels(mock(TeamTargetRepository.class), mock(TeamWebhookRepository.class)), encryption, Clock.fixed(AT, ZoneOffset.UTC));
+                settings, post, new TeamChannels(mock(TeamTargetRepository.class), mock(TeamWebhookRepository.class)), encryption,
+                com.asmolabs.vectispire.core.settings.EnabledIntegrations.all(), Clock.fixed(AT, ZoneOffset.UTC));
 
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn(GLOBAL);
         when(settings.get(Setting.NOTIFICATION_MIN_SEVERITY)).thenReturn("high");

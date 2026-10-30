@@ -23,9 +23,22 @@ public class IntegrationDisabledException extends ConflictException {
     private final transient Integration integration;
 
     public IntegrationDisabledException(Integration integration) {
-        super("The integration \"" + integration.key() + "\" is disabled on this installation; a platform governor "
-                + "enables it with PUT /api/v1/integrations/" + integration.key() + "/enabled.", CAUSE,
-                Map.of("integration", integration.key()));
+        this(integration, "");
+    }
+
+    /**
+     * The same refusal, opened by what the caller cannot have because of it.
+     *
+     * <p>For a feature that reads an integration rather than configures it — an AI review asked of a
+     * provider the governor switched off (0040 §3): the reader asked for a report, not for {@code
+     * ai.ollama}, and the sentence says first what they did not get and why.
+     *
+     * @param lead a sentence of its own, ending with its full stop, or empty
+     */
+    public IntegrationDisabledException(Integration integration, String lead) {
+        super((lead.isEmpty() ? "" : lead + " ") + "The integration \"" + integration.key() + "\" is disabled on "
+                + "this installation; a platform governor enables it with PUT /api/v1/integrations/"
+                + integration.key() + "/enabled.", CAUSE, Map.of("integration", integration.key()));
         this.integration = integration;
     }
 

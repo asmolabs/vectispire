@@ -42,8 +42,13 @@ public class AiAdvisorController {
         // it names a host and a port on the network the control plane sits on, to a caller who
         // may have been given nothing else. The screen needs to know whether the advisor works
         // and which model answers — never where it lives.
+        //
+        // `providerEnabled` is the registry's word on the configured provider (decision 0040, lot I5): false,
+        // an explanation answers 409 integration-disabled and the models listed are suggestions, the provider
+        // not having been asked.
         return Map.of(
                 "enabled", aiReviewService.isEnabled(),
+                "providerEnabled", aiReviewService.providerEnabled(),
                 "selectedModel", aiReviewService.selectedModel(),
                 "availableModels", aiReviewService.availableModels());
     }
