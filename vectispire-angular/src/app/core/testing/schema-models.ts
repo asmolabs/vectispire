@@ -164,6 +164,7 @@ export interface SchemaModels {
     OpenVexDocument: Models.OpenVexDocument;
     OpenVexStatement: Models.OpenVexStatement;
     OverviewPolicyView: Models.OverviewPolicy;
+    OwaspTagging: Models.OwaspTagging;
     OwaspWeek: Models.OwaspWeek;
     OwaspWeekCategory: Models.OwaspWeekCategory;
     OwaspWeeklyCoverage: Models.OwaspWeeklyCoverage;

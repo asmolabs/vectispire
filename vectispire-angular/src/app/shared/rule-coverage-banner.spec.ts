@@ -18,7 +18,7 @@ describe('the rule coverage banner', () => {
     let fixture: ComponentFixture<RuleCoverageBanner>;
     let http: HttpTestingController;
 
-    async function mount(body: RuleCoverageAssessment | null) {
+    async function mount(body: RuleCoverageAssessment | null, withOwaspTagging = false) {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [RuleCoverageBanner],
@@ -26,6 +26,7 @@ describe('the rule coverage banner', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(RuleCoverageBanner);
+        fixture.componentRef.setInput('withOwaspTagging', withOwaspTagging);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
 
@@ -86,5 +87,59 @@ describe('the rule coverage banner', () => {
         await mount(null);
 
         expect(fixture.componentInstance.visible()).toBe(false);
+    });
+
+    /**
+     * A rule tagged with the 2025 edition alone used to vanish from the grid without a word (decision
+     * 0046 keeps 2021). The rule sets screen names it; the banner on every other screen does not.
+     */
+    describe('the rules tagged with another OWASP edition only', () => {
+        const tagged = (untagged: { reason: string; ruleFiles: number }[]): RuleCoverageAssessment => ({
+            state: 'COVERED',
+            languagesWithRules: ['java'],
+            ecosystemsInEstate: ['maven'],
+            uncovered: [],
+            ruleFiles: 40,
+            owasp: { ruleFiles: 40, tagged: 40 - untagged.reduce((sum, row) => sum + row.ruleFiles, 0), untagged }
+        });
+        const notice = () =>
+            (fixture.nativeElement as HTMLElement).querySelector('[data-testid="owasp-other-edition"]');
+
+        it('are named on the rule sets screen, with their count by reason', async () => {
+            await mount(
+                tagged([
+                    { reason: 'ONLY_2025_EDITION', ruleFiles: 3 },
+                    { reason: 'NOT_DECLARED', ruleFiles: 20 }
+                ]),
+                true
+            );
+
+            expect(fixture.componentInstance.otherEditionFiles()).toBe(3);
+            expect(fixture.componentInstance.otherEdition().map((row) => row.reason)).toEqual(['ONLY_2025_EDITION']);
+            expect(notice()).not.toBeNull();
+        });
+
+        it('are not named by the banner of the other screens', async () => {
+            await mount(tagged([{ reason: 'ONLY_2025_EDITION', ruleFiles: 3 }]));
+
+            expect(notice()).toBeNull();
+        });
+
+        it('leave nothing to say when the untagged rules simply declare no category', async () => {
+            // Most of the upstream corpus declares none: a warning about it would fire everywhere.
+            await mount(tagged([{ reason: 'NOT_DECLARED', ruleFiles: 20 }]), true);
+
+            expect(notice()).toBeNull();
+        });
+
+        it('show a reason this client does not know by its name rather than a key path', async () => {
+            // Set past the document's check, which knows today's values only: a newer server is the case.
+            await mount(tagged([]), true);
+            fixture.componentInstance.coverage.set(tagged([{ reason: 'ONLY_2030_EDITION', ruleFiles: 2 }]));
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.reasonKey('ONLY_2030_EDITION')).toBeUndefined();
+            expect(notice()?.textContent).toContain('ONLY_2030_EDITION: 2');
+        });
     });
 });

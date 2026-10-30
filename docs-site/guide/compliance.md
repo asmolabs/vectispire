@@ -164,3 +164,7 @@ the rule sets in use are tagged with it, and the audit questionnaires the page a
 it. The 2025 edition renumbers and reshapes the list, so a category of the 2021 edition does not map one to
 one onto one of 2025; it will come in a later 1.x release **beside** the 2021 view, never in its place, so a
 pipeline or a report matching on a category of the 2021 edition keeps working.
+
+A rule tagged with the 2025 edition alone places no finding until then, and is not dropped in silence: the
+rule sets screen counts it among the untagged rules, with that reason
+([Semgrep rule sets](../administration/rule-sets.md#owasp-categories)).

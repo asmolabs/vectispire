@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.rules;
 
+import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,13 +61,24 @@ public final class RuleCoverage {
      * @param ecosystemsInEstate what the components say the estate is written in
      * @param uncovered ecosystems present with no rules. Empty when {@code state} is not PARTIAL
      * @param ruleFiles how many rule files are installed, bundled included
+     * @param owasp how the installed code-analysis rules declare their OWASP category — how many the grid
+     *     can place findings of, and why the others place none ({@link OwaspTag#tally}). Null where the
+     *     contents were not read ({@link #assess(List, List)}, which a gate's per-target question uses);
+     *     the route always reads them
      */
     public record Assessment(
             State state,
             Set<String> languagesWithRules,
             Set<String> ecosystemsInEstate,
             Set<String> uncovered,
-            int ruleFiles) {}
+            int ruleFiles,
+            OwaspTag.OwaspTagging owasp) {
+
+        /** The same assessment, with the rules' OWASP declarations read from their contents. */
+        public Assessment withOwasp(OwaspTag.OwaspTagging tagging) {
+            return new Assessment(state, languagesWithRules, ecosystemsInEstate, uncovered, ruleFiles, tagging);
+        }
+    }
 
     /**
      * The one rule the jar ships, by the directory it lands in.
@@ -136,7 +148,8 @@ public final class RuleCoverage {
                 Set.copyOf(languages),
                 Set.copyOf(ecosystems),
                 state == State.PARTIAL ? Set.copyOf(uncovered) : Set.of(),
-                ruleFilePaths.size());
+                ruleFilePaths.size(),
+                null);
     }
 
     /**

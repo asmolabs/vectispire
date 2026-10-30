@@ -4792,6 +4792,7 @@ export interface components {
         Assessment: {
             ecosystemsInEstate?: string[];
             languagesWithRules?: string[];
+            owasp?: components["schemas"]["OwaspTagging"];
             /** Format: int32 */
             ruleFiles: number;
             /** @enum {string} */
@@ -7273,6 +7274,19 @@ export interface components {
             source?: string;
             /** Format: int32 */
             version?: number;
+        };
+        OwaspTagging: {
+            /** Format: int32 */
+            ruleFiles: number;
+            /** Format: int32 */
+            tagged: number;
+            untagged?: components["schemas"]["OwaspUntaggedCount"][];
+        };
+        OwaspUntaggedCount: {
+            /** @enum {string} */
+            reason?: "ONLY_2025_EDITION" | "ONLY_2017_EDITION" | "NOT_DECLARED";
+            /** Format: int32 */
+            ruleFiles: number;
         };
         OwaspWeek: {
             /** Format: date-time */
