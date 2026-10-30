@@ -21,7 +21,7 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
-## Non publié
+## 0.99.0
 
 La version qui précède la 1.0, et son essai : ce que la 1.0 promettra
 ([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md))
@@ -33,7 +33,12 @@ ces corrections refusent ce que la 0.11.2 acceptait : lisez *Avant la mise à jo
 installation dont SCIM est actif avec un jeton court ne démarre pas tant que le jeton n'est pas remplacé.
 Ce qui suit est par rapport à la 0.11.2.
 
-### Avant la mise à jour {#avant-la-mise-a-jour-non-publie}
+### Avant la mise à jour {#avant-la-mise-a-jour-0990}
+
+- **La 0.99.0 est la version à l'aune de laquelle la 1.0 est mesurée.** La décision 0043 publie la 1.0
+  quand ses promesses sont écrites, vérifiées, et ont tenu pendant une mineure sans rupture imprévue.
+  C'est cette mineure : chaque promesse est en place, et ce qui casse avant la 1.0 est un défaut à
+  signaler, pas un changement à attendre.
 
 **Base de données et déploiement**
 
@@ -199,7 +204,7 @@ Ce qui suit est par rapport à la 0.11.2.
   trois mois après celle qui lui succède. La manière dont un retrait de l'API est annoncé figure en tête
   de cette page.
 
-### Changements visibles par une intégration {#changements-visibles-par-une-integration-non-publie}
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-0990}
 
 - **SCIM : un `externalId` qu'un autre compte détient est un 409 `uniqueness`**, sur
   `POST /scim/v2/Users` et sur un `PUT` qui lie un compte non lié, sans rien écrire — ce qu'un annuaire lit
@@ -215,8 +220,20 @@ Ce qui suit est par rapport à la 0.11.2.
   certificat était épinglé — aux champs du SIEM, des connexions aux forges et de la CA du tracker. Un
   paquet déjà enregistré est lu comme il a été accepté : une connexion qui fonctionne ne s'arrête pas.
 - **Le refus du `hello` d'un agent** nomme la plage de contrats servie et le côté à mettre à jour.
+- **L'historique de tri dit ce qu'une demande mise en file demandait.** Une décision qui a mis en file un
+  statut de clôture pour une seconde personne (`toStatus` `pending_approval`) porte `requestedStatus` —
+  `not_affected`, `will_not_fix` ou `fixed` — dans `GET /api/v1/history/repositories/{id}` et dans
+  `decisions[]` de `GET /api/v1/issues/{id}` ; null sur toute autre entrée, et sur une demande mise en
+  file avant que la 0.11.0 ne l'enregistre. Le CSV de l'historique gagne une dernière colonne,
+  `decision_requested_status`, de sorte qu'une feuille qui lit les colonnes par position lit les mêmes
+  cellules ; le PDF imprime `asking for <status>` sur la ligne de la demande. Ajout seul.
+- **Les chiffres OWASP disent ce qu'ils laissent de côté.** `GET /api/v1/rule-sets/coverage` gagne
+  `owasp` : combien de fichiers de règles sont placés dans une catégorie de l'édition 2021, par leur propre étiquette
+  ou par CWE (`byCwe`), et ceux qui ne le sont pas, par raison (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`,
+  `NOT_DECLARED` ; une raison inconnue se lit par son nom). `GET /api/v1/owasp/coverage` gagne
+  `unplacedCode`, les constats de code ouverts qu'aucune catégorie ne contient. Ajouts seuls.
 
-### Nouveautés {#nouveautes-non-publie}
+### Nouveautés {#nouveautes-0990}
 
 - **`/actuator/encryption`**, le recensement des magasins scellés, et la réinitialisation du second
   facteur — tous deux plus haut.
@@ -229,7 +246,7 @@ Ce qui suit est par rapport à la 0.11.2.
   seconde soumission pendant qu'une première est en cours n'envoie rien, et les champs que le serveur
   exige sont marqués. Le serveur décide toujours, dans ses propres mots.
 
-### Sécurité {#securite-non-publie}
+### Sécurité {#securite-0990}
 
 D'une revue complète de `develop` avant cette version. Chaque constat est corrigé, ou documenté comme
 risque résiduel là où une correction serait une décision à part entière :
@@ -269,8 +286,23 @@ risque résiduel là où une correction serait une décision à part entière :
   `npm audit` lit zéro sur tout l'arbre de l'interface, dépendances de développement comprises (vitest
   4.1.12, happy-dom 21, Playwright 1.64.1).
 
-### Corrigé {#corrige-non-publie}
+### Corrigé {#corrige-0990}
 
+- **Un constat de code dont la règle déclare une CWE mais aucune catégorie OWASP est placé par sa CWE**,
+  d'après les listes d'OWASP des CWE que couvre chaque catégorie de l'édition 2021. La plupart des règles amont ne
+  déclarent qu'une CWE : leurs constats n'entraient dans aucune catégorie, et la catégorie affichait
+  « rien trouvé ». Un problème existant reçoit sa catégorie au scan suivant de sa cible ; les empreintes
+  ne changent pas, aucun tri n'est perdu. Attendez-vous à ce que les chiffres de la grille OWASP bougent
+  après ce scan. Les constats d'un agent de la mineure précédente, qui n'envoie pas la CWE, restent non
+  placés et sont comptés sous la grille.
+- **Une règle étiquetée seulement avec une autre édition OWASP** (`A01:2025`) tournait et ses constats
+  arrivaient au backlog, mais la grille n'en plaçait aucun sans dire pourquoi. La 1.0 note toujours
+  l'édition 2021 (décision 0046) ; l'écran des jeux de règles dit désormais combien de fichiers de règles
+  ne déclarent qu'une autre édition.
+- **L'interface en français affichait la phrase anglaise du serveur** pour la raison d'une violation de
+  la barrière et pour chaque refus. Les deux sont désormais traduits depuis la `rule` de la violation et
+  le `code` du problème ; là où une valeur n'est pas un champ à part (le seuil d'une politique, les
+  écosystèmes non couverts), la phrase du serveur reste en infobulle de la ligne.
 - Une connexion avec un User-Agent de plus de 255 caractères répondait 500 pour un compte à second
   facteur, après que son mot de passe avait été accepté.
 - Activer un second facteur avec un secret sans aucune lettre Base32 répondait 500 ; c'est un 400.
@@ -288,7 +320,7 @@ risque résiduel là où une correction serait une décision à part entière :
 - Les répertoires temporaires laissés par la récupération du catalogue de règles sont supprimés comme
   les autres.
 
-### Performances {#performances-non-publie}
+### Performances {#performances-0990}
 
 - Le premier téléchargement de l'interface passe de 932 ko à 612 ko : la coquille et les thèmes Lara et
   Nora se chargent à la demande, et la construction échoue désormais si un import immédiat ramène un
