@@ -1,0 +1,11 @@
+# Medium and high ZAP baseline alerts accepted on the running control plane, read by ci/zap/gate.py.
+#
+# One line per acceptance, four fields separated by " | ":
+#
+#   <ZAP plugin id> | <path regex, matched against the whole path> | <ZAP's alert name> | <why it is accepted>
+#
+# An acceptance names the paths its reason covers, never more: the same alert on any other path is
+# new and fails the nightly. A line that matched nothing in a run is reported as a warning — if the
+# alert was fixed, the line comes out. Low and informational alerts are printed and not gated.
+
+10055 | (|/(?!api/v1/|actuator/).*) | CSP: style-src unsafe-inline | Measured, not assumed (SecurityConfiguration's CONTENT_SECURITY_POLICY): without it the shipped bundle renders unstyled, Angular emitting component styles as <style> elements and Optimus UI setting style attributes, which neither a nonce nor a hash covers. script-src keeps no unsafe-inline or unsafe-eval, so an injected style can redress the page but not execute. Every path outside the API serves the interface's shell, hence the pattern; closing it is a change to the interface.
