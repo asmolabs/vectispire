@@ -511,7 +511,7 @@
             "type" : "integer"
           },
           "noDataReason" : {
-            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_integration_disabled", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "outcome" : {
@@ -1952,7 +1952,7 @@
             "type" : "string"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_integration_disabled", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "reconciliation" : {
@@ -4255,6 +4255,9 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "integration" : {
+            "type" : "string"
+          },
           "internalNetwork" : {
             "type" : "boolean"
           },
@@ -4279,6 +4282,10 @@
               "type" : "string"
             },
             "type" : "array"
+          },
+          "state" : {
+            "enum" : [ "active", "suspended" ],
+            "type" : "string"
           },
           "tokenExpiresAt" : {
             "format" : "date-time",
@@ -5446,6 +5453,41 @@
         "required" : [ "matchedIssues", "statementsProcessed", "triagedIssues" ],
         "type" : "object"
       },
+      "IntegrationEnabled" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "IntegrationView" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "family" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "description" : "Null while no governor has switched it.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "updatedBy" : {
+            "description" : "Null while nobody has, and for a reader who does not read governance.",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "enabled" ],
+        "type" : "object"
+      },
       "Invocation" : {
         "properties" : {
           "branch" : {
@@ -6218,7 +6260,7 @@
             "type" : "integer"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_integration_disabled", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "submittedOutcome" : {
@@ -6226,7 +6268,7 @@
             "type" : "string"
           },
           "submittedReason" : {
-            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_integration_disabled", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -8740,7 +8782,7 @@
             "type" : "integer"
           },
           "status" : {
-            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "forge_integration_disabled", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -11422,6 +11464,9 @@
           "expirySource" : {
             "type" : "string"
           },
+          "integration" : {
+            "type" : "string"
+          },
           "refusedSince" : {
             "format" : "date-time",
             "type" : "string"
@@ -11429,6 +11474,9 @@
           "refusedStatus" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "state" : {
+            "type" : "string"
           }
         },
         "required" : [ "configured" ],
@@ -14935,7 +14983,7 @@
     },
     "/api/v1/forge-connections" : {
       "get" : {
-        "description" : "Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it.",
+        "description" : "Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it; state, suspended while the platform governor has disabled the forge's integration (decision 0040), and the integration's key.",
         "operationId" : "listForgeConnections",
         "parameters" : [ {
           "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
@@ -14978,7 +15026,7 @@
         "tags" : [ "Forge connections" ]
       },
       "post" : {
-        "description" : "The token is probed against the forge before anything is kept, through the outbound guard — public addresses only unless internalNetwork, link-local and Vectispire's own endpoints never — and refused (400) when the forge rejects it, reports a scope outside the read-only allow-list (GitLab: read_api, read_repository, read_registry, read_user; GitHub: a fine-grained token, or on Enterprise Server a classic one with repo, public_repo, read:org, read:user, user:email, flagged canWrite), a server older than GitLab 16 or GHES 3.12, or an owner it does not know. Audited FORGE_CONNECTION_CHANGED and signalled VECTI-SEC-034; a blocked address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036.",
+        "description" : "The token is probed against the forge before anything is kept, through the outbound guard — public addresses only unless internalNetwork, link-local and Vectispire's own endpoints never — and refused (400) when the forge rejects it, reports a scope outside the read-only allow-list (GitLab: read_api, read_repository, read_registry, read_user; GitHub: a fine-grained token, or on Enterprise Server a classic one with repo, public_repo, read:org, read:user, user:email, flagged canWrite), a server older than GitLab 16 or GHES 3.12, or an owner it does not know. Audited FORGE_CONNECTION_CHANGED and signalled VECTI-SEC-034; a blocked address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036. 409 integration-disabled, nothing probed, when the platform governor has disabled that forge.",
         "operationId" : "createForgeConnection",
         "requestBody" : {
           "content" : {
@@ -15058,7 +15106,7 @@
         "tags" : [ "Forge connections" ]
       },
       "post" : {
-        "description" : "Queues a discovery of the connection and answers at once, 202 with the run — pending — to poll. A control-plane instance claims it under a lease and lists the namespaces, then the repositories with their metadata (GitLab: the groups and projects the token is a member of, min_access_level 10, membership=true; GitHub: the connection's owner, the organisations a classic token sees and the user's own repositories, an organisation the token cannot read — single sign-on, an IP allow list — recorded in unreadableNamespaces and none of its repositories marked gone), through the outbound guard and the connection's pinned CA, the next page followed on the connection's own origin only. Bounds: thirty minutes, twenty thousand repositories, a rate-limit wait of up to a minute inside the run — past any of them the run ends partial. 404 when no connection has that id; 409 forge-discovery-in-progress with discoveryId while one is pending or running; 409 forge-discovery-unsupported for a forge this version does not list. A queued discovery is audited FORGE_DISCOVERY_REQUESTED; a refused request records nothing.",
+        "description" : "Queues a discovery of the connection and answers at once, 202 with the run — pending — to poll; 409 integration-disabled for a suspended connection. A control-plane instance claims it under a lease and lists the namespaces, then the repositories with their metadata (GitLab: the groups and projects the token is a member of, min_access_level 10, membership=true; GitHub: the connection's owner, the organisations a classic token sees and the user's own repositories, an organisation the token cannot read — single sign-on, an IP allow list — recorded in unreadableNamespaces and none of its repositories marked gone), through the outbound guard and the connection's pinned CA, the next page followed on the connection's own origin only. Bounds: thirty minutes, twenty thousand repositories, a rate-limit wait of up to a minute inside the run — past any of them the run ends partial. 404 when no connection has that id; 409 forge-discovery-in-progress with discoveryId while one is pending or running; 409 forge-discovery-unsupported for a forge this version does not list. A queued discovery is audited FORGE_DISCOVERY_REQUESTED; a refused request records nothing.",
         "operationId" : "requestForgeDiscovery",
         "parameters" : [ {
           "in" : "path",
@@ -15383,7 +15431,7 @@
     },
     "/api/v1/forge-connections/{connectionId}/imports/preview" : {
       "post" : {
-        "description" : "What importing the selected repositories would do, nothing written: the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.",
+        "description" : "What importing the selected repositories would do, nothing written (409 integration-disabled for a suspended connection, as the import): the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.",
         "operationId" : "previewForgeImport",
         "parameters" : [ {
           "in" : "path",
@@ -15468,7 +15516,7 @@
         "tags" : [ "Forge connections" ]
       },
       "patch" : {
-        "description" : "Rename it, or change how its token is presented — the internal-network statement, the pinned CA (blank unpins it) — which probes the stored token again first and signals VECTI-SEC-034. The address cannot change: another server is another connection. Saving re-seals the token under the current ENCRYPTION_KEY.",
+        "description" : "Rename it, or change how its token is presented — the internal-network statement, the pinned CA (blank unpins it) — which probes the stored token again first and signals VECTI-SEC-034 — 409 integration-disabled for a suspended connection, which may still be renamed. The address cannot change: another server is another connection. Saving re-seals the token under the current ENCRYPTION_KEY.",
         "operationId" : "updateForgeConnection",
         "parameters" : [ {
           "in" : "path",
@@ -15506,7 +15554,7 @@
     },
     "/api/v1/forge-connections/{id}/token" : {
       "put" : {
-        "description" : "Rotation in place: the new token is probed as at creation, and the connection keeps its id and everything that hangs on it. 400 as at creation; VECTI-SEC-034, or VECTI-SEC-036 for a refused scope.",
+        "description" : "Rotation in place: the new token is probed as at creation, and the connection keeps its id and everything that hangs on it. 400 as at creation, 409 integration-disabled for a suspended connection; VECTI-SEC-034, or VECTI-SEC-036 for a refused scope.",
         "operationId" : "replaceForgeConnectionToken",
         "parameters" : [ {
           "in" : "path",
@@ -15948,6 +15996,66 @@
           }
         },
         "tags" : [ "history-controller" ]
+      }
+    },
+    "/api/v1/integrations" : {
+      "get" : {
+        "description" : "Every integration this version knows — forge kinds, SIEM transports, AI providers, notification channels, trackers — with whether it is enabled. Any account: the screens filter their forms with it. updatedAt and updatedBy are null while no governor has switched it; updatedBy is null too for a reader who does not read governance.",
+        "operationId" : "listIntegrations",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/IntegrationView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List integrations",
+        "tags" : [ "Integrations" ]
+      }
+    },
+    "/api/v1/integrations/{key}/enabled" : {
+      "put" : {
+        "description" : "Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. Disabling one a configuration uses — the SIEM transport an enabled export sends over — is refused 409 integration-in-use, naming it in the member integration, nothing changed and nothing recorded: change that configuration first. Disabling an AI provider or a notification channel is refused 409 integration-not-switchable, naming it in the member integration, nothing changed and nothing recorded: this version's adapters of those families do not consult the registry, so the switch would stop nothing. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.",
+        "operationId" : "setIntegrationEnabled",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IntegrationEnabled"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IntegrationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Enable or disable integration",
+        "tags" : [ "Integrations" ]
       }
     },
     "/api/v1/inventory/search" : {
@@ -23447,6 +23555,9 @@
   }, {
     "description" : "The register of risk acceptances and dismissals",
     "name" : "Exceptions"
+  }, {
+    "description" : "The outside systems this installation may talk to, switched on and off",
+    "name" : "Integrations"
   }, {
     "description" : "Security scan lifecycle, pipeline execution and status reporting",
     "name" : "Scans"

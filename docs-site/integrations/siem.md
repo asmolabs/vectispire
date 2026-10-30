@@ -96,6 +96,23 @@ could not be reached or did not accept the event. The socket's own error — a r
 timeout, an HTTP status — is written to the server log, not answered: those tell a closed port from a
 listening server, which would make the button a scanner of every network the export may reach.
 
+### Each transport is an integration
+
+The four transports are integrations the platform governor switches on and off —
+`siem.webhook`, `siem.syslog_udp`, `siem.syslog_tcp`, `siem.syslog_tls`, all enabled to begin with
+— through the API, `PUT /api/v1/integrations/{key}/enabled` with `{"enabled": false}`. There is no
+screen for it in this release; *Administration → Integrations* comes in a later one ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+An enabled export is not saved over a disabled transport, nor is a disabled transport tested: both
+answer 409 `integration-disabled`. Switching the export off is always saved, whatever its protocol.
+
+**The transport in use cannot be disabled.** While the export is on, the governor's switch of its
+transport is refused with 409 `integration-in-use`: the security events waiting in the outbox would
+otherwise have nowhere to go, and be lost in silence. Point the export at another transport, or
+switch it off, first — the collector being left is told — and the old transport may be disabled
+then. Should a transport be off under an enabled export all the same (a row changed by hand), events
+are not sent and not lost: they wait in the outbox, pending, with the reason as their last error and
+no attempt counted, and leave once the transport is enabled again or the export points elsewhere.
+
 ## Minimum severity
 
 Each event carries a CEF severity from 0 to 10. The minimum severity keeps the bands at or above it:
@@ -191,7 +208,7 @@ change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in
 | `VECTI-SEC-016` | Four-eyes triage request approved | 5 | a second person settles a pending request |
 | `VECTI-SEC-017` | Four-eyes triage request refused | 4 | a pending request is sent back |
 | `VECTI-SEC-018` | Audit log integrity verification failed | 10 | a verification finds the hash chain broken or entries missing from the table |
-| `VECTI-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes |
+| `VECTI-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes, or the platform governor switches an integration on or off (`INTEGRATION_ENABLED_CHANGED`) |
 | `VECTI-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | an agent's sealing key announcement is refused: its signature does not verify against the pinned signing key, or it is older than the key already accepted; no credential is sealed for it |
 | `VECTI-SEC-021` | Analysis plugin registered, changed or activated | 6 | a plugin is registered, updated, enabled or disabled by the platform governor, allowed to run unsigned or no longer, or switched on or off for a project — third-party code gains or loses read access to some of the source |
 | `VECTI-SEC-022` | SARIF import source declared or changed | 6 | a SARIF source is declared, enabled, disabled or removed: which key may deposit findings, for which project or repository, from which tools |

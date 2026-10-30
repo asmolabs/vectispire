@@ -22,6 +22,8 @@ document. Read `detail`: it is the sentence written for whoever made the request
 | `code` | yes | What the refusal is, as a stable token a program branches on — see [the codes](#the-codes). |
 | `retryAfterSeconds` | on a 429 | How long to wait. The `Retry-After` header carries the same number. |
 | `correlationId` | on a 500 | A reference to quote to your administrator; also found in `detail`. |
+| `type` | on some 409s | `urn:vectispire:problem:<cause>`, naming why — see [409 causes](#409-causes). Absent, it is `about:blank`. |
+| `integration` | with `integration-disabled`, `integration-in-use` or `integration-not-switchable` | The key of the integration that is switched off, or that could not be, such as `forge.gitlab` or `siem.syslog_tls`. |
 
 The content type is `application/problem+json`, including for a request the web server rejects
 before the application sees it: a URL the security firewall refuses — `//`, an encoded `..`, a
@@ -74,13 +76,26 @@ refused, the ceiling of a `content-too-large` — the translated sentence quotes
 | **403** | The credential is valid and may not do this: the role does not allow it, a password change is owed, or the key or agent credential is not accepted on this route. The detail does not name the roles that would be. |
 | **404** | The route does not exist, or what the path names does not — **or it exists and you may not see it**. The two read the same, in the same words, on purpose: a different answer would confirm that a repository, a scan or an issue you were not given exists. |
 | **405 / 406 / 415** | Wrong method, an `Accept` the route cannot answer, a body in a media type the route does not read. |
-| **409** | The request conflicts with the current state and may succeed later unchanged: a scan already queued, a solution that still holds projects, an OWASP review that cannot run yet. |
+| **409** | The request conflicts with the current state and may succeed later unchanged: a scan already queued, a solution that still holds projects, an OWASP review that cannot run yet, an integration switched off. |
 | **412** | The deployment is missing something an operator sets: the encryption key, a credential an agent cannot receive. |
 | **413** | The body is larger than the route accepts. The detail names the ceiling. |
 | **422** | A destination refused by the outbound policy. |
 | **429** | Too many attempts from this address or with this key. Wait `retryAfterSeconds`. |
 | **500** | A failure nobody wrote a sentence for. The detail says only that it happened and quotes a `correlationId`; the full error is in the control plane's log under that reference. |
 | **503** | Transient: too many sign-ins awaiting their second factor. Try again in a few minutes. |
+
+## 409 causes
+
+Where a route refuses for several reasons that call for different gestures, the problem's `type`
+names the cause, so that a client tells them apart without reading the sentence, which may change.
+Each route states its causes in the [REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md).
+Two concern the integrations — the first across routes, the second on the governor's switch:
+
+| `type` | When | Members |
+|---|---|---|
+| `urn:vectispire:problem:integration-disabled` | The gesture needs an integration — a forge kind, a SIEM transport, a tracker — that the platform governor has switched off, through `PUT /api/v1/integrations/{key}/enabled` (the screen, *Administration → Integrations*, comes in a later release; [decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)). The same request succeeds once it is enabled again. The `detail` names that route rather than a screen: *The integration "tracker.jira" is disabled on this installation; a platform governor enables it with PUT /api/v1/integrations/tracker.jira/enabled.* | `integration`: its key |
+| `urn:vectispire:problem:integration-in-use` | The platform governor asked to disable an integration a configuration still uses — the SIEM transport the enabled export sends over. Nothing is changed and nothing is recorded: what is queued for it would otherwise have nowhere to go and be lost in silence. Change that configuration first — point the SIEM export at another transport, or switch it off — and disable it then. | `integration`: its key |
+| `urn:vectispire:problem:integration-not-switchable` | The platform governor asked to disable an AI provider or a notification channel. This version lists them in the registry, but none of their adapters asks it yet (decision 0040, lots I5 and I6), so the switch would stop nothing: it is refused, nothing is changed and nothing is recorded, rather than accepted as a suspension the AI review and the notifications would not honour. Meanwhile, turn `ai_review_enabled` off in the settings to stop the AI review, and empty a channel's URL or recipients in the notification settings — and a team's own webhook — to stop that channel. Enabling one is accepted, as before. | `integration`: its key |
 
 ## A 500 never explains itself
 

@@ -32,6 +32,16 @@
                     <p-button [label]="'common.save' | translate" [loading]="savingToken()" (onClick)="saveToken()" />
                 </div>
             </div>
+            @if (tokenState()?.state === 'suspended') {
+                <!-- Said before the token's life: while the governor has the tracker switched off, nothing is
+                     sent to it, whatever the token's date (decision 0040 §3). -->
+                <div class="flex flex-wrap items-center gap-2 text-sm" data-testid="tracker-suspended">
+                    <p-tag severity="warn" [value]="'settings.tracker_suspended_tag' | translate" />
+                    <span>{{
+                        'settings.tracker_suspended' | translate: { integration: tokenState()?.integration ?? '' }
+                    }}</span>
+                </div>
+            }
             @if (tokenConfigured() && tokenState(); as token) {
                 <!-- The token's life, as the forge connections' list shows a connection's: a refusal first,
                      then the expiry fourteen days ahead, and "unknown" said rather than left blank. -->

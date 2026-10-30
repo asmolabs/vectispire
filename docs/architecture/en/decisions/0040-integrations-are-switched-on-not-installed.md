@@ -78,9 +78,16 @@ OpenAI, Teams and never Discord, says so once.
 
 | Lot | Content | Size |
 |---|---|---|
-| I1 | The registry, its setting, the governor's route and audit; 409 on the routes of a disabled integration | M |
+| I1 | The registry in a table of its own (`t_integration`, not a setting: a setting records neither who switched it nor when), the governor's route and audit; 409 on the routes of a disabled integration | M |
 | I2 | Forge connections: suspended state, discovery and change review skipped with their reason | M |
 | I3 | SIEM: transports in the registry, the in-use refusal | S |
 | I4 | *Administration → Integrations* screen, forms filtered; documentation in English and French | M |
 | I5 | AI providers: the registry, *AI unavailable — provider disabled* in the features that read it | S |
 | I6 | Notification channels (the in-use refusal) and trackers (suspended) | M |
+
+**Until a family's lot is built, its switch-off is refused** (amended for 1.0.0-rc.1). I1 lists every
+family, so a governor could disable an AI provider or a notification channel that no adapter checked:
+recorded and audited, it stopped nothing, against §1. The registry now refuses `enabled: false` for a
+family whose adapters do not consult it — 409 `integration-not-switchable`, nothing changed, nothing
+audited (`IntegrationFamily.suspendable`). I5 and the notification half of I6 each turn their family on
+in the same change that makes every one of its entries ask the registry.

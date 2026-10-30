@@ -1493,13 +1493,13 @@ export interface paths {
         };
         /**
          * List forge connections
-         * @description Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it.
+         * @description Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it; state, suspended while the platform governor has disabled the forge's integration (decision 0040), and the integration's key.
          */
         get: operations["listForgeConnections"];
         put?: never;
         /**
          * Create forge connection
-         * @description The token is probed against the forge before anything is kept, through the outbound guard — public addresses only unless internalNetwork, link-local and Vectispire's own endpoints never — and refused (400) when the forge rejects it, reports a scope outside the read-only allow-list (GitLab: read_api, read_repository, read_registry, read_user; GitHub: a fine-grained token, or on Enterprise Server a classic one with repo, public_repo, read:org, read:user, user:email, flagged canWrite), a server older than GitLab 16 or GHES 3.12, or an owner it does not know. Audited FORGE_CONNECTION_CHANGED and signalled VECTI-SEC-034; a blocked address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036.
+         * @description The token is probed against the forge before anything is kept, through the outbound guard — public addresses only unless internalNetwork, link-local and Vectispire's own endpoints never — and refused (400) when the forge rejects it, reports a scope outside the read-only allow-list (GitLab: read_api, read_repository, read_registry, read_user; GitHub: a fine-grained token, or on Enterprise Server a classic one with repo, public_repo, read:org, read:user, user:email, flagged canWrite), a server older than GitLab 16 or GHES 3.12, or an owner it does not know. Audited FORGE_CONNECTION_CHANGED and signalled VECTI-SEC-034; a blocked address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036. 409 integration-disabled, nothing probed, when the platform governor has disabled that forge.
          */
         post: operations["createForgeConnection"];
         delete?: never;
@@ -1523,7 +1523,7 @@ export interface paths {
         put?: never;
         /**
          * Discover forge repositories
-         * @description Queues a discovery of the connection and answers at once, 202 with the run — pending — to poll. A control-plane instance claims it under a lease and lists the namespaces, then the repositories with their metadata (GitLab: the groups and projects the token is a member of, min_access_level 10, membership=true; GitHub: the connection's owner, the organisations a classic token sees and the user's own repositories, an organisation the token cannot read — single sign-on, an IP allow list — recorded in unreadableNamespaces and none of its repositories marked gone), through the outbound guard and the connection's pinned CA, the next page followed on the connection's own origin only. Bounds: thirty minutes, twenty thousand repositories, a rate-limit wait of up to a minute inside the run — past any of them the run ends partial. 404 when no connection has that id; 409 forge-discovery-in-progress with discoveryId while one is pending or running; 409 forge-discovery-unsupported for a forge this version does not list. A queued discovery is audited FORGE_DISCOVERY_REQUESTED; a refused request records nothing.
+         * @description Queues a discovery of the connection and answers at once, 202 with the run — pending — to poll; 409 integration-disabled for a suspended connection. A control-plane instance claims it under a lease and lists the namespaces, then the repositories with their metadata (GitLab: the groups and projects the token is a member of, min_access_level 10, membership=true; GitHub: the connection's owner, the organisations a classic token sees and the user's own repositories, an organisation the token cannot read — single sign-on, an IP allow list — recorded in unreadableNamespaces and none of its repositories marked gone), through the outbound guard and the connection's pinned CA, the next page followed on the connection's own origin only. Bounds: thirty minutes, twenty thousand repositories, a rate-limit wait of up to a minute inside the run — past any of them the run ends partial. 404 when no connection has that id; 409 forge-discovery-in-progress with discoveryId while one is pending or running; 409 forge-discovery-unsupported for a forge this version does not list. A queued discovery is audited FORGE_DISCOVERY_REQUESTED; a refused request records nothing.
          */
         post: operations["requestForgeDiscovery"];
         delete?: never;
@@ -1627,7 +1627,7 @@ export interface paths {
         put?: never;
         /**
          * Preview forge import
-         * @description What importing the selected repositories would do, nothing written: the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.
+         * @description What importing the selected repositories would do, nothing written (409 integration-disabled for a suspended connection, as the import): the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.
          */
         post: operations["previewForgeImport"];
         delete?: never;
@@ -1659,7 +1659,7 @@ export interface paths {
         head?: never;
         /**
          * Update forge connection
-         * @description Rename it, or change how its token is presented — the internal-network statement, the pinned CA (blank unpins it) — which probes the stored token again first and signals VECTI-SEC-034. The address cannot change: another server is another connection. Saving re-seals the token under the current ENCRYPTION_KEY.
+         * @description Rename it, or change how its token is presented — the internal-network statement, the pinned CA (blank unpins it) — which probes the stored token again first and signals VECTI-SEC-034 — 409 integration-disabled for a suspended connection, which may still be renamed. The address cannot change: another server is another connection. Saving re-seals the token under the current ENCRYPTION_KEY.
          */
         patch: operations["updateForgeConnection"];
         trace?: never;
@@ -1674,7 +1674,7 @@ export interface paths {
         get?: never;
         /**
          * Replace forge connection token
-         * @description Rotation in place: the new token is probed as at creation, and the connection keeps its id and everything that hangs on it. 400 as at creation; VECTI-SEC-034, or VECTI-SEC-036 for a refused scope.
+         * @description Rotation in place: the new token is probed as at creation, and the connection keeps its id and everything that hangs on it. 400 as at creation, 409 integration-disabled for a suspended connection; VECTI-SEC-034, or VECTI-SEC-036 for a refused scope.
          */
         put: operations["replaceForgeConnectionToken"];
         post?: never;
@@ -1865,6 +1865,46 @@ export interface paths {
         };
         get: operations["pdf_2"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List integrations
+         * @description Every integration this version knows — forge kinds, SIEM transports, AI providers, notification channels, trackers — with whether it is enabled. Any account: the screens filter their forms with it. updatedAt and updatedBy are null while no governor has switched it; updatedBy is null too for a reader who does not read governance.
+         */
+        get: operations["listIntegrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{key}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable integration
+         * @description Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. Disabling one a configuration uses — the SIEM transport an enabled export sends over — is refused 409 integration-in-use, naming it in the member integration, nothing changed and nothing recorded: change that configuration first. Disabling an AI provider or a notification channel is refused 409 integration-not-switchable, naming it in the member integration, nothing changed and nothing recorded: this version's adapters of those families do not consult the registry, so the switch would stop nothing. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.
+         */
+        put: operations["setIntegrationEnabled"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4801,7 +4841,7 @@ export interface components {
             /** Format: int64 */
             itemId: number;
             /** @enum {string} */
-            noDataReason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            noDataReason?: "no_repository" | "never_examined" | "forge_integration_disabled" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             outcome?: "pass" | "fail" | "no_data";
             /** Format: int32 */
@@ -5410,7 +5450,7 @@ export interface components {
             /** @enum {string} */
             purpose?: "read" | "answer" | "submission" | "sign_off";
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "forge_integration_disabled" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             reconciliation?: "consistent" | "contradicted" | "declared_not_measured" | "understated" | "excluded" | "not_measured_here" | "unanswered";
             ruleDigest?: string;
@@ -6282,6 +6322,7 @@ export interface components {
             id?: string;
             /** Format: int64 */
             importedTargets: number;
+            integration?: string;
             internalNetwork: boolean;
             kind?: string;
             lastDiscovery?: components["schemas"]["ForgeDiscoveryView"];
@@ -6290,6 +6331,8 @@ export interface components {
             /** Format: date-time */
             probedAt?: string;
             scopes?: string[];
+            /** @enum {string} */
+            state?: "active" | "suspended";
             /** Format: date-time */
             tokenExpiresAt?: string;
             /** Format: date-time */
@@ -6714,6 +6757,22 @@ export interface components {
             /** Format: int32 */
             triagedIssues: number;
         };
+        IntegrationEnabled: {
+            enabled?: boolean;
+        };
+        IntegrationView: {
+            enabled: boolean;
+            family?: string;
+            key?: string;
+            name?: string;
+            /**
+             * Format: date-time
+             * @description Null while no governor has switched it.
+             */
+            updatedAt?: string | null;
+            /** @description Null while nobody has, and for a reader who does not read governance. */
+            updatedBy?: string | null;
+        };
         Invocation: {
             branch?: string;
             commitSha?: string;
@@ -7097,11 +7156,11 @@ export interface components {
             /** Format: int32 */
             position: number;
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "forge_integration_disabled" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             submittedOutcome?: "pass" | "fail" | "no_data";
             /** @enum {string} */
-            submittedReason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            submittedReason?: "no_repository" | "never_examined" | "forge_integration_disabled" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         MeasuredLineView: {
             /** @enum {string} */
@@ -8046,7 +8105,7 @@ export interface components {
             /** Format: int64 */
             sourceId?: number;
             /** @enum {string} */
-            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "forge_integration_disabled" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         RepositoryPage: {
             items?: components["schemas"]["ForgeRepositoryView"][];
@@ -9062,10 +9121,12 @@ export interface components {
             /** Format: date-time */
             expiresAt?: string;
             expirySource?: string;
+            integration?: string;
             /** Format: date-time */
             refusedSince?: string;
             /** Format: int32 */
             refusedStatus?: number;
+            state?: string;
         };
         TokenRequest: {
             token?: string;
@@ -12094,6 +12155,52 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": string;
+                };
+            };
+        };
+    };
+    listIntegrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IntegrationView"][];
+                };
+            };
+        };
+    };
+    setIntegrationEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["IntegrationEnabled"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IntegrationView"];
                 };
             };
         };

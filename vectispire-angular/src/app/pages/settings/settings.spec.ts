@@ -191,6 +191,33 @@ describe('the settings screen', () => {
         put.flush(secretState(true));
     });
 
+    it('says why the server refused to choose a tracker whose integration is disabled, in its words', () => {
+        // The refusal names the integration and the route that enables it; a generic "could not save"
+        // would leave whoever chose the tracker guessing which of the section's fields was wrong.
+        const detail =
+            'The integration "tracker.jira" is disabled on this installation; a platform governor enables it with ' +
+            'PUT /api/v1/integrations/tracker.jira/enabled.';
+        fixture.componentInstance.state.set('ticket_provider', 'jira');
+        fixture.componentInstance.state.save();
+
+        const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings' });
+        expect(put.request.body).toEqual({ ticket_provider: 'jira' });
+        put.flush(
+            {
+                type: 'urn:vectispire:problem:integration-disabled',
+                title: 'Conflict',
+                status: 409,
+                detail,
+                integration: 'tracker.jira'
+            },
+            { status: 409, statusText: 'Conflict' }
+        );
+        fixture.detectChanges();
+
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain(detail);
+        expect(fixture.componentInstance.state.saved()).toBe(false);
+    });
+
     it('treats a failed check as an answer about the configuration', () => {
         const review = openModelReview();
         review.testOllama();

@@ -15,6 +15,8 @@ import com.asmolabs.vectispire.core.reportplugins.ReportPluginActivationView;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginActivationEntity;
 import com.asmolabs.vectispire.core.services.EntityViewsTest;
 import com.asmolabs.vectispire.core.threatintel.web.EpssFleetSummaryView;
+import com.asmolabs.vectispire.core.settings.IntegrationView;
+import com.asmolabs.vectispire.core.settings.persistence.IntegrationEntity;
 import com.asmolabs.vectispire.core.tickets.IssueTicketView;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
@@ -89,6 +91,11 @@ class ResponseNullabilityTest extends ApiTestBase {
     private static final List<Audited> AUDITED = List.of(
             new Audited(IssueView.class, IssueEntity.class, ISSUE_FILLED, Map.of()),
             new Audited(IssueTicketView.class, IssueTicketEntity.class, Map.of(), Map.of()),
+            // The registry's entries: the family and the name come from the catalogue, never null; who switched
+            // it and when are null until the governor first does, and the author is withheld from a reader the
+            // governance trail is not shown to (decision 0040).
+            new Audited(IntegrationView.class, IntegrationEntity.class, Map.of(),
+                    Map.of("family", false, "name", false)),
             // The project's labels, and the plugin's name, are null only when a deletion races the read.
             new Audited(PluginActivationView.class, PluginActivationEntity.class, Map.of(),
                     Map.of("projectName", true, "solutionId", true, "solutionName", true)),

@@ -1437,6 +1437,10 @@ export type TicketTokenState = Refine<
         refusedStatus: number | null;
         refusedSince: string | null;
         checkedAt: string | null;
+        /** `suspended` while the platform governor has the tracker's integration switched off (decision 0040 §3); null with no tracker chosen. */
+        state: 'active' | 'suspended' | null;
+        /** The registry's key of the chosen tracker, `tracker.jira`; null with no tracker chosen. */
+        integration: string | null;
     }
 >;
 
@@ -3394,6 +3398,9 @@ export type ReportRun = Refine<
 /** Where a forge discovery stands (decision 0037 §3) — the document's own enum. */
 export type ForgeDiscoveryState = NonNullable<Schema<'ForgeDiscoveryView'>['state']>;
 
+/** `suspended` when the platform governor disabled the connection's forge integration (decision 0040 §2). */
+export type ForgeConnectionState = NonNullable<Schema<'ForgeConnectionView'>['state']>;
+
 /** Why a discovery ended `partial` or `failed` — the document's own enum. */
 export type ForgeDiscoveryReason = NonNullable<Schema<'ForgeDiscoveryView'>['reason']>;
 
@@ -3441,6 +3448,8 @@ export type ForgeConnection = Refine<
         caSubject: string | null;
         caNotAfter: string | null;
         encryptionState: EncryptionState;
+        state: ForgeConnectionState;
+        integration: string;
         lastDiscovery: ForgeDiscovery | null;
         createdAt: string;
         createdBy: string | null;

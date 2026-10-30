@@ -10,7 +10,8 @@ import { asSchema, type AnswerOf } from './contract';
 
 /**
  * The tracker token's state as `GET /api/v1/settings/ticket-token` sends it: what a case does not
- * set is unknown, which the server writes as null. The specs sent `{ configured, expirySource }`
+ * set is unknown, which the server writes as null — and with no tracker chosen, neither a state nor an
+ * integration key (decision 0040 §3). The specs sent `{ configured, expirySource }`
  * alone, and four fields the screen reads arrived `undefined`, a value no server sends.
  */
 export function ticketTokenState(changes: Partial<TicketTokenState> = {}): TicketTokenState {
@@ -21,6 +22,8 @@ export function ticketTokenState(changes: Partial<TicketTokenState> = {}): Ticke
         refusedStatus: null,
         refusedSince: null,
         checkedAt: null,
+        state: null,
+        integration: null,
         ...changes
     };
 }

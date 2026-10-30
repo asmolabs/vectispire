@@ -129,7 +129,11 @@ verified against (`ticket_ca_pem`, PEM, in place of the runtime's trust store), 
 date for a tracker that does not report it (`ticket_token_expires_on`, administrator-only). Covered under
 [Tracker tickets](../integrations/ticketing.md) and [a tracker behind an internal
 CA](../integrations/ticketing.md#internal-ca); the token's expiry and refusal are shown on the tracker
-card ([when the token expires](../integrations/ticketing.md#token-expiry)).
+card ([when the token expires](../integrations/ticketing.md#token-expiry)). Choosing a tracker
+(`ticket_provider`) whose integration the platform governor has disabled is refused 409
+`integration-disabled`, and nothing of that save is written; `none` is always saved, and so is the
+tracker already configured, sent back unchanged while it is
+[suspended](../integrations/ticketing.md#tracker-suspended).
 
 ## AI review
 

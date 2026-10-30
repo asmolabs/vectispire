@@ -25,15 +25,23 @@ import org.springframework.stereotype.Component;
 public class ForgeProbes {
 
     private final Map<ForgeKind, ForgeClient> clients = new EnumMap<>(ForgeKind.class);
+    private final ForgeIntegrations integrations;
 
-    ForgeProbes(List<ForgeClient> adapters) {
+    ForgeProbes(List<ForgeClient> adapters, ForgeIntegrations integrations) {
         adapters.forEach(adapter -> clients.put(adapter.kind(), adapter));
+        this.integrations = integrations;
     }
 
     /**
+     * Presents the token to the forge — the only way a connection's token reaches a forge outside a discovery or a
+     * change-review reading, so the registry is asked here, whichever gesture called (decision 0040 §1).
+     *
      * @throws ForgeConnectionRefusal for every reason the connection is not made
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException the forge's
+     *     integration is disabled: nothing was sent, and nothing is recorded — it is not the forge's refusal
      */
     public ForgeClient.Probe probe(ForgeClient.Target target, String token) {
+        integrations.requireEnabled(target.address().edition().kind());
         ForgeClient client = clients.get(target.address().edition().kind());
         if (client == null) {
             throw new IllegalStateException("No adapter for " + target.address().edition().kind());

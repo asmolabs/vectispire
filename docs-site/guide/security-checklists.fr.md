@@ -209,6 +209,7 @@ seuil n'est jamais jugé sur une partie du passif d'un projet :
 |---|---|
 | `no_repository` | Le projet n'a aucun dépôt : « chacun des zéro dépôts passe » n'est pas un succès. |
 | `never_examined` | Un dépôt n'a aucune analyse ni aucun import où le périmètre a produit. |
+| `forge_integration_disabled` | Une [ligne `change_review`](../administration/checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche), sur un dépôt dont la connexion de forge est [suspendue](../administration/forge-connections.fr.md#quand-lintegration-de-la-forge-est-desactivee) : le gouverneur de la plateforme a désactivé l'intégration de cette forge. Rien n'y est lu, et une lecture prise avant la bascule n'est pas jugée. Réactiver la forge reprend la ligne. |
 | `forge_unlinked` | Une [ligne `change_review`](../administration/checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche), sur un dépôt qu'aucune connexion de forge n'a importé et dont aucune découverte n'a listé l'URL : il n'y a pas de projet de forge à interroger. |
 | `forge_unreadable` | La même, et la forge a refusé au jeton de la connexion le projet, ses merge requests ou ses pull requests — sur GitHub, un jeton *fine-grained* sans *Pull requests: read*. Les preuves donnent la réponse de la forge. |
 | `step_absent` | Chaque analyse dans l'âge maximal s'est faite sans l'étape ou le plugin — n'a pas regardé, n'a pas « rien trouvé » ; aussi un rapport de couverture qui n'a compté aucune branche, pour une règle sur les branches. |

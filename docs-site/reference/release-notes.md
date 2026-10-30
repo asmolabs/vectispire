@@ -29,6 +29,9 @@ minor behind keeps working, the API contracts §6 named are put right now rather
 announcement, and a full security review of `develop` is closed — every finding fixed or documented as a
 residual risk. Several of those fixes refuse something 0.11.2 accepted, so read *Before you upgrade* in
 full: an installation with SCIM enabled and a short token does not start until the token is replaced.
+It also carries the first lots of
+[decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md):
+the platform governor switches the forges, the SIEM transports and the trackers on or off.
 What follows is against 0.11.2.
 
 ### Before you upgrade {#before-you-upgrade-100-rc1}
@@ -44,8 +47,11 @@ What follows is against 0.11.2.
   matter of checks. The campaign now runs every release on the oldest and the newest supported MySQL,
   8.4 and 9.4. An installation on PostgreSQL still starts on it, unsupported: plan the move to MySQL
   before 1.0.
-- **Two migrations, V92 and V93**, applied at the first start. V92 rewrites the stored CRA control codes
-  (below); V93 adds a column to the accounts table. **Back up the database first**: going back to 0.11.2
+- **Four migrations, V92 to V95**, applied at the first start. V92 rewrites the stored CRA control codes
+  (below); V93 adds a column to the accounts table; V94 creates the integrations' registry,
+  `t_integration`, and seeds the seventeen integrations of today enabled, so the upgrade changes nothing
+  until a governor acts; V95 adds the ticket sweep's claim, two nullable columns on `t_issue`.
+  **Back up the database first**: going back to 0.11.2
   means restoring that backup.
 - **One control-plane instance is what is supported**
   ([installation](../getting-started/installation.md#one-instance)). The maintenance tasks, the audit
@@ -221,6 +227,46 @@ What follows is against 0.11.2.
   by reason (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`, `NOT_DECLARED`; read an unknown reason by its
   name). `GET /api/v1/owasp/coverage` gains `unplacedCode`, the open code findings no category holds.
   Both additive.
+- **Two routes.** `GET /api/v1/integrations`, for any account, lists every integration with `key`,
+  `family`, `name`, `enabled`, `updatedAt` and `updatedBy` — the last two `null` until a governor switches
+  it, and `updatedBy` `null` too for a reader without a governance role.
+  `PUT /api/v1/integrations/{key}/enabled` with `{"enabled": true|false}` is the platform governor's
+  alone: 404 for an unknown key, 400 without `enabled`, and the same state again changes and records
+  nothing ([REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
+  Their operation ids in `openapi.json` are `listIntegrations` and `setIntegrationEnabled`; every id
+  0.11.x publishes keeps its name.
+- **Three 409 causes**, each naming the key in the member `integration`:
+  `urn:vectispire:problem:integration-disabled` on a gesture that needs a disabled integration;
+  `urn:vectispire:problem:integration-in-use` on the governor's switch, for the SIEM transport an enabled
+  export sends over; and `urn:vectispire:problem:integration-not-switchable` on the governor's switch, for
+  an AI provider or a notification channel, which nothing suspends yet ([409 causes](errors.md#409-causes)). The `integration-disabled` detail, and the
+  reason a checklist line fed by a suspended forge connection carries, name the route that enables the
+  integration, `PUT /api/v1/integrations/{key}/enabled`, rather than a screen this release does not have;
+  the type and the member are what a client reads, and they are as stated.
+- **A forge connection carries `state`** — `active`, or `suspended` while its forge's integration is
+  disabled — **and `integration`**, `forge.gitlab` or `forge.github`, the key that resumes it.
+- **The tracker token's state carries `state` and `integration`.** `GET` and
+  `PUT /api/v1/settings/ticket-token` answer `state` — `active`, or `suspended` while the tracker's
+  integration is disabled — and `integration`, the key that resumes it (`tracker.jira`…); both are `null`
+  while no tracker is chosen. `PUT /api/v1/issues/{id}/ticket` and `POST /api/v1/issues/{issueId}/tickets`
+  answer 409 `integration-disabled` for a suspended tracker, where they answered 200 and 201.
+- **`PUT /api/v1/settings` refuses a disabled tracker.** Saving `ticket_provider` naming a tracker whose
+  integration is disabled answers 409 `integration-disabled`, naming it in `integration`, and writes
+  nothing of the save, where it answered 200. `none`, and the tracker already configured sent back
+  unchanged, are saved as before.
+- **The ticket webhook of a disabled tracker answers 200 and applies nothing.** An authenticated delivery
+  to `POST /api/v1/tickets/webhook/{provider}` while that tracker's integration is disabled is answered
+  `200`, `matched: false`, with `actionTaken` beginning `ignored_integration_disabled`; a delivery without
+  the secret is refused `401` or `403` as before. Not a 409: the tracker would retry, and GitLab disables a
+  webhook after repeated failures. Its body enters the replay check: the same delivery sent again after
+  re-enabling is answered *"Delivery already processed"*, and a change made in the tracker meanwhile is
+  not caught up. The configured tracker's suspension holds on every provider's path, which the one
+  webhook secret opens alike: a delivery to another tracker's path is ignored too while it lasts.
+- **A new no-data reason, `forge_integration_disabled`**, in a checklist measurement's `reason` and
+  everywhere that list of reasons is answered; a client switching over the reasons meets one it did not
+  know.
+- **A new audit operation, `INTEGRATION_ENABLED_CHANGED`**, sent to the SIEM as `VECTI-SEC-019`, the
+  security setting change ([SIEM event catalogue](../integrations/siem.md#event-catalogue)).
 - **The OWASP grid as CSV: `GET /api/v1/owasp/coverage/export.csv`.** One row per category in the
   standard's order — state, open findings, the reason as a code and as a sentence in `language` (`en`,
   the default, or `fr`; anything else is a 400), the category's declaration, and the scope on every row —
@@ -242,6 +288,46 @@ What follows is against 0.11.2.
 - **Every create and edit dialog is a form**: Enter submits it, a second submit while one is in flight
   sends nothing, and the fields the server requires are marked. The server still decides, in its own
   words.
+- **The integrations' registry.** Each outside system is an integration keyed `<family>.<name>`: the
+  forges (`forge.github`, `forge.gitlab`), the SIEM transports (`siem.webhook`, `siem.syslog_udp`,
+  `siem.syslog_tcp`, `siem.syslog_tls`), the AI providers (`ai.ollama`, `ai.openai`), the notification
+  channels (`notification.webhook`, `.teams`, `.slack`, `.discord`, `.mail`) and the trackers
+  (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Every one of them starts enabled; one added
+  later — Bitbucket first — arrives disabled. The switch is through the API for now; there is no screen
+  yet. **The forges, the SIEM transports and the trackers act on it in this release**; the AI providers
+  and the notification channels do not yet, so **the registry refuses to switch them off**:
+  `enabled: false` on an `ai.*` or `notification.*` key answers 409 `integration-not-switchable`, the key
+  in the member `integration`, with nothing changed and nothing audited. A switch that stopped nothing
+  would read as a guarantee it is not. Meanwhile, turn the AI review off in the settings, and empty a
+  channel's URL in the notification settings.
+- **A forge whose integration is disabled suspends its connections, never deletes them.** Each keeps its
+  row, its encrypted token, its snapshot, its import links and its change-review readings, and reads
+  *Suspended — integration disabled* on the forge connections screen. Nothing goes to that forge:
+  creating a connection of that kind, a discovery, an import's preview and the import, a new token and a
+  new network statement or CA answer 409 `integration-disabled`; renaming, deleting and reading still
+  work. A discovery queued before the switch waits, `pending` and uncounted. A `change_review` line it
+  fed reads no data with `forge_integration_disabled` — never a pass, even over a reading that passed
+  before. Switching the forge back on resumes everything as it was
+  ([forge connections](../administration/forge-connections.md#when-the-forges-integration-is-disabled)).
+- **The SIEM transport in use cannot be disabled, and a disabled one sends nothing and loses nothing.**
+  The governor's switch of the transport an enabled export sends over answers 409 `integration-in-use`:
+  point the export elsewhere, or switch it off, first. `PUT /api/v1/siem/config` with `enabled: true`
+  over a disabled transport, and `POST /api/v1/siem/test` of one, answer 409 `integration-disabled`;
+  switching the export off is always saved. Should a transport be off under an enabled export all the
+  same — a row changed by hand — its events wait in the outbox, pending, no attempt counted, offered again
+  every five minutes, and leave once it is enabled again
+  ([SIEM](../integrations/siem.md#each-transport-is-an-integration)).
+- **A tracker whose integration is disabled is suspended, never deleted.** With the configured tracker's
+  integration off, nothing reaches it and its token does not leave its row: the hourly sweep opens and
+  closes no ticket and says so once in the log, not every hour; the daily token check asks nothing and
+  announces nothing — a tracker switched off is not a token that stopped working; saving a token stores it
+  without asking the tracker. Attaching a ticket by hand to that tracker, or choosing it in the settings,
+  answers 409 `integration-disabled`. Its inbound webhook is still authenticated, then answered and
+  ignored: no triage is queued from it, and the server log says so once per suspension rather than at
+  every delivery. The
+  token, the settings, the pinned CA and the issues' references are kept, the tracker card reads
+  *Suspended — integration disabled*, and switching it back on resumes everything as it was
+  ([tickets](../integrations/ticketing.md#tracker-suspended)).
 
 ### Security {#security-100-rc1}
 
@@ -309,6 +395,11 @@ risk where a fix would be a decision of its own:
 - The high-impact fixes on the posture page are read inside one transaction.
 - The API chain's filters ran a second time, as no-ops, outside the chain; they run in the chain only.
 - Temporary directories left by the rule catalogue fetch are removed like every other.
+- **Two control planes no longer open two tickets for one issue.** Every instance runs the hourly ticket sweep,
+  and two passes that overlapped both asked the tracker for the same issue. The sweep now claims each issue
+  before asking (migration V95, two nullable columns on `t_issue`): a pass that loses the claim leaves the issue
+  to the other, a refused attempt gives the claim up, and a claim whose instance died is taken over after ten
+  minutes. One instance, what this release supports (above), never met this.
 
 ### Performance {#performance-100-rc1}
 
