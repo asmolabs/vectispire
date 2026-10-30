@@ -90,3 +90,11 @@ veut Ollama et jamais OpenAI, Teams et jamais Discord, le dit une fois.
 | I4 | L'écran *Administration → Intégrations*, les formulaires filtrés ; la documentation en anglais et en français | M |
 | I5 | Fournisseurs d'IA : le registre, *IA indisponible — fournisseur désactivé* dans les fonctions qui le lisent | S |
 | I6 | Canaux de notification (le refus en service) et trackers (suspendus) | M |
+
+**Tant que le lot d'une famille n'est pas construit, sa désactivation est refusée** (amendé pour la
+1.0.0-rc.1). I1 liste toutes les familles : un gouverneur pouvait donc désactiver un fournisseur d'IA ou
+un canal de notification qu'aucun adaptateur ne vérifiait — enregistré et journalisé, cela n'arrêtait
+rien, contre le §1. Le registre refuse désormais `enabled: false` pour une famille dont les adaptateurs
+ne le consultent pas — 409 `integration-not-switchable`, rien de changé ni de journalisé
+(`IntegrationFamily.suspendable`). I5 et la moitié notifications d'I6 activent chacun leur famille dans
+le changement même qui fait consulter le registre par chacune de ses entrées.

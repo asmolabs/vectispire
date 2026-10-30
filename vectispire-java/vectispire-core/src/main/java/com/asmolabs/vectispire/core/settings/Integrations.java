@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.settings;
 import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
 import com.asmolabs.vectispire.common.domain.integrations.IntegrationInUseException;
+import com.asmolabs.vectispire.common.domain.integrations.IntegrationNotSwitchableException;
 import com.asmolabs.vectispire.core.settings.persistence.IntegrationEntity;
 import com.asmolabs.vectispire.core.settings.persistence.IntegrationRepository;
 import java.time.Clock;
@@ -132,10 +133,19 @@ public class Integrations {
      * enablings of such a key at once would both insert and the second fail on the key; that is a gesture
      * made at human speed, once per adapter's lifetime, and the error is the honest answer.
      *
+     * <p><b>A family whose adapters do not ask the registry is never switched off</b> ({@link
+     * com.asmolabs.vectispire.common.domain.integrations.IntegrationFamily#suspendable}): refused before the
+     * row is touched, an absent row included, so nothing is written and the caller audits nothing. Refused
+     * here rather than at the route, for the reason {@link InUse} is asked here: no caller goes round it.
+     *
      * @throws IntegrationInUseException when switching off what a configuration uses
+     * @throws IntegrationNotSwitchableException when switching off an integration this version cannot suspend
      */
     @Transactional
     public Switched switchTo(Integration integration, boolean enabled, String by) {
+        if (!enabled && !integration.family().suspendable()) {
+            throw new IntegrationNotSwitchableException(integration);
+        }
         Instant now = clock.instant();
         boolean changed;
         Optional<IntegrationEntity> locked = rows.lockForSwitch(integration.key());

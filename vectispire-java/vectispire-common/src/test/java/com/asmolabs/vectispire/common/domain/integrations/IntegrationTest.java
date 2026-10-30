@@ -94,4 +94,18 @@ class IntegrationTest {
         assertThat(refused.getMessage()).isEqualTo("The integration \"siem.syslog_tls\" is in use and cannot be disabled: "
                 + "it is the transport the SIEM export sends over.");
     }
+
+    @Test
+    @DisplayName("only the families whose adapters ask the registry may be switched off; the others are refused in a conflict of their own")
+    void notSwitchable() {
+        assertThat(Arrays.stream(IntegrationFamily.values()).filter(IntegrationFamily::suspendable))
+                .containsExactly(IntegrationFamily.FORGE, IntegrationFamily.SIEM, IntegrationFamily.TRACKER);
+
+        IntegrationNotSwitchableException refused = new IntegrationNotSwitchableException(Integration.of(AiProvider.OPENAI));
+        assertThat(refused).isInstanceOf(ConflictException.class);
+        assertThat(refused.conflictCause()).contains("integration-not-switchable");
+        assertThat(refused.members()).containsExactlyEntriesOf(java.util.Map.of("integration", "ai.openai"));
+        assertThat(refused.getMessage()).startsWith("The integration \"ai.openai\" cannot be disabled yet")
+                .contains("ai_review_enabled");
+    }
 }

@@ -7,11 +7,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
+import com.asmolabs.vectispire.common.domain.integrations.IntegrationFamily;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
@@ -125,28 +125,69 @@ class IntegrationsRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("an integration with no row — one added after V94 — reads disabled, and is refused")
     void absentIsDisabled() throws Exception {
-        Integration openAi = Integration.of(AiProvider.OPENAI);
-        jdbc.update("delete from t_integration where integration_key = ?", openAi.key());
+        Integration github = Integration.of(ForgeKind.GITHUB);
+        jdbc.update("delete from t_integration where integration_key = ?", github.key());
 
-        assertThat(integrations.isEnabled(openAi)).isFalse();
-        assertThat(entry(list(asAdmin()), "ai.openai").path("enabled").asBoolean()).isFalse();
-        assertThatThrownBy(() -> integrations.requireEnabled(openAi))
+        assertThat(integrations.isEnabled(github)).isFalse();
+        assertThat(entry(list(asAdmin()), "forge.github").path("enabled").asBoolean()).isFalse();
+        assertThatThrownBy(() -> integrations.requireEnabled(github))
                 .isInstanceOfSatisfying(IntegrationDisabledException.class,
-                        refused -> assertThat(refused.integration()).isEqualTo(openAi));
+                        refused -> assertThat(refused.integration()).isEqualTo(github));
 
         // Off again is the same state: nothing written, nothing recorded.
         String governor = governor();
-        switchTo(governor, "ai.openai", Map.of("enabled", false)).andExpect(status().isOk())
+        switchTo(governor, "forge.github", Map.of("enabled", false)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.enabled").value(false));
-        assertThat(jdbc.queryForObject("select count(*) from t_integration where integration_key = 'ai.openai'",
+        assertThat(jdbc.queryForObject("select count(*) from t_integration where integration_key = 'forge.github'",
                 Integer.class)).isZero();
         assertThat(entries()).isEmpty();
 
         // Enabling it is a gesture like any other, and gives it its row.
-        switchTo(governor, "ai.openai", Map.of("enabled", true)).andExpect(status().isOk())
+        switchTo(governor, "forge.github", Map.of("enabled", true)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.enabled").value(true));
-        integrations.requireEnabled(openAi);
+        integrations.requireEnabled(github);
         assertThat(entries()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("an AI provider or a notification channel is never switched off: 409 integration-not-switchable, nothing changed, nothing audited")
+    void aiAndNotificationsAreNotSwitchedOff() throws Exception {
+        String governor = governor();
+        List<Integration> unsuspendable = Integration.all().stream()
+                .filter(integration -> integration.family() == IntegrationFamily.AI
+                        || integration.family() == IntegrationFamily.NOTIFICATION)
+                .toList();
+        assertThat(unsuspendable).extracting(Integration::key)
+                .contains("ai.ollama", "ai.openai", "notification.webhook", "notification.mail");
+
+        for (Integration integration : unsuspendable) {
+            Map<String, Object> before = jdbc.queryForMap(
+                    "select enabled, updated_at, updated_by from t_integration where integration_key = ?", integration.key());
+            ResultActions refused = switchTo(governor, integration.key(), Map.of("enabled", false))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.type").value("urn:vectispire:problem:integration-not-switchable"))
+                    .andExpect(jsonPath("$.code").value("integration-not-switchable"))
+                    .andExpect(jsonPath("$.integration").value(integration.key()));
+            assertThat(detailOf(refused.andReturn()))
+                    .startsWith("The integration \"" + integration.key() + "\" cannot be disabled yet")
+                    .contains("would stop nothing");
+            assertThat(integrations.isEnabled(integration)).as(integration.key()).isTrue();
+            assertThat(jdbc.queryForMap("select enabled, updated_at, updated_by from t_integration where integration_key = ?",
+                    integration.key())).as("not touched: " + integration.key()).isEqualTo(before);
+
+            // Enabling, the state it is in, is accepted as ever: nothing to refuse there.
+            switchTo(governor, integration.key(), Map.of("enabled", true)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.enabled").value(true));
+        }
+
+        // An AI provider with no row reads disabled, and is still not "switched off" to the same state: the
+        // answer would read as a suspension the review does not honour.
+        jdbc.update("delete from t_integration where integration_key = 'ai.openai'");
+        switchTo(governor, "ai.openai", Map.of("enabled", false)).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("select count(*) from t_integration where integration_key = 'ai.openai'",
+                Integer.class)).isZero();
+
+        assertThat(entries()).isEmpty();
     }
 
     @Test
@@ -168,30 +209,30 @@ class IntegrationsRoutesTest extends ApiTestBase {
         String governorName = "governor-" + System.nanoTime();
         String governor = tokenFor(governorName, Role.SUPERUSER, false);
 
-        switchTo(governor, "notification.discord", Map.of("enabled", false))
+        switchTo(governor, "tracker.github", Map.of("enabled", false))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.key").value("notification.discord"))
-                .andExpect(jsonPath("$.family").value("notification"))
+                .andExpect(jsonPath("$.key").value("tracker.github"))
+                .andExpect(jsonPath("$.family").value("tracker"))
                 .andExpect(jsonPath("$.enabled").value(false))
                 .andExpect(jsonPath("$.updatedBy").value(governorName));
-        String switchedAt = entry(list(governor), "notification.discord").path("updatedAt").asText();
+        String switchedAt = entry(list(governor), "tracker.github").path("updatedAt").asText();
         assertThat(switchedAt).isNotEmpty();
 
         assertThat(entries()).singleElement().satisfies(entry -> {
-            assertThat(entry.getResourceId()).isEqualTo("notification.discord");
+            assertThat(entry.getResourceId()).isEqualTo("tracker.github");
             assertThat(entry.getUserId()).isEqualTo(governorName);
             assertThat(entry.getDescription()).contains("disabled");
         });
 
-        switchTo(governor, "notification.discord", Map.of("enabled", false)).andExpect(status().isOk());
+        switchTo(governor, "tracker.github", Map.of("enabled", false)).andExpect(status().isOk());
         assertThat(entries()).hasSize(1);
-        assertThat(entry(list(governor), "notification.discord").path("updatedAt").asText()).isEqualTo(switchedAt);
+        assertThat(entry(list(governor), "tracker.github").path("updatedAt").asText()).isEqualTo(switchedAt);
 
         // The other integrations did not move.
-        assertThat(Integration.all().stream().filter(integration -> !integration.key().equals("notification.discord")))
+        assertThat(Integration.all().stream().filter(integration -> !integration.key().equals("tracker.github")))
                 .allMatch(integrations::isEnabled);
 
-        switchTo(governor, "notification.discord", Map.of("enabled", true))
+        switchTo(governor, "tracker.github", Map.of("enabled", true))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(true));
         assertThat(entries()).hasSize(2);
         assertThat(entries()).anySatisfy(entry -> assertThat(entry.getDescription()).contains("enabled"));
