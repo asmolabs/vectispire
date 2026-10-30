@@ -43,18 +43,20 @@ Clause — is never added. A run that read no component fails too.
   the report plugin's distroless image, among them GPL-2.0, GPL-3.0 and LGPL packages and the JRE
   (GPL-2.0 with the Classpath Exception).
 
-### For the maintainer to decide
+### Decided by the maintainer (2026-10-30)
 
-Nothing found is incompatible with distribution under Apache-2.0. Two points are decisions rather than
-findings, and are recorded rather than made here:
+Nothing found is incompatible with distribution under Apache-2.0. Two points were decisions rather than
+findings; the maintainer made them:
 
-1. **MySQL Connector/J** is GPL-2.0 with Oracle's Universal FOSS Exception. `NOTICE` already records
-   the reasoning — `runtimeOnly`, reached through JDBC, the exception listing Apache-2.0 — and the
-   allowlist permits this licence for this jar alone. Worth confirming before the repository goes
-   public, since it is the one copyleft licence inside the jar; PostgreSQL's driver (BSD-2-Clause)
-   is the alternative that would remove the question, and 1.0 supports MySQL only.
-2. **The source of the GPL packages in the images.** Distributing an image distributes busybox,
-   coreutils and the JRE in binary form, and the GPL asks the distributor to provide their
-   corresponding source or a written offer. `NOTICE` points to the distributions' source archives
-   (Alpine aports, Debian, Adoptium) at the versions the images carry. Whether that pointer is enough,
-   or the release should publish a source bundle beside the images, is a decision for the maintainer.
+1. **MySQL Connector/J ships as reasoned.** It is GPL-2.0 with Oracle's Universal FOSS Exception, the
+   one copyleft licence inside the jar. `NOTICE` records why that is compatible — `runtimeOnly`, reached
+   through JDBC, unmodified, the exception listing Apache-2.0 — and the allowlist permits that licence
+   for that jar alone, so a second jar under it fails the check. PostgreSQL's driver (BSD-2-Clause)
+   would remove the question, but 1.0 supports MySQL only.
+2. **The images point to their distributions' sources; no source bundle is published.** Distributing
+   an image distributes busybox, coreutils and the JRE in binary form, and the GPL asks the distributor
+   to provide their corresponding source. `NOTICE` points to the distributions' source archives
+   (Alpine aports, Debian, Adoptium) at the versions the images carry. A source bundle beside the
+   images can be added later if a distributor needs one.
+
+The `licences` job is one of the checks the `develop` ruleset requires.

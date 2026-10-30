@@ -45,19 +45,20 @@ SSPL, Commons Clause — n'y est jamais ajoutée. Une exécution qui n'a lu aucu
   dans l'image distroless du plugin de rapport, dont des paquets GPL-2.0, GPL-3.0 et LGPL et le JRE
   (GPL-2.0 avec la Classpath Exception).
 
-### À décider par le mainteneur
+### Tranché par le mainteneur (2026-10-30)
 
-Rien de ce qui a été trouvé n'est incompatible avec une distribution sous Apache-2.0. Deux points sont
-des décisions plutôt que des constats, et sont consignés plutôt que tranchés ici :
+Rien de ce qui a été trouvé n'est incompatible avec une distribution sous Apache-2.0. Deux points
+étaient des décisions plutôt que des constats ; le mainteneur les a prises :
 
-1. **MySQL Connector/J** est sous GPL-2.0 avec l'Universal FOSS Exception d'Oracle. `NOTICE` consigne
-   déjà le raisonnement — `runtimeOnly`, atteint par JDBC, l'exception listant Apache-2.0 — et la
-   liste ne permet cette licence que pour ce jar. À confirmer avant que le dépôt devienne public,
-   puisque c'est la seule licence copyleft dans le jar ; le pilote PostgreSQL (BSD-2-Clause) est
-   l'alternative qui supprimerait la question, et la 1.0 ne prend en charge que MySQL.
-2. **La source des paquets GPL dans les images.** Distribuer une image distribue busybox, coreutils
-   et le JRE sous forme binaire, et la GPL demande au distributeur de fournir leur source
-   correspondante ou une offre écrite. `NOTICE` renvoie aux archives de source des distributions
-   (aports d'Alpine, Debian, Adoptium) aux versions que portent les images. Savoir si ce renvoi
-   suffit, ou si la release doit publier une archive de sources à côté des images, est une décision
-   du mainteneur.
+1. **MySQL Connector/J est livré tel que raisonné.** Il est sous GPL-2.0 avec l'Universal FOSS Exception
+   d'Oracle, la seule licence copyleft dans le jar. `NOTICE` consigne pourquoi c'est compatible —
+   `runtimeOnly`, atteint par JDBC, non modifié, l'exception listant Apache-2.0 — et la liste ne permet
+   cette licence que pour ce jar, si bien qu'un second jar sous elle fait échouer le contrôle. Le
+   pilote PostgreSQL (BSD-2-Clause) supprimerait la question, mais la 1.0 ne prend en charge que MySQL.
+2. **Les images renvoient aux sources de leurs distributions ; aucune archive de sources n'est
+   publiée.** Distribuer une image distribue busybox, coreutils et le JRE sous forme binaire, et la
+   GPL demande au distributeur de fournir leur source correspondante. `NOTICE` renvoie aux archives de
+   source des distributions (aports d'Alpine, Debian, Adoptium) aux versions que portent les images.
+   Une archive de sources à côté des images pourra s'ajouter si un distributeur en a besoin.
+
+Le job `licences` fait partie des contrôles qu'exige le jeu de règles de `develop`.
