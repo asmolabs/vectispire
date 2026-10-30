@@ -221,6 +221,14 @@ What follows is against 0.11.2.
   by reason (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`, `NOT_DECLARED`; read an unknown reason by its
   name). `GET /api/v1/owasp/coverage` gains `unplacedCode`, the open code findings no category holds.
   Both additive.
+- **The OWASP grid as CSV: `GET /api/v1/owasp/coverage/export.csv`.** One row per category in the
+  standard's order — state, open findings, the reason as a code and as a sentence in `language` (`en`,
+  the default, or `fr`; anything else is a 400), the category's declaration, and the scope on every row —
+  with the grid's `project_id` / `solution_id` and the grid's refusals. A new route.
+- **The evidence bundle gains `15_owasp_top10_coverage.json`**, the OWASP Top 10:2021 grid with its
+  declarations at the time of export, within the caller's allowance: a key restricted to some targets
+  takes the grid of those targets. The manifest's `version` is `1.5`. A tool that checks the list of
+  files against a fixed set sees one more.
 
 ### New {#new-100-rc1}
 
@@ -229,6 +237,8 @@ What follows is against 0.11.2.
   agent image against the control plane being built, and fails unless it claims and finishes scans.
 - **The OWASP coverage page names the edition it scores**, the OWASP Top 10's 2021 edition. 1.0 stays on
   it; the 2025 edition will be added beside it later.
+- **The OWASP grid exports to CSV**, from **Export CSV** on the grid, for the scope on screen and with
+  its reasons in the interface's language; and the signed evidence bundle now carries the grid.
 - **Every create and edit dialog is a form**: Enter submits it, a second submit while one is in flight
   sends nothing, and the fields the server requires are marked. The server still decides, in its own
   words.

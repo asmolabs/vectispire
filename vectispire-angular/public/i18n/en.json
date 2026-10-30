@@ -1632,6 +1632,8 @@
     "declare_failed": "The declaration was not recorded.",
     "load_failed": "The coverage grid could not be loaded.",
     "back_to_estate": "Show the whole estate",
+    "export_csv": "Export CSV",
+    "export_failed": "The grid could not be exported.",
     "open_issues_one": "{{count}} open issue in {{category}}",
     "open_issues_other": "{{count}} open issues in {{category}}",
     "evidence_source": {
