@@ -84,7 +84,11 @@ the files, `.dockerignore`, the Gradle build definition, the npm manifests, the 
 `images` builds with Jib and a broken Dockerfile was otherwise first seen by the nightly; a diff
 range that cannot be resolved counts as changed. Both also run
 unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
-alongside `dockerfiles`, `restore` and `upgrade` — on `cron: '30 2 * * *'`. `upgrade` runs
+alongside `dockerfiles`, `restore`, `upgrade` and `zap` — on `cron: '30 2 * * *'`. `zap` runs
+OWASP ZAP's baseline (passive) scan against the image on MySQL, signed in, the interface spidered and
+every GET of the API contract sent (`scripts/zap-baseline.sh`): a medium or high alert not accepted in
+`ci/zap/accepted-alerts.txt` with its reason fails it, and so does a run whose answers show the session
+never reached the API. `upgrade` runs
 `scripts/upgrade-drill.sh` on MySQL: the newest `v*` release — by the digest the
 registry serves, run only once `cosign verify` accepts it against `release.yml`'s identity at that
 tag, with the cosign `ImageSignatureVerifier` pins — writes data through
