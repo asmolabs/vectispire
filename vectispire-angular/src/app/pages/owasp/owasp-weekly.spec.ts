@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
 import { addDays, currentMonday } from '@/app/shared/owasp-weekly';
 import { OwaspWeekly } from './owasp-weekly';
@@ -139,6 +139,20 @@ describe('the weekly OWASP view', () => {
         });
         // A square with nothing open opens nothing.
         expect(cell(1, 2).querySelector('a')).toBeNull();
+    });
+
+    it('words the squares and the grid in the reader language, after a switch too', async () => {
+        await open('/owasp?view=weekly');
+        const english = cell(5, 1).getAttribute('title');
+        const state = page().querySelector('[data-testid="week-grid"] tbody tr td:nth-child(2)')?.textContent?.trim();
+        useFrench();
+        harness.detectChanges();
+        expect(cell(5, 1).getAttribute('title')).not.toBe(english);
+        expect(cell(5, 1).querySelector('a')!.getAttribute('aria-label')).toBe(cell(5, 1).getAttribute('title'));
+        expect(state).toBeTruthy();
+        expect(
+            page().querySelector('[data-testid="week-grid"] tbody tr td:nth-child(2)')?.textContent?.trim()
+        ).not.toBe(state);
     });
 
     it('shows the last week by default, and the week clicked in its grid, with its flows as links', async () => {
