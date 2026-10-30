@@ -139,17 +139,23 @@
     [modal]="true"
     [style]="{ width: '32rem' }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="submit()">
         <div class="flex flex-col gap-2">
             <label for="username" class="font-medium">{{ 'users.username' | translate }}</label>
-            <input pInputText id="username" [(ngModel)]="form.username" />
+            <input
+                pInputText
+                id="username"
+                required
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.username"
+            />
         </div>
         <div class="flex flex-col gap-2">
             <label for="displayName" class="font-medium"
                 >{{ 'users.display_name' | translate }}
                 <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
             >
-            <input pInputText id="displayName" [(ngModel)]="form.displayName" />
+            <input pInputText id="displayName" [ngModelOptions]="{ standalone: true }" [(ngModel)]="form.displayName" />
         </div>
         <div class="flex flex-col gap-2">
             <label for="role" class="font-medium">{{ 'users.role' | translate }}</label>
@@ -158,13 +164,20 @@
                 [options]="roles()"
                 optionLabel="label"
                 optionValue="value"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.role"
                 styleClass="w-full"
             />
         </div>
         <div class="flex flex-col gap-2">
             <label for="password" class="font-medium">{{ 'users.initial_password' | translate }}</label>
-            <input pInputText id="password" [(ngModel)]="form.password" />
+            <input
+                pInputText
+                id="password"
+                required
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.password"
+            />
             <small class="text-muted-color">
                 {{ 'users.initial_password_hint' | translate }}
             </small>
@@ -172,7 +185,7 @@
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
         <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />

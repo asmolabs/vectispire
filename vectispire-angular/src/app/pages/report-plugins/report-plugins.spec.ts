@@ -272,6 +272,18 @@ describe('the report plugin registry', () => {
         expect(text(dom(), '[data-testid="approved-digest"]')).toContain('none — cannot run');
     });
 
+    it('requires a justification, and a submit of the withdrawal form cannot get past its bounds', async () => {
+        await start('SUPERUSER', 'governor');
+        open();
+        button(manifest(APPROVED_DIGEST), '[data-testid="withdraw"]')!.click();
+        fixture.detectChanges();
+        const field = document.querySelector<HTMLTextAreaElement>('#report-withdrawal-justification')!;
+        expect(field.required).toBe(true);
+        type('#report-withdrawal-justification', 'too short');
+        field.closest('form')!.dispatchEvent(new Event('submit'));
+        http.expectNone((call) => call.url.endsWith('/withdrawal'));
+    });
+
     it('lets the governor disable a plugin with a PUT on /enabled', async () => {
         await start('SUPERUSER', 'governor');
 

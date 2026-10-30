@@ -106,10 +106,18 @@
     @if (formError(); as message) {
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="save()">
         <div class="flex flex-col gap-2">
             <label for="team-name" class="font-medium">{{ 'common.name' | translate }}</label>
-            <input pInputText id="team-name" name="team-name" [(ngModel)]="form.name" class="w-full" />
+            <input
+                pInputText
+                id="team-name"
+                required
+                name="team-name"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.name"
+                class="w-full"
+            />
         </div>
         <div class="flex flex-col gap-2">
             <label for="team-description" class="font-medium">{{ 'common.description' | translate }}</label>
@@ -117,11 +125,12 @@
                 pInputText
                 id="team-description"
                 name="team-description"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.description"
                 class="w-full"
             />
         </div>
-    </div>
+    </form>
     <ng-template #footer>
         <p-button
             [label]="'common.cancel' | translate"

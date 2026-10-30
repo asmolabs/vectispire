@@ -120,6 +120,24 @@ describe('the accounts screen', () => {
         http.expectOne((call) => call.url === '/api/v1/settings').flush(SETTINGS);
     }, 20_000);
 
+    it('is a form requiring the username and the password, and sends once however often it is submitted', () => {
+        fixture.componentInstance.openForm();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#username')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#password')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#displayName')!.required).toBe(false);
+        fixture.componentInstance.form = {
+            username: 'erin',
+            displayName: '',
+            role: 'USER',
+            password: 'a long passphrase'
+        };
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'POST' && call.url === '/api/v1/users').length).toBe(1);
+    });
+
     it('keeps the refusal on screen through the reload that follows it', () => {
         const page = fixture.componentInstance;
         page.changeRole(LIST.users[0], 'USER');
