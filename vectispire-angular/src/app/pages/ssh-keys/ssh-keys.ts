@@ -96,6 +96,8 @@ export class SshKeys {
     }
 
     submit(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         this.saving.set(true);
         this.targetsApi
             .createSshKey({

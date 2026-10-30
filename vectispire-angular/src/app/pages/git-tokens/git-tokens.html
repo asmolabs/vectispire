@@ -71,12 +71,14 @@
     [modal]="true"
     [style]="{ width: '36rem' }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="submit()">
         <div class="flex flex-col gap-2">
             <label for="git-token-name" class="font-medium">{{ 'git_tokens.name' | translate }}</label>
             <input
                 pInputText
                 id="git-token-name"
+                required
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.name"
                 [placeholder]="'git_tokens.name_placeholder' | translate"
             />
@@ -86,6 +88,8 @@
             <input
                 pInputText
                 id="git-token-host"
+                required
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.host"
                 placeholder="gitlab.example.com"
                 autocomplete="off"
@@ -97,7 +101,13 @@
                 >{{ 'git_tokens.username' | translate }}
                 <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
             >
-            <input pInputText id="git-token-username" [(ngModel)]="form.username" autocomplete="off" />
+            <input
+                pInputText
+                id="git-token-username"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.username"
+                autocomplete="off"
+            />
             <small class="text-muted-color">{{ 'git_tokens.username_hint' | translate }}</small>
         </div>
         <div class="flex flex-col gap-2">
@@ -107,8 +117,10 @@
             <input
                 pInputText
                 id="git-token-secret"
+                required
                 type="password"
                 autocomplete="new-password"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.token"
             />
             <small class="text-muted-color">{{ 'git_tokens.token_hint' | translate }}</small>
@@ -116,7 +128,7 @@
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeForm()" />
         <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />
