@@ -184,7 +184,10 @@ chaque instance :
   vérifie plus ;
 - `POST /api/v1/crypto/verify` répond `valid: false` pour une signature qu'elle a faite, même si
   elle correspond : qui la détient peut tout signer ;
-- une instance configurée pour signer avec une clé révoquée refuse de démarrer.
+- une instance dont la clé de signature est révoquée refuse de démarrer, et dit pourquoi : une clé
+  configurée, ou la clé générée quand aucune n'est configurée. Une clé générée illisible
+  (`ENCRYPTION_KEY` perdue) ne signe rien de toute façon, et elle est refusée à la première
+  signature, pour cette raison.
 
 Réémettez ensuite les documents qui comptent encore — exportez-les à nouveau — et dites à leurs
 destinataires lesquels remplacent lesquels. Une révocation ne vaut que par les destinataires qui

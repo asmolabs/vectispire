@@ -303,6 +303,24 @@ class SigningKeyServiceTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("a revoked generated key is refused at start too, not at the first signature")
+    void aRevokedGeneratedKeyIsRefusedAtStart() {
+        String generatedId = new SigningKeyService("", "", settingsService, encryption).getKeyId();
+
+        // It started, and every export and every route that needed the key answered 500 — a
+        // revocation that read as an outage, found by whoever exported first.
+        assertThatThrownBy(() -> new SigningKeyService("", generatedId, settingsService, encryption))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("vectispire.signing.revoked-keys");
+        // A configured key in front of it signs, and the revoked one stays published as revoked.
+        SigningKeyService rotated = new SigningKeyService(
+                CosignSigner.toPem(CosignSigner.generateKeyPair().getPrivate()), generatedId, settingsService, encryption);
+        assertThat(rotated.publishedKey(generatedId).orElseThrow().status()).isEqualTo(SigningKeyService.KeyStatus.REVOKED);
+        // A revocation naming another key leaves the generated one signing.
+        assertThat(new SigningKeyService("", "0".repeat(64), settingsService, encryption).getKeyId()).isEqualTo(generatedId);
+    }
+
+    @Test
     @DisplayName("a rotation rolled back makes the first key active again, and the second one retired")
     void aRotationRolledBack() {
         SigningKeyService generated = new SigningKeyService("", "", settingsService, encryption);

@@ -168,7 +168,32 @@ public class SigningKeyService implements SealedStore {
         // and discovering it on the first evidence export is discovering it too late.
         if (!this.configuredKey.isEmpty()) {
             this.material = refuseRevoked(KeyMaterial.of(CosignSigner.parsePrivateKey(this.configuredKey)));
+        } else if (!this.revokedKeyIds.isEmpty()) {
+            refuseRevokedStoredKey();
         }
+    }
+
+    /**
+     * The generated key, revoked, refused at start as a configured one is.
+     *
+     * <p>It was refused at its first use instead: the instance started, and every signature and every
+     * route that needed the key answered 500 — a revocation that reads as an outage, discovered by
+     * whoever exported first. Only a key that can be read is refused here; one that cannot (no
+     * {@code ENCRYPTION_KEY}, or the wrong one) signs nothing either way, and its refusal stays the
+     * first use's, with the reason it already gives. Nothing is generated or re-sealed at start.
+     */
+    private void refuseRevokedStoredKey() {
+        String stored = settings.internalValue(STORED_KEY).orElse("").trim();
+        if (stored.isEmpty()) {
+            return;
+        }
+        KeyMaterial key;
+        try {
+            key = KeyMaterial.of(CosignSigner.parsePrivateKey(decrypt(stored)));
+        } catch (RuntimeException unreadable) {
+            return;
+        }
+        refuseRevoked(key);
     }
 
     public PublicKey getPublicKey() {

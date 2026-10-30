@@ -172,7 +172,9 @@ Rotate as above, and list the compromised key's id in `vectispire.signing.revoke
 - it stays published, `status: REVOKED`, so a consumer learns why a document no longer verifies;
 - `POST /api/v1/crypto/verify` answers `valid: false` for a signature it made, even one that
   matches: whoever holds it can sign anything;
-- an instance configured to sign with a revoked key refuses to start.
+- an instance whose signing key is revoked refuses to start, and says so: a configured key, or the
+  generated one when no key is configured. A generated key that cannot be read (`ENCRYPTION_KEY`
+  lost) signs nothing either way, and is refused at the first signature with that reason.
 
 Then re-issue the documents that still matter — export them again — and say to their recipients
 which ones replace which. A revocation is only as good as the consumers who check the list, which is

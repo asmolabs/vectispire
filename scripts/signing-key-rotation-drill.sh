@@ -7,12 +7,13 @@
 # database, which is what a restart does to the service. It cannot show that the image reads
 # `VECTISPIRE_SIGNING_KEY`, that the routes are open to somebody with no account, or that the
 # evidence bundle an auditor downloads is signed by the key the list says. This starts the image
-# that ships, three times on one database, as `docs/en/KEY_ROTATION.md` tells an operator to:
+# that ships, five times on one database, as `docs/en/KEY_ROTATION.md` tells an operator to:
 #
 #   1. no configured key: the instance generates one; an evidence bundle is downloaded;
 #   2. a new key configured: another bundle; the first verifies against the retired key, the
 #      second against the active one, and neither against the other's key;
-#   3. the first key revoked: it is still listed, and `/crypto/verify` refuses its signature.
+#   3. the first key revoked: it is still listed, and `/crypto/verify` refuses its signature;
+#   4. and 5. an instance whose key is revoked — configured, or the generated one — refuses to start.
 #
 # It never touches a deployment: every container and network carries the `rotation-` prefix.
 #
@@ -199,6 +200,16 @@ if VECTISPIRE_SIGNING_KEY="$(cat "$WORK/new.pem")" VECTISPIRE_SIGNING_REVOKED_KE
   fail "the instance started signing with a revoked key"
 fi
 # Into a variable first: `docker logs | grep -q` under pipefail fails when grep stops reading early.
+refusal="$(docker logs "$APP" 2>&1)"
+grep -q "vectispire.signing.revoked-keys" <<<"$refusal" || fail "the refusal does not say why"
+echo "  refused at start, with its reason"
+
+log "5. the generated key, revoked, cannot sign either: no configured key in front of it"
+# Refused at its first use instead, it started and answered 500 on every export and on the routes that
+# publish the keys — the revocation list included.
+if VECTISPIRE_SIGNING_KEY="" VECTISPIRE_SIGNING_REVOKED_KEYS="$OLD_ID" start_app; then # gitleaks:allow — empty: no key configured
+  fail "the instance started signing with its revoked generated key"
+fi
 refusal="$(docker logs "$APP" 2>&1)"
 grep -q "vectispire.signing.revoked-keys" <<<"$refusal" || fail "the refusal does not say why"
 echo "  refused at start, with its reason"
