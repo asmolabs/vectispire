@@ -82,19 +82,14 @@ public class KubernetesApi {
 
     /**
      * The API server of the cluster the agent runs in, as its pod sees it: the address Kubernetes puts in
-     * its environment, the token and the authority it mounts.
+     * its environment — refused unless it is the {@code kubernetes.default.svc} service's ({@link ClusterApiAddress}) —
+     * the token and the authority it mounts.
      */
     public static KubernetesApi inCluster(ObjectMapper json) {
-        String host = System.getenv("KUBERNETES_SERVICE_HOST");
-        String port = System.getenv("KUBERNETES_SERVICE_PORT");
-        if (host == null || host.isBlank() || port == null || port.isBlank()) {
-            throw new IllegalStateException("The Kubernetes executor runs in a pod: KUBERNETES_SERVICE_HOST and "
-                    + "KUBERNETES_SERVICE_PORT are not set.");
-        }
-        String authority = host.contains(":") ? "[" + host + "]" : host;
+        // Checked against the cluster's DNS before the token goes anywhere: the environment can be overridden.
+        URI server = ClusterApiAddress.fromEnvironment();
         Path tokenFile = SERVICE_ACCOUNT.resolve("token");
-        return new KubernetesApi(URI.create("https://" + authority + ":" + port), () -> read(tokenFile),
-                trusting(SERVICE_ACCOUNT.resolve("ca.crt")), json);
+        return new KubernetesApi(server, () -> read(tokenFile), trusting(SERVICE_ACCOUNT.resolve("ca.crt")), json);
     }
 
     private static String read(Path tokenFile) {

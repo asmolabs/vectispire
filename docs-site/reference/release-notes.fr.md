@@ -290,6 +290,11 @@ risque résiduel là où une correction serait une décision à part entière :
   vérifie désormais avant que son scanner ne tourne, et fait échouer l'étape si la coupure ne vient pas.
   Là où la politique rejette en silence plutôt que de refuser, cela coûte jusqu'à deux secondes par pod.
   La sonde d'isolement de l'exécuteur attend de la même façon avant de trancher.
+- **Sur l'exécuteur Kubernetes, l'agent n'envoie le jeton de son compte de service qu'au serveur d'API du
+  cluster.** Il en lit l'adresse dans `KUBERNETES_SERVICE_HOST` et `KUBERNETES_SERVICE_PORT`, qu'une
+  variable de la spécification du pod remplace, et refuse désormais de démarrer si cet hôte ne se résout
+  pas uniquement en adresses de `kubernetes.default.svc`. Ne définissez aucune des deux dans
+  `agents.extraEnv` ; le pod de l'agent a besoin du DNS du cluster.
 - **Un scanner tué à sa limite de mémoire est un échec** même quand le runtime des conteneurs ne signale
   pas `OOMKilled`, de sorte que la sortie partielle d'une exécution tuée n'est jamais lue comme un
   rapport.

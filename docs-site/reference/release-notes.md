@@ -264,6 +264,11 @@ risk where a fix would be a decision of its own:
   network policy can reach a new pod a moment after it starts; each scan pod now checks before its scanner
   runs, and fails the step if the cut never comes. Where the policy drops rather than refuses, this costs
   up to two seconds a pod. The executor's isolation probe waits the same way before it decides.
+- **On the Kubernetes executor, the agent sends its service account's token only to the cluster's API
+  server.** It reads the address from `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT`, which a
+  variable in the pod's spec replaces, and now refuses to start unless that host resolves only to the
+  addresses of `kubernetes.default.svc`. Do not set either variable in `agents.extraEnv`; the agent's pod
+  needs the cluster's DNS.
 - **A scanner killed at its memory limit is a failure** even when the container runtime does not report
   `OOMKilled`, so a killed run's partial output is never read as a report.
 - **Declared and discovered API paths are compared literally beside their parameters, in bounded time.**
