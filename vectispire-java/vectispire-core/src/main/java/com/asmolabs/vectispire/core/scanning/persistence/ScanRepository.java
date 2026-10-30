@@ -362,7 +362,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      */
     @Query("""
             select s.id, s.repoId, s.containerId, s.createdAt from ScanEntity s
-             where s.sbom is not null or s.cves is not null
+             where s.hasSbom = true or s.cves is not null
              order by s.createdAt desc, s.id desc""")
     List<Object[]> findPayloadBearing();
 
@@ -370,10 +370,10 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * The identifiers of the scans holding an SBOM, newest first, below a cursor — the pages the
      * inventory's backfill reads. Which of them the inventory has indexed is its own table's to say.
      */
-    @Query("select s.id from ScanEntity s where s.sbom is not null and s.id < :before order by s.id desc")
+    @Query("select s.id from ScanEntity s where s.hasSbom = true and s.id < :before order by s.id desc")
     List<Long> findIdsWithSbomBefore(@Param("before") long before, Limit limit);
 
-    @Query("select count(s.id) from ScanEntity s where s.sbom is not null or s.cves is not null")
+    @Query("select count(s.id) from ScanEntity s where s.hasSbom = true or s.cves is not null")
     long countPayloadBearing();
 
     /**
@@ -482,7 +482,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      */
     @Query("""
             select new com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow(
-                       s.repoId, s.id, s.createdAt, case when s.sbom is null then false else true end)
+                       s.repoId, s.id, s.createdAt, s.hasSbom)
               from ScanEntity s
              where s.repoId in :repoIds
                and s.id = (select max(l.id) from ScanEntity l
@@ -542,7 +542,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      */
     @Query("""
             select new com.asmolabs.vectispire.core.scanning.persistence.queries.NewestCompletedScanRow(
-                       s.repoId, s.containerId, s.id, s.createdAt, case when s.sbom is null then false else true end)
+                       s.repoId, s.containerId, s.id, s.createdAt, s.hasSbom)
               from ScanEntity s
              where s.repoId in :repoIds
                and s.id = (select max(l.id) from ScanEntity l
@@ -555,7 +555,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     /** The same, per image: {@code containerIds} one parameter each, a thousand at most. */
     @Query("""
             select new com.asmolabs.vectispire.core.scanning.persistence.queries.NewestCompletedScanRow(
-                       s.repoId, s.containerId, s.id, s.createdAt, case when s.sbom is null then false else true end)
+                       s.repoId, s.containerId, s.id, s.createdAt, s.hasSbom)
               from ScanEntity s
              where s.containerId in :containerIds
                and s.id = (select max(l.id) from ScanEntity l
@@ -840,17 +840,20 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      *
      * <p>Columns and counts only: what the licence tallies compare to decide whether a target's
      * inventory can have moved, without reading the payloads the inventory is made of. Whether the
-     * SBOM is null is read off the row, not off the document.
+     * SBOM is null is read off {@code has_sbom} (V98): this comment said "off the row" when the query
+     * tested {@code sbom is not null}, and on MySQL that read every SBOM stored — 500 ms a call on the
+     * 1.0.0-rc.1 load test's estate. {@code ScanQueriesReadNoPayloadTest} keeps the document out of a
+     * null test.
      */
     @Query("""
             select s.repoId, s.containerId, s.status, count(s.id), max(s.id),
-                   sum(case when s.sbom is not null then 1 else 0 end)
+                   sum(case when s.hasSbom = true then 1 else 0 end)
               from ScanEntity s
              group by s.repoId, s.containerId, s.status""")
     List<Object[]> censusByTargetAndStatus();
 
     /** The scans holding an SBOM, as {@code [id, repoId, containerId]}, without the SBOM. */
-    @Query("select s.id, s.repoId, s.containerId from ScanEntity s where s.sbom is not null")
+    @Query("select s.id, s.repoId, s.containerId from ScanEntity s where s.hasSbom = true")
     List<Object[]> idsAndTargetsWithSbom();
 
     List<ScanEntity> findByStatusInOrderByCreatedAtAsc(Collection<String> statuses);
