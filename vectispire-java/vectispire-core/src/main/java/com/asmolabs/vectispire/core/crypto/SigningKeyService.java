@@ -231,9 +231,12 @@ public class SigningKeyService implements SealedStore {
     }
 
     /**
-     * @param keyId the key the signature was checked against — the caller's, when one was supplied
-     * @param vectispireKey whether that key is one of Vectispire's signing keys, active or not
-     * @param keyStatus where that key stands, when it is one of Vectispire's; null otherwise
+     * @param keyId the key the signature was checked against — the caller's, when one was supplied;
+     *     without one, the published key it matched, and null when it matched none
+     * @param vectispireKey whether that key is one of Vectispire's signing keys, active or not; without
+     *     a supplied key, true: what was checked is Vectispire's keys
+     * @param keyStatus where that key stands, when it is one of Vectispire's; null otherwise, and null
+     *     when the signature matched none of them
      */
     public record Verification(boolean valid, String keyId, boolean vectispireKey, KeyStatus keyStatus, String message) {}
 
@@ -300,7 +303,9 @@ public class SigningKeyService implements SealedStore {
                     return answer(true, key.keyId(), key.status(), key.retiredAt());
                 }
             }
-            return new Verification(false, material().keyId(), true, KeyStatus.ACTIVE,
+            // No key named and no status: it answered with the active key's id and "ACTIVE", which a
+            // reader of the response alone takes for the key that signed — and an active one at that.
+            return new Verification(false, null, true, null,
                     "Signature does not match any of Vectispire's signing keys for this payload.");
         }
         PublicKey supplied = CosignSigner.parsePublicKey(suppliedPublicKey);

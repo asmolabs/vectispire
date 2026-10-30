@@ -81,11 +81,12 @@ public class CryptoController {
             String publicKey) {}
 
     /**
-     * @param keyId the key the signature was checked against — the caller's own when they supplied one
+     * @param keyId the key the signature was checked against — the caller's own when they supplied one,
+     *     otherwise the Vectispire key it matched; absent when it matched none
      * @param vectispireKey whether that key is one of Vectispire's signing keys, active or not; a valid
      *     signature under any other key says nothing about Vectispire
      * @param keyStatus {@code ACTIVE}, {@code RETIRED} or {@code REVOKED} when it is one of them; absent
-     *     otherwise. A revoked key's signature is never valid.
+     *     otherwise, and when the signature matched none of them. A revoked key's signature is never valid.
      */
     public record VerifyResponse(
             boolean valid,

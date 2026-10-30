@@ -457,7 +457,10 @@ class SigningKeyServiceTest extends VectispireContextTest {
 
         assertThat(service.publishedKey(claimed)).isEmpty();
         assertThat(service.publishedKey(CosignSigner.computeKeyId(forged.getPublic()))).isEmpty();
-        assertThat(service.verify(PAYLOAD, signedByForged)).isFalse();
+        assertThat(service.verify(PAYLOAD, signedByForged, null))
+                .returns(false, SigningKeyService.Verification::valid)
+                .returns(null, SigningKeyService.Verification::keyId)
+                .returns(null, SigningKeyService.Verification::keyStatus);
         // One bad line hides itself, not the record: the honest key is still published and verifies.
         assertThat(service.publishedKeys()).extracting(SigningKeyService.PublishedKey::keyId)
                 .containsExactly(service.getKeyId(), honestId);

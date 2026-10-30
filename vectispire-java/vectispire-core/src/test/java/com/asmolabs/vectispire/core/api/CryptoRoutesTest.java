@@ -69,7 +69,10 @@ class CryptoRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(tamperedRequest), token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.valid").value(false));
+                .andExpect(jsonPath("$.valid").value(false))
+                // It answered with the active key's id and "ACTIVE": read alone, a key that signed it.
+                .andExpect(jsonPath("$.keyStatus").doesNotExist())
+                .andExpect(jsonPath("$.keyId").doesNotExist());
     }
 
     @Test
