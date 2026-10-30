@@ -3,7 +3,19 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { By } from '@angular/platform-browser';
 import { Repositories } from './repositories';
+import { RepositoriesPage } from './repositories-page';
+import { RepositoryFormDialog } from './repository-form-dialog';
+import { CicdDialog } from './cicd-dialog';
+
+type Host = ComponentFixture<Repositories>;
+/** The screen's state, which its parts share: provided by the page, read through its injector. */
+const stateOf = (fixture: Host) => fixture.debugElement.injector.get(RepositoriesPage);
+/** The repository form, which keeps its own draft: the page opens it on a new repository or a listed one. */
+const formOf = (fixture: Host) =>
+    fixture.debugElement.query(By.directive(RepositoryFormDialog)).componentInstance as RepositoryFormDialog;
+const cicdOf = (fixture: Host) => fixture.debugElement.query(By.directive(CicdDialog)).componentInstance as CicdDialog;
 import type { MonitoredRepository, NewRepository } from '@/app/core/api.models';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
@@ -74,7 +86,7 @@ describe('the repository list', () => {
         // The count now travels beside the key as a parameter, so it is asserted on the model
         // rather than in the rendered text — which this harness leaves unresolved anyway.
         expect(text).toContain('repositories.outstanding');
-        expect(fixture.componentInstance.repositories()[0].openIssues).toBe(38);
+        expect(stateOf(fixture).repositories()[0].openIssues).toBe(38);
     });
 
     it('shows the sub-path, or a monorepo registered twice reads as one target listed twice', () => {
@@ -231,11 +243,11 @@ describe('the repository list', () => {
     it('sends the schedule when a repository is added', () => {
         load();
 
-        fixture.componentInstance.openForm();
-        fixture.componentInstance.form.url = 'https://github.com/org/thing.git';
-        fixture.componentInstance.form.scanIntervalMinutes = 720;
-        fixture.componentInstance.form.scanCron = '0 2 * * *';
-        fixture.componentInstance.submit();
+        formOf(fixture).openForm();
+        formOf(fixture).form.url = 'https://github.com/org/thing.git';
+        formOf(fixture).form.scanIntervalMinutes = 720;
+        formOf(fixture).form.scanCron = '0 2 * * *';
+        formOf(fixture).submit();
 
         const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request
             .body as NewRepository;
@@ -246,10 +258,10 @@ describe('the repository list', () => {
     it('clears an interval with zero, because absent means "leave alone" on the update path', () => {
         load({ ...REPOSITORY, scanIntervalMinutes: 60 });
 
-        fixture.componentInstance.openForm(fixture.componentInstance.repositories()[0]);
-        fixture.componentInstance.form.scanIntervalMinutes = null;
-        fixture.componentInstance.form.scanCron = '';
-        fixture.componentInstance.submit();
+        formOf(fixture).openForm(stateOf(fixture).repositories()[0]);
+        formOf(fixture).form.scanIntervalMinutes = null;
+        formOf(fixture).form.scanCron = '';
+        formOf(fixture).submit();
 
         const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
         // `undefined` here would leave the old interval in place while the form showed nothing —
@@ -262,9 +274,9 @@ describe('the repository list', () => {
     it('sends manual only as the dialog shows it, prefilled from the row', () => {
         load({ ...REPOSITORY, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
 
-        fixture.componentInstance.openForm(fixture.componentInstance.repositories()[0]);
-        expect(fixture.componentInstance.form.scanManualOnly).toBe(true);
-        fixture.componentInstance.submit();
+        formOf(fixture).openForm(stateOf(fixture).repositories()[0]);
+        expect(formOf(fixture).form.scanManualOnly).toBe(true);
+        formOf(fixture).submit();
 
         // Sent on the update path: absent would leave it alone, which is right only by luck.
         const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
@@ -274,10 +286,10 @@ describe('the repository list', () => {
     it("surfaces the server's refusal of a cron expression instead of a generic failure", () => {
         load();
 
-        fixture.componentInstance.openForm();
-        fixture.componentInstance.form.url = 'https://github.com/org/thing.git';
-        fixture.componentInstance.form.scanCron = 'every night';
-        fixture.componentInstance.submit();
+        formOf(fixture).openForm();
+        formOf(fixture).form.url = 'https://github.com/org/thing.git';
+        formOf(fixture).form.scanCron = 'every night';
+        formOf(fixture).submit();
 
         http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
             // `detail`, which is where Spring's Problem Details puts the sentence — see `messageOf`.
@@ -289,7 +301,7 @@ describe('the repository list', () => {
         fixture.detectChanges();
 
         // The server's wording is the only one that names what was wrong with the expression.
-        expect(fixture.componentInstance.formError()).toContain('Expected five fields');
+        expect(formOf(fixture).formError()).toContain('Expected five fields');
     });
 
     /**
@@ -311,47 +323,47 @@ describe('the repository list', () => {
         it('is named on creation, from the list the reader sees', () => {
             load();
 
-            fixture.componentInstance.openForm();
-            fixture.componentInstance.form.url = 'https://bitbucket.example.com/art/basalt-libs-spring';
-            fixture.componentInstance.form.branch = 'master';
-            fixture.componentInstance.form.subPath = 'backend';
-            fixture.componentInstance.submit();
+            formOf(fixture).openForm();
+            formOf(fixture).form.url = 'https://bitbucket.example.com/art/basalt-libs-spring';
+            formOf(fixture).form.branch = 'master';
+            formOf(fixture).form.subPath = 'backend';
+            formOf(fixture).submit();
             http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
                 ALREADY_REGISTERED(5),
                 { status: 409, statusText: 'Conflict' }
             );
 
-            expect(fixture.componentInstance.formError()).toBe(
+            expect(formOf(fixture).formError()).toBe(
                 'This repository is already a target, on the same branch and sub-path: Arm Libs Spring. ' +
                     'Edit that one, or choose another branch or sub-path.'
             );
-            expect(fixture.componentInstance.formVisible()).toBe(true);
+            expect(formOf(fixture).formVisible()).toBe(true);
         });
 
         it('is refused on an edit in the same words', () => {
             load({ ...REPOSITORY, id: 6, displayName: 'Other', subPath: null });
-            fixture.componentInstance.repositories.set([
-                ...fixture.componentInstance.repositories(),
-                { ...fixture.componentInstance.repositories()[0], id: 5, displayName: 'Arm Libs Spring' }
+            stateOf(fixture).repositories.set([
+                ...stateOf(fixture).repositories(),
+                { ...stateOf(fixture).repositories()[0], id: 5, displayName: 'Arm Libs Spring' }
             ]);
 
-            fixture.componentInstance.openForm(fixture.componentInstance.repositories()[0]);
-            fixture.componentInstance.form.subPath = 'backend';
-            fixture.componentInstance.submit();
+            formOf(fixture).openForm(stateOf(fixture).repositories()[0]);
+            formOf(fixture).form.subPath = 'backend';
+            formOf(fixture).submit();
             http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/repositories/6').flush(
                 ALREADY_REGISTERED(5),
                 { status: 409, statusText: 'Conflict' }
             );
 
-            expect(fixture.componentInstance.formError()).toContain(': Arm Libs Spring.');
+            expect(formOf(fixture).formError()).toContain(': Arm Libs Spring.');
         });
 
         it('names nothing when the server named nothing', () => {
             load();
 
-            fixture.componentInstance.openForm();
-            fixture.componentInstance.form.url = 'https://bitbucket.example.com/secret/vault.git';
-            fixture.componentInstance.submit();
+            formOf(fixture).openForm();
+            formOf(fixture).form.url = 'https://bitbucket.example.com/secret/vault.git';
+            formOf(fixture).submit();
             http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
                 {
                     ...ALREADY_REGISTERED(),
@@ -360,7 +372,7 @@ describe('the repository list', () => {
                 { status: 409, statusText: 'Conflict' }
             );
 
-            expect(fixture.componentInstance.formError()).toBe(
+            expect(formOf(fixture).formError()).toBe(
                 'This repository is already a target, on the same branch and sub-path.'
             );
         });
@@ -368,9 +380,9 @@ describe('the repository list', () => {
         it("leaves any other conflict in the server's words", () => {
             load();
 
-            fixture.componentInstance.openForm();
-            fixture.componentInstance.form.url = 'https://bitbucket.example.com/art/other.git';
-            fixture.componentInstance.submit();
+            formOf(fixture).openForm();
+            formOf(fixture).form.url = 'https://bitbucket.example.com/art/other.git';
+            formOf(fixture).submit();
             http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
                 {
                     type: 'urn:vectispire:problem:revision-changed',
@@ -381,7 +393,7 @@ describe('the repository list', () => {
                 { status: 409, statusText: 'Conflict' }
             );
 
-            expect(fixture.componentInstance.formError()).toBe('Somebody changed this repository.');
+            expect(formOf(fixture).formError()).toBe('Somebody changed this repository.');
         });
     });
 
@@ -394,7 +406,7 @@ describe('the repository list', () => {
         const TABS = ['gitlab', 'github', 'bitbucket', 'jenkins', 'cli'] as const;
 
         it('name the SBOM format the route serves, and the export for CycloneDX', () => {
-            const cli = fixture.componentInstance.getCicdSnippet('cli', null);
+            const cli = cicdOf(fixture).getCicdSnippet('cli', null);
             expect(cli).toContain("Syft's native JSON");
             expect(cli).toContain('/api/v1/cyclonedx/scans/');
             expect(cli).not.toContain('SPDX');
@@ -402,12 +414,12 @@ describe('the repository list', () => {
 
         it('use a severity the server spells, and the scopes a scan that is waited for needs', () => {
             for (const tab of TABS) {
-                const snippet = fixture.componentInstance.getCicdSnippet(tab, null);
+                const snippet = cicdOf(fixture).getCicdSnippet(tab, null);
                 expect(snippet, tab).toContain('--fail-on high');
                 expect(snippet, tab).not.toContain('HIGH');
             }
-            expect(fixture.componentInstance.getCicdSnippet('gitlab', null)).toContain('scopes scan and read');
-            expect(fixture.componentInstance.getCicdSnippet('cli', null)).toContain('scopes scan and read');
+            expect(cicdOf(fixture).getCicdSnippet('gitlab', null)).toContain('scopes scan and read');
+            expect(cicdOf(fixture).getCicdSnippet('cli', null)).toContain('scopes scan and read');
         });
 
         /**
@@ -419,7 +431,7 @@ describe('the repository list', () => {
         it('run the release asset at this version, and only after its digest matched', () => {
             const asset = `https://github.com/asmolabs/vectispire/releases/download/v${RELEASE}/vectispire-cli.sh`;
             for (const tab of TABS) {
-                const snippet = fixture.componentInstance.getCicdSnippet(tab, null);
+                const snippet = cicdOf(fixture).getCicdSnippet(tab, null);
                 expect(snippet, tab).not.toContain('raw.githubusercontent.com');
                 expect(snippet, tab).not.toContain('scripts/vectispire-cli.sh');
                 expect(snippet, tab).toContain(asset);
@@ -430,7 +442,7 @@ describe('the repository list', () => {
         });
 
         it('show the signature check with the identity the release workflow signs with', () => {
-            const cli = fixture.componentInstance.getCicdSnippet('cli', null);
+            const cli = cicdOf(fixture).getCicdSnippet('cli', null);
             expect(cli).toContain('--bundle vectispire-cli.sh.cosign.bundle');
             expect(cli).toContain(
                 `--certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v${RELEASE}"`
@@ -497,24 +509,26 @@ describe('the repository list', () => {
         }
 
         function kinds(): string[] {
-            return fixture.componentInstance.credentialKinds().map((kind) => kind.value);
+            return formOf(fixture)
+                .credentialKinds()
+                .map((kind) => kind.value);
         }
 
         function typeUrl(url: string): void {
-            fixture.componentInstance.form.url = url;
-            fixture.componentInstance.onUrlChange();
+            formOf(fixture).form.url = url;
+            formOf(fixture).onUrlChange();
         }
 
         it('offers HTTPS tokens and no SSH key for an https:// URL', () => {
             loadAll();
-            fixture.componentInstance.openForm();
+            formOf(fixture).openForm();
             typeUrl('https://gitlab.example.com/group/app.git');
             expect(kinds()).toEqual(['none', 'https']);
         });
 
         it('offers SSH keys and no token for ssh:// and scp-style URLs', () => {
             loadAll();
-            fixture.componentInstance.openForm();
+            formOf(fixture).openForm();
             typeUrl('ssh://git@gitlab.example.com/group/app.git');
             expect(kinds()).toEqual(['none', 'ssh']);
             typeUrl('git@gitlab.example.com:group/app.git');
@@ -523,17 +537,20 @@ describe('the repository list', () => {
 
         it("offers only the tokens bound to the URL's host", () => {
             loadAll();
-            fixture.componentInstance.openForm();
+            formOf(fixture).openForm();
             typeUrl('https://GitLab.example.com/group/app.git');
-            expect(fixture.componentInstance.httpsTokenOptions().map((option) => option.value)).toEqual(['tok-gitlab']);
+            expect(
+                formOf(fixture)
+                    .httpsTokenOptions()
+                    .map((option) => option.value)
+            ).toEqual(['tok-gitlab']);
         });
 
         it('renders the token picker, and no key picker, once HTTPS is chosen', () => {
             loadAll();
-            const screen = fixture.componentInstance;
-            screen.openForm();
+            formOf(fixture).openForm();
             typeUrl('https://gitlab.example.com/group/app.git');
-            screen.form.credentialKind = 'https';
+            formOf(fixture).form.credentialKind = 'https';
             fixture.detectChanges();
 
             expect(document.querySelector('#https-token')).not.toBeNull();
@@ -542,12 +559,11 @@ describe('the repository list', () => {
 
         it('sends the chosen token and no SSH key on create', () => {
             loadAll();
-            const screen = fixture.componentInstance;
-            screen.openForm();
+            formOf(fixture).openForm();
             typeUrl('https://gitlab.example.com/group/app.git');
-            screen.form.credentialKind = 'https';
-            screen.form.httpsTokenId = 'tok-gitlab';
-            screen.submit();
+            formOf(fixture).form.credentialKind = 'https';
+            formOf(fixture).form.httpsTokenId = 'tok-gitlab';
+            formOf(fixture).submit();
 
             const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request
                 .body as NewRepository;
@@ -557,12 +573,11 @@ describe('the repository list', () => {
 
         it('leaves the token out of a create that has none', () => {
             loadAll();
-            const screen = fixture.componentInstance;
-            screen.openForm();
+            formOf(fixture).openForm();
             typeUrl('ssh://git@gitlab.example.com/group/app.git');
-            screen.form.credentialKind = 'ssh';
-            screen.form.sshKeyId = 'key-1';
-            screen.submit();
+            formOf(fixture).form.credentialKind = 'ssh';
+            formOf(fixture).form.sshKeyId = 'key-1';
+            formOf(fixture).submit();
 
             const body = http.expectOne((call) => call.method === 'POST').request.body as NewRepository;
             expect(body.sshKeyId).toBe('key-1');
@@ -576,11 +591,10 @@ describe('the repository list', () => {
                 httpsTokenId: 'tok-gitlab',
                 sshKeyId: null
             });
-            const screen = fixture.componentInstance;
-            screen.openForm(screen.repositories()[0]);
-            expect(screen.form.credentialKind).toBe('https');
-            screen.form.credentialKind = 'none';
-            screen.submit();
+            formOf(fixture).openForm(stateOf(fixture).repositories()[0]);
+            expect(formOf(fixture).form.credentialKind).toBe('https');
+            formOf(fixture).form.credentialKind = 'none';
+            formOf(fixture).submit();
 
             const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
             expect(body.https_token_id).toBe('');
@@ -589,13 +603,12 @@ describe('the repository list', () => {
 
         it('drops the SSH key when the URL turns to https://, so what is sent is what is shown', () => {
             loadAll();
-            const screen = fixture.componentInstance;
-            screen.openForm(screen.repositories()[0]);
-            screen.form.credentialKind = 'ssh';
-            screen.form.sshKeyId = 'key-1';
+            formOf(fixture).openForm(stateOf(fixture).repositories()[0]);
+            formOf(fixture).form.credentialKind = 'ssh';
+            formOf(fixture).form.sshKeyId = 'key-1';
             typeUrl('https://gitlab.example.com/group/app.git');
-            expect(screen.form.credentialKind).toBe('none');
-            screen.submit();
+            expect(formOf(fixture).form.credentialKind).toBe('none');
+            formOf(fixture).submit();
 
             const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
             expect(body.sshKeyId).toBe('');
@@ -603,19 +616,17 @@ describe('the repository list', () => {
 
         it('drops a token bound to another host when the URL changes host', () => {
             loadAll();
-            const screen = fixture.componentInstance;
-            screen.openForm();
+            formOf(fixture).openForm();
             typeUrl('https://gitlab.example.com/group/app.git');
-            screen.form.credentialKind = 'https';
-            screen.form.httpsTokenId = 'tok-gitlab';
+            formOf(fixture).form.credentialKind = 'https';
+            formOf(fixture).form.httpsTokenId = 'tok-gitlab';
             typeUrl('https://github.com/org/app.git');
-            expect(screen.form.httpsTokenId).toBe('');
+            expect(formOf(fixture).form.httpsTokenId).toBe('');
         });
 
         it('warns that credentials in the URL belong in an HTTPS token', () => {
             loadAll();
-            const screen = fixture.componentInstance;
-            screen.openForm();
+            formOf(fixture).openForm();
             typeUrl('https://ci:glpat-secret@gitlab.example.com/group/app.git');
             fixture.detectChanges();
             expect(document.querySelector('#url-carries-secret')).not.toBeNull();
@@ -623,12 +634,11 @@ describe('the repository list', () => {
 
         it('does not warn about a user name alone, which is no secret', () => {
             loadAll();
-            const screen = fixture.componentInstance;
-            screen.openForm();
+            formOf(fixture).openForm();
             typeUrl('https://ci@gitlab.example.com/group/app.git');
-            expect(screen.urlCarriesSecret()).toBe(false);
+            expect(formOf(fixture).urlCarriesSecret()).toBe(false);
             typeUrl('https://gitlab.example.com/group/app.git');
-            expect(screen.urlCarriesSecret()).toBe(false);
+            expect(formOf(fixture).urlCarriesSecret()).toBe(false);
         });
     });
 });
@@ -724,7 +734,7 @@ describe('the repository list, refreshed and paged', () => {
         expect(page().querySelectorAll('.p-paginator-page')).toHaveLength(3);
         expect(page().querySelector<HTMLElement>('p-paginator')?.style.display).not.toBe('none');
 
-        fixture.componentInstance.reload();
+        stateOf(fixture).reload();
         answer(MANY.slice(0, 3));
         expect(shown()).toEqual(['repo-1', 'repo-2', 'repo-3']);
         // Rendered but hidden: the paginator hides its own host when there is a single page.
@@ -756,14 +766,14 @@ describe('the repository list, refreshed and paged', () => {
         vi.advanceTimersByTime(5000);
         const tick = http.expectOne('/api/v1/repositories');
 
-        fixture.componentInstance.reload();
+        stateOf(fixture).reload();
         expect(tick.cancelled).toBe(true);
         http.expectOne('/api/v1/repositories').flush(MANY);
     });
 
     it('keeps an action’s error through a poll tick, and clears its own failure when a tick answers', () => {
         answer(MANY);
-        fixture.componentInstance.error.set('The scan could not be queued.');
+        stateOf(fixture).error.set('The scan could not be queued.');
         vi.advanceTimersByTime(5000);
         http.expectOne('/api/v1/repositories').flush(MANY);
         expect(page().textContent).toContain('The scan could not be queued.');
