@@ -1971,7 +1971,18 @@
       "body": "Injection and SSRF are not measured there — those categories are not green, they are without evidence."
     },
     "import": "Import a catalogue",
-    "add": "Add these languages"
+    "add": "Add these languages",
+    "owasp_other_edition": {
+      "title_one": "{{count}} rule file declares only an OWASP Top 10 edition other than 2021.",
+      "title_other": "{{count}} rule files declare only an OWASP Top 10 edition other than 2021.",
+      "only_2025_one": "{{count}} declares the 2025 edition alone.",
+      "only_2025_other": "{{count}} declare the 2025 edition alone.",
+      "only_2017_one": "{{count}} declares the 2017 edition alone.",
+      "only_2017_other": "{{count}} declare the 2017 edition alone.",
+      "not_declared_one": "{{count}} declares no OWASP category.",
+      "not_declared_other": "{{count}} declare no OWASP category.",
+      "body": "They run, and their findings reach the backlog, but the OWASP grid places findings by the 2021 edition only (the editions share their letters, not their meanings), so it counts these rules as untagged. Add the 2021 category beside the other edition in each rule's metadata.owasp."
+    }
   },
   "rule_sets": {
     "activate_title": "Activate \"{{name}}\"?",

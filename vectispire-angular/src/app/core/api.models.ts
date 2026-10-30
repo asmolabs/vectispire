@@ -2142,6 +2142,17 @@ export type RemediationDistribution = Refine<
     }
 >;
 
+/**
+ * Why a rule file places nothing in the OWASP grid. Open, as every enum of the API is (decision 0043
+ * §1): a reason this client does not know is still counted, under its own name.
+ */
+export type OwaspUntaggedReason = NonNullable<Schema<'OwaspUntaggedCount'>['reason']>;
+
+export type OwaspTagging = Refine<
+    Schema<'OwaspTagging'>,
+    { untagged: { reason: OwaspUntaggedReason | (string & {}); ruleFiles: number }[] }
+>;
+
 export type RuleCoverageAssessment = Refine<
     Schema<'Assessment'>,
     {
@@ -2149,6 +2160,8 @@ export type RuleCoverageAssessment = Refine<
         languagesWithRules: string[];
         ecosystemsInEstate: string[];
         uncovered: string[];
+        /** Absent from an older server; the route reads the rules' contents and always sends it. */
+        owasp?: OwaspTagging | null;
     }
 >;
 

@@ -546,6 +546,9 @@
             "type" : "array",
             "uniqueItems" : true
           },
+          "owasp" : {
+            "$ref" : "#/components/schemas/OwaspTagging"
+          },
           "ruleFiles" : {
             "format" : "int32",
             "type" : "integer"
@@ -6753,6 +6756,40 @@
             "type" : "integer"
           }
         },
+        "type" : "object"
+      },
+      "OwaspTagging" : {
+        "properties" : {
+          "ruleFiles" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "tagged" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "untagged" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OwaspUntaggedCount"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "ruleFiles", "tagged" ],
+        "type" : "object"
+      },
+      "OwaspUntaggedCount" : {
+        "properties" : {
+          "reason" : {
+            "enum" : [ "ONLY_2025_EDITION", "ONLY_2017_EDITION", "NOT_DECLARED" ],
+            "type" : "string"
+          },
+          "ruleFiles" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "ruleFiles" ],
         "type" : "object"
       },
       "OwaspWeek" : {

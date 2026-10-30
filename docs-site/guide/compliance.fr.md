@@ -174,3 +174,7 @@ répond la demandent encore. L'édition 2025 renumérote et remanie la liste, si
 2021 ne correspond pas une à une à une catégorie de 2025 ; elle viendra dans une version 1.x ultérieure
 **à côté** de la vue 2021, jamais à sa place, et un pipeline ou un rapport qui s'appuie sur une
 catégorie de 2021 continue de fonctionner.
+
+D'ici là, une règle étiquetée avec la seule édition 2025 ne place aucun constat, et n'est pas écartée en
+silence : l'écran des jeux de règles la compte parmi les règles non étiquetées, avec cette raison
+([Jeux de règles Semgrep](../administration/rule-sets.md#owasp-categories)).

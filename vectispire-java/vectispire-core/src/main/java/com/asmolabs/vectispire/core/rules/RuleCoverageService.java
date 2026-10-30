@@ -111,7 +111,27 @@ public class RuleCoverageService {
                 .map(RuleCoverage::ruleTreePath)
                 .forEach(paths::add));
 
-        return RuleCoverage.assess(paths, components.distinctPurls());
+        return RuleCoverage.assess(paths, components.distinctPurls()).withOwasp(owaspTagging());
+    }
+
+    /**
+     * How the installed code-analysis rules declare their OWASP category, from the same files as {@link
+     * #declaredOwaspCategories}.
+     *
+     * <p><b>A rule tagged with another edition only is counted, not dropped.</b> It runs and its findings
+     * reach the backlog, but it declares no 2021 category, so the grid places none of them and reads the
+     * category it was written for as uncovered. Said here, the rule set's coverage carries the reason
+     * rather than leaving an operator to discover it category by category (decision 0046).
+     */
+    @Transactional(readOnly = true)
+    public OwaspTag.OwaspTagging owaspTagging() {
+        List<String> contents = new ArrayList<>();
+        BundledRules.expected().stream()
+                .filter(path -> path.startsWith("semgrep/"))
+                .forEach(path -> contents.add(BundledRules.contentOf(path)));
+        ruleSets.active().ifPresent(row -> ruleSets.filesOf(row)
+                .forEach(file -> contents.add(file.content())));
+        return OwaspTag.tally(contents);
     }
 
     /**

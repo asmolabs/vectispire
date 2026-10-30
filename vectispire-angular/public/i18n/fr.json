@@ -1971,7 +1971,18 @@
       "body": "L'injection et le SSRF n'y sont pas mesurés — ces catégories ne sont pas vertes, elles sont sans preuve."
     },
     "import": "Importer un catalogue",
-    "add": "Ajouter ces langages"
+    "add": "Ajouter ces langages",
+    "owasp_other_edition": {
+      "title_one": "{{count}} fichier de règles ne déclare qu'une édition de l'OWASP Top 10 autre que 2021.",
+      "title_other": "{{count}} fichiers de règles ne déclarent qu'une édition de l'OWASP Top 10 autre que 2021.",
+      "only_2025_one": "{{count}} déclare la seule édition 2025.",
+      "only_2025_other": "{{count}} déclarent la seule édition 2025.",
+      "only_2017_one": "{{count}} déclare la seule édition 2017.",
+      "only_2017_other": "{{count}} déclarent la seule édition 2017.",
+      "not_declared_one": "{{count}} ne déclare aucune catégorie OWASP.",
+      "not_declared_other": "{{count}} ne déclarent aucune catégorie OWASP.",
+      "body": "Elles s'exécutent et leurs constats arrivent dans le backlog, mais la grille OWASP ne place les constats que selon l'édition 2021 (les éditions partagent leurs lettres, pas leur sens) : elle compte donc ces règles comme non étiquetées. Ajoutez la catégorie 2021 à côté de l'autre édition dans le metadata.owasp de chaque règle."
+    }
   },
   "rule_sets": {
     "activate_title": "Activer « {{name}} » ?",
