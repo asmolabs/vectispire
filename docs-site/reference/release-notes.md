@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## Unreleased
+## 1.0.0-rc.1
 
 The release before 1.0, and a trial of it: what 1.0 will promise
 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md))
@@ -31,7 +31,11 @@ residual risk. Several of those fixes refuse something 0.11.2 accepted, so read 
 full: an installation with SCIM enabled and a short token does not start until the token is replaced.
 What follows is against 0.11.2.
 
-### Before you upgrade {#before-you-upgrade-unreleased}
+### Before you upgrade {#before-you-upgrade-100-rc1}
+
+- **1.0.0-rc.1 is the release candidate 1.0 is measured against.** Every promise of decision 0043 is in
+  place in it; 1.0.0 follows once it has run in real use with no unplanned break. What breaks in it is a
+  defect to report, not a change to expect.
 
 **Database and deployment**
 
@@ -183,7 +187,7 @@ What follows is against 0.11.2.
   the latest minor receives every fix, the previous one security fixes for three months after its
   successor. How a removal from the API is announced is written at the top of this page.
 
-### Changes an integration can see {#changes-an-integration-can-see-unreleased}
+### Changes an integration can see {#changes-an-integration-can-see-100-rc1}
 
 - **SCIM: an `externalId` another account holds is a 409 `uniqueness`**, on `POST /scim/v2/Users` and on a
   `PUT` that binds an unbound account, with nothing written — what a directory reads as "already
@@ -202,8 +206,27 @@ What follows is against 0.11.2.
   like `public-key.pub`: every key the instance has signed with. `POST /api/v1/crypto/verify` answers
   `keyStatus` (`ACTIVE`, `RETIRED`, `REVOKED`), and accepts a signature by a retired key — it used to say
   that a document signed before a key change did not match (additive).
+- **Twenty-two more list routes page on request**, by the rule every inventory list has used since
+  0.11.1: `limit` 1 to 500 (400 beyond, never a silent clamp), and `offset` zero or a multiple of `limit`,
+  read only together with a `limit`. **A request without them gets what it got before**: the whole list,
+  or for the histories already capped — forge discoveries, and SARIF, coverage, test-report and build-SBOM
+  imports — the latest fifty, now with pages reaching the older ones. They include team members and
+  targets, an account's targets, Git tokens, SSH keys, an issue's tickets, plugins and report plugins,
+  SARIF sources, forge connections, checklist templates and a project's checklists; the REST reference
+  lists them. Additive: optional query parameters only.
+- **The triage history says what a queued request asked for.** A decision that queued a settling status
+  for a second person (`toStatus` `pending_approval`) carries `requestedStatus` — `not_affected`,
+  `will_not_fix` or `fixed` — in `GET /api/v1/history/repositories/{id}` and in `decisions[]` of
+  `GET /api/v1/issues/{id}`; null on every other entry, and on a request queued before 0.11.0 recorded it.
+  The history CSV gains a last column, `decision_requested_status`, so a sheet reading columns by position
+  reads the same cells; the PDF prints `asking for <status>` on the request's line. Additive.
+- **The OWASP figures say what they leave out.** `GET /api/v1/rule-sets/coverage` gains `owasp`: how many
+  rule files are placed in a category of the 2021 edition, by their own tag or by CWE (`byCwe`), and those that are not,
+  by reason (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`, `NOT_DECLARED`; read an unknown reason by its
+  name). `GET /api/v1/owasp/coverage` gains `unplacedCode`, the open code findings no category holds.
+  Both additive.
 
-### New {#new-unreleased}
+### New {#new-100-rc1}
 
 - **The document signing key can be rotated** without making what it signed unverifiable: configure a new
   key and restart; the previous one stays published as retired, and a compromised one can be revoked
@@ -220,7 +243,7 @@ What follows is against 0.11.2.
   sends nothing, and the fields the server requires are marked. The server still decides, in its own
   words.
 
-### Security {#security-unreleased}
+### Security {#security-100-rc1}
 
 From a full review of `develop` before this release. Every finding is fixed, or documented as a residual
 risk where a fix would be a decision of its own:
@@ -254,8 +277,21 @@ risk where a fix would be a decision of its own:
   reads zero across the interface's whole tree, development dependencies included (vitest 4.1.12,
   happy-dom 21, Playwright 1.64.1).
 
-### Fixed {#fixed-unreleased}
+### Fixed {#fixed-100-rc1}
 
+- **A code finding whose rule declares a CWE but no OWASP category is placed by its CWE**, from OWASP's
+  own lists of the CWEs each category of the 2021 edition maps. Most upstream rules declare only a CWE, so their
+  findings entered no category and the category read "nothing found". An existing issue gets its
+  category at its target's next scan; fingerprints do not change, so no triage is lost. Expect the OWASP
+  grid's figures to move after that scan. Findings from a previous-minor agent, which does not send the
+  CWE, stay unplaced and are counted under the grid.
+- **A rule tagged only with another OWASP edition** (`A01:2025`) ran and its findings reached the backlog,
+  but the grid placed none of them without saying why. 1.0 still scores the 2021 edition (decision 0046);
+  the rule sets screen now names how many rule files declare only another edition.
+- **The French interface showed the server's English sentence** for a gate violation's reason and for
+  every refusal. Both are now translated from the violation's `rule` and the problem's `code`; where a
+  value is not a field of its own (a policy's threshold, the uncovered ecosystems), the server's sentence
+  stays as the line's tooltip.
 - A sign-in with a User-Agent longer than 255 characters answered 500 for an account with a second factor,
   after its password had been accepted.
 - Enabling a second factor with a secret containing no Base32 letter answered 500; it is a 400.
@@ -269,7 +305,7 @@ risk where a fix would be a decision of its own:
 - The API chain's filters ran a second time, as no-ops, outside the chain; they run in the chain only.
 - Temporary directories left by the rule catalogue fetch are removed like every other.
 
-### Performance {#performance-unreleased}
+### Performance {#performance-100-rc1}
 
 - The interface's first download falls from 932 kB to 612 kB: the shell and the Lara and Nora themes load
   when needed, and the build now fails if an eager import pulls a screen back in.
