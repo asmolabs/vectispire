@@ -76,14 +76,16 @@ l'**édition 2021** compte (`A03:2021 - Injection`) — l'édition que garde la 
 Les éditions partagent leurs lettres et pas leur sens (`A01:2017` est l'injection, `A01:2021` le
 contrôle d'accès défaillant) : une autre édition n'est jamais convertie.
 
-Une règle étiquetée **seulement** avec une autre édition — `A01:2025` seule, ou `A1:2017` seule —
-s'exécute toujours et ses constats arrivent dans le backlog, mais la grille n'en place aucun. L'écran des
+Une règle qui ne déclare aucune catégorie de l'édition 2021 est rangée par la CWE qu'elle déclare dans
+`metadata.cwe`, selon les listes OWASP 2021 ([Analyse de risque](../guide/risk-analysis.md#surface-dattaque-et-owasp)).
+Une règle étiquetée **seulement** avec une autre édition — `A01:2025` seule, ou `A1:2017` seule — et sans
+une telle CWE s'exécute toujours et ses constats arrivent dans le backlog, mais la grille n'en place aucun. L'écran des
 jeux de règles le dit : *N fichiers de règles ne déclarent qu'une édition de l'OWASP Top 10 autre que
 2021*, avec le compte par édition. Ajoutez la catégorie 2021 à côté de l'autre dans le `metadata.owasp`
 de la règle.
 
 Pour un script, `GET /api/v1/rule-sets/coverage` porte le même compte sous `owasp` : `ruleFiles` lus,
-`tagged` (qui déclarent une catégorie 2021), et `untagged`, une entrée par raison — `ONLY_2025_EDITION`,
+`tagged` (qui déclarent une catégorie 2021), `byCwe` (rangés par leur CWE à la place), et `untagged`, une entrée par raison — `ONLY_2025_EDITION`,
 `ONLY_2017_EDITION`, `NOT_DECLARED` — avec ses `ruleFiles`. Les raisons sont ouvertes : un client qui en
 rencontre une qu'il ne connaît pas affiche son nom.
 

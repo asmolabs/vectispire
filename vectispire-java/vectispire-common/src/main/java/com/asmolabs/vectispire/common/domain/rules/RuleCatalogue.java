@@ -251,8 +251,10 @@ public final class RuleCatalogue {
             if (language != null) {
                 byLanguage.merge(language, 1, Integer::sum);
             }
-            // A rule may declare several; each counts for what it covers.
-            for (String category : OwaspTag.declaredIn(entry.content())) {
+            // A rule may declare several; each counts for what it covers. Placed as a finding of it would
+            // be — by its 2021 category, or by its CWE when it declares none — so the preview counts the
+            // categories the grid will.
+            for (String category : OwaspTag.placedIn(entry.content())) {
                 byCategory.merge(category, 1, Integer::sum);
             }
         }
