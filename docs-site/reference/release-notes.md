@@ -302,6 +302,13 @@ risk where a fix would be a decision of its own:
 - Translations, the OWASP weekly heatmap and the repositories, agents, issues, solutions, project
   checklist and checklist templates pages compute once what they used to recompute on every change.
 - API discovery reconciles endpoints with ingress paths by prefix lookup rather than comparing every pair.
+- The licence inventory and the licence conflicts asked for no target — the administrator's licence
+  screen — are served from memory: each target's entries are kept beside the licence tallies and read
+  again only when that target's scans, components or build SBOMs move, or when the target is deleted;
+  the policy and the targets' names are applied at each call. About 250 ms a call falls to about
+  40 ms on two hundred targets of two scans and 250 components. The answers do not change, order
+  included. The control plane holds up to about 50 MB more per thousand such targets once their
+  inventory has been asked for, less where targets share components.
 
 ## 0.11.2 — 2026-10-27
 

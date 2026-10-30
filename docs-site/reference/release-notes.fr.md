@@ -338,6 +338,14 @@ risque résiduel là où une correction serait une décision à part entière :
   qu'elles recalculaient à chaque changement.
 - La découverte d'API rapproche les points d'accès des chemins d'ingress par recherche de préfixe plutôt
   qu'en comparant chaque paire.
+- L'inventaire des licences et les conflits de licences demandés sans cible — l'écran des licences de
+  l'administrateur — sont servis depuis la mémoire : les entrées de chaque cible sont gardées à côté des
+  décomptes de licences et relues seulement quand les scans, les composants ou les SBOM de build de
+  cette cible bougent, ou quand la cible est supprimée ; la politique et les noms des cibles sont
+  appliqués à chaque appel. Environ 250 ms par appel tombent à environ 40 ms sur deux cents cibles de
+  deux scans et 250 composants. Les réponses ne changent pas, ordre compris. Le plan de contrôle tient
+  jusqu'à environ 50 Mo de plus par millier de telles cibles une fois leur inventaire demandé, moins quand
+  les cibles partagent leurs composants.
 
 ## 0.11.2 — 27 octobre 2026
 
