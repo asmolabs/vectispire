@@ -189,6 +189,8 @@ export class ForgeConnections {
     }
 
     create(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         const cloud = this.cloud();
         if (!cloud && caPemProblem(this.form.caPem)) return;
         const request: Schema<'ForgeConnectionRequest'> = {

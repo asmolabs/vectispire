@@ -209,7 +209,7 @@
     [style]="{ width: '34rem' }"
     [header]="'gate_policies.header_policy_for' | translate: { scope: scopeLabel() }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="save()">
         @if (error()) {
             <p-message severity="error" styleClass="w-full">{{ error() }}</p-message>
         }
@@ -222,6 +222,7 @@
                     [options]="candidates()"
                     optionLabel="label"
                     optionValue="value"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="chosenTarget"
                     [placeholder]="'gate_policies.choose_target' | translate"
                     styleClass="w-full"
@@ -236,6 +237,7 @@
                 [options]="severities()"
                 optionLabel="label"
                 optionValue="value"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.failOnSeverity"
                 styleClass="w-full"
             />
@@ -245,7 +247,11 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <p-toggleswitch inputId="policy-kev" [(ngModel)]="draft.failOnKev" />
+            <p-toggleswitch
+                inputId="policy-kev"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.failOnKev"
+            />
             <label for="policy-kev" class="m-0">
                 {{ 'gate_policies.fail_kev' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
@@ -255,7 +261,11 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <p-toggleswitch inputId="policy-fixable" [(ngModel)]="draft.fixableOnly" />
+            <p-toggleswitch
+                inputId="policy-fixable"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.fixableOnly"
+            />
             <label for="policy-fixable" class="m-0">
                 {{ 'gate_policies.fixable_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
@@ -265,7 +275,11 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <p-toggleswitch inputId="policy-triaged" [(ngModel)]="draft.includeTriaged" />
+            <p-toggleswitch
+                inputId="policy-triaged"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.includeTriaged"
+            />
             <label for="policy-triaged" class="m-0">
                 {{ 'gate_policies.triaged_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
@@ -275,7 +289,11 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <p-toggleswitch inputId="policy-ai" [(ngModel)]="draft.includeAiReview" />
+            <p-toggleswitch
+                inputId="policy-ai"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.includeAiReview"
+            />
             <label for="policy-ai" class="m-0">
                 {{ 'gate_policies.ai_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
@@ -285,7 +303,11 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <p-toggleswitch inputId="policy-plugins" [(ngModel)]="draft.includePlugins" />
+            <p-toggleswitch
+                inputId="policy-plugins"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.includePlugins"
+            />
             <label for="policy-plugins" class="m-0">
                 {{ 'gate_policies.plugins_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
@@ -295,7 +317,11 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <p-toggleswitch inputId="policy-coverage" [(ngModel)]="draft.failOnUncoveredLanguages" />
+            <p-toggleswitch
+                inputId="policy-coverage"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.failOnUncoveredLanguages"
+            />
             <label for="policy-coverage" class="m-0">
                 {{ 'gate_policies.coverage_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
@@ -306,9 +332,16 @@
 
         <div class="flex flex-col gap-2">
             <label for="policy-note">{{ 'gate_policies.note_label' | translate }}</label>
-            <input pInputText id="policy-note" name="policy-note" [(ngModel)]="draft.note" class="w-full" />
+            <input
+                pInputText
+                id="policy-note"
+                name="policy-note"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.note"
+                class="w-full"
+            />
         </div>
-    </div>
+    </form>
 
     <ng-template #footer>
         <p-button

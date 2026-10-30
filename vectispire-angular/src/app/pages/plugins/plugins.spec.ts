@@ -53,6 +53,28 @@ describe('the plugin registry', () => {
 
     const dom = () => fixture.nativeElement as HTMLElement;
 
+    it('is a form requiring the id, the name and the image, which a submit cannot get past', async () => {
+        await start('SUPERUSER');
+        fixture.componentInstance.openRegister();
+        fixture.detectChanges();
+        for (const id of ['plugin-id', 'plugin-name', 'plugin-image']) {
+            expect(document.querySelector<HTMLInputElement>(`#${id}`)!.required, id).toBe(true);
+        }
+        Object.assign(fixture.componentInstance.draft, {
+            id: 'acme-lint',
+            name: 'ACME',
+            image: 'ghcr.io/acme/lint@sha256:' + 'a'.repeat(64)
+        });
+        const form = document.querySelector('form')!;
+        // No language yet: the save button is disabled, and so is the submit.
+        form.dispatchEvent(new Event('submit'));
+        http.expectNone({ method: 'POST', url: '/api/v1/plugins' });
+        fixture.componentInstance.draft.languages = ['java'];
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match({ method: 'POST', url: '/api/v1/plugins' }).length).toBe(1);
+    });
+
     it('lists the registry to an ordinary account and offers it no change', async () => {
         await start('USER');
 
