@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.checklists;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule;
 import com.asmolabs.vectispire.common.domain.checklists.Measurement;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts;
@@ -291,9 +292,9 @@ class ChecklistMeasurer {
     private Map<Long, Boolean> scheduled(List<Long> repositories, Duration maxAge, Instant now) {
         Map<Long, Boolean> scheduled = new HashMap<>();
         Duration defaultInterval = schedules.defaultInterval();
-        for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
+        for (List<Long> batch : Batches.of(repositories, LOOKUP_BATCH)) {
             for (RepositoryView repository : targets.repositories(
-                    repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())))) {
+                    batch)) {
                 scheduled.put(repository.id(),
                         Schedules.runsAtLeastEvery(TargetSchedules.of(repository), defaultInterval, maxAge, now));
             }

@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.threatintel.internal;
 
-import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.threatintel.EpssFile;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus.EpssFeedStatus;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus.State;
@@ -313,7 +313,7 @@ public class EpssFeed {
                 .stream()
                 .toList();
         Map<String, KnownEpssScore> found = new HashMap<>();
-        for (List<String> batch : Catalogs.batches(wanted, LOOKUP_BATCH)) {
+        for (List<String> batch : Batches.of(wanted, LOOKUP_BATCH)) {
             scores.scoresOf(generation, batch).forEach(score -> found.put(score.cveId(), score));
         }
         return found;

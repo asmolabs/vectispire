@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.targets;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
@@ -138,8 +139,8 @@ public class TargetNaming {
 
         Map<Long, String> byContainer = new HashMap<>();
         List<Long> images = containerIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
-        for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
-            containers.findAllById(images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())))
+        for (List<Long> batch : Batches.of(images, LOOKUP_BATCH)) {
+            containers.findAllById(batch)
                     .forEach(row -> byContainer.put(row.getId(), of(row)));
         }
 
@@ -161,8 +162,8 @@ public class TargetNaming {
         }
         List<Long> distinct = List.copyOf(Set.copyOf(repositoryIds));
         Map<Long, String> named = new HashMap<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            repositories.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            repositories.findAllById(batch)
                     .forEach(row -> named.put(row.getId(), of(row)));
         }
         return named;

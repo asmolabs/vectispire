@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.targets;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -9,7 +10,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,8 +74,8 @@ public class TargetCatalog {
     public List<RepositoryView> repositories(Collection<Long> ids) {
         List<Long> distinct = ids.stream().filter(java.util.Objects::nonNull).distinct().toList();
         List<RepositoryView> found = new java.util.ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            repositories.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            repositories.findAllById(batch)
                     .forEach(row -> found.add(RepositoryView.of(row)));
         }
         return List.copyOf(found);
@@ -103,8 +103,8 @@ public class TargetCatalog {
         }
         List<Long> distinct = List.copyOf(Set.copyOf(ids));
         Set<Long> carrying = new java.util.HashSet<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            repositories.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))).stream()
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            repositories.findAllById(batch).stream()
                     .filter(repository -> repository.getSshKeyId() != null || repository.getHttpsTokenId() != null)
                     .map(RepositoryEntity::getId)
                     .forEach(carrying::add);
@@ -120,8 +120,8 @@ public class TargetCatalog {
     public List<ContainerView> containers(Collection<Long> ids) {
         List<Long> distinct = ids.stream().filter(java.util.Objects::nonNull).distinct().toList();
         List<ContainerView> found = new java.util.ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            containers.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            containers.findAllById(batch)
                     .forEach(row -> found.add(ContainerView.of(row)));
         }
         return List.copyOf(found);

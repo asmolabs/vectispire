@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
@@ -298,8 +299,8 @@ public class LicenseGovernanceService {
         // and one bind parameter each is refused by the PostgreSQL driver past 65,535.
         List<Long> scanIds = List.copyOf(scans.keySet());
         List<ComponentName> components = new ArrayList<>();
-        for (int from = 0; from < scanIds.size(); from += SCAN_BATCH) {
-            components.addAll(componentsRepo.namesOfScans(scanIds.subList(from, Math.min(from + SCAN_BATCH, scanIds.size()))));
+        for (List<Long> batch : Batches.of(scanIds, SCAN_BATCH)) {
+            components.addAll(componentsRepo.namesOfScans(batch));
         }
         for (ComponentName comp : components) {
             ScanCatalog.ScanSbom scan = comp.scanId() != null ? scans.get(comp.scanId()) : null;
@@ -552,8 +553,8 @@ public class LicenseGovernanceService {
         // the retention purge bounds, are asked.
         Map<Owner, Long> indexed = new HashMap<>();
         List<Long> ids = List.copyOf(sbomScans.keySet());
-        for (int from = 0; from < ids.size(); from += SCAN_BATCH) {
-            componentsRepo.indexedAmong(ids.subList(from, Math.min(from + SCAN_BATCH, ids.size())))
+        for (List<Long> batch : Batches.of(ids, SCAN_BATCH)) {
+            componentsRepo.indexedAmong(batch)
                     .forEach(id -> indexed.merge(sbomScans.get(id), 1L, Long::sum));
         }
         // Only repositories are completed by a build, and only their completed rows are counted.

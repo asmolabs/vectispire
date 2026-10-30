@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
@@ -36,8 +37,8 @@ public class PurgedIssues {
      */
     public int inBatches(TargetPurge purge, java.util.function.Consumer<List<Long>> action) {
         List<Long> ids = idsOf(purge);
-        for (int from = 0; from < ids.size(); from += PURGE_BATCH) {
-            action.accept(ids.subList(from, Math.min(from + PURGE_BATCH, ids.size())));
+        for (List<Long> batch : Batches.of(ids, PURGE_BATCH)) {
+            action.accept(batch);
         }
         return ids.size();
     }

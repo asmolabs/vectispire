@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
@@ -186,8 +187,8 @@ public class ApiKeyAdministrationService {
         }
         List<UUID> distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
         Map<UUID, String> names = new HashMap<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            keys.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+        for (List<UUID> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            keys.findAllById(batch)
                     .forEach(key -> names.put(key.getId(), key.getName()));
         }
         return Map.copyOf(names);

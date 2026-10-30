@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.threatintel;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -537,7 +537,7 @@ public class ThreatIntelFeedService {
         }
 
         Map<String, ThreatIntelEntity> listed = new HashMap<>();
-        for (List<String> batch : Catalogs.batches(List.copyOf(wanted), LOOKUP_BATCH)) {
+        for (List<String> batch : Batches.of(List.copyOf(wanted), LOOKUP_BATCH)) {
             for (ThreatIntelEntity e : intelRepo.findByCveIdInIgnoreCase(batch)) {
                 listed.put(e.getCveId().toLowerCase(Locale.ROOT), e);
             }
