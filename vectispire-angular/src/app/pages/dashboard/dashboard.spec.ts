@@ -489,7 +489,11 @@ describe('the failing targets table', () => {
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Severity');
-        expect(text).toContain('known exploited');
+        // The line is written from the rule and its severity, in the reader's language; the server's
+        // sentence — which names the threshold — stays one hover away.
+        const reason = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="violation-reason"]');
+        expect(reason?.textContent).toContain("Critical, at or above the policy's threshold.");
+        expect(reason?.getAttribute('title')).toBe('known exploited');
     });
 });
 

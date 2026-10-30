@@ -4093,5 +4093,41 @@
       "audit_link": "Open the audit log",
       "continue": "Choose more repositories"
     }
+  },
+  "gate_reason": {
+    "kev": "Actively exploited vulnerability (CISA KEV catalog).",
+    "severity": "Severity {{severity}}, at or above the policy's threshold.",
+    "coverage": "No installed rule covers this target's ecosystems — its code was not examined.",
+    "observation": "No scan of this target ran to its end — its backlog is not an observation of the code as it is.",
+    "never_scanned": "No scan of this target has completed — it was never examined, and an empty backlog is not a clean one.",
+    "last_scan_failed": "The last scan of this target failed — its backlog is not an observation of the code as it is.",
+    "in_progress": "No scan of this target has finished yet."
+  },
+  "problem": {
+    "invalid_request": "{{detail}}",
+    "authentication_required": "{{detail}}",
+    "forbidden": "{{detail}}",
+    "credential_not_accepted": "{{detail}}",
+    "password_change_required": "{{detail}}",
+    "import_refused": "{{detail}}",
+    "not_found": "{{detail}}",
+    "no_such_route": "{{detail}}",
+    "method_not_allowed": "{{detail}}",
+    "not_acceptable": "{{detail}}",
+    "unsupported_media_type": "{{detail}}",
+    "conflict": "{{detail}}",
+    "already_queued": "{{detail}}",
+    "not_attestable": "{{detail}}",
+    "solution_not_empty": "{{detail}}",
+    "plugin_conflict": "{{detail}}",
+    "precondition_failed": "{{detail}}",
+    "encryption_key_missing": "{{detail}}",
+    "credential_withheld": "{{detail}}",
+    "content_too_large": "{{detail}}",
+    "unsafe_url": "{{detail}}",
+    "unprocessable": "{{detail}}",
+    "rate_limited": "{{detail}}",
+    "unexpected_failure": "{{detail}}",
+    "unavailable": "{{detail}}"
   }
 }
