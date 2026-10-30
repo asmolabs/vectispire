@@ -1,0 +1,27 @@
+<p-dialog
+    [header]="'agents.reset_sealing_title' | translate"
+    [(visible)]="page.resetSealingVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    @if (page.pendingResetSealing(); as agent) {
+        <p class="m-0">
+            <span class="font-medium">{{ agent.name }}</span> {{ 'agents.reset_sealing_consequence' | translate }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button
+            [label]="'common.cancel' | translate"
+            [text]="true"
+            data-testid="reset-sealing-cancel"
+            (onClick)="page.resetSealingVisible.set(false)"
+        />
+        <p-button
+            [label]="'agents.reset_sealing_confirm' | translate"
+            severity="warn"
+            data-testid="reset-sealing-confirm"
+            [loading]="page.busy() !== null"
+            (onClick)="confirmResetSealing()"
+        />
+    </ng-template>
+</p-dialog>

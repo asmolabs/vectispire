@@ -1,14 +1,27 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Agents } from './agents';
+import { AgentsPage } from './agents-page';
+import { ConcurrencyDialog } from './concurrency-dialog';
+import { DeclareAgentDialog } from './declare-agent-dialog';
+import { ResetSealingDialog } from './reset-sealing-dialog';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { SessionStore } from '@/app/core/session.store';
 import type { UnservedCredentialedScans } from '@/app/core/api.models';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
+
+/** A part of the screen, as the shell mounted it. */
+function partOf<T>(fixture: ComponentFixture<Agents>, type: Type<T>): T {
+    return fixture.debugElement.query(By.directive(type)).componentInstance as T;
+}
+
+const pageOf = (fixture: ComponentFixture<Agents>): AgentsPage => fixture.debugElement.injector.get(AgentsPage);
 
 /**
  * How many scans an agent runs at once, as the agents screen shows and changes it.
@@ -18,7 +31,7 @@ import { sessionUser } from '@/app/core/testing/session.fixtures';
  */
 describe('the agents screen, on concurrent scans', () => {
     let fixture: ComponentFixture<Agents>;
-    let component: Agents;
+    let page: AgentsPage;
     let http: HttpTestingController;
 
     const AGENT = asSchema('AgentSummary', {
@@ -49,7 +62,7 @@ describe('the agents screen, on concurrent scans', () => {
 
         useEnglish();
         fixture = TestBed.createComponent(Agents);
-        component = fixture.componentInstance;
+        page = pageOf(fixture);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         load();
@@ -99,7 +112,7 @@ describe('the agents screen, on concurrent scans', () => {
             positionInQueue: 1,
             waitDurationSeconds: 12
         });
-        component.activity.set(
+        page.activity.set(
             asSchema('AgentActivitySummary', {
                 runningScans: [running, { ...running, scanId: 9 }],
                 pendingScans: [pending, { ...pending, scanId: 10 }, { ...pending, scanId: 11 }],
@@ -137,11 +150,11 @@ describe('the agents screen, on concurrent scans', () => {
     });
 
     it('sends the new limit, and only that, to the agent it was opened for', () => {
-        component.openConcurrency(AGENT);
-        expect(component.concurrencyValue).toBe(4);
+        page.openConcurrency(AGENT);
+        expect(page.concurrencyValue()).toBe(4);
 
-        component.concurrencyValue = 8;
-        component.saveConcurrency();
+        page.concurrencyValue.set(8);
+        partOf(fixture, ConcurrencyDialog).saveConcurrency();
 
         const patch = http.expectOne(`/api/v1/admin/agents/${AGENT.id}`);
         expect(patch.request.method).toBe('PATCH');
@@ -150,36 +163,36 @@ describe('the agents screen, on concurrent scans', () => {
     });
 
     it('refuses a limit outside 1..16 without asking the server', () => {
-        component.openConcurrency(AGENT);
+        page.openConcurrency(AGENT);
 
-        for (const outside of [0, 17, 2.5]) {
-            component.concurrencyValue = outside;
-            component.saveConcurrency();
-            expect(component.concurrencyError()).toContain('between 1 and 16');
+        for (const outside of [0, 17, 2.5, null]) {
+            page.concurrencyValue.set(outside);
+            partOf(fixture, ConcurrencyDialog).saveConcurrency();
+            expect(page.concurrencyError()).toContain('between 1 and 16');
         }
         http.expectNone(`/api/v1/admin/agents/${AGENT.id}`);
     });
 
     it("shows the server's refusal when there is one", () => {
-        component.openConcurrency(AGENT);
-        component.concurrencyValue = 16;
-        component.saveConcurrency();
+        page.openConcurrency(AGENT);
+        page.concurrencyValue.set(16);
+        partOf(fixture, ConcurrencyDialog).saveConcurrency();
 
         http.expectOne(`/api/v1/admin/agents/${AGENT.id}`).flush(
             { detail: 'max_concurrent must be between 1 and 16, not 16.' },
             { status: 400, statusText: 'Bad Request' }
         );
-        expect(component.concurrencyError()).toContain('max_concurrent must be between 1 and 16');
-        expect(component.concurrencyVisible()).toBe(true);
+        expect(page.concurrencyError()).toContain('max_concurrent must be between 1 and 16');
+        expect(page.concurrencyVisible()).toBe(true);
     });
 
     it('refuses to declare an agent with a limit outside the bound', () => {
-        component.openForm();
-        component.form.name = 'edge';
-        component.form.maxConcurrent = 0;
-        component.save();
+        page.openForm();
+        page.formName.set('edge');
+        page.formMaxConcurrent.set(0);
+        partOf(fixture, DeclareAgentDialog).save();
 
-        expect(component.formError()).toContain('between 1 and 16');
+        expect(page.formError()).toContain('between 1 and 16');
         http.expectNone((request) => request.method === 'POST');
     });
 });
@@ -298,13 +311,13 @@ describe('the agents screen, on forgetting a sealing key', () => {
         dialogButton('reset-sealing-cancel').click();
         fixture.detectChanges();
         http.expectNone((r) => r.method === 'DELETE');
-        expect(fixture.componentInstance.resetSealingVisible()).toBe(false);
+        expect(pageOf(fixture).resetSealingVisible()).toBe(false);
     });
 
     it('says the agent is gone when the server no longer knows it', async () => {
         await open('ADMIN', SEALING);
-        fixture.componentInstance.askResetSealing(SEALING);
-        fixture.componentInstance.confirmResetSealing();
+        pageOf(fixture).askResetSealing(SEALING);
+        partOf(fixture, ResetSealingDialog).confirmResetSealing();
         http.expectOne(`/api/v1/admin/agents/${SEALING.id}/sealing-key`).flush(
             { detail: 'Agent not found' },
             { status: 404, statusText: 'Not Found' }
@@ -389,7 +402,7 @@ describe('the agents screen, on credentialed scans nobody can take', () => {
 
     it('reads it again on a refresh, from the route the gauge is computed by', async () => {
         await open(NONE);
-        fixture.componentInstance.reload();
+        pageOf(fixture).reload();
         const request = http.expectOne('/api/v1/admin/agents/credentialed-backlog');
         expect(request.request.method).toBe('GET');
         request.flush(asSchema('UnservedCredentialedScans', { scans: 2, labels: ['dmz'], keptAgents: ['edge-01'] }));
@@ -460,7 +473,7 @@ describe('the agents screen when a read fails', () => {
             'Activity view is being rebuilt.'
         );
 
-        fixture.componentInstance.refreshActivity();
+        pageOf(fixture).refreshActivity();
         http.expectOne('/api/v1/admin/agents/activity').flush(IDLE);
 
         expect(page().querySelector('[data-testid="activity-error"]')).toBeNull();

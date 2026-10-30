@@ -1,0 +1,100 @@
+@if (page.activity()?.stats; as stats) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_online' | translate }}
+                </div>
+                <div class="text-2xl font-bold text-surface-900 dark:text-surface-0 mt-1">
+                    {{ stats.onlineAgents }} / {{ stats.totalAgents }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    <span class="text-green-600 dark:text-green-400 font-medium"
+                        >{{ stats.idleAgents }} {{ 'agents.status_idle' | translate | lowercase }}</span
+                    >
+                    ·
+                    <span class="text-blue-600 dark:text-blue-400 font-medium"
+                        >{{ stats.busyAgents }} {{ 'agents.status_busy' | translate | lowercase }}</span
+                    >
+                </div>
+            </div>
+            <div
+                class="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-600 dark:text-green-400 text-xl"
+            >
+                <i class="pi pi-server"></i>
+            </div>
+        </div>
+
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_running' | translate }}
+                </div>
+                <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                    {{ stats.runningScansCount }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    {{ 'agents.running_subtitle' | translate }}
+                </div>
+            </div>
+            <div
+                class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl"
+            >
+                <i
+                    class="pi pi-spin pi-spinner"
+                    [class.pi-spinner]="stats.runningScansCount > 0"
+                    [class.pi-bolt]="stats.runningScansCount === 0"
+                ></i>
+            </div>
+        </div>
+
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_pending' | translate }}
+                </div>
+                <div class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                    {{ stats.pendingScansCount }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    {{ 'agents.pending_subtitle' | translate }}
+                </div>
+            </div>
+            <div
+                class="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl"
+            >
+                <i class="pi pi-clock"></i>
+            </div>
+        </div>
+
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
+            <div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_completed_24h' | translate }}
+                </div>
+                <div class="text-2xl font-bold text-surface-900 dark:text-surface-0 mt-1">
+                    {{ stats.scansCompleted24h }}
+                </div>
+                <div class="text-xs text-muted-color mt-1">
+                    {{ 'agents.kpi_avg_duration' | translate }} :
+                    <span class="font-medium text-surface-700 dark:text-surface-300">{{
+                        stats.avgScanDurationSeconds | duration
+                    }}</span>
+                </div>
+            </div>
+            <div
+                class="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 dark:text-purple-400 text-xl"
+            >
+                <i class="pi pi-check-circle"></i>
+            </div>
+        </div>
+    </div>
+}
