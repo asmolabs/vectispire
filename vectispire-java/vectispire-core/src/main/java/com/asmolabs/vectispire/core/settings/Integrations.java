@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.settings;
 import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
 import com.asmolabs.vectispire.common.domain.integrations.IntegrationInUseException;
-import com.asmolabs.vectispire.common.domain.integrations.IntegrationNotSwitchableException;
 import com.asmolabs.vectispire.core.settings.persistence.IntegrationEntity;
 import com.asmolabs.vectispire.core.settings.persistence.IntegrationRepository;
 import java.time.Clock;
@@ -33,7 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
  * integration has any more is ignored, as {@code t_setting} ignores a retired setting.
  *
  * <p><b>What is in use is not switched off</b> (0040 §3). The registry asks every {@link InUse} the
- * modules above it contribute — the SIEM export for its transport — and refuses with {@link
+ * modules above it contribute — the SIEM export for its transport, the notifications for each channel with a
+ * destination — and refuses with {@link
  * IntegrationInUseException}; the question is asked here, in the switch's own transaction, rather than by
  * the governor's route before it, so that no caller of {@link #switchTo} can go round it and no
  * configuration can start using the integration between the answer and the switch (see {@link
@@ -133,19 +133,10 @@ public class Integrations {
      * enablings of such a key at once would both insert and the second fail on the key; that is a gesture
      * made at human speed, once per adapter's lifetime, and the error is the honest answer.
      *
-     * <p><b>A family whose adapters do not ask the registry is never switched off</b> ({@link
-     * com.asmolabs.vectispire.common.domain.integrations.IntegrationFamily#suspendable}): refused before the
-     * row is touched, an absent row included, so nothing is written and the caller audits nothing. Refused
-     * here rather than at the route, for the reason {@link InUse} is asked here: no caller goes round it.
-     *
      * @throws IntegrationInUseException when switching off what a configuration uses
-     * @throws IntegrationNotSwitchableException when switching off an integration this version cannot suspend
      */
     @Transactional
     public Switched switchTo(Integration integration, boolean enabled, String by) {
-        if (!enabled && !integration.family().suspendable()) {
-            throw new IntegrationNotSwitchableException(integration);
-        }
         Instant now = clock.instant();
         boolean changed;
         Optional<IntegrationEntity> locked = rows.lockForSwitch(integration.key());

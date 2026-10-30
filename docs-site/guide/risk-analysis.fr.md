@@ -189,6 +189,10 @@ le retire, avec son rapport.
   scan reste terminé. Le journal d'audit enregistre chacun comme `AI_REVIEW_REQUESTED`, sans utilisateur
   — personne ne l'a demandé. Une demande en attente sur une instance qui s'arrête est perdue ; le scan
   suivant la redemande.
+- **Pas tant que son fournisseur est désactivé.** Le gouverneur de la plateforme peut désactiver le
+  fournisseur configuré (`ai.ollama`, `ai.openai`, [Réglages](../administration/settings.md#revue-par-ia)) :
+  **Lancer l'analyse IA** répond alors *AI unavailable — provider disabled* et n'enregistre rien, aucun rapport
+  n'est demandé après un scan, et l'autre fournisseur n'est jamais interrogé à sa place.
 
 Chacun lit le rapport avec sa propre visibilité : la route refuse un dépôt que vous ne voyez pas, et les
 comptes et liens à côté du rapport sont comptés comme votre backlog les compte.

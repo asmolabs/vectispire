@@ -91,3 +91,25 @@ send is simply recomputed on the next tick.
 
 **Notifications**, per destination: the URL or recipients, the secret where applicable,
 and the events subscribed to.
+
+## Each channel is an integration {#channel-integrations}
+
+The five channels are integrations the platform governor switches on and off — `notification.webhook`
+(the generic webhook, a team's own included), `notification.teams`, `notification.slack`,
+`notification.discord` and `notification.mail`, all enabled to begin with — on
+[*Administration → Integrations*](../administration/integrations.md), or through the API,
+`PUT /api/v1/integrations/{key}/enabled` with `{"enabled": false}` ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+
+**A channel with somewhere to send cannot be disabled.** Its URL set (for Teams, with its switch on),
+its e-mail recipients set or the weekly checklist reminders on (mail), a team with a webhook of its own
+(the generic webhook): the governor's switch is refused with 409 `integration-in-use`, and the refusal
+lists what uses the channel. The alerts meant for it would otherwise be queued nowhere — lost in
+silence, a quiet channel read as a quiet estate. Empty the channel first, then disable it.
+
+**A disabled channel is unreachable.** It is absent from the Notification Center's list of channels; its
+test is refused with 409 `integration-disabled`; giving it somewhere to send — its URL, recipients,
+Teams' switch, the reminders, a team's webhook — is refused with 409 `integration-disabled`, and nothing
+of that save is written. Emptying it is always saved. Nothing is queued for it, the weekly posture report
+skips it, and the checklist reminders wait. Should a channel be off with a destination all the same (a
+row changed by hand), what was queued for it is not sent and not lost: it waits in the outbox, pending,
+the reason as its last error and no attempt counted, and leaves once the channel is enabled again.

@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.outbox;
 
 /**
- * A destination that exists and that this installation may not reach for now — a SIEM transport the
- * platform governor has switched off (decision 0040).
+ * A destination that exists and that this installation may not reach for now — a SIEM transport or a
+ * notification channel the platform governor has switched off (decision 0040).
  *
  * <p><b>Neither a failure nor a gone destination.</b> A failure counts an attempt, and eight of them
  * abandon the message; a gone destination abandons it at once. Both would lose a security event because

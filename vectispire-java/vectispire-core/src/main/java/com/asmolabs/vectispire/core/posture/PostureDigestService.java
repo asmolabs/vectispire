@@ -145,8 +145,11 @@ public class PostureDigestService {
             return false;
         }
 
-        boolean toWebhook = !webhook.webhookUrl().isEmpty();
-        boolean toMail = mail.isConfigured();
+        // A channel the platform governor switched off is not a destination (decision 0040, lot I6). It cannot be
+        // switched off while it is configured; this reads the registry for a row written by hand.
+        boolean toWebhook = !webhook.webhookUrl().isEmpty() && webhook.isSwitchedOn();
+        boolean toMail = mail.isConfigured() && mail.isSwitchedOn();
+
         if (!toWebhook && !toMail) {
             // Nowhere to send is not a failure to retry hourly for a week. It is a deployment that
             // switched the report on and configured no destination, and the settings screen is

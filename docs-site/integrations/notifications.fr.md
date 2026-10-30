@@ -95,3 +95,27 @@ base de données, donc un envoi échoué est simplement recalculé au tour suiva
 
 **Notifications**, par destination : l'URL ou les destinataires, le secret le cas échéant, et
 les événements auxquels s'abonner.
+
+## Chaque canal est une intégration {#channel-integrations}
+
+Les cinq canaux sont des intégrations que le gouverneur de la plateforme active et désactive —
+`notification.webhook` (le webhook générique, celui propre à une équipe compris), `notification.teams`,
+`notification.slack`, `notification.discord` et `notification.mail`, tous activés au départ — dans
+[*Administration → Intégrations*](../administration/integrations.fr.md), ou par l'API,
+`PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": false}` ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+
+**Un canal qui a où envoyer ne peut pas être désactivé.** Son URL renseignée (pour Teams, avec son
+interrupteur activé), ses destinataires de courriel renseignés ou les rappels hebdomadaires des checklists
+activés (courriel), une équipe avec son propre webhook (le webhook générique) : la bascule du gouverneur
+est refusée avec un 409 `integration-in-use`, et le refus liste ce qui utilise le canal. Les alertes qui
+lui sont destinées ne seraient sinon mises en file nulle part — perdues en silence, un canal calme lu
+comme un parc calme. Videz d'abord le canal, puis désactivez-le.
+
+**Un canal désactivé est injoignable.** Il est absent de la liste des canaux du centre de notifications ;
+son test est refusé avec un 409 `integration-disabled` ; lui donner où envoyer — son URL, des
+destinataires, l'interrupteur de Teams, les rappels, le webhook d'une équipe — est refusé avec un 409
+`integration-disabled`, et rien de cet enregistrement n'est écrit. Le vider est toujours enregistré. Rien
+n'est mis en file pour lui, le rapport de posture hebdomadaire le saute et les rappels des checklists
+attendent. Si un canal est tout de même désactivé avec une destination (une ligne modifiée à la main), ce
+qui était en file pour lui n'est ni envoyé ni perdu : il attend dans la file d'envoi, en attente, la raison
+comme dernière erreur et sans tentative comptée, et part dès que le canal est réactivé.

@@ -1,8 +1,11 @@
 package com.asmolabs.vectispire.core.notifications;
 
+import com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.notifications.internal.ChannelGate;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -16,6 +19,10 @@ import org.springframework.stereotype.Service;
 
 /**
  * Service for testing connectivity and inspecting health of all configured notification channels.
+ *
+ * <p><b>A channel the platform governor switched off is not offered</b> (decision 0040, lot I6): absent from
+ * the list, and its test refused 409 {@code integration-disabled} before anything is built — the test button
+ * is a send like any other, and the one a person can press at will.
  */
 @Service
 public class NotificationTestService {
@@ -24,11 +31,14 @@ public class NotificationTestService {
 
     private final List<NotificationChannel> channels;
     private final SettingsService settings;
+    private final Integrations integrations;
     private final Clock clock;
 
-    public NotificationTestService(List<NotificationChannel> channels, SettingsService settings, Clock clock) {
+    public NotificationTestService(
+            List<NotificationChannel> channels, SettingsService settings, Integrations integrations, Clock clock) {
         this.channels = channels;
         this.settings = settings;
+        this.integrations = integrations;
         this.clock = clock;
     }
 
@@ -54,6 +64,9 @@ public class NotificationTestService {
                 "WEEKLY_POSTURE_REPORT");
 
         for (NotificationChannel channel : channels) {
+            if (!ChannelGate.isOn(integrations, channel)) {
+                continue;
+            }
             String name = switch (channel.type()) {
                 case "scan_delta" -> "Generic webhook / SIEM";
                 case "scan_delta_teams" -> "Microsoft Teams (Adaptive Cards)";
@@ -95,6 +108,8 @@ public class NotificationTestService {
         }
 
         NotificationChannel channel = match.get();
+        // Before "not configured": a disabled channel is not one to configure either, and the refusal says why.
+        NotificationChannelKind.byOutboxType(channel.type()).ifPresent(kind -> ChannelGate.requireEnabled(integrations, kind));
         if (!channel.isConfigured()) {
             return new NotificationTestResult(channel.type(), false, "Channel is not configured with a destination URL/recipient.", clock.instant());
         }

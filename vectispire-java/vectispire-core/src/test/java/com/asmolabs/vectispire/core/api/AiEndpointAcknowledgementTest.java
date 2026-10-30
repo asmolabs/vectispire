@@ -56,7 +56,11 @@ class AiEndpointAcknowledgementTest {
                         new com.asmolabs.vectispire.core.access.TriageApprovers(
                                 mock(com.asmolabs.vectispire.core.access.persistence.UserRepository.class)),
                         mock(TicketService.class), mock(NotificationService.class), mock(AuditLogService.class),
-                        mock(com.asmolabs.vectispire.core.settings.Integrations.class), java.time.Clock.systemUTC()),
+                        mock(com.asmolabs.vectispire.core.settings.Integrations.class),
+                        mock(com.asmolabs.vectispire.core.notifications.NotificationDestinations.class),
+                        new org.springframework.transaction.support.TransactionTemplate(
+                                org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class)),
+                        java.time.Clock.systemUTC()),
                 mock(TicketService.class), aiReview, mock(NotificationService.class));
 
         // Nothing configured yet: every setting reads as its stored-empty state.

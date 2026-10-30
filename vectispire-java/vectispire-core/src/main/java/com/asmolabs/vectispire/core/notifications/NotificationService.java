@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.notifications;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
@@ -14,10 +15,12 @@ import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.SealedStore;
 import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.notifications.internal.AlertChannel;
+import com.asmolabs.vectispire.core.notifications.internal.ChannelGate;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.util.List;
@@ -45,6 +48,7 @@ public class NotificationService implements NotificationChannel, AlertChannel, S
     private final OutboundPost post;
     private final TeamChannels teamWebhooks;
     private final EncryptionService encryption;
+    private final Integrations integrations;
     private final Clock clock;
 
     public NotificationService(
@@ -52,11 +56,13 @@ public class NotificationService implements NotificationChannel, AlertChannel, S
             OutboundPost post,
             TeamChannels teamWebhooks,
             EncryptionService encryption,
+            Integrations integrations,
             Clock clock) {
         this.settings = settings;
         this.post = post;
         this.teamWebhooks = teamWebhooks;
         this.encryption = encryption;
+        this.integrations = integrations;
         this.clock = clock;
     }
 
@@ -109,15 +115,11 @@ public class NotificationService implements NotificationChannel, AlertChannel, S
     }
 
     /**
-     * Enabled means "somebody is listening": the global URL, or at least one team's.
-     *
-     * <p>Both, because a deployment that gives every team its own channel and sets no global one
-     * is a reasonable configuration — and reading only the global URL would have made it a
-     * configuration where nothing is ever built or queued. That would be the same silence as a
-     * missing wire: the channels are configured, the screen says so, and no message exists.
+     * Whether the webhook channel may be sent to: its integration on (decision 0040, lot I6). What the routing of a
+     * scan's delta asks before it queues the global copy and the teams' — a team's own webhook is this channel.
      */
-    public boolean isEnabled() {
-        return !webhookUrl().isEmpty() || teamWebhooks.anyTeamHasOne();
+    public boolean isSwitchedOn() {
+        return ChannelGate.isOn(integrations, NotificationChannelKind.WEBHOOK);
     }
 
     public Severity minSeverity() {
@@ -133,6 +135,11 @@ public class NotificationService implements NotificationChannel, AlertChannel, S
      * <p>Separate from sending because the two happen at different moments: the message is built
      * and queued <b>inside the transaction that commits the scan's results</b>, and delivered
      * later by the relay.
+     *
+     * <p><b>Whether anybody listens is the router's question, not this one's</b> ({@code ScanDeltaNotifier},
+     * which knows every channel). This asked it, and answered with the webhook alone — the global URL or a
+     * team's: a deployment that announced to Teams, Slack, Discord or by mail and set no webhook built no
+     * delta, and its channels, configured and shown as such, were never sent one.
      */
     public Optional<NotificationPayload> buildScanDelta(
             String targetName,
@@ -140,10 +147,6 @@ public class NotificationService implements NotificationChannel, AlertChannel, S
             List<NotifiableIssue> newIssues,
             List<NotifiableIssue> reopenedIssues,
             int resolvedCount) {
-
-        if (!isEnabled()) {
-            return Optional.empty();
-        }
 
         NotificationSelection.Options options =
                 new NotificationSelection.Options(minSeverity(), settings.isEnabled(Setting.NOTIFY_ON_KEV));
@@ -190,6 +193,8 @@ public class NotificationService implements NotificationChannel, AlertChannel, S
 
     @Override
     public void deliver(NotificationPayload payload, Long teamId) {
+        // Before the destination is read: nothing of a disabled channel runs, a team's copy included.
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.WEBHOOK);
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;
@@ -227,6 +232,7 @@ public class NotificationService implements NotificationChannel, AlertChannel, S
      */
     @Override
     public void deliverAlert(TokenAlert alert, String messageId) {
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.WEBHOOK);
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;

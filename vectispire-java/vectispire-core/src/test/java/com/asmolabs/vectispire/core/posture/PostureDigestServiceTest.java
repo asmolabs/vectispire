@@ -73,6 +73,8 @@ class PostureDigestServiceTest {
         when(webhook.webhookUrl()).thenReturn("https://hooks.example.com/weekly");
         when(webhook.signingSecret()).thenReturn("");
         when(mail.isConfigured()).thenReturn(false);
+        when(webhook.isSwitchedOn()).thenReturn(true);
+        when(mail.isSwitchedOn()).thenReturn(true);
         when(auditLog.countSince(anyString(), any())).thenReturn(0L);
         when(gate.overview(any())).thenReturn(new SecurityOverview.Overview(List.of(), 0, 0, 0, 0, 0));
         when(issues.findAll(ArgumentMatchers.<Specification<IssueEntity>>any())).thenReturn(List.of());
@@ -80,6 +82,17 @@ class PostureDigestServiceTest {
         digest = new PostureDigestService(
                 settings, gate, sla, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), auditLog, audit, webhook, mail, post,
                 Clock.fixed(WEDNESDAY, ZoneOffset.UTC));
+    }
+
+    @Test
+    @DisplayName("a webhook whose integration is disabled is not posted to, and with no other destination nothing is recorded")
+    void aDisabledWebhookIsNotADestination() {
+        when(webhook.isSwitchedOn()).thenReturn(false);
+
+        assertThat(digest.runOnce()).isFalse();
+
+        verify(post, org.mockito.Mockito.never()).postSignedJson(anyString(), any(), any(), anyString(), anyString(), any());
+        verify(audit, org.mockito.Mockito.never()).record(any());
     }
 
     @Test

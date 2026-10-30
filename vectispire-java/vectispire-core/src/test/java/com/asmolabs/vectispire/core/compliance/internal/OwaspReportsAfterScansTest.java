@@ -48,6 +48,7 @@ class OwaspReportsAfterScansTest {
     void wire() {
         when(settings.isEnabled(Setting.AI_REVIEW_ENABLED)).thenReturn(true);
         when(settings.isEnabled(Setting.AI_REVIEW_OWASP_AFTER_SCAN)).thenReturn(true);
+        when(reviews.providerEnabled()).thenReturn(true);
         when(targets.repository(anyLong())).thenAnswer(call -> Optional.of(repository(call.getArgument(0))));
         when(reviews.runAfterScan(any(), anyLong())).thenAnswer(call -> written());
         writer = new OwaspReportsAfterScans(reviews, targets, settings, audit, Duration.ofMillis(50));
@@ -64,6 +65,16 @@ class OwaspReportsAfterScansTest {
         when(settings.isEnabled(Setting.AI_REVIEW_ENABLED)).thenReturn(false);
 
         assertThat(writer.offer(1, 10)).isEqualTo(OwaspReportsAfterScans.Offer.SWITCHED_OFF);
+
+        verify(reviews, after(200).never()).runAfterScan(any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("holds nothing while the provider's integration is disabled, both switches on (decision 0040, lot I5)")
+    void aDisabledProviderHoldsNothing() {
+        when(reviews.providerEnabled()).thenReturn(false);
+
+        assertThat(writer.offer(1, 10)).isEqualTo(OwaspReportsAfterScans.Offer.PROVIDER_DISABLED);
 
         verify(reviews, after(200).never()).runAfterScan(any(), anyLong());
     }
