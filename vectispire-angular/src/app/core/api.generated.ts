@@ -5891,6 +5891,8 @@ export interface components {
              * @description On a reopening only: when the resolution it ended began. Null on every other entry.
              */
             previousResolvedAt?: string | null;
+            /** @description On an entry that queued a decision for approval (toStatus pending_approval): the status it asked for — not_affected, will_not_fix or fixed. Null on every other entry, and on a request queued before the request was recorded. */
+            requestedStatus?: string | null;
             /**
              * Format: int64
              * @description Null when the target had no scan, on a reopening an import caused, and once that scan is deleted.

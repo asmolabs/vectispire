@@ -255,7 +255,8 @@ public class HistoryQueryService {
                                 event.getExpiresAt(),
                                 event.getScanId(),
                                 event.getScanId() == null ? null : versionByScan.get(event.getScanId()),
-                                event.getPreviousResolvedAt()))
+                                event.getPreviousResolvedAt(),
+                                event.getRequestedStatus()))
                         .toList());
     }
 }
