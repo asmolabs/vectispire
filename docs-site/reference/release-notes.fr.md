@@ -21,7 +21,7 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
-## 0.99.0
+## 1.0.0-rc.1
 
 La version qui précède la 1.0, et son essai : ce que la 1.0 promettra
 ([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md))
@@ -33,12 +33,11 @@ ces corrections refusent ce que la 0.11.2 acceptait : lisez *Avant la mise à jo
 installation dont SCIM est actif avec un jeton court ne démarre pas tant que le jeton n'est pas remplacé.
 Ce qui suit est par rapport à la 0.11.2.
 
-### Avant la mise à jour {#avant-la-mise-a-jour-0990}
+### Avant la mise à jour {#avant-la-mise-a-jour-100-rc1}
 
-- **La 0.99.0 est la version à l'aune de laquelle la 1.0 est mesurée.** La décision 0043 publie la 1.0
-  quand ses promesses sont écrites, vérifiées, et ont tenu pendant une mineure sans rupture imprévue.
-  C'est cette mineure : chaque promesse est en place, et ce qui casse avant la 1.0 est un défaut à
-  signaler, pas un changement à attendre.
+- **La 1.0.0-rc.1 est la version candidate à l'aune de laquelle la 1.0 est mesurée.** Chaque promesse
+  de la décision 0043 y est en place ; la 1.0.0 suit quand elle a tourné en usage réel sans rupture
+  imprévue. Ce qui y casse est un défaut à signaler, pas un changement à attendre.
 
 **Base de données et déploiement**
 
@@ -204,7 +203,7 @@ Ce qui suit est par rapport à la 0.11.2.
   trois mois après celle qui lui succède. La manière dont un retrait de l'API est annoncé figure en tête
   de cette page.
 
-### Changements visibles par une intégration {#changements-visibles-par-une-integration-0990}
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-100-rc1}
 
 - **SCIM : un `externalId` qu'un autre compte détient est un 409 `uniqueness`**, sur
   `POST /scim/v2/Users` et sur un `PUT` qui lie un compte non lié, sans rien écrire — ce qu'un annuaire lit
@@ -242,7 +241,7 @@ Ce qui suit est par rapport à la 0.11.2.
   `NOT_DECLARED` ; une raison inconnue se lit par son nom). `GET /api/v1/owasp/coverage` gagne
   `unplacedCode`, les constats de code ouverts qu'aucune catégorie ne contient. Ajouts seuls.
 
-### Nouveautés {#nouveautes-0990}
+### Nouveautés {#nouveautes-100-rc1}
 
 - **`/actuator/encryption`**, le recensement des magasins scellés, et la réinitialisation du second
   facteur — tous deux plus haut.
@@ -255,7 +254,7 @@ Ce qui suit est par rapport à la 0.11.2.
   seconde soumission pendant qu'une première est en cours n'envoie rien, et les champs que le serveur
   exige sont marqués. Le serveur décide toujours, dans ses propres mots.
 
-### Sécurité {#securite-0990}
+### Sécurité {#securite-100-rc1}
 
 D'une revue complète de `develop` avant cette version. Chaque constat est corrigé, ou documenté comme
 risque résiduel là où une correction serait une décision à part entière :
@@ -295,7 +294,7 @@ risque résiduel là où une correction serait une décision à part entière :
   `npm audit` lit zéro sur tout l'arbre de l'interface, dépendances de développement comprises (vitest
   4.1.12, happy-dom 21, Playwright 1.64.1).
 
-### Corrigé {#corrige-0990}
+### Corrigé {#corrige-100-rc1}
 
 - **Un constat de code dont la règle déclare une CWE mais aucune catégorie OWASP est placé par sa CWE**,
   d'après les listes d'OWASP des CWE que couvre chaque catégorie de l'édition 2021. La plupart des règles amont ne
@@ -329,7 +328,7 @@ risque résiduel là où une correction serait une décision à part entière :
 - Les répertoires temporaires laissés par la récupération du catalogue de règles sont supprimés comme
   les autres.
 
-### Performances {#performances-0990}
+### Performances {#performances-100-rc1}
 
 - Le premier téléchargement de l'interface passe de 932 ko à 612 ko : la coquille et les thèmes Lara et
   Nora se chargent à la demande, et la construction échoue désormais si un import immédiat ramène un

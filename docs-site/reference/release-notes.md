@@ -20,7 +20,7 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
-## 0.99.0
+## 1.0.0-rc.1
 
 The release before 1.0, and a trial of it: what 1.0 will promise
 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md))
@@ -31,11 +31,11 @@ residual risk. Several of those fixes refuse something 0.11.2 accepted, so read 
 full: an installation with SCIM enabled and a short token does not start until the token is replaced.
 What follows is against 0.11.2.
 
-### Before you upgrade {#before-you-upgrade-0990}
+### Before you upgrade {#before-you-upgrade-100-rc1}
 
-- **0.99.0 is the release 1.0 is measured against.** Decision 0043 cuts 1.0 once its promises are
-  written, checked, and have held through one minor with no unplanned break. This is that minor: every
-  promise is in place, and what breaks in it before 1.0 is a defect to report, not a change to expect.
+- **1.0.0-rc.1 is the release candidate 1.0 is measured against.** Every promise of decision 0043 is in
+  place in it; 1.0.0 follows once it has run in real use with no unplanned break. What breaks in it is a
+  defect to report, not a change to expect.
 
 **Database and deployment**
 
@@ -187,7 +187,7 @@ What follows is against 0.11.2.
   the latest minor receives every fix, the previous one security fixes for three months after its
   successor. How a removal from the API is announced is written at the top of this page.
 
-### Changes an integration can see {#changes-an-integration-can-see-0990}
+### Changes an integration can see {#changes-an-integration-can-see-100-rc1}
 
 - **SCIM: an `externalId` another account holds is a 409 `uniqueness`**, on `POST /scim/v2/Users` and on a
   `PUT` that binds an unbound account, with nothing written — what a directory reads as "already
@@ -222,7 +222,7 @@ What follows is against 0.11.2.
   name). `GET /api/v1/owasp/coverage` gains `unplacedCode`, the open code findings no category holds.
   Both additive.
 
-### New {#new-0990}
+### New {#new-100-rc1}
 
 - **`/actuator/encryption`**, the sealed stores' census, and the second-factor reset — both above.
 - **The agent of the previous release is tested on every change**: CI runs the newest release's signed
@@ -233,7 +233,7 @@ What follows is against 0.11.2.
   sends nothing, and the fields the server requires are marked. The server still decides, in its own
   words.
 
-### Security {#security-0990}
+### Security {#security-100-rc1}
 
 From a full review of `develop` before this release. Every finding is fixed, or documented as a residual
 risk where a fix would be a decision of its own:
@@ -267,7 +267,7 @@ risk where a fix would be a decision of its own:
   reads zero across the interface's whole tree, development dependencies included (vitest 4.1.12,
   happy-dom 21, Playwright 1.64.1).
 
-### Fixed {#fixed-0990}
+### Fixed {#fixed-100-rc1}
 
 - **A code finding whose rule declares a CWE but no OWASP category is placed by its CWE**, from OWASP's
   own lists of the CWEs each category of the 2021 edition maps. Most upstream rules declare only a CWE, so their
@@ -295,7 +295,7 @@ risk where a fix would be a decision of its own:
 - The API chain's filters ran a second time, as no-ops, outside the chain; they run in the chain only.
 - Temporary directories left by the rule catalogue fetch are removed like every other.
 
-### Performance {#performance-0990}
+### Performance {#performance-100-rc1}
 
 - The interface's first download falls from 932 kB to 612 kB: the shell and the Lara and Nora themes load
   when needed, and the build now fails if an eager import pulls a screen back in.
