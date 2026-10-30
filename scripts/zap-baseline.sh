@@ -72,7 +72,10 @@ cleanup() {
   fi
   docker rm -f "$APP" "$DB" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
-  rm -rf "$WORK"
+  # ZAP's user owns what it wrote here, which the runner's user may not delete: the first run on a
+  # GitHub runner scanned green and then failed on this line. A leftover temporary directory is not
+  # a verdict.
+  rm -rf "$WORK" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -153,7 +156,7 @@ ZAP_AUTH_HEADER_VALUE="Bearer $TOKEN" \
 docker run --rm --name "${PREFIX}-scanner" --network "$NET" \
   -v "$WORK:/zap/wrk:rw" \
   -e ZAP_AUTH_HEADER_VALUE -e ZAP_AUTH_HEADER=Authorization -e ZAP_AUTH_HEADER_SITE="${APP}" \
-  -e ZAP_TARGET="$TARGET" \
+  -e ZAP_TARGET="$TARGET" -e PYTHONDONTWRITEBYTECODE=1 \
   "$ZAP_IMAGE" zap-baseline.py -t "$TARGET" -I -j -m 2 \
     --hook=/zap/wrk/hook.py -J report.json -r report.html -w report.md
 zap=$?
