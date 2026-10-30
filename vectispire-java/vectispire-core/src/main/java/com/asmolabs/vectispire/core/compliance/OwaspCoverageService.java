@@ -145,8 +145,11 @@ public class OwaspCoverageService {
      *
      * @param scope the project or solution as far as the reader sees it, null for the reader's estate —
      *     the weekly route's record, so the screen reads both alike
+     * @param unplacedCode the open code findings, in the same scope, that no category holds ({@link
+     *     OwaspCoverage#unplacedCode})
      */
-    public record ScopedGrid(OwaspCoverage.Grid grid, OwaspWeeklyHistoryService.OwaspWeeklyScope scope) {}
+    public record ScopedGrid(
+            OwaspCoverage.Grid grid, OwaspWeeklyHistoryService.OwaspWeeklyScope scope, long unplacedCode) {}
 
     /**
      * The grid over one project or solution, or over the reader's estate when neither is named.
@@ -165,7 +168,16 @@ public class OwaspCoverageService {
     @Transactional(readOnly = true)
     public ScopedGrid grid(Long projectId, Long solutionId, VisibilityService.Allowance allowance) {
         OwaspScopes.Scoped scoped = scopes.resolve(projectId, solutionId, allowance);
-        return new ScopedGrid(grid(scoped.visibility()), scoped.stated());
+        return new ScopedGrid(grid(scoped.visibility()), scoped.stated(), unplacedCode(scoped.visibility()));
+    }
+
+    /**
+     * The open code findings of a scope the grid places in no category, counted as the grid counts — settled
+     * triage left out. The difference of two counts the grid already reads, not a third query shape.
+     */
+    private long unplacedCode(Visibility allowed) {
+        return OwaspCoverage.unplacedCode(
+                countOpen(OwaspCoverage.DECLARES_ITS_CATEGORY, allowed, true), openByCategory(allowed, true));
     }
 
     @Transactional(readOnly = true)

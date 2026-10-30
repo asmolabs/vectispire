@@ -3465,12 +3465,16 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "unplacedCode" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "withFindings" : {
             "format" : "int32",
             "type" : "integer"
           }
         },
-        "required" : [ "covered", "unmeasured", "withFindings" ],
+        "required" : [ "covered", "unmeasured", "unplacedCode", "withFindings" ],
         "type" : "object"
       },
       "DependencyFinding" : {
@@ -6760,6 +6764,10 @@
       },
       "OwaspTagging" : {
         "properties" : {
+          "byCwe" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "ruleFiles" : {
             "format" : "int32",
             "type" : "integer"
@@ -6775,7 +6783,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "ruleFiles", "tagged" ],
+        "required" : [ "byCwe", "ruleFiles", "tagged" ],
         "type" : "object"
       },
       "OwaspUntaggedCount" : {
@@ -16598,7 +16606,7 @@
     },
     "/api/v1/owasp/coverage" : {
       "get" : {
-        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.",
+        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope. unplacedCode counts the scope's open code findings no category holds: their rule declares no 2021 category, and no CWE the OWASP 2021 lists map to one.",
         "operationId" : "grid",
         "parameters" : [ {
           "in" : "query",

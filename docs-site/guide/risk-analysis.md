@@ -86,6 +86,14 @@ scan failed, the step did not complete…) — in the language the interface is 
 reason twice on each line: `because`, the English sentence, and `reason`, a code with the values the
 sentence is made of, which the interface translates.
 
+A code-analysis finding is placed by the category its rule declares in `metadata.owasp`. A rule that
+declares no category of the 2021 edition — most of the upstream catalogue declares only a CWE — has its
+findings placed by that CWE, in the category whose **OWASP Top 10 2021 "List of Mapped CWEs"** holds it:
+`CWE-89` is Injection (A03), `CWE-918` server-side request forgery (A10). The rule's own category is always
+the first word. A finding whose rule declares neither, or a CWE no list holds, is in no category, and the
+grid says how many there are below the table rather than letting a column of zeros pass for the whole
+backlog. A finding stored before this release is placed at its target's next scan.
+
 ### The OWASP Top 10:2021, week by week
 
 *OWASP Top 10:2021* → *By week* shows the same ten categories over 12, 26 or 52 weeks — or a range you

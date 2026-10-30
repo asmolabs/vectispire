@@ -40,7 +40,8 @@ public class RuleCoverageService {
     }
 
     /**
-     * The OWASP categories the installed rules declare about themselves.
+     * The OWASP categories the installed rules declare about themselves — or, for a rule declaring no 2021
+     * category, the ones its CWEs map to ({@link OwaspTag#placedIn}): where its findings are placed.
      *
      * <p><b>Read from the rules, not from the findings.</b> Deriving the set from the categories
      * that already carry a finding would make "nothing found here" indistinguishable from "no
@@ -56,10 +57,10 @@ public class RuleCoverageService {
         Set<String> declared = new LinkedHashSet<>();
         BundledRules.expected().stream()
                 .filter(path -> path.startsWith("semgrep/"))
-                .forEach(path -> declared.addAll(OwaspTag.declaredIn(BundledRules.contentOf(path))));
+                .forEach(path -> declared.addAll(OwaspTag.placedIn(BundledRules.contentOf(path))));
 
         ruleSets.active().ifPresent(row -> ruleSets.filesOf(row)
-                .forEach(file -> declared.addAll(OwaspTag.declaredIn(file.content()))));
+                .forEach(file -> declared.addAll(OwaspTag.placedIn(file.content()))));
 
         return declared;
     }
@@ -81,12 +82,12 @@ public class RuleCoverageService {
                 .filter(path -> path.startsWith("semgrep/"))
                 .forEach(path -> RuleCoverage.languageRead(path).ifPresent(language -> declared
                         .computeIfAbsent(language, ignored -> new LinkedHashSet<>())
-                        .addAll(OwaspTag.declaredIn(BundledRules.contentOf(path)))));
+                        .addAll(OwaspTag.placedIn(BundledRules.contentOf(path)))));
 
         ruleSets.active().ifPresent(row -> ruleSets.filesOf(row)
                 .forEach(file -> RuleCoverage.languageRead(RuleCoverage.ruleTreePath(file)).ifPresent(language -> declared
                         .computeIfAbsent(language, ignored -> new LinkedHashSet<>())
-                        .addAll(OwaspTag.declaredIn(file.content())))));
+                        .addAll(OwaspTag.placedIn(file.content())))));
 
         Map<Language, Set<String>> answer = new java.util.EnumMap<>(Language.class);
         declared.forEach((language, categories) -> answer.put(language, Set.copyOf(categories)));

@@ -233,4 +233,16 @@ class OwaspCoverageTest {
     private static java.util.List<String> states(Grid grid, State state) {
         return grid.lines().stream().filter(line -> line.state() == state).map(CoverageLine::id).toList();
     }
+
+    @Test
+    @DisplayName("counts the open code findings no category holds, never below zero")
+    void theUnplacedCodeFindings() {
+        // Six open code findings: three placed in A03, one in A10, one carrying a value that is no 2021
+        // category — the last two are the ones the ten lines do not account for.
+        assertThat(OwaspCoverage.unplacedCode(6, Map.of("A03", 3L, "A10", 1L, "A01:2025", 1L))).isEqualTo(2);
+        assertThat(OwaspCoverage.unplacedCode(0, Map.of())).isZero();
+        assertThat(OwaspCoverage.unplacedCode(1, Map.of("A03", 2L)))
+                .as("two reads, a finding categorised between them")
+                .isZero();
+    }
 }

@@ -1684,6 +1684,8 @@
       "NO_FINDING": "Nothing found"
     },
     "footnote": "A category with nothing found and a category nothing looks at produce the same green, which is why there are four states and not two. Code analysis places its findings by the category each rule declares in its own metadata, so a square depends on what is installed here — and a category no scanner measures can be declared rather than left grey.",
+    "unplaced_code_one": "{{count}} open code finding is in no category: its rule declares no OWASP 2021 category, and no CWE the 2021 lists map to one.",
+    "unplaced_code_other": "{{count}} open code findings are in no category: their rules declare no OWASP 2021 category, and no CWE the 2021 lists map to one.",
     "not_covered_note": "“No scanner here” means no scanner in this deployment produces a finding in that category at all — it is a property of the product, not a verdict on the estate.",
     "reason": {
       "NO_SCANNER": "No scanner in this deployment produces a finding in this category.",

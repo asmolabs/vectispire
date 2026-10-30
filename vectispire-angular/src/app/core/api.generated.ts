@@ -2131,7 +2131,7 @@ export interface paths {
         };
         /**
          * OWASP Top 10:2021 coverage
-         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.
+         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope. unplacedCode counts the scope's open code findings no category holds: their rule declares no 2021 category, and no CWE the OWASP 2021 lists map to one.
          */
         get: operations["grid"];
         put?: never;
@@ -5958,6 +5958,8 @@ export interface components {
             scope?: components["schemas"]["OwaspWeeklyScope"];
             /** Format: int32 */
             unmeasured: number;
+            /** Format: int64 */
+            unplacedCode: number;
             /** Format: int32 */
             withFindings: number;
         };
@@ -7274,6 +7276,8 @@ export interface components {
             version?: number;
         };
         OwaspTagging: {
+            /** Format: int32 */
+            byCwe: number;
             /** Format: int32 */
             ruleFiles: number;
             /** Format: int32 */

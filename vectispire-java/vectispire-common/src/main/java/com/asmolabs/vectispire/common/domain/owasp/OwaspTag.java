@@ -46,7 +46,8 @@ import java.util.regex.Pattern;
  * rule ran, its findings reached the backlog with no category, and the grid read the category it was
  * written for as uncovered with no word of why. {@link #untaggedReasonOf} names that case, and {@link
  * #tally} counts it among the untagged rules with its reason, so the rule set's coverage says how many
- * rules were written against an edition this product does not place.
+ * rules were written against an edition this product does not place — unless a CWE it declares places
+ * it, by the standard's own lists ({@link #placedIn}, {@link OwaspCwe}).
  *
  * <h2>Why a scan of the metadata block and not a YAML parse</h2>
  *
@@ -85,6 +86,9 @@ public final class OwaspTag {
     /** The key, wherever it sits in the indentation. */
     private static final Pattern OWASP_KEY = Pattern.compile("(?m)^(\\s*)-?\\s*owasp\\s*:(.*)$");
 
+    /** The weakness the rule declares — {@link OwaspCwe} places a rule declaring no 2021 category by it. */
+    private static final Pattern CWE_KEY = Pattern.compile("(?m)^(\\s*)-?\\s*cwe\\s*:(.*)$");
+
     /**
      * The categories one rule file declares.
      *
@@ -95,8 +99,23 @@ public final class OwaspTag {
      */
     public static Set<String> declaredIn(String yaml) {
         Set<String> found = new LinkedHashSet<>();
-        collect(declarations(yaml), found);
+        collect(declarations(yaml, OWASP_KEY), found);
         return found;
+    }
+
+    /**
+     * The categories one rule file places its findings in: those it declares, or — when it declares no
+     * 2021 category — those its CWEs map to in the standard's own lists ({@link OwaspCwe}).
+     *
+     * <p><b>The same order of precedence as a finding's</b> ({@code SastScanner}): the grid counts a
+     * category covered when a rule places findings there, and a rule credited with a category its
+     * findings cannot reach — or denied one they do reach — is a grid saying the opposite of the backlog.
+     * A file holding several rules is read as a whole, as {@link #declaredIn} reads it: a file whose
+     * rules declare no 2021 category is placed by every CWE they name.
+     */
+    public static Set<String> placedIn(String yaml) {
+        Set<String> declared = declaredIn(yaml);
+        return declared.isEmpty() ? OwaspCwe.categoriesIn(declarations(yaml, CWE_KEY)) : declared;
     }
 
     /**
@@ -109,7 +128,7 @@ public final class OwaspTag {
      * @return empty for a file that declares a 2021 category
      */
     public static Optional<Untagged> untaggedReasonOf(String yaml) {
-        String declared = declarations(yaml);
+        String declared = declarations(yaml, OWASP_KEY);
         if (CATEGORY_2021.matcher(declared).find()) {
             return Optional.empty();
         }
@@ -139,11 +158,14 @@ public final class OwaspTag {
      * How the installed rule files declare their OWASP category.
      *
      * @param ruleFiles the rule files read — the code-analysis rules only, not the secrets configuration
-     * @param tagged those declaring at least one 2021 category: what the grid can place findings of
-     * @param untagged the rest, one count per reason in {@link Untagged}'s order, a reason with no file left
-     *     out; their counts sum to {@code ruleFiles - tagged}
+     * @param tagged those declaring at least one 2021 category
+     * @param byCwe those declaring none, placed by a CWE they declare ({@link #placedIn}): untagged, and
+     *     placed all the same
+     * @param untagged the rest — the rules the grid can place no finding of — one count per reason in
+     *     {@link Untagged}'s order, a reason with no file left out; their counts sum to {@code ruleFiles -
+     *     tagged - byCwe}
      */
-    public record OwaspTagging(int ruleFiles, int tagged, List<OwaspUntaggedCount> untagged) {
+    public record OwaspTagging(int ruleFiles, int tagged, int byCwe, List<OwaspUntaggedCount> untagged) {
 
         public OwaspTagging {
             untagged = List.copyOf(untagged);
@@ -154,29 +176,32 @@ public final class OwaspTag {
     public static OwaspTagging tally(Collection<String> ruleFiles) {
         Map<Untagged, Integer> untagged = new EnumMap<>(Untagged.class);
         int tagged = 0;
+        int byCwe = 0;
         for (String content : ruleFiles) {
             Optional<Untagged> reason = untaggedReasonOf(content);
             if (reason.isEmpty()) {
                 tagged++;
+            } else if (!placedIn(content).isEmpty()) {
+                byCwe++;
             } else {
                 untagged.merge(reason.get(), 1, Integer::sum);
             }
         }
-        return new OwaspTagging(ruleFiles.size(), tagged, untagged.entrySet().stream()
+        return new OwaspTagging(ruleFiles.size(), tagged, byCwe, untagged.entrySet().stream()
                 .map(entry -> new OwaspUntaggedCount(entry.getKey(), entry.getValue()))
                 .toList());
     }
 
     /**
-     * Everything the file's {@code owasp:} keys hold, inline and indented under them — the only text a
+     * Everything the file's keys of this name hold, inline and indented under them — the only text a
      * declaration is read from.
      */
-    private static String declarations(String yaml) {
+    private static String declarations(String yaml, Pattern keyPattern) {
         StringBuilder declared = new StringBuilder();
         if (yaml == null || yaml.isBlank()) {
             return "";
         }
-        Matcher key = OWASP_KEY.matcher(yaml);
+        Matcher key = keyPattern.matcher(yaml);
         while (key.find()) {
             // The inline form — `owasp: A03:2021 - Injection` — and the block form that follows
             // it are both ordinary here: the first is what is left on the key's own line, the

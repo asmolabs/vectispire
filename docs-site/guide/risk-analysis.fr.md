@@ -94,6 +94,15 @@ détection est désactivée, ou combien de cibles du périmètre n'ont pas été
 envoie cette raison deux fois sur chaque ligne : `because`, la phrase en anglais, et `reason`, un code
 accompagné des valeurs dont la phrase est faite, que l'interface traduit.
 
+Un constat d'analyse de code est rangé par la catégorie que sa règle déclare dans `metadata.owasp`. Une
+règle qui ne déclare aucune catégorie de l'édition 2021 — la plupart du catalogue amont ne déclare qu'une
+CWE — voit ses constats rangés par cette CWE, dans la catégorie dont la **« List of Mapped CWEs » de l'OWASP
+Top 10 2021** la contient : `CWE-89` est l'injection (A03), `CWE-918` la falsification de requête côté
+serveur (A10). La catégorie propre de la règle passe toujours en premier. Un constat dont la règle ne
+déclare ni l'une ni l'autre, ou une CWE qu'aucune liste ne contient, n'est dans aucune catégorie, et la
+grille dit sous le tableau combien il y en a, plutôt que de laisser une colonne de zéros passer pour tout
+le backlog. Un constat enregistré avant cette version est rangé au prochain scan de sa cible.
+
 ### L'OWASP Top 10:2021, semaine par semaine
 
 *OWASP Top 10:2021* → *Par semaine* montre les mêmes dix catégories sur 12, 26 ou 52 semaines — ou un
