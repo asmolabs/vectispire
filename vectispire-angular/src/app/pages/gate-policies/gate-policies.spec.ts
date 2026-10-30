@@ -83,6 +83,18 @@ describe('the gate policy screen', () => {
         fixture.detectChanges();
     });
 
+    it('is a form, and sends the global policy once however often it is submitted', () => {
+        load([]);
+        fixture.componentInstance.editGlobal();
+        fixture.detectChanges();
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT' && call.url.startsWith('/api/v1/gate/policies')).length).toBe(
+            1
+        );
+    });
+
     it('says so when nothing is stored, rather than showing an empty table', () => {
         load([]);
 

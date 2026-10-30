@@ -208,11 +208,12 @@
     [style]="{ width: '40rem' }"
     [breakpoints]="{ '640px': '95vw' }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="create()">
         <div class="flex flex-col gap-2">
             <label for="forge-kind" class="font-medium">{{ 'forges.connections.kind' | translate }}</label>
             <select
                 id="forge-kind"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.kind"
                 class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
             >
@@ -222,7 +223,14 @@
         </div>
         <div class="flex flex-col gap-2">
             <label for="forge-name" class="font-medium">{{ 'common.name' | translate }}</label>
-            <input pInputText id="forge-name" [(ngModel)]="form.name" autocomplete="off" />
+            <input
+                pInputText
+                id="forge-name"
+                required
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.name"
+                autocomplete="off"
+            />
         </div>
         <div class="flex flex-col gap-2">
             <label for="forge-address" class="font-medium"
@@ -232,6 +240,7 @@
             <input
                 pInputText
                 id="forge-address"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.baseUrl"
                 placeholder="https://gitlab.example.internal"
                 autocomplete="off"
@@ -244,7 +253,13 @@
         @if (form.kind === 'github') {
             <div class="flex flex-col gap-2">
                 <label for="forge-owner" class="font-medium">{{ 'forges.connections.owner' | translate }}</label>
-                <input pInputText id="forge-owner" [(ngModel)]="form.owner" autocomplete="off" />
+                <input
+                    pInputText
+                    id="forge-owner"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="form.owner"
+                    autocomplete="off"
+                />
                 <small class="text-muted-color">{{ 'forges.connections.owner_hint' | translate }}</small>
             </div>
         }
@@ -254,8 +269,10 @@
             <input
                 pInputText
                 id="forge-token"
+                required
                 type="password"
                 autocomplete="new-password"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.token"
                 aria-describedby="forge-token-hint"
             />
@@ -276,7 +293,13 @@
                 </p>
             } @else {
                 <label class="flex items-start gap-2" for="forge-internal">
-                    <input type="checkbox" id="forge-internal" class="mt-1" [(ngModel)]="form.internalNetwork" />
+                    <input
+                        type="checkbox"
+                        id="forge-internal"
+                        class="mt-1"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="form.internalNetwork"
+                    />
                     <span>
                         {{ 'forges.connections.internal' | translate }}
                         <small class="block text-muted-color">{{
@@ -294,6 +317,7 @@
                         id="forge-ca"
                         rows="5"
                         class="font-mono text-xs"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="form.caPem"
                         aria-describedby="forge-ca-feedback"
                     ></textarea>
@@ -324,7 +348,7 @@
                 {{ message }}
             </p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeCreate()" />
         <p-button

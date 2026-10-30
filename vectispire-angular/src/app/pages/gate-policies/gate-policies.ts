@@ -219,6 +219,8 @@ export class GatePolicies {
     }
 
     save(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         if (this.scope.kind !== 'global' && this.scope.id === null) {
             if (!this.chosenTarget) {
                 this.error.set(this.i18n.t('gate_policies.error_no_target'));
