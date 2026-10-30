@@ -43,6 +43,11 @@ public class TeamChannels {
         return webhooks.count() > 0;
     }
 
+    /** How many teams have a channel of their own — what the refusal to switch the webhook channel off names. */
+    public long countWithChannel() {
+        return webhooks.count();
+    }
+
     /** The team's channel, as stored; empty when it has none. */
     public Optional<String> webhookUrl(Long teamId) {
         return webhooks.findById(teamId).map(TeamWebhookEntity::getUrl);

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.notifications.internal;
 
 import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import java.util.List;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -31,10 +32,12 @@ public class TokenAlerts {
 
     private final OutboxService outbox;
     private final List<AlertChannel> channels;
+    private final Integrations integrations;
 
-    public TokenAlerts(OutboxService outbox, List<AlertChannel> channels) {
+    public TokenAlerts(OutboxService outbox, List<AlertChannel> channels, Integrations integrations) {
         this.outbox = outbox;
         this.channels = channels;
+        this.integrations = integrations;
     }
 
     @EventListener
@@ -43,9 +46,12 @@ public class TokenAlerts {
         outbox.enqueue(alert, TokenAlertAudit.TYPE);
         // One row per destination, as for a scan's delta: one channel down must be retried on its own, without
         // sending the others twice.
+        // A channel switched off (decision 0040, lot I6) is queued nothing, as one without a destination is.
         channels.stream()
                 .filter(AlertChannel::isConfigured)
-                .forEach(channel -> outbox.enqueue(new TokenAlertDelivery.Queued(channel.alertKey(), alert),
+                .filter(channel -> ChannelGate.isOn(integrations, channel))
+                .forEach
+(channel -> outbox.enqueue(new TokenAlertDelivery.Queued(channel.alertKey(), alert),
                         TokenAlertDelivery.TYPE));
     }
 }

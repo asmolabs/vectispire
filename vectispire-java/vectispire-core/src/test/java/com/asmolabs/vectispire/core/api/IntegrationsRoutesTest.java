@@ -150,44 +150,31 @@ class IntegrationsRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("an AI provider or a notification channel is never switched off: 409 integration-not-switchable, nothing changed, nothing audited")
-    void aiAndNotificationsAreNotSwitchedOff() throws Exception {
+    @DisplayName("an AI provider and a notification channel nothing uses are switched off like the rest, audited once each (lots I5, I6)")
+    void aiAndNotificationsAreSwitchedOff() throws Exception {
         String governor = governor();
-        List<Integration> unsuspendable = Integration.all().stream()
+        List<Integration> switchable = Integration.all().stream()
                 .filter(integration -> integration.family() == IntegrationFamily.AI
                         || integration.family() == IntegrationFamily.NOTIFICATION)
                 .toList();
-        assertThat(unsuspendable).extracting(Integration::key)
+        assertThat(switchable).extracting(Integration::key)
                 .contains("ai.ollama", "ai.openai", "notification.webhook", "notification.mail");
 
-        for (Integration integration : unsuspendable) {
-            Map<String, Object> before = jdbc.queryForMap(
-                    "select enabled, updated_at, updated_by from t_integration where integration_key = ?", integration.key());
-            ResultActions refused = switchTo(governor, integration.key(), Map.of("enabled", false))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.type").value("urn:vectispire:problem:integration-not-switchable"))
-                    .andExpect(jsonPath("$.code").value("integration-not-switchable"))
-                    .andExpect(jsonPath("$.integration").value(integration.key()));
-            assertThat(detailOf(refused.andReturn()))
-                    .startsWith("The integration \"" + integration.key() + "\" cannot be disabled yet")
-                    .contains("would stop nothing");
-            assertThat(integrations.isEnabled(integration)).as(integration.key()).isTrue();
-            assertThat(jdbc.queryForMap("select enabled, updated_at, updated_by from t_integration where integration_key = ?",
-                    integration.key())).as("not touched: " + integration.key()).isEqualTo(before);
-
-            // Enabling, the state it is in, is accepted as ever: nothing to refuse there.
-            switchTo(governor, integration.key(), Map.of("enabled", true)).andExpect(status().isOk())
-                    .andExpect(jsonPath("$.enabled").value(true));
+        for (Integration integration : switchable) {
+            switchTo(governor, integration.key(), Map.of("enabled", false)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.key").value(integration.key()))
+                    .andExpect(jsonPath("$.enabled").value(false));
+            assertThat(integrations.isEnabled(integration)).as(integration.key()).isFalse();
         }
+        assertThat(entries()).hasSize(switchable.size()).allSatisfy(entry ->
+                assertThat(entry.getDescription()).contains("disabled: the installation no longer talks to it"));
 
-        // An AI provider with no row reads disabled, and is still not "switched off" to the same state: the
-        // answer would read as a suspension the review does not honour.
-        jdbc.update("delete from t_integration where integration_key = 'ai.openai'");
-        switchTo(governor, "ai.openai", Map.of("enabled", false)).andExpect(status().isConflict());
-        assertThat(jdbc.queryForObject("select count(*) from t_integration where integration_key = 'ai.openai'",
-                Integer.class)).isZero();
-
-        assertThat(entries()).isEmpty();
+        // The AI provider configured, Ollama by default, with model review on, is in use and still switched off:
+        // nothing recorded is lost, and the features say so (decision 0040 section 3).
+        switchTo(governor, "ai.ollama", Map.of("enabled", true)).andExpect(status().isOk());
+        settings.set(Setting.AI_REVIEW_ENABLED, "true");
+        switchTo(governor, "ai.ollama", Map.of("enabled", false)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(false));
     }
 
     @Test

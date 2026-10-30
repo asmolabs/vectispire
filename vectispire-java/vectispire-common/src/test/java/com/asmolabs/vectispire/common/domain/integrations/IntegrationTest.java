@@ -96,16 +96,23 @@ class IntegrationTest {
     }
 
     @Test
-    @DisplayName("only the families whose adapters ask the registry may be switched off; the others are refused in a conflict of their own")
-    void notSwitchable() {
-        assertThat(Arrays.stream(IntegrationFamily.values()).filter(IntegrationFamily::suspendable))
-                .containsExactly(IntegrationFamily.FORGE, IntegrationFamily.SIEM, IntegrationFamily.TRACKER);
+    @DisplayName("a refusal a feature answers opens with what the reader did not get, and keeps the cause and the key")
+    void refusalWithItsLead() {
+        IntegrationDisabledException refused = new IntegrationDisabledException(
+                Integration.of(AiProvider.OLLAMA), "AI unavailable — provider disabled.");
+        assertThat(refused.conflictCause()).contains("integration-disabled");
+        assertThat(refused.members()).containsExactlyEntriesOf(java.util.Map.of("integration", "ai.ollama"));
+        assertThat(refused.getMessage()).isEqualTo("AI unavailable — provider disabled. The integration \"ai.ollama\" "
+                + "is disabled on this installation; a platform governor enables it with PUT "
+                + "/api/v1/integrations/ai.ollama/enabled.");
+    }
 
-        IntegrationNotSwitchableException refused = new IntegrationNotSwitchableException(Integration.of(AiProvider.OPENAI));
-        assertThat(refused).isInstanceOf(ConflictException.class);
-        assertThat(refused.conflictCause()).contains("integration-not-switchable");
-        assertThat(refused.members()).containsExactlyEntriesOf(java.util.Map.of("integration", "ai.openai"));
-        assertThat(refused.getMessage()).startsWith("The integration \"ai.openai\" cannot be disabled yet")
-                .contains("ai_review_enabled");
+    @Test
+    @DisplayName("a notification channel is found by the outbox type its rows carry, and no other type is one")
+    void channelsByOutboxType() {
+        Arrays.stream(NotificationChannelKind.values()).forEach(kind ->
+                assertThat(NotificationChannelKind.byOutboxType(kind.outboxType())).contains(kind));
+        assertThat(NotificationChannelKind.byOutboxType("siem_event")).isEmpty();
+        assertThat(NotificationChannelKind.byOutboxType(null)).isEmpty();
     }
 }

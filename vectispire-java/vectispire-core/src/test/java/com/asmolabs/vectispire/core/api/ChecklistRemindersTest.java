@@ -52,6 +52,7 @@ class ChecklistRemindersTest extends ChecklistContactsTestBase {
     @BeforeEach
     void contacts() throws Exception {
         when(mail.hasRelay()).thenReturn(true);
+        when(mail.isSwitchedOn()).thenReturn(true);
         openChecklist(developer).andExpect(status().isCreated());
 
         contact = account(Role.USER);
@@ -86,6 +87,16 @@ class ChecklistRemindersTest extends ChecklistContactsTestBase {
     }
 
     @Test
+    @DisplayName("with notification.mail switched off sends nothing and records nothing, so the week's go out once it is on (decision 0040)")
+    void mailSwitchedOff() {
+        when(mail.isSwitchedOn()).thenReturn(false);
+
+        assertThat(reminders.runOnce()).isZero();
+        verify(mail, never()).sendTextTo(anyList(), anyString(), anyString());
+        assertThat(entries("CHECKLIST_REMINDER_SENT")).isEmpty();
+    }
+
+    @Test
     @DisplayName("a contact is told its own lines, a CISO the profiles that remind nobody, each once a week")
     void whoIsToldWhat() {
         assertThat(reminders.runOnce()).isEqualTo(2);
@@ -110,6 +121,7 @@ class ChecklistRemindersTest extends ChecklistContactsTestBase {
 
         reset(mail);
         when(mail.hasRelay()).thenReturn(true);
+        when(mail.isSwitchedOn()).thenReturn(true);
         assertThat(reminders.runOnce()).as("this week's are sent").isZero();
         verify(mail, never()).sendTextTo(anyList(), anyString(), anyString());
     }
@@ -139,6 +151,7 @@ class ChecklistRemindersTest extends ChecklistContactsTestBase {
 
         reset(mail);
         when(mail.hasRelay()).thenReturn(true);
+        when(mail.isSwitchedOn()).thenReturn(true);
         assertThat(reminders.runOnce()).isEqualTo(1);
         verify(mail).sendTextTo(eq(List.of("contact@example.org")), anyString(), anyString());
         verify(mail, never()).sendTextTo(eq(List.of("ciso@example.org")), anyString(), anyString());

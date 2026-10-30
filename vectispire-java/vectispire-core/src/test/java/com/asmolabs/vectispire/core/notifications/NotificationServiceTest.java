@@ -48,6 +48,7 @@ class NotificationServiceTest {
                 post,
                 new TeamChannels(mock(TeamTargetRepository.class), teamWebhooks),
                 mock(EncryptionService.class),
+                com.asmolabs.vectispire.core.settings.EnabledIntegrations.all(),
                 Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC));
 
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn("https://hooks.example.com/z");
@@ -57,16 +58,6 @@ class NotificationServiceTest {
         when(settings.get(Setting.WEBHOOK_SIGNING_SECRET)).thenReturn("");
         when(settings.isEnabled(Setting.NOTIFY_ON_KEV)).thenReturn(true);
         when(settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)).thenReturn(false);
-    }
-
-    @Test
-    @DisplayName("no URL means no notifications at all")
-    void anUnsetUrlDisablesEverything() {
-        when(settings.get(Setting.WEBHOOK_URL)).thenReturn("   ");
-
-        assertThat(service.isEnabled()).isFalse();
-        assertThat(service.buildScanDelta("service", 1, List.of(issue(Severity.CRITICAL, false)), List.of(), 0))
-                .isEmpty();
     }
 
     @Test

@@ -235,11 +235,11 @@ What follows is against 0.11.2.
   nothing ([REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
   Their operation ids in `openapi.json` are `listIntegrations` and `setIntegrationEnabled`; every id
   0.11.x publishes keeps its name.
-- **Three 409 causes**, each naming the key in the member `integration`:
-  `urn:vectispire:problem:integration-disabled` on a gesture that needs a disabled integration;
+- **Two 409 causes**, each naming the key in the member `integration`:
+  `urn:vectispire:problem:integration-disabled` on a gesture that needs a disabled integration — opened,
+  for a feature that reads an AI provider, by *AI unavailable — provider disabled*; and
   `urn:vectispire:problem:integration-in-use` on the governor's switch, for the SIEM transport an enabled
-  export sends over; and `urn:vectispire:problem:integration-not-switchable` on the governor's switch, for
-  an AI provider or a notification channel, which nothing suspends yet ([409 causes](errors.md#409-causes)). The `integration-disabled` detail, and the
+  export sends over and for a notification channel with somewhere to send ([409 causes](errors.md#409-causes)). The `integration-disabled` detail, and the
   reason a checklist line fed by a suspended forge connection carries, name the route that enables the
   integration, `PUT /api/v1/integrations/{key}/enabled`, rather than a screen this release does not have;
   the type and the member are what a client reads, and they are as stated.
@@ -294,12 +294,25 @@ What follows is against 0.11.2.
   channels (`notification.webhook`, `.teams`, `.slack`, `.discord`, `.mail`) and the trackers
   (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Every one of them starts enabled; one added
   later — Bitbucket first — arrives disabled. The switch is through the API for now; there is no screen
-  yet. **The forges, the SIEM transports and the trackers act on it in this release**; the AI providers
-  and the notification channels do not yet, so **the registry refuses to switch them off**:
-  `enabled: false` on an `ai.*` or `notification.*` key answers 409 `integration-not-switchable`, the key
-  in the member `integration`, with nothing changed and nothing audited. A switch that stopped nothing
-  would read as a guarantee it is not. Meanwhile, turn the AI review off in the settings, and empty a
-  channel's URL in the notification settings.
+  yet. **Every family acts on it in this release.**
+- **An AI provider may be disabled while in use, and nothing answers in its place.** Every feature that
+  reads it — the OWASP report from the button or after a scan, the advisor's explanation, the endpoint
+  test — then answers 409 `integration-disabled`, *AI unavailable — provider disabled*, before anything is
+  recorded, and the other provider is never asked: an Ollama review does not quietly move to OpenAI.
+  `GET /api/v1/ai-advisor/status` gains `providerEnabled`, and lists suggestions without asking a disabled
+  provider. Choosing a disabled provider in the settings, or turning model review on over one, is refused
+  409 `integration-disabled` ([AI review](../administration/settings.md#ai-review)).
+- **A notification channel with somewhere to send cannot be disabled**: 409 `integration-in-use`, the
+  refusal listing what uses it — a URL or recipients in the notification settings, a team's own webhook,
+  the checklist reminders. A channel not in use may be: it leaves the Notification Center's list, its test
+  answers 409 `integration-disabled`, configuring it is refused 409 `integration-disabled` with nothing of
+  the save written, nothing is queued for it, and a row queued for it all the same waits in the outbox,
+  uncounted, until it is on again ([each channel is an integration](../integrations/notifications.md#channel-integrations)).
+  A save that configures a channel and the governor's switch are ordered by the channel's row, as for a
+  SIEM transport. `PUT /api/v1/settings` now writes its values in one transaction.
+- **A scan's delta reaches Teams, Slack, Discord or mail with no webhook configured.** Whether a delta was
+  built was decided by the generic webhook alone — the global URL or a team's — so a deployment announcing
+  only to another channel was never sent one.
 - **A forge whose integration is disabled suspends its connections, never deletes them.** Each keeps its
   row, its encrypted token, its snapshot, its import links and its change-review readings, and reads
   *Suspended — integration disabled* on the forge connections screen. Nothing goes to that forge:

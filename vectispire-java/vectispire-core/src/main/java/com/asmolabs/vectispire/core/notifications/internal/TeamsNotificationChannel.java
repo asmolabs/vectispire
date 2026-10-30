@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.notifications.internal;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.TeamsCard;
 import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
@@ -9,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.settings.ExportProperties;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +35,11 @@ public class TeamsNotificationChannel implements NotificationChannel, AlertChann
     private final SettingsService settings;
     private final OutboundPost post;
     private final ExportProperties deployment;
+    private final Integrations integrations;
 
-    public TeamsNotificationChannel(SettingsService settings, OutboundPost post, ExportProperties deployment) {
+    public TeamsNotificationChannel(
+            SettingsService settings, OutboundPost post, ExportProperties deployment, Integrations integrations) {
+        this.integrations = integrations;
         this.settings = settings;
         this.post = post;
         this.deployment = deployment;
@@ -52,6 +57,8 @@ public class TeamsNotificationChannel implements NotificationChannel, AlertChann
 
     @Override
     public void deliver(NotificationPayload payload) {
+        // Before anything is read or built: nothing of a disabled channel runs (decision 0040, lot I6).
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.TEAMS);
         // The same guard the generic webhook uses: a URL resolving to a private address is far
         // more often a server-side request forgery attempt than an intranet endpoint.
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
@@ -78,6 +85,7 @@ public class TeamsNotificationChannel implements NotificationChannel, AlertChann
     /** A token's change of state, to the same URL and under the same private-address rule as a scan's delta. */
     @Override
     public void deliverAlert(TokenAlert alert, String messageId) {
+        ChannelGate.requireDeliverable(integrations, NotificationChannelKind.TEAMS);
         OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;

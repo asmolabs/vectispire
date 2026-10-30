@@ -51,7 +51,7 @@ class AiReviewServiceTest {
         get = mock(OutboundJson.class);
         post = mock(OutboundPost.class);
         encryption = mock(EncryptionService.class);
-        service = new AiReviewService(settings, get, post, JSON, encryption);
+        service = new AiReviewService(settings, get, post, JSON, encryption, com.asmolabs.vectispire.core.settings.EnabledIntegrations.all());
 
         when(settings.get(any())).thenReturn("");
         when(settings.isEnabled(any())).thenReturn(false);
