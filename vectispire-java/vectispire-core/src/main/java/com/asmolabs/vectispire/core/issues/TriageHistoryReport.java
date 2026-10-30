@@ -165,6 +165,7 @@ public final class TriageHistoryReport {
                             : "by " + decision.actor();
             String line = "      " + DAY.format(decision.occurredAt()) + " — "
                     + decision.fromStatus() + " -> " + decision.toStatus()
+                    + (decision.requestedStatus() == null ? "" : " asking for " + decision.requestedStatus())
                     + (decision.justification() == null ? "" : " (" + decision.justification() + ")")
                     + " " + who
                     + (decision.version() == null ? "" : " on " + decision.version());

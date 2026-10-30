@@ -463,7 +463,8 @@ public class IssueQueryService {
                         event.getExpiresAt(),
                         event.getScanId(),
                         null,
-                        event.getPreviousResolvedAt()))
+                        event.getPreviousResolvedAt(),
+                        event.getRequestedStatus()))
                 .toList();
 
         return new IssueDetail(

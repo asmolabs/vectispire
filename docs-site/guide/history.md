@@ -41,6 +41,15 @@ Both **PDF** and **CSV**.
 The PDF is written for a person: an auditor, a customer's security team, an insurer. The
 CSV is for the analysis somebody wants to run themselves.
 
+## Requests awaiting approval
+
+A settling decision by somebody who cannot approve it is queued as *pending approval*, and the
+history says what it asked for — *asking for will_not_fix* — because the approval grants that
+status or is refused: without it, the trail would show a request and an approval and not
+whether the approver granted what was asked. The JSON carries it in `requestedStatus`, the CSV
+in its last column, `decision_requested_status`, empty on every other row. A request queued
+before 0.11.0 recorded it is shown without one.
+
 ## Related
 
 - [Issues and triage](issues.md) — how the decisions get recorded in the first place.
