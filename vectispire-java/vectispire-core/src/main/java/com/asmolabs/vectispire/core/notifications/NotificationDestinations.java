@@ -126,7 +126,10 @@ public class NotificationDestinations {
         SETTINGS.forEach((kind, read) -> {
             for (Setting setting : read) {
                 String value = changes.get(setting);
-                if (value != null && set(value) && !"false".equals(value) && !value.equals(settings.get(setting).trim())) {
+                // A secret is never compared with what is stored: a writer who may not read it would learn from a 200
+                // that a guess matched, and the screen never sends a secret back, so any value sent is a configuration.
+                if (value != null && set(value) && !"false".equals(value)
+                        && (setting.isSecret() || !value.equals(settings.get(setting).trim()))) {
                     configured.add(kind);
                 }
             }

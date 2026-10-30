@@ -202,6 +202,26 @@ class NotificationChannelSwitchRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a disabled channel's stored secret answers a right guess as it answers a wrong one")
+    void aStoredSecretIsNotConfirmedByAGuess() throws Exception {
+        // Teams switched off with its URL kept is a legitimate state (its own switch off, so not in use); a writer who
+        // may not read the URL must not learn from a 200 that the value sent was the stored one.
+        settings.set(Setting.TEAMS_WEBHOOK_URL, hook);
+        settings.set(Setting.TEAMS_ENABLED, "false");
+        try {
+            governorSwitches(TEAMS, false).andExpect(status().isOk());
+
+            save(Map.of(Setting.TEAMS_WEBHOOK_URL.key(), hook + "-wrong")).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.integration").value("notification.teams"));
+            save(Map.of(Setting.TEAMS_WEBHOOK_URL.key(), hook)).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.integration").value("notification.teams"));
+            assertThat(settings.get(Setting.TEAMS_WEBHOOK_URL)).isEqualTo(hook);
+        } finally {
+            settings.set(Setting.TEAMS_WEBHOOK_URL, "");
+        }
+    }
+
+    @Test
     @DisplayName("a channel switched off is not configured: 409 integration-disabled on a URL, recipients, a switch or a team's webhook, nothing written; emptying is always saved")
     void aDisabledChannelIsNotConfigured() throws Exception {
         governorSwitches(SLACK, false).andExpect(status().isOk());
