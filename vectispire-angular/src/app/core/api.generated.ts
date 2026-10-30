@@ -1902,7 +1902,7 @@ export interface paths {
         get?: never;
         /**
          * Enable or disable integration
-         * @description Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. Disabling one a configuration uses — the SIEM transport an enabled export sends over — is refused 409 integration-in-use, naming it in the member integration, nothing changed and nothing recorded: change that configuration first. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.
+         * @description Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. Disabling one a configuration uses — the SIEM transport an enabled export sends over — is refused 409 integration-in-use, naming it in the member integration, nothing changed and nothing recorded: change that configuration first. Disabling an AI provider or a notification channel is refused 409 integration-not-switchable, naming it in the member integration, nothing changed and nothing recorded: this version's adapters of those families do not consult the registry, so the switch would stop nothing. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.
          */
         put: operations["setIntegrationEnabled"];
         post?: never;
