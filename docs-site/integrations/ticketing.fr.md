@@ -32,7 +32,8 @@ Sous [Réglages](../administration/settings.md) : le type de tracker, son URL, l
 cible, et un jeton. L'URL, le projet et le compte Jira reviennent à un administrateur, comme le
 jeton : le jeton agit là où ils le dirigent. Un projet GitHub s'écrit `propriétaire/dépôt` et rien
 d'autre — un chemin après lui est refusé à l'enregistrement, et de nouveau à l'envoi pour une valeur
-enregistrée avant. L'URL est l'adresse seule : celle qui porte un nom d'utilisateur ou un jeton
+enregistrée avant. Un tracker dont l'intégration est désactivée ne peut pas être choisi
+([plus bas](#tracker-suspended)). L'URL est l'adresse seule : celle qui porte un nom d'utilisateur ou un jeton
 (`https://utilisateur:…@hôte`) est refusée à l'enregistrement — le jeton a son propre champ, qui le chiffre.
 
 Donnez au jeton la portée la plus étroite permettant de créer et de lire des tickets dans le
@@ -131,6 +132,53 @@ serveur garde sa ligne au niveau `WARN`. `GET /api/v1/settings/ticket-token` ré
 
 ![Le jeton du tracker, enregistré, annoncé comme expirant dans onze jours.](../assets/screens/fr/settings-ticket-token.png)
 
+## Quand l'intégration du tracker est désactivée {#tracker-suspended}
+
+Chaque tracker est une intégration que le gouverneur de la plateforme active et désactive —
+`tracker.gitlab`, `tracker.github`, `tracker.jira`, `tracker.servicenow`, toutes activées au départ —
+dans [*Administration → Intégrations*](../administration/integrations.fr.md), ou par
+`PUT /api/v1/integrations/{key}/enabled`
+([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+Désactiver le tracker pour lequel l'installation est configurée le **suspend**, et ne supprime rien :
+
+- **Rien n'atteint le tracker et le jeton ne quitte pas sa ligne.** Le balayage horaire n'ouvre ni ne
+  ferme aucun ticket, la vérification quotidienne du jeton ne demande rien, et enregistrer un jeton le
+  stocke sans interroger le tracker à son sujet. Le balayage le dit une fois dans le journal du
+  serveur, quand la suspension commence, et une fois quand elle finit — pas toutes les heures.
+- **Il n'est pas choisi non plus.** Enregistrer `ticket_provider` en nommant un tracker dont
+  l'intégration est désactivée est refusé 409 `integration-disabled` — l'écran des réglages ne propose
+  que les trackers activés dans sa liste de fournisseurs, y garde celui qui est configuré marqué
+  *suspendu*, et affiche la phrase du refus — et rien de cet enregistrement n'est écrit. `none` s'enregistre toujours. Le tracker
+  déjà configuré, suspendu, s'enregistre de nouveau inchangé, pour que le projet, les libellés ou la CA
+  à côté puissent toujours être enregistrés : il est suspendu à dessein, et refuser sa propre valeur
+  bloquerait le reste de la section.
+- **Un ticket ne se rattache pas non plus à la main.** `PUT /api/v1/issues/{id}/ticket` et
+  `POST /api/v1/issues/{issueId}/tickets` nommant ce tracker répondent 409 `integration-disabled`, sa
+  clé dans `integration` ([causes d'un 409](../reference/errors.fr.md#causes-dun-409)).
+- **Ce qui est connu est gardé.** Le jeton, les réglages, la CA épinglée et les références que portent
+  les issues restent tels quels. Rien n'est annoncé du jeton pendant la suspension : un tracker
+  désactivé n'est pas un jeton qui *ne fonctionne plus*.
+- **La carte du tracker le dit** — *Suspendu — intégration désactivée*, en nommant l'intégration ;
+  `GET` et `PUT /api/v1/settings/ticket-token` répondent `state` (`active` ou `suspended`) et
+  `integration` (`tracker.gitlab`…), tous deux `null` tant qu'aucun tracker n'est choisi.
+- **Le webhook entrant est accepté et ignoré.** Une livraison d'un tracker dont l'intégration est
+  désactivée — celui que nomme la route, `/api/v1/tickets/webhook/{provider}` — est d'abord
+  authentifiée, comme toujours : sans le secret, elle est refusée `401` ou `403`, suspendue ou non.
+  Authentifiée, elle reçoit `200` avec un `actionTaken` qui commence par
+  `ignored_integration_disabled`, et rien n'en est appliqué — aucun triage mis en file, aucun état de
+  ticket enregistré. Son corps entre bien dans le contrôle de rejeu : la même livraison renvoyée après
+  la réactivation — capturée sur le réseau, ou redélivrée par le tracker lui-même — reçoit
+  *« Delivery already processed »* et ne change rien non plus ; un changement fait dans le tracker
+  pendant la suspension n'est pas rattrapé, modifiez de nouveau le ticket pour l'envoyer. Un `200` plutôt qu'un `409`, parce
+  qu'un tracker réessaie une livraison en échec et que GitLab désactive un webhook après des échecs
+  répétés : le webhook serait cassé au moment où le tracker est réactivé. Le journal du serveur le dit
+  une fois à la première livraison ignorée et une fois à la première de nouveau appliquée, pas à
+  chaque livraison.
+
+Réactivé, tout reprend tel quel : le balayage suivant ouvre les tickets dus et ferme ceux dont l'issue
+a été résolue entre-temps, la vérification suivante interroge le tracker sur le jeton, et la livraison
+suivante est appliquée.
+
 ## Ce qui atterrit dans le ticket
 
 De quoi agir sans ouvrir Vectispire : le composant et sa version, l'identifiant, la gravité,
@@ -208,6 +256,11 @@ qui a été lue — appariée, sans issue correspondante, déjà traitée — ga
 **Une livraison n'est traitée qu'une fois.** L'empreinte de chaque corps accepté est gardée trente
 jours ; le même corps reçu de nouveau dans cette fenêtre — un rejeu, ou la redélivrance du tracker
 lui-même — reçoit `200` *« Delivery already processed »* et ne change rien.
+
+**La livraison d'un tracker désactivé est ignorée, pas refusée.** Tant que le gouverneur de la
+plateforme a désactivé l'intégration du tracker, une livraison authentifiée reçoit `200`
+*« ignored_integration_disabled: … »* et ne change rien ; son corps est gardé comme un autre, si bien
+qu'il n'est pas traité plus tard non plus ([quand l'intégration du tracker est désactivée](#tracker-suspended)).
 
 **Une décision est mise en file, jamais appliquée.** L'issue passe en `pending_approval` avec le
 statut proposé et sa justification, et reste *en cours d'investigation* dans les documents VEX

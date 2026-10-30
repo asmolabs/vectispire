@@ -120,7 +120,10 @@ de leur durée de vie. Voir [Rotation et purge](maintenance.md).
 ## Notifications
 
 Destinations webhook, Teams et courriel, leurs secrets, et le rapport de posture hebdomadaire.
-Couvert sous [Notifications](../integrations/notifications.md).
+Couvert sous [Notifications](../integrations/notifications.md). Chaque canal est une intégration que le
+gouverneur de la plateforme peut désactiver une fois que rien n'est configuré pour lui ; donner une URL,
+des destinataires ou son interrupteur à un canal désactivé est refusé avec un 409 `integration-disabled`,
+et rien de cet enregistrement n'est écrit ([chaque canal est une intégration](../integrations/notifications.md#channel-integrations)).
 
 **Rappeler chaque semaine les contacts des checklists** (`checklist_reminders_enabled`, **désactivé par
 défaut**) envoie, une fois par semaine, à chaque compte qu'un projet a lié à un profil de la colonne de
@@ -138,7 +141,15 @@ et la date d'expiration du jeton pour un tracker qui ne la donne pas (`ticket_to
 un administrateur).
 Couvert sous [Tickets](../integrations/ticketing.md) et [un tracker derrière une CA
 interne](../integrations/ticketing.md#internal-ca) ; l'expiration et le refus du jeton sont affichés
-sur la carte du tracker ([quand le jeton expire](../integrations/ticketing.md#token-expiry)).
+sur la carte du tracker ([quand le jeton expire](../integrations/ticketing.md#token-expiry)). Le
+fournisseur se choisit dans une liste — *Aucun* et les trackers dont l'intégration est activée dans
+[*Administration → Intégrations*](integrations.fr.md) ; celui qui est configuré y reste, marqué
+*suspendu*, tant que son intégration est désactivée. La liste des fournisseurs d'IA et les adresses des
+canaux de notification suivent la même règle. Choisir un
+tracker (`ticket_provider`) dont le gouverneur de la plateforme a désactivé l'intégration est refusé 409
+`integration-disabled`, et rien de cet enregistrement n'est écrit ; `none` s'enregistre toujours, de même
+que le tracker déjà configuré, renvoyé inchangé pendant qu'il est
+[suspendu](../integrations/ticketing.md#tracker-suspended).
 
 ## Revue par IA
 
@@ -169,6 +180,17 @@ constats, et pour le code source le jour où la revue de code existera.
   dit votre contrat avec le fournisseur sur la conservation et l'entraînement, et si le code que vous
   analysez est à vous d'envoyer. Pointé vers vLLM, LM Studio, llama.cpp ou une passerelle interne, le
   code reste sur votre réseau.
+
+**Chaque fournisseur est une intégration** — `ai.ollama`, `ai.openai` — que le gouverneur de la
+plateforme peut désactiver par `PUT /api/v1/integrations/{key}/enabled`, celui qui est configuré compris :
+rien d'enregistré n'est perdu. Désactivé, chaque fonction qui le lit — le rapport OWASP depuis le bouton
+ou après un scan, l'explication du conseiller, le test du point d'accès — répond 409
+`integration-disabled`, *AI unavailable — provider disabled*, et **l'autre fournisseur ne répond jamais à
+sa place** : une revue passée sans un mot de l'Ollama que vous exploitez à l'API hébergée d'OpenAI
+enverrait les constats à un tiers que personne n'a choisi. Le statut du conseiller indique
+`providerEnabled: false` et liste des suggestions sans l'interroger. Choisir un fournisseur désactivé
+(`ai_review_provider`), ou activer `ai_review_enabled` sur l'un d'eux, est refusé avec un 409
+`integration-disabled`, et rien de cet enregistrement n'est écrit.
 
 **Un point d'accès public est refusé tant qu'il n'est pas reconnu.** Les deux URL passent par la garde
 sortante ; une destination hors de votre réseau — l'API d'OpenAI, ou un Ollama public — exige

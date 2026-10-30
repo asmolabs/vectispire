@@ -20,6 +20,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.firewall.RequestRejectedHandler;
+import org.springframework.security.web.header.writers.CrossOriginEmbedderPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -164,6 +167,16 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             "frame-ancestors 'none'");
 
     /**
+     * The browser features no screen of Vectispire uses, refused to the page and to anything injected
+     * into it. The clipboard stays allowed: the CI/CD snippets are copied with a button. A feature a
+     * screen starts to need comes out of this list in the same change.
+     */
+    private static final String PERMISSIONS_POLICY = String.join(", ",
+            "accelerometer=()", "bluetooth=()", "camera=()", "display-capture=()", "geolocation=()",
+            "gyroscope=()", "hid=()", "magnetometer=()", "microphone=()", "midi=()", "payment=()",
+            "serial=()", "usb=()");
+
+    /**
      * The firewall's refusal — {@code //}, an encoded {@code ..} or {@code ;}, a control character —
      * answered by the chain, as its other refusals are.
      *
@@ -201,8 +214,21 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 // On every response, static files included: the document that carries the
                 // injected string is `index.html`, so a policy applied only to `/api` would
                 // guard the JSON and leave the page it is rendered into unprotected.
-                .headers(headers -> headers.contentSecurityPolicy(
-                        policy -> policy.policyDirectives(CONTENT_SECURITY_POLICY)))
+                .headers(headers -> headers
+                        .contentSecurityPolicy(policy -> policy.policyDirectives(CONTENT_SECURITY_POLICY))
+                        .permissionsPolicyHeader(policy -> policy.policy(PERMISSIONS_POLICY))
+                        // The interface opens no window it must talk to and loads nothing from another
+                        // origin (the policy above says so), so it can be isolated at no cost: no other
+                        // site's window keeps a handle on it, and none of its responses can be read into
+                        // another site's process. The published badge is the one response meant to be
+                        // embedded elsewhere; its route says so itself, and this writer leaves a header
+                        // already set alone.
+                        .crossOriginOpenerPolicy(coop -> coop.policy(
+                                CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy.SAME_ORIGIN))
+                        .crossOriginEmbedderPolicy(coep -> coep.policy(
+                                CrossOriginEmbedderPolicyHeaderWriter.CrossOriginEmbedderPolicy.REQUIRE_CORP))
+                        .crossOriginResourcePolicy(corp -> corp.policy(
+                                CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy.SAME_ORIGIN)))
                 // No CSRF token: this API is consumed by a client that sends a bearer token, and
                 // a bearer token is not attached by a browser to a cross-site request. Enabling
                 // it would only break the agent protocol, which has no page to read a token from.

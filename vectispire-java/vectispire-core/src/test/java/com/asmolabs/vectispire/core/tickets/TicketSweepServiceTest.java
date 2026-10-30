@@ -9,10 +9,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
@@ -25,6 +31,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 @DisplayName("opening tickets for what would fail a build")
 class TicketSweepServiceTest {
@@ -46,7 +53,10 @@ class TicketSweepServiceTest {
 
         sweep = new TicketSweepService(
                 new com.asmolabs.vectispire.core.issues.IssueCatalog(issues),
-                new com.asmolabs.vectispire.core.gate.ActiveGatePolicies(policies), naming, tickets, audit);
+                new com.asmolabs.vectispire.core.gate.ActiveGatePolicies(policies), naming, tickets, audit,
+                java.time.Clock.systemUTC());
+        // The claim this instance takes before asking the tracker (V95): won, as one instance alone wins it.
+        when(issues.claimTicket(anyLong(), anyString(), any(), any())).thenReturn(1);
 
         when(tickets.isEnabled()).thenReturn(true);
         when(policies.findByIsActiveTrue()).thenReturn(List.of());
@@ -130,6 +140,53 @@ class TicketSweepServiceTest {
 
         assertThat(sweep.sweep(20)).isZero();
         verify(issues, never()).findActionableWithoutTicket(anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("a suspended tracker opens and closes nothing, and the pass says so once, then once when it resumes")
+    void aSuspendedTrackerIsSaidOnce() {
+        Integration jira = Integration.of(TicketProvider.JIRA);
+        candidates(issue(Severity.CRITICAL));
+        when(tickets.standing()).thenReturn(Optional.of(new TicketService.Standing(jira, TrackerState.SUSPENDED)));
+        when(tickets.isEnabled()).thenReturn(false);
+
+        List<String> said = logged(() -> {
+            assertThat(sweep.sweep(20)).isZero();
+            assertThat(sweep.sweep(20)).isZero();
+            assertThat(sweep.sweep(20)).isZero();
+        });
+
+        verify(issues, never()).findActionableWithoutTicket(anyString(), any(), any());
+        verify(issues, never()).findResolvedWithOpenTicket(any());
+        verify(tickets, never()).createForIssue(any(), anyString());
+        verify(tickets, never()).closeTicket(anyString(), anyString());
+        assertThat(said).as("once over three hourly passes, not once an hour").singleElement()
+                .satisfies(line -> assertThat(line).contains("tracker.jira integration is disabled")
+                        .contains("token, its settings and the issues' tickets are kept"));
+
+        when(tickets.standing()).thenReturn(Optional.of(new TicketService.Standing(jira, TrackerState.ACTIVE)));
+        when(tickets.isEnabled()).thenReturn(true);
+        List<String> resumed = logged(() -> {
+            assertThat(sweep.sweep(20)).as("re-enabled: the issue gets its ticket").isEqualTo(1);
+            sweep.sweep(20);
+        });
+        assertThat(resumed).filteredOn(line -> line.contains("enabled again")).singleElement()
+                .satisfies(line -> assertThat(line).contains("tracker.jira"));
+        assertThat(resumed).noneMatch(line -> line.contains("is disabled"));
+    }
+
+    /** The sweep's log lines while {@code pass} runs. */
+    private static List<String> logged(Runnable pass) {
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        Logger logger = (Logger) LoggerFactory.getLogger(TicketSweepService.class);
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            pass.run();
+        } finally {
+            logger.detachAppender(appender);
+        }
+        return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
     }
 
     @Test

@@ -140,6 +140,12 @@ public class ChecklistReminderService {
             // for a week would only fill the log.
             return 0;
         }
+        if (!mail.isSwitchedOn()) {
+            // `notification.mail` off (decision 0040): nothing is prepared, and nothing is marked sent, so the week's
+            // reminders go out at the next tick after it is on again. The reminders are a use of mail, so the switch
+            // is refused while they are on; this reads the registry for a row written by hand.
+            return 0;
+        }
         LocalDate weekStarting = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC)
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         Due due = due();

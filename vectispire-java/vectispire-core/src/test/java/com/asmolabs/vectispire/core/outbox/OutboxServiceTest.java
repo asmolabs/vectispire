@@ -83,7 +83,7 @@ class OutboxServiceTest {
     void marksADeliveredMessageSent() {
         due(pending(0));
 
-        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 0, 0));
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 0, 0, 0));
         verify(messages).markSent(ID, 1, "sent", NOW);
     }
 
@@ -106,7 +106,7 @@ class OutboxServiceTest {
         due(pending(0));
         doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any(), any());
 
-        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 1, 0));
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 1, 0, 0));
         verify(messages).recordAttempt(eq(ID), eq(1), anyString(), eq("pending"), any(Instant.class));
     }
 
@@ -116,7 +116,7 @@ class OutboxServiceTest {
         due(pending(OutboxRetry.MAX_ATTEMPTS - 1));
         doThrow(new OutboundJson.OutboundFailureException("connection refused")).when(notifications).deliver(any(), any());
 
-        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 0, 1));
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(0, 0, 1, 0));
         // Failed, with no next attempt: a message circulating for ever would hide the outage
         // behind a queue that never empties.
         verify(messages).recordAttempt(eq(ID), eq(OutboxRetry.MAX_ATTEMPTS), anyString(), eq("failed"), isNull());
@@ -134,7 +134,7 @@ class OutboxServiceTest {
                 .when(notifications)
                 .deliver(any(), any());
 
-        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 1, 0));
+        assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 1, 0, 0));
     }
 
     @Test
@@ -290,8 +290,29 @@ class OutboxServiceTest {
         OutboxMessageEntity row = queued("siem_event");
         when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(row));
 
-        assertThat(routed.relay(10)).isEqualTo(new OutboxService.RelayResult(0, 0, 1));
+        assertThat(routed.relay(10)).isEqualTo(new OutboxService.RelayResult(0, 0, 1, 0));
         verify(messages).recordAttempt(eq(row.getId()), eq(1), eq("the SIEM export was switched off"), eq("failed"), isNull());
+    }
+
+    @Test
+    @DisplayName("a handler whose destination may not be reached for now has its row held: pending, uncounted, offered again later")
+    void aHeldHandlerDestinationKeepsTheRow() {
+        OutboxHandler siem = mock(OutboxHandler.class);
+        when(siem.type()).thenReturn("siem_event");
+        doThrow(new HeldDeliveryException("the SIEM transport \"siem.syslog_udp\" is disabled"))
+                .when(siem).deliver(any(), any());
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications), List.of(siem), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+        OutboxMessageEntity row = queued("siem_event");
+        row.setAttempts(3);
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(row));
+
+        assertThat(routed.relay(10)).isEqualTo(new OutboxService.RelayResult(0, 0, 0, 1));
+        // Three attempts before the hold, three after it: a hold however long never nears abandonment.
+        verify(messages).recordAttempt(eq(row.getId()), eq(3), eq("the SIEM transport \"siem.syslog_udp\" is disabled"),
+                eq("pending"), eq(NOW.plus(OutboxRetry.HOLD_INTERVAL)));
+        verify(messages, never()).markSent(any(), anyInt(), anyString(), any());
     }
 
     private PlatformTransactionManager transactionManager() {

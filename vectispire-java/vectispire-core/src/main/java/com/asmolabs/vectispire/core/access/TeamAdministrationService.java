@@ -4,8 +4,10 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
@@ -22,6 +24,7 @@ import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -78,6 +81,7 @@ public class TeamAdministrationService {
      * {@code AccountAdminService.replaceTargets} exists to prevent for an account.
      */
     private final TransactionTemplate transactions;
+    private final Integrations integrations;
 
     public TeamAdministrationService(
             TeamRepository teams,
@@ -91,7 +95,8 @@ public class TeamAdministrationService {
             Clock clock,
             GrantTargets grantTargets,
             GrantableTargets grantable,
-            TransactionTemplate transactions) {
+            TransactionTemplate transactions,
+            Integrations integrations) {
         this.teams = teams;
         this.memberships = memberships;
         this.targets = targets;
@@ -104,6 +109,7 @@ public class TeamAdministrationService {
         this.grantTargets = grantTargets;
         this.grantable = grantable;
         this.transactions = transactions;
+        this.integrations = integrations;
     }
 
     /**
@@ -367,6 +373,8 @@ public class TeamAdministrationService {
      * state it was in before anybody set one.
      *
      * @param requestedUrl as sent, possibly null
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException setting one while
+     *     {@code notification.webhook} is disabled; removing one is always accepted
      */
     public TeamView setWebhook(long id, String requestedUrl, RequestActor actor) {
         TeamEntity team = requireTeam(id);
@@ -379,9 +387,17 @@ public class TeamAdministrationService {
         } else {
             // Before the guard, which resolves the host: a URL the column cannot hold is refused
             // without a DNS lookup, and without the 500 the insert used to answer.
+            // **A team's webhook is the webhook channel** (decision 0040, lot I6): refused while
+            // `notification.webhook` is off, before the guard resolves anything — and held in the write's
+            // transaction, so a governor's switch arriving meanwhile waits for it and reads it as in use.
+            Integration channel = Integration.of(NotificationChannelKind.WEBHOOK);
+            integrations.requireEnabled(channel);
             BoundedText.within(url, MAX_WEBHOOK_URL_LENGTH, "The webhook URL");
             outbound.validate(url, policy(), "team webhook URL");
-            webhooks.save(new TeamWebhookEntity(id, url));
+            transactions.executeWithoutResult(status -> {
+                integrations.holdEnabled(channel);
+                webhooks.save(new TeamWebhookEntity(id, url));
+            });
             // **The URL is not in the entry.** An audit log is read by people who are not
             // necessarily allowed to post in that channel, and a capability copied into a table
             // that is deliberately never purged is a capability that outlives its rotation.

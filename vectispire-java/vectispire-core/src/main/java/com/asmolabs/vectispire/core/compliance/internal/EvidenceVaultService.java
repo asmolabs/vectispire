@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
 import com.asmolabs.vectispire.core.compliance.ComplianceService;
+import com.asmolabs.vectispire.core.compliance.OwaspGridService;
 import com.asmolabs.vectispire.core.compliance.StatementOfApplicabilityService;
 import com.asmolabs.vectispire.core.crypto.SigningKeyService;
 import com.asmolabs.vectispire.core.exports.AttestationService;
@@ -72,6 +73,7 @@ public class EvidenceVaultService {
     private final ProcessEvidenceService processEvidence;
     private final StatementOfApplicabilityService soa;
     private final ComplianceHistoryService complianceHistory;
+    private final OwaspGridService owaspGrid;
     private final ObjectMapper json;
     private final Clock clock;
 
@@ -90,6 +92,7 @@ public class EvidenceVaultService {
             ProcessEvidenceService processEvidence,
             StatementOfApplicabilityService soa,
             ComplianceHistoryService complianceHistory,
+            OwaspGridService owaspGrid,
             Clock clock) {
         this.compliance = compliance;
         this.clock = clock;
@@ -106,6 +109,7 @@ public class EvidenceVaultService {
         this.processEvidence = processEvidence;
         this.soa = soa;
         this.complianceHistory = complianceHistory;
+        this.owaspGrid = owaspGrid;
         this.json = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .enable(SerializationFeature.INDENT_OUTPUT)
@@ -314,15 +318,28 @@ public class EvidenceVaultService {
                                 + "they are not included for a credential restricted to some targets."));
             }
 
-            // 15. Verification & Manifest
+            // 15. OWASP Top 10 coverage — what the rules measured, beside what was declared
+            // Narrowed by the allowance like 07 and 13: a key restricted to one product takes that
+            // product's grid. It is computed when the archive is built, not stored, and says so — the
+            // declarations carry their own dates, the measurement is the archive's.
+            byte[] owaspBytes = json.writeValueAsBytes(owaspGrid.grid(allowed));
+            addZipEntry(zip, entries, "15_owasp_top10_coverage.json",
+                    wholeEstate
+                            ? "OWASP Top 10:2021 coverage by rule at the time of export, each category with why it reads "
+                                    + "what it reads and the organisation's declaration about it"
+                            : "OWASP Top 10:2021 coverage by rule at the time of export over the targets this credential "
+                                    + "is restricted to, each category with why and its declaration",
+                    owaspBytes);
+
+            // Verification & Manifest
             AuditChain.Verification verification = auditService.verify();
             String chainStatus = verification.broken() == null ? "VERIFIED_INTACT" : "CHAIN_INTEGRITY_COMPROMISED";
 
-            // 1.1 adds sections 09-12, 1.2 section 13, 1.3 section 14, 1.4 the withheld sections. The
-            // version is in the manifest so an archive opened in two years says which generation
+            // 1.1 adds sections 09-12, 1.2 section 13, 1.3 section 14, 1.4 the withheld sections, 1.5
+            // section 15. The version is in the manifest so an archive opened in two years says which generation
             // produced it, rather than looking incomplete.
             EvidenceBundleManifest manifest = new EvidenceBundleManifest(
-                    "1.4",
+                    "1.5",
                     clock.instant(),
                     username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
@@ -336,7 +353,7 @@ public class EvidenceVaultService {
             zip.write(manifestBytes);
             zip.closeEntry();
 
-            // 16. Manifest signature (Cosign detached signature)
+            // Manifest signature (Cosign detached signature)
             String manifestSig = signingKeyService.sign(manifestBytes);
             ZipEntry sigEntry = new ZipEntry("manifest.json.sig");
             zip.putNextEntry(sigEntry);

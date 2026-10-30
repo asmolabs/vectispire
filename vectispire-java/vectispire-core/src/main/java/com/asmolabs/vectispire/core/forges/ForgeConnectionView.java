@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges;
 
+import com.asmolabs.vectispire.common.domain.forges.ForgeConnectionState;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +29,10 @@ import java.util.UUID;
  * @param probedAt when the token was last presented and accepted
  * @param encryptionState {@code current}, {@code previous_key} (rotate: save the connection or replace its
  *     token) or {@code unreadable} (replace the token)
+ * @param state {@code active}, or {@code suspended} when the integration of its forge is disabled (decision 0040
+ *     §2): kept with its token, used for nothing until a platform governor enables the forge again
+ * @param integration the registry's key of its forge, {@code forge.gitlab} or {@code forge.github}: what a
+ *     governor switches to resume a suspended connection
  * @param lastDiscovery the connection's latest discovery, whatever its state; null before the first
  * @param importedTargets how many targets were imported through it and still exist — a deleted target's link goes
  *     with it
@@ -49,6 +54,8 @@ public record ForgeConnectionView(
         String forgeVersion,
         Instant probedAt,
         String encryptionState,
+        ForgeConnectionState state,
+        String integration,
         Instant createdAt,
         String createdBy,
         Instant updatedAt,

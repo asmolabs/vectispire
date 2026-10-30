@@ -31,6 +31,11 @@ nommait sont corrigés maintenant plutôt que deux mineures après une annonce, 
 complète de `develop` est close — chaque constat corrigé ou documenté comme risque résiduel. Plusieurs de
 ces corrections refusent ce que la 0.11.2 acceptait : lisez *Avant la mise à jour* en entier. Une
 installation dont SCIM est actif avec un jeton court ne démarre pas tant que le jeton n'est pas remplacé.
+Elle apporte aussi les premiers lots de la
+[décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md) :
+le gouverneur de la plateforme active ou désactive les forges, les transports SIEM et les gestionnaires
+de tickets, sur un écran à lui, *Administration → Intégrations*, et les formulaires cessent de proposer ce
+qui est désactivé.
 Ce qui suit est par rapport à la 0.11.2.
 
 ### Avant la mise à jour {#avant-la-mise-a-jour-100-rc1}
@@ -46,8 +51,11 @@ Ce qui suit est par rapport à la 0.11.2.
   revenir par l'ajout de vérifications. La campagne fait tourner chaque version sur le plus ancien et le
   plus récent MySQL pris en charge, 8.4 et 9.4. Une installation sur PostgreSQL démarre encore dessus, sans
   prise en charge : prévoyez le passage à MySQL avant la 1.0.
-- **Deux migrations, V92 et V93**, appliquées au premier démarrage. V92 réécrit les codes des contrôles CRA
-  enregistrés (plus bas) ; V93 ajoute une colonne à la table des comptes. **Sauvegardez d'abord la base** :
+- **Quatre migrations, V92 à V95**, appliquées au premier démarrage. V92 réécrit les codes des contrôles
+  CRA enregistrés (plus bas) ; V93 ajoute une colonne à la table des comptes ; V94 crée le registre des
+  intégrations, `t_integration`, et y inscrit activées les dix-sept intégrations d'aujourd'hui, de sorte que
+  la mise à jour ne change rien tant qu'un gouverneur n'agit pas ; V95 ajoute la réclamation du balayage des
+  tickets, deux colonnes nulles sur `t_issue`. **Sauvegardez d'abord la base** :
   revenir à la 0.11.2 veut dire restaurer cette sauvegarde.
 - **Une seule instance du plan de contrôle est prise en charge**
   ([installation](../getting-started/installation.md#one-instance)). Les tâches de maintenance, le verrou
@@ -244,6 +252,61 @@ Ce qui suit est par rapport à la 0.11.2.
   ou par CWE (`byCwe`), et ceux qui ne le sont pas, par raison (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`,
   `NOT_DECLARED` ; une raison inconnue se lit par son nom). `GET /api/v1/owasp/coverage` gagne
   `unplacedCode`, les constats de code ouverts qu'aucune catégorie ne contient. Ajouts seuls.
+- **Deux routes.** `GET /api/v1/integrations`, pour tout compte, liste chaque intégration avec `key`,
+  `family`, `name`, `enabled`, `updatedAt` et `updatedBy` — ces deux derniers `null` tant qu'aucun
+  gouverneur ne l'a basculée, et `updatedBy` `null` aussi pour un lecteur sans rôle de gouvernance.
+  `PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": true|false}` est réservée au gouverneur de la
+  plateforme : 404 pour une clé inconnue, 400 sans `enabled`, et le même état redemandé ne change ni
+  n'enregistre rien
+  ([référence de l'API REST](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
+  Leurs identifiants d'opération dans `openapi.json` sont `listIntegrations` et `setIntegrationEnabled` ;
+  chaque identifiant que publie une 0.11.x garde son nom.
+- **Deux causes de 409**, chacune nommant la clé dans le membre `integration` :
+  `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée —
+  ouverte, pour une fonction qui lit un fournisseur d'IA, par *AI unavailable — provider disabled* ; et
+  `urn:vectispire:problem:integration-in-use` sur la bascule du gouverneur, pour le transport SIEM par
+  lequel un export activé envoie et pour un canal de notification qui a où envoyer
+  ([causes d'un 409](errors.fr.md#causes-dun-409)). Le `detail` de
+  `integration-disabled`, et la raison que porte une ligne de checklist alimentée par une connexion de
+  forge suspendue, nomment la route qui active l'intégration, `PUT /api/v1/integrations/{key}/enabled`,
+  pour un client de l'API ; l'interface affiche une phrase à elle pour chacune des trois causes, dans sa
+  langue, qui nomme la clé et l'écran. Le type et le membre sont ce que lit un client, et ils sont tels
+  qu'indiqués.
+- **Une connexion de forge porte `state`** — `active`, ou `suspended` tant que l'intégration de sa forge
+  est désactivée — **et `integration`**, `forge.gitlab` ou `forge.github`, la clé qui la reprend.
+- **L'état du jeton du tracker porte `state` et `integration`.** `GET` et
+  `PUT /api/v1/settings/ticket-token` répondent `state` — `active`, ou `suspended` tant que l'intégration
+  du tracker est désactivée — et `integration`, la clé qui le reprend (`tracker.jira`…) ; tous deux valent
+  `null` tant qu'aucun tracker n'est choisi. `PUT /api/v1/issues/{id}/ticket` et
+  `POST /api/v1/issues/{issueId}/tickets` répondent 409 `integration-disabled` pour un tracker suspendu, là
+  où ils répondaient 200 et 201.
+- **`PUT /api/v1/settings` refuse un tracker désactivé.** Enregistrer `ticket_provider` en nommant un
+  tracker dont l'intégration est désactivée répond 409 `integration-disabled`, le nommant dans
+  `integration`, et n'écrit rien de l'enregistrement, là où il répondait 200. `none`, et le tracker déjà
+  configuré renvoyé inchangé, s'enregistrent comme avant.
+- **Le webhook de tickets d'un tracker désactivé répond 200 et n'applique rien.** Une livraison
+  authentifiée sur `POST /api/v1/tickets/webhook/{provider}` tant que l'intégration de ce tracker est
+  désactivée reçoit `200`, `matched: false`, avec un `actionTaken` qui commence par
+  `ignored_integration_disabled` ; une livraison sans le secret est refusée `401` ou `403` comme avant.
+  Pas un 409 : le tracker réessaierait, et GitLab désactive un webhook après des échecs répétés. Son
+  corps entre dans le contrôle de rejeu : la même livraison renvoyée après la réactivation reçoit
+  *« Delivery already processed »*, et un changement fait dans le tracker entre-temps n'est pas rattrapé.
+  La suspension du tracker configuré vaut sur le chemin de chaque fournisseur, que l'unique secret de
+  webhook ouvre tous : une livraison sur le chemin d'un autre tracker est ignorée aussi tant qu'elle dure.
+- **Une nouvelle raison d'absence de données, `forge_integration_disabled`**, dans le `reason` d'une
+  mesure de checklist et partout où cette liste de raisons est répondue ; un client qui aiguille sur les
+  raisons en rencontre une qu'il ne connaissait pas.
+- **Une nouvelle opération d'audit, `INTEGRATION_ENABLED_CHANGED`**, envoyée au SIEM comme
+  `VECTI-SEC-019`, le changement de paramètre de sécurité
+  ([catalogue des événements SIEM](../integrations/siem.fr.md#catalogue-des-evenements)).
+- **La grille OWASP en CSV : `GET /api/v1/owasp/coverage/export.csv`.** Une ligne par catégorie dans
+  l'ordre du standard — état, constats ouverts, la raison en code et en phrase dans `language` (`en`, par
+  défaut, ou `fr` ; toute autre valeur répond 400), la déclaration de la catégorie, et le périmètre sur
+  chaque ligne — avec les `project_id` / `solution_id` de la grille et ses refus. Une route nouvelle.
+- **Le paquet de preuves gagne `15_owasp_top10_coverage.json`**, la grille OWASP Top 10:2021 avec ses
+  déclarations au moment de l'export, dans le périmètre de l'appelant : une clé restreinte à certaines
+  cibles reçoit la grille de ces cibles. La `version` du manifeste est `1.5`. Un outil qui compare la
+  liste des fichiers à un ensemble fixe en voit un de plus.
 
 ### Nouveautés {#nouveautes-100-rc1}
 
@@ -260,9 +323,81 @@ Ce qui suit est par rapport à la 0.11.2.
   pas et ne termine pas des scans.
 - **La page de couverture OWASP nomme l'édition qu'elle note**, l'édition 2021 du Top 10 OWASP. La 1.0
   en reste là ; l'édition 2025 sera ajoutée à côté plus tard.
+- **La grille OWASP s'exporte en CSV**, par **Exporter en CSV** sur la grille, pour le périmètre affiché
+  et avec ses raisons dans la langue de l'interface ; et le paquet de preuves signé porte désormais la
+  grille.
 - **Chaque boîte de dialogue de création et de modification est un formulaire** : Entrée la soumet, une
   seconde soumission pendant qu'une première est en cours n'envoie rien, et les champs que le serveur
   exige sont marqués. Le serveur décide toujours, dans ses propres mots.
+- **Le registre des intégrations.** Chaque système extérieur est une intégration de clé
+  `<famille>.<nom>` : les forges (`forge.github`, `forge.gitlab`), les transports SIEM (`siem.webhook`,
+  `siem.syslog_udp`, `siem.syslog_tcp`, `siem.syslog_tls`), les fournisseurs d'IA (`ai.ollama`,
+  `ai.openai`), les canaux de notification (`notification.webhook`, `.teams`, `.slack`, `.discord`,
+  `.mail`) et les gestionnaires de tickets (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Toutes
+  commencent activées ; une intégration ajoutée plus tard — Bitbucket d'abord — arrive désactivée. La
+  bascule se fait dans *Administration → Intégrations* (ci-dessous), ou par l'API. **Toutes les familles en
+  tiennent compte dans cette version.**
+- ***Administration → Intégrations*, l'écran du registre.** Tous les comptes le lisent, par famille, avec
+  l'état de chaque intégration et sa dernière modification — quand, et par qui pour un rôle de
+  gouvernance ; seul le gouverneur de la plateforme se voit proposer une bascule. Désactiver demande
+  d'abord et dit ce qui est suspendu et que rien n'est supprimé ; activer reprend sans rien demander. Un
+  refus s'affiche sur la ligne qu'il nomme, selon sa cause — `integration-in-use` avec ce qui l'utilise
+  encore, ou toute autre dans les mots du serveur. Les formulaires
+  suivent : le formulaire de connexion de forge, le protocole SIEM, le tracker — désormais une liste plutôt
+  qu'un champ de texte —, le fournisseur d'IA et les adresses des canaux de notification ne proposent
+  aucune intégration désactivée pour un nouveau choix, et une configuration qui en utilise déjà une se lit
+  *suspendue*, avec un lien vers l'écran ([intégrations](../administration/integrations.fr.md)).
+- **Un fournisseur d'IA peut être désactivé en service, et rien ne répond à sa place.** Chaque fonction qui
+  le lit — le rapport OWASP depuis le bouton ou après un scan, l'explication du conseiller, le test du
+  point d'accès — répond alors 409 `integration-disabled`, *AI unavailable — provider disabled*, avant
+  d'enregistrer quoi que ce soit, et l'autre fournisseur n'est jamais interrogé : une revue Ollama ne passe
+  pas en silence chez OpenAI. `GET /api/v1/ai-advisor/status` gagne `providerEnabled`, et liste des
+  suggestions sans interroger un fournisseur désactivé. Choisir un fournisseur désactivé dans les réglages,
+  ou activer la revue sur l'un d'eux, est refusé avec un 409 `integration-disabled`
+  ([revue par IA](../administration/settings.md#revue-par-ia)).
+- **Un canal de notification qui a où envoyer ne peut pas être désactivé** : 409 `integration-in-use`, le
+  refus listant ce qui l'utilise — une URL ou des destinataires dans les réglages de notification, le
+  webhook propre d'une équipe, les rappels des checklists. Un canal inutilisé peut l'être : il quitte la
+  liste du centre de notifications, son test répond 409 `integration-disabled`, le configurer est refusé
+  avec un 409 `integration-disabled` sans rien écrire de l'enregistrement, rien n'est mis en file pour lui,
+  et une ligne en file pour lui malgré tout attend dans la file d'envoi, sans tentative comptée, jusqu'à ce
+  qu'il soit réactivé ([chaque canal est une intégration](../integrations/notifications.md#channel-integrations)).
+  Un enregistrement qui configure un canal et la bascule du gouverneur sont ordonnés par la ligne du canal,
+  comme pour un transport SIEM. `PUT /api/v1/settings` écrit désormais ses valeurs en une transaction.
+- **Le delta d'un scan atteint Teams, Slack, Discord ou le courriel sans webhook configuré.** Qu'un delta
+  soit construit dépendait du seul webhook générique — l'URL globale ou celle d'une équipe — si bien
+  qu'une installation qui n'annonçait que sur un autre canal n'en recevait jamais.
+- **Une forge dont l'intégration est désactivée suspend ses connexions, sans jamais les supprimer.**
+  Chacune garde sa ligne, son jeton chiffré, son instantané, ses liens d'import et ses lectures de revues
+  des changements, et se lit *Suspendue — intégration désactivée* sur l'écran des connexions de forge.
+  Rien ne part vers cette forge : créer une connexion de ce type, une découverte, la prévisualisation d'un
+  import et l'import, un nouveau jeton, une nouvelle déclaration de réseau ou AC répondent 409
+  `integration-disabled` ; renommer, supprimer et lire restent possibles. Une découverte mise en file
+  avant la bascule attend, `pending` et non comptée. Une ligne `change_review` qu'elle alimentait se lit
+  *pas de données* avec `forge_integration_disabled` — jamais une réussite, même sur une lecture qui
+  passait avant. Réactiver la forge reprend tout tel quel
+  ([connexions de forge](../administration/forge-connections.fr.md#quand-lintegration-de-la-forge-est-desactivee)).
+- **Le transport SIEM utilisé ne peut pas être désactivé, et un transport désactivé n'envoie rien et ne
+  perd rien.** La bascule par le gouverneur du transport par lequel un export activé envoie répond 409
+  `integration-in-use` : pointez d'abord l'export ailleurs, ou désactivez-le. `PUT /api/v1/siem/config`
+  avec `enabled: true` sur un transport désactivé, et `POST /api/v1/siem/test` d'un tel transport,
+  répondent 409 `integration-disabled` ; désactiver l'export est toujours enregistré. Si un transport est
+  malgré tout désactivé sous un export activé — une ligne modifiée à la main — ses événements attendent
+  dans l'outbox, en attente, sans tentative comptée, proposés de nouveau toutes les cinq minutes, et
+  partent une fois le transport réactivé
+  ([SIEM](../integrations/siem.fr.md#chaque-transport-est-une-integration)).
+- **Un gestionnaire de tickets dont l'intégration est désactivée est suspendu, jamais supprimé.**
+  L'intégration du tracker configuré désactivée, rien ne l'atteint et son jeton ne quitte pas sa ligne :
+  le balayage horaire n'ouvre ni ne ferme aucun ticket et le dit une fois dans le journal, pas toutes les
+  heures ; la vérification quotidienne du jeton ne demande ni n'annonce rien — un tracker désactivé n'est
+  pas un jeton qui ne fonctionne plus ; enregistrer un jeton le stocke sans interroger le tracker.
+  Rattacher à la main un ticket de ce tracker répond 409 `integration-disabled`, et le choisir dans les
+  réglages aussi. Son webhook entrant est
+  toujours authentifié, puis accepté et ignoré : aucun triage n'en est mis en file, et le journal du
+  serveur le dit une fois par suspension plutôt qu'à chaque livraison. Le jeton, les réglages,
+  la CA épinglée et les références des issues sont gardés, la carte du tracker affiche *Suspendu —
+  intégration désactivée*, et le réactiver reprend tout tel quel
+  ([tickets](../integrations/ticketing.fr.md#tracker-suspended)).
 
 ### Sécurité {#securite-100-rc1}
 
@@ -289,6 +424,11 @@ risque résiduel là où une correction serait une décision à part entière :
   vérifie désormais avant que son scanner ne tourne, et fait échouer l'étape si la coupure ne vient pas.
   Là où la politique rejette en silence plutôt que de refuser, cela coûte jusqu'à deux secondes par pod.
   La sonde d'isolement de l'exécuteur attend de la même façon avant de trancher.
+- **Sur l'exécuteur Kubernetes, l'agent n'envoie le jeton de son compte de service qu'au serveur d'API du
+  cluster.** Il en lit l'adresse dans `KUBERNETES_SERVICE_HOST` et `KUBERNETES_SERVICE_PORT`, qu'une
+  variable de la spécification du pod remplace, et refuse désormais de démarrer si cet hôte ne se résout
+  pas uniquement en adresses de `kubernetes.default.svc`. Ne définissez aucune des deux dans
+  `agents.extraEnv` ; le pod de l'agent a besoin du DNS du cluster.
 - **Un scanner tué à sa limite de mémoire est un échec** même quand le runtime des conteneurs ne signale
   pas `OOMKilled`, de sorte que la sortie partielle d'une exécution tuée n'est jamais lue comme un
   rapport.
@@ -337,6 +477,12 @@ risque résiduel là où une correction serait une décision à part entière :
   tournent plus que dans la chaîne.
 - Les répertoires temporaires laissés par la récupération du catalogue de règles sont supprimés comme
   les autres.
+- **Deux plans de contrôle n'ouvrent plus deux tickets pour un constat.** Chaque instance exécute le balayage
+  horaire des tickets, et deux passages qui se chevauchaient demandaient tous deux au tracker un ticket pour le
+  même constat. Le balayage réclame désormais chaque constat avant de demander (migration V95, deux colonnes
+  nulles sur `t_issue`) : un passage qui perd la réclamation laisse le constat à l'autre, une tentative refusée
+  rend la réclamation, et la réclamation d'une instance morte est reprise après dix minutes. Une seule instance,
+  ce que cette version prend en charge (plus haut), n'a jamais rencontré ce cas.
 
 ### Performances {#performances-100-rc1}
 
@@ -348,6 +494,14 @@ risque résiduel là où une correction serait une décision à part entière :
   qu'elles recalculaient à chaque changement.
 - La découverte d'API rapproche les points d'accès des chemins d'ingress par recherche de préfixe plutôt
   qu'en comparant chaque paire.
+- L'inventaire des licences et les conflits de licences demandés sans cible — l'écran des licences de
+  l'administrateur — sont servis depuis la mémoire : les entrées de chaque cible sont gardées à côté des
+  décomptes de licences et relues seulement quand les scans, les composants ou les SBOM de build de
+  cette cible bougent, ou quand la cible est supprimée ; la politique et les noms des cibles sont
+  appliqués à chaque appel. Environ 250 ms par appel tombent à environ 40 ms sur deux cents cibles de
+  deux scans et 250 composants. Les réponses ne changent pas, ordre compris. Le plan de contrôle tient
+  jusqu'à environ 50 Mo de plus par millier de telles cibles une fois leur inventaire demandé, moins quand
+  les cibles partagent leurs composants.
 
 ## 0.11.2 — 27 octobre 2026
 

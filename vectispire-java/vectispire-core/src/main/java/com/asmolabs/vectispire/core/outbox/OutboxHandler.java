@@ -14,7 +14,9 @@ import java.util.UUID;
  *
  * <p>Like a channel, a handler <b>throws on failure</b> — the relay turns the exception into a
  * retry — and throws {@link GoneDestinationException} when the destination no
- * longer exists, which the relay abandons at once rather than retrying for four hours.
+ * longer exists, which the relay abandons at once rather than retrying for four hours, and {@link
+ * HeldDeliveryException} when it exists but may not be reached for now, which the relay keeps pending
+ * without counting the attempt.
  */
 public interface OutboxHandler {
 

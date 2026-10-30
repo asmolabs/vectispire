@@ -114,7 +114,7 @@ class TrackerTokenCheckTest {
         service = new TicketService(settings, encryption, new OutboundPost(sender, guard, json),
                 new OutboundJson(sender, guard, json), json, clock,
                 new TrackerTokenState(settings, event -> published.add((TokenAlert) event),
-                        org.springframework.transaction.support.TransactionOperations.withoutTransaction()));
+                        org.springframework.transaction.support.TransactionOperations.withoutTransaction()), TrackerIntegrations.allEnabled());
     }
 
     @AfterEach

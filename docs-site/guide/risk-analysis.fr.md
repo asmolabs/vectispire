@@ -94,6 +94,14 @@ détection est désactivée, ou combien de cibles du périmètre n'ont pas été
 envoie cette raison deux fois sur chaque ligne : `because`, la phrase en anglais, et `reason`, un code
 accompagné des valeurs dont la phrase est faite, que l'interface traduit.
 
+**Exporter en CSV**, sur la grille, l'enregistre pour un tableur : une ligne par catégorie dans l'ordre du
+standard, avec son état, ses constats ouverts, sa raison en code et en phrase dans la langue de
+l'interface, la déclaration faite à son sujet, et le périmètre sur chaque ligne — si bien qu'une ligne
+recopiée ailleurs dit encore sur quoi elle a été comptée. Le fichier couvre ce que couvre la grille
+affichée, et aucune cellule n'est écrite de sorte qu'un tableur l'exécute comme une formule. Le
+[paquet de preuves](compliance.md#le-paquet-de-preuves) porte la même grille, avec ses déclarations, sous
+`15_owasp_top10_coverage.json`.
+
 Un constat d'analyse de code est rangé par la catégorie que sa règle déclare dans `metadata.owasp`. Une
 règle qui ne déclare aucune catégorie de l'édition 2021 — la plupart du catalogue amont ne déclare qu'une
 CWE — voit ses constats rangés par cette CWE, dans la catégorie dont la **« List of Mapped CWEs » de l'OWASP
@@ -181,6 +189,10 @@ le retire, avec son rapport.
   scan reste terminé. Le journal d'audit enregistre chacun comme `AI_REVIEW_REQUESTED`, sans utilisateur
   — personne ne l'a demandé. Une demande en attente sur une instance qui s'arrête est perdue ; le scan
   suivant la redemande.
+- **Pas tant que son fournisseur est désactivé.** Le gouverneur de la plateforme peut désactiver le
+  fournisseur configuré (`ai.ollama`, `ai.openai`, [Réglages](../administration/settings.md#revue-par-ia)) :
+  **Lancer l'analyse IA** répond alors *AI unavailable — provider disabled* et n'enregistre rien, aucun rapport
+  n'est demandé après un scan, et l'autre fournisseur n'est jamais interrogé à sa place.
 
 Chacun lit le rapport avec sa propre visibilité : la route refuse un dépôt que vous ne voyez pas, et les
 comptes et liens à côté du rapport sont comptés comme votre backlog les compte.

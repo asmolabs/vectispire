@@ -168,8 +168,11 @@ public class ScorecardController {
         String svg = badges.publishedSvg(token)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No badge under this token."));
 
+        // Embedded in a README or a wiki on another origin, which the chain's same-origin resource
+        // policy would block; nothing else Vectispire answers is meant to leave its own pages.
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
+                .header("Cross-Origin-Resource-Policy", "cross-origin")
                 .contentType(MediaType.parseMediaType("image/svg+xml"))
                 .body(svg);
     }

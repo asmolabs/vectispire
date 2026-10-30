@@ -138,6 +138,7 @@ export interface SchemaModels {
     HighImpactFix: Models.HighImpactFix;
     InTotoAttestation: Models.InTotoAttestation;
     IncompleteLine: Models.ChecklistIncompleteLine;
+    IntegrationView: Models.Integration;
     Invocation: Models.AttestationInvocation;
     IssueDetail: Models.IssueDetail;
     IssueLink: Models.OwaspIssueLink;

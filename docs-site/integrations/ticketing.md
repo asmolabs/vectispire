@@ -31,7 +31,8 @@ Under [Settings](../administration/settings.md): the tracker type, its URL, the 
 target, and a token. The URL, the project and the Jira account are an administrator's, like the
 token: the token acts wherever they point it. A GitHub project is `owner/repository` and nothing
 else — a path after it is refused when saved, and refused again at the send for a value stored
-before. The URL is the address alone: one carrying a user name or a token (`https://user:…@host`) is
+before. A tracker whose integration is disabled cannot be chosen
+([below](#tracker-suspended)). The URL is the address alone: one carrying a user name or a token (`https://user:…@host`) is
 refused when saved — the token has a field of its own, which encrypts it.
 
 Give the token the narrowest scope that can create and read issues in the target project.
@@ -125,6 +126,51 @@ nothing. The server log keeps its line at `WARN`. `GET /api/v1/settings/ticket-t
 
 ![The tracker token, saved, announced as expiring in eleven days.](../assets/screens/en/settings-ticket-token.png)
 
+## When the tracker's integration is disabled {#tracker-suspended}
+
+Each tracker is an integration the platform governor switches on and off — `tracker.gitlab`,
+`tracker.github`, `tracker.jira`, `tracker.servicenow`, all enabled to begin with — on
+[*Administration → Integrations*](../administration/integrations.md), or through
+`PUT /api/v1/integrations/{key}/enabled`
+([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+Switching off the tracker this installation is configured for **suspends** it, and deletes nothing:
+
+- **Nothing reaches the tracker and the token does not leave its row.** The hourly sweep opens no
+  ticket and closes none, the daily token check asks nothing, and saving a token stores it without
+  asking the tracker about it. The sweep says so once in the server log, when the suspension begins,
+  and once when it ends — not every hour.
+- **It is not chosen either.** Saving `ticket_provider` naming a tracker whose integration is disabled
+  is refused 409 `integration-disabled` — the settings screen offers only the enabled trackers in its
+  provider list, keeps the configured one there marked *suspended*, and shows the refusal's sentence — and
+  nothing of that save is written. `none` is always saved. The tracker already configured, suspended,
+  is saved again unchanged, so that the project, the labels or the CA beside it can still be saved:
+  it is suspended on purpose, and refusing its own value would lock the rest of the section.
+- **A ticket is not attached by hand either.** `PUT /api/v1/issues/{id}/ticket` and
+  `POST /api/v1/issues/{issueId}/tickets` naming that tracker answer 409 `integration-disabled`, with
+  its key in `integration` ([409 causes](../reference/errors.md#409-causes)).
+- **What is known is kept.** The token, the settings, the pinned CA and the references the issues
+  carry stay as they were. Nothing is announced about the token while it is suspended: a tracker
+  switched off is not a token that *stopped working*.
+- **The tracker card says it** — *Suspended — integration disabled*, naming the integration;
+  `GET` and `PUT /api/v1/settings/ticket-token` answer `state` (`active` or `suspended`) and
+  `integration` (`tracker.gitlab`…), both `null` while no tracker is chosen.
+- **The inbound webhook is answered and ignored.** A delivery from a tracker whose integration is
+  disabled — the one the route names, `/api/v1/tickets/webhook/{provider}` — is authenticated first,
+  as always: without the secret it is refused `401` or `403`, suspended or not. Authenticated, it is
+  answered `200` with `actionTaken` beginning `ignored_integration_disabled`, and nothing of it is
+  applied — no triage is queued, no ticket state recorded. Its body does enter the replay check, so the
+  same delivery sent again after re-enabling — captured on the wire, or the tracker's own redelivery —
+  is answered *"Delivery already processed"* and changes nothing either; a change made in the tracker
+  while it was suspended is not caught up, edit the issue again to send it. A `200` rather than
+  a `409` because a tracker retries a delivery that failed, and GitLab disables a webhook after
+  repeated failures: the webhook would be broken by the time the tracker is switched back on. The
+  server log says so once when the first delivery is ignored and once when one is applied again, not
+  at every delivery.
+
+Switched back on, everything resumes as it was: the next sweep opens the tickets that are due and
+closes those whose issue was resolved meanwhile, the next check asks about the token, and the next
+delivery is applied.
+
 ## What lands in the ticket
 
 Enough to act without opening Vectispire: the component and version, the identifier, the
@@ -199,6 +245,11 @@ in the success body — `matched: false` and the sentence in `actionTaken`. A de
 **A delivery is acted on once.** The hash of each accepted body is kept for thirty days; the same
 body arriving again within that window — a replay, or the tracker's own redelivery — is answered
 `200` *"Delivery already processed"* and changes nothing.
+
+**A disabled tracker's delivery is ignored, not refused.** While the platform governor has the
+tracker's integration switched off, an authenticated delivery is answered `200`
+*"ignored_integration_disabled: …"* and changes nothing; its body is remembered like any other, so it is
+not acted on later either ([when the tracker's integration is disabled](#tracker-suspended)).
 
 **A decision is queued, never applied.** The issue moves to `pending_approval` with the proposed
 status and its justification, and stays *under investigation* in the exported VEX documents until a

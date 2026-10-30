@@ -31,6 +31,23 @@
                     <h2 class="text-xl font-semibold m-0 break-words" data-testid="connection-name">
                         {{ connection.name }}
                     </h2>
+                    @if (connection.state === 'suspended') {
+                        <p-tag
+                            class="mt-1"
+                            severity="warn"
+                            data-testid="connection-suspended"
+                            [value]="'forges.connections.suspended' | translate"
+                        />
+                        <!-- Said in the text too, not in a tooltip alone, with where it is switched back on. -->
+                        <p class="m-0 mt-1 text-sm" data-testid="connection-suspended-hint">
+                            {{
+                                'forges.connections.suspended_hint' | translate: { integration: connection.integration }
+                            }}
+                            <a [routerLink]="integrationsRoute" data-testid="connection-suspended-link">{{
+                                'integrations.open_screen' | translate
+                            }}</a>
+                        </p>
+                    }
                     <p class="m-0 mt-1 text-muted-color break-all">
                         <span data-testid="connection-edition">{{ edition(connection) }}</span> ·
                         <span class="font-mono text-sm" data-testid="connection-address">{{ connection.baseUrl }}</span>
@@ -217,9 +234,20 @@
                 [(ngModel)]="form.kind"
                 class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
             >
-                <option value="gitlab">{{ 'forges.kind.gitlab' | translate }}</option>
-                <option value="github">{{ 'forges.kind.github' | translate }}</option>
+                <!-- Only the forges the platform governor has not switched off (decision 0040 §1). -->
+                @if (forgeKinds().includes('gitlab')) {
+                    <option value="gitlab">{{ 'forges.kind.gitlab' | translate }}</option>
+                }
+                @if (forgeKinds().includes('github')) {
+                    <option value="github">{{ 'forges.kind.github' | translate }}</option>
+                }
             </select>
+            @if (forgeKinds().length === 0) {
+                <small class="text-red-600 dark:text-red-400" data-testid="no-forge-enabled">
+                    {{ 'forges.connections.no_forge_enabled' | translate }}
+                    <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
+                </small>
+            }
         </div>
         <div class="flex flex-col gap-2">
             <label for="forge-name" class="font-medium">{{ 'common.name' | translate }}</label>
@@ -355,7 +383,7 @@
             data-testid="create-submit"
             [label]="'forges.connections.create_submit' | translate"
             [loading]="saving()"
-            [disabled]="!cloud() && caFeedback(form.caPem).problem !== null"
+            [disabled]="forgeKinds().length === 0 || (!cloud() && caFeedback(form.caPem).problem !== null)"
             (onClick)="create()"
         />
     </ng-template>

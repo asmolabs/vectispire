@@ -199,6 +199,7 @@ judged on part of a project's backlog:
 |---|---|
 | `no_repository` | The project has no repository: "every one of none passes" is not a pass. |
 | `never_examined` | A repository has no scan or import in which the scope produced. |
+| `forge_integration_disabled` | A [`change_review` line](../administration/checklist-templates.md#change-review-how-changes-reach-a-branch), on a repository whose forge connection is [suspended](../administration/forge-connections.md#when-the-forges-integration-is-disabled): the platform governor switched that forge's integration off. Nothing is read from it, and a reading taken before the switch is not judged. Switching the forge back on resumes the line. |
 | `forge_unlinked` | A [`change_review` line](../administration/checklist-templates.md#change-review-how-changes-reach-a-branch), on a repository no forge connection imported and whose URL no discovery listed: there is no forge project to ask. |
 | `forge_unreadable` | The same, and the forge refused the connection's token the project, its merge requests or its pull requests — on GitHub, a fine-grained token without *Pull requests: read*. The evidence gives the forge's answer. |
 | `step_absent` | Every scan within the age ran without the step or the plugin — did not look, not found nothing; also a coverage report that counted no branch, for a rule on branches. |

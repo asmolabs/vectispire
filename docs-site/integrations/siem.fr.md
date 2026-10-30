@@ -105,6 +105,27 @@ refusée, un délai dépassé, un statut HTTP — est écrite dans le journal du
 elle distingue un port fermé d'un serveur à l'écoute, ce qui ferait du bouton un scanner de chaque
 réseau que l'export peut atteindre.
 
+### Chaque transport est une intégration
+
+Les quatre transports sont des intégrations que le gouverneur de la plateforme active et désactive —
+`siem.webhook`, `siem.syslog_udp`, `siem.syslog_tcp`, `siem.syslog_tls`, toutes activées au départ —
+dans [*Administration → Intégrations*](../administration/integrations.fr.md), ou par l'API,
+`PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": false}` ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+La liste des protocoles de la carte SIEM ne propose que les transports activés ; celui qui est enregistré y
+reste, marqué *suspendu*, et la carte dit que ses événements attendent dans l'outbox.
+Un export activé ne s'enregistre pas sur un transport désactivé, et un transport désactivé ne se teste
+pas : les deux répondent 409 `integration-disabled`. Désactiver l'export s'enregistre toujours, quel
+que soit son protocole.
+
+**Le transport utilisé ne peut pas être désactivé.** Tant que l'export est activé, la bascule de son
+transport par le gouverneur est refusée en 409 `integration-in-use` : les événements de sécurité qui
+attendent dans l'outbox n'auraient sinon plus nulle part où aller, et seraient perdus en silence.
+Pointez d'abord l'export vers un autre transport, ou désactivez-le — le collecteur quitté en est
+averti — et l'ancien transport peut alors être désactivé. Si un transport se trouve malgré tout
+désactivé sous un export activé (une ligne modifiée à la main), les événements ne partent pas et ne
+se perdent pas : ils attendent dans l'outbox, en attente, la raison en dernière erreur et sans
+tentative comptée, et partent dès que le transport est réactivé ou que l'export pointe ailleurs.
+
 ## Sévérité minimale
 
 Chaque événement porte une sévérité CEF de 0 à 10. La sévérité minimale garde les bandes qui
@@ -204,7 +225,7 @@ changera pas de sens. Son préfixe a changé une fois, de `ZAN-SEC-` à `VECTI-S
 | `VECTI-SEC-016` | Four-eyes triage request approved | 5 | une seconde personne tranche une demande en attente |
 | `VECTI-SEC-017` | Four-eyes triage request refused | 4 | une demande en attente est renvoyée |
 | `VECTI-SEC-018` | Audit log integrity verification failed | 10 | une vérification trouve la chaîne de hachage rompue ou des entrées manquantes dans la table |
-| `VECTI-SEC-019` | Security-relevant setting changed | 6 | l'export SIEM lui-même, une politique de gate, la visibilité, le double contrôle, un interrupteur d'URL privée ou de modèle distant, une destination de tracker ou de modèle, ou un secret enregistré change |
+| `VECTI-SEC-019` | Security-relevant setting changed | 6 | l'export SIEM lui-même, une politique de gate, la visibilité, le double contrôle, un interrupteur d'URL privée ou de modèle distant, une destination de tracker ou de modèle, ou un secret enregistré change, ou le gouverneur de la plateforme active ou désactive une intégration (`INTEGRATION_ENABLED_CHANGED`) |
 | `VECTI-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | l'annonce de la clé de scellement d'un agent est refusée : sa signature ne se vérifie pas contre la clé de signature épinglée, ou elle est plus ancienne que la clé déjà acceptée ; aucun identifiant n'est scellé pour elle |
 | `VECTI-SEC-021` | Analysis plugin registered, changed or activated | 6 | un plugin est enregistré, mis à jour, activé ou désactivé par le gouverneur de la plateforme, autorisé à tourner sans signature ou ne l'est plus, ou activé ou désactivé pour un projet — du code tiers gagne ou perd l'accès en lecture à une partie du source |
 | `VECTI-SEC-022` | SARIF import source declared or changed | 6 | une source SARIF est déclarée, activée, désactivée ou supprimée : quelle clé peut déposer des constats, pour quel projet ou dépôt, depuis quels outils |

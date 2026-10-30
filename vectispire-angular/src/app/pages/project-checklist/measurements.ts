@@ -29,6 +29,7 @@ export const OUTCOME_KEYS = {
 export const NO_DATA_KEYS = {
     no_repository: 'project_checklist.reason_no_repository',
     never_examined: 'project_checklist.reason_never_examined',
+    forge_integration_disabled: 'project_checklist.reason_forge_integration_disabled',
     forge_unlinked: 'project_checklist.reason_forge_unlinked',
     forge_unreadable: 'project_checklist.reason_forge_unreadable',
     step_absent: 'project_checklist.reason_step_absent',
@@ -55,6 +56,7 @@ export const NO_DATA_KEYS = {
 export const NO_DATA_SHORT_KEYS = {
     no_repository: 'project_checklist.reason_short_no_repository',
     never_examined: 'project_checklist.reason_short_never_examined',
+    forge_integration_disabled: 'project_checklist.reason_short_forge_integration_disabled',
     forge_unlinked: 'project_checklist.reason_short_forge_unlinked',
     forge_unreadable: 'project_checklist.reason_short_forge_unreadable',
     step_absent: 'project_checklist.reason_short_step_absent',

@@ -204,6 +204,15 @@ public class LicenseGovernanceService {
 
     /** The entries of these scans, judged by the policy in force and named after their targets. */
     private List<LicenseEntry> named(List<ScanCatalog.ScanSbom> selected, Predicate<ScanCatalog.ScanSbom> readsSbom) {
+        return judged(read(selected, readsSbom, LicenceLedger.read()).values());
+    }
+
+    /**
+     * Entries as read, in the order given, judged by the policy in force and named after their targets'
+     * names of the moment — both read here, at each answer, so that neither is kept by the entries the
+     * inventory holds in memory.
+     */
+    private List<LicenseEntry> judged(Collection<LicenceLedger.Raw> raws) {
         LicensePolicy policy = getPolicy();
 
         Map<Long, RepositoryView> repos = targets.repositories().stream()
@@ -212,16 +221,44 @@ public class LicenseGovernanceService {
         Map<Long, ContainerView> containers = targets.containers().stream()
                 .collect(Collectors.toMap(ContainerView::id, c -> c, (a, b) -> a));
 
-        Function<ScanCatalog.ScanSbom, String> nameOf = scan -> scan.repoId() != null && repos.containsKey(scan.repoId())
+        Function<LicenceLedger.Scan, String> nameOf = scan -> scan.repoId() != null && repos.containsKey(scan.repoId())
                 ? repos.get(scan.repoId()).name()
                 : (scan.containerId() != null && containers.containsKey(scan.containerId())
                         ? containers.get(scan.containerId()).imageName() + ":" + containers.get(scan.containerId()).tag()
                         : "General");
-        return new ArrayList<>(entries(selected, readsSbom, policy, nameOf).values());
+        // A licence is judged once per answer, however many entries declare it.
+        Map<String, Judgement> judgements = new HashMap<>();
+        List<LicenseEntry> judged = new ArrayList<>(raws.size());
+        for (LicenceLedger.Raw raw : raws) {
+            Judgement judgement = judgements.computeIfAbsent(raw.license(), licence -> Judgement.of(licence, policy));
+            judged.add(new LicenseEntry(
+                    raw.name(),
+                    raw.version(),
+                    raw.purl(),
+                    raw.license(),
+                    judgement.risk(),
+                    judgement.violationReason() == null,
+                    judgement.violationReason(),
+                    raw.scan().targetId(),
+                    raw.scan().targetKind(),
+                    nameOf.apply(raw.scan())));
+        }
+        return judged;
+    }
+
+    /** What the policy says of one licence, with the sentence an entry carries when it refuses it. */
+    private record Judgement(LicenseRiskCategory risk, String violationReason) {
+
+        static Judgement of(String license, LicensePolicy policy) {
+            LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
+            return new Judgement(risk, policy.isCompliant(license, risk)
+                    ? null
+                    : "License " + license + " is forbidden under active compliance policy (" + risk + ")");
+        }
     }
 
     /**
-     * The entries of these scans, keyed by target, name and version.
+     * The entries of these scans, keyed by target, name and version, put into {@code entryMap}.
      *
      * <p><b>Scans and findings in identifier order</b>, so that of two scans of one target declaring
      * the same component under different licences the newer one is kept — which used to be decided by
@@ -233,16 +270,22 @@ public class LicenseGovernanceService {
      *
      * <p>Each entry's key begins with its target, so the scans of one target produce the same entries
      * whatever other scans are read with them: the estate's inventory narrowed to a target is that
-     * target's — and a reader's inventory may be read from their targets' scans alone.
+     * target's — and a reader's inventory may be read from their targets' scans alone. The same two
+     * properties are what let the ledger keep each target's share and rebuild the estate's map from them,
+     * in its order ({@link LicenceLedger}).
+     *
+     * <p>Nothing here depends on the policy or on a target's name: an entry is judged and named when it
+     * is answered ({@link #judged}), so what is kept in memory holds neither.
      */
-    private Map<String, LicenseEntry> entries(
+    private LicenceLedger read(
             Collection<ScanCatalog.ScanSbom> selected,
             Predicate<ScanCatalog.ScanSbom> readsSbom,
-            LicensePolicy policy,
-            Function<ScanCatalog.ScanSbom, String> nameOf) {
-        Map<String, LicenseEntry> entryMap = new HashMap<>();
+            LicenceLedger entryMap) {
         Map<Long, ScanCatalog.ScanSbom> scans = new TreeMap<>();
         selected.forEach(scan -> scans.putIfAbsent(scan.id(), scan));
+        // The columns an entry keeps of its scan — never the SBOM, megabytes of JSON apiece.
+        Map<Long, LicenceLedger.Scan> columns = new HashMap<>();
+        scans.forEach((id, scan) -> columns.put(id, new LicenceLedger.Scan(id, scan.repoId(), scan.containerId())));
 
         // 1. Ingest real licenses from Scan SBOMs (Syft / CycloneDX)
         for (ScanCatalog.ScanSbom scan : scans.values()) {
@@ -250,15 +293,12 @@ public class LicenseGovernanceService {
                 continue;
             }
 
-            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
-            String targetKind = scan.repoId() != null ? "repository" : (scan.containerId() != null ? "container" : "general");
-
             if (scan.sbom() != null && !scan.sbom().isBlank()) {
                 try {
                     JsonNode root = objectMapper.readTree(scan.sbom());
                     JsonNode artifacts = root.path("artifacts");
                     if (artifacts.isArray()) {
-                        String targetName = nameOf.apply(scan);
+                        LicenceLedger.Scan of = columns.get(scan.id());
                         for (JsonNode artifact : artifacts) {
                             String name = artifact.path("name").asText(null);
                             if (name == null || name.isBlank()) continue;
@@ -266,23 +306,7 @@ public class LicenseGovernanceService {
                             String purl = artifact.path("purl").asText(null);
 
                             String license = SbomLicences.declaredOrUnknown(artifact);
-
-                            LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
-                            boolean compliant = policy.isCompliant(license, risk);
-                            String violationReason = compliant ? null : "License " + license + " is forbidden under active compliance policy (" + risk + ")";
-
-                            String key = targetKind + ":" + targetId + ":" + name + ":" + (version != null ? version : "");
-                            entryMap.put(key, new LicenseEntry(
-                                    name,
-                                    version != null ? version : "unknown",
-                                    purl,
-                                    license,
-                                    risk,
-                                    compliant,
-                                    violationReason,
-                                    targetId,
-                                    targetKind,
-                                    targetName));
+                            entryMap.put(LicenceLedger.SBOM, new LicenceLedger.Raw(name, version, purl, license, of));
                         }
                     }
                 } catch (Exception unreadable) {
@@ -303,13 +327,10 @@ public class LicenseGovernanceService {
             components.addAll(componentsRepo.namesOfScans(batch));
         }
         for (ComponentName comp : components) {
-            ScanCatalog.ScanSbom scan = comp.scanId() != null ? scans.get(comp.scanId()) : null;
+            LicenceLedger.Scan scan = comp.scanId() != null ? columns.get(comp.scanId()) : null;
             if (scan == null) continue;
 
-            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
-            String targetKind = scan.repoId() != null ? "repository" : (scan.containerId() != null ? "container" : "general");
-
-            String prefix = targetKind + ":" + targetId + ":" + comp.name() + ":";
+            String prefix = scan.keyPrefix() + comp.name() + ":";
             String key = prefix + (comp.version() != null ? comp.version() : "");
             ComponentOrigin origin = ComponentOrigin.ofStored(comp.origin());
             if (origin.fromBuild()) {
@@ -317,47 +338,24 @@ public class LicenseGovernanceService {
                 // licence where it declares one. A row the scanner also listed replaces the entry its SBOM
                 // gave under the scanner's version — the UNKNOWN a parent BOM left — rather than standing
                 // beside it, and keeps the licence the scanner read where the build declares none.
-                LicenseEntry scanned = null;
+                LicenceLedger.Raw scanned = null;
                 if (origin == ComponentOrigin.BOTH) {
                     String scannedKey = prefix + (comp.scannedVersion() != null ? comp.scannedVersion() : "");
-                    scanned = scannedKey.equals(key) ? entryMap.get(key) : entryMap.remove(scannedKey);
+                    scanned = scannedKey.equals(key)
+                            ? entryMap.get(key)
+                            : entryMap.remove(LicenceLedger.COMPONENTS, scan, scannedKey);
                 }
                 String license = comp.declaredLicense() != null && !comp.declaredLicense().isBlank()
                         ? comp.declaredLicense()
                         : scanned != null ? scanned.license()
                         : entryMap.containsKey(key) ? entryMap.get(key).license() : UNDECLARED;
-                LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
-                boolean compliant = policy.isCompliant(license, risk);
-                entryMap.put(key, new LicenseEntry(
-                        comp.name(),
-                        comp.version() != null ? comp.version() : "unknown",
-                        comp.purl(),
-                        license,
-                        risk,
-                        compliant,
-                        compliant ? null : "License " + license + " is forbidden under active compliance policy (" + risk + ")",
-                        targetId,
-                        targetKind,
-                        nameOf.apply(scan)));
+                entryMap.put(LicenceLedger.COMPONENTS,
+                        new LicenceLedger.Raw(comp.name(), comp.version(), comp.purl(), license, scan));
                 continue;
             }
             if (!entryMap.containsKey(key)) {
-                String inferredLicense = UNDECLARED;
-                LicenseRiskCategory risk = LicenseRiskCategory.classify(inferredLicense);
-                boolean compliant = policy.isCompliant(inferredLicense, risk);
-                String violationReason = compliant ? null : "License " + inferredLicense + " is forbidden under active compliance policy (" + risk + ")";
-
-                entryMap.put(key, new LicenseEntry(
-                        comp.name(),
-                        comp.version() != null ? comp.version() : "unknown",
-                        comp.purl(),
-                        inferredLicense,
-                        risk,
-                        compliant,
-                        violationReason,
-                        targetId,
-                        targetKind,
-                        nameOf.apply(scan)));
+                entryMap.put(LicenceLedger.COMPONENTS,
+                        new LicenceLedger.Raw(comp.name(), comp.version(), comp.purl(), UNDECLARED, scan));
             }
         }
 
@@ -370,29 +368,16 @@ public class LicenseGovernanceService {
                         .toList();
 
         for (ScanFindingView finding : licenseFindings) {
-            ScanCatalog.ScanSbom scan = finding.scanId() != null ? scans.get(finding.scanId()) : null;
+            LicenceLedger.Scan scan = finding.scanId() != null ? columns.get(finding.scanId()) : null;
             if (scan == null) continue;
 
-            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
-            String targetKind = scan.repoId() != null ? "repository" : (scan.containerId() != null ? "container" : "general");
-
             String license = finding.identifier() != null ? finding.identifier() : "UNKNOWN";
-            LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
-            boolean compliant = policy.isCompliant(license, risk);
-            String violationReason = compliant ? null : "License " + license + " is forbidden under active compliance policy (" + risk + ")";
-
-            String key = targetKind + ":" + targetId + ":" + (finding.packageName() != null ? finding.packageName() : "unknown") + ":" + (finding.packageVersion() != null ? finding.packageVersion() : "");
-            entryMap.put(key, new LicenseEntry(
+            entryMap.put(LicenceLedger.FINDINGS, new LicenceLedger.Raw(
                     finding.packageName() != null ? finding.packageName() : "unknown",
-                    finding.packageVersion() != null ? finding.packageVersion() : "unknown",
+                    finding.packageVersion(),
                     finding.purl(),
                     license,
-                    risk,
-                    compliant,
-                    violationReason,
-                    targetId,
-                    targetKind,
-                    nameOf.apply(scan)));
+                    scan));
         }
 
         return entryMap;
@@ -411,7 +396,9 @@ public class LicenseGovernanceService {
      *
      * <p><b>Each target's licences are tallied once and kept until its scans move</b>: how many entries
      * declare each licence, which the policy then judges at every read — a policy change is seen at
-     * once, and a tally is a handful of numbers rather than an inventory. Whether a target's scans moved
+     * once. Beside the counts the recount keeps the target's entries, with no judgement and no name, and
+     * the estate's inventory is served from them ({@link #getInventory(Visibility, Long, Long)}): one
+     * stamp for both, so whatever recounts a tally rereads its entries. Whether a target's scans moved
      * is read every time, from the database, as counts: the {@link ScanCatalog.ScanCensus} of its scans,
      * and how many of those holding an SBOM have component rows. What decides a target's inventory
      * changes only with one of them —
@@ -439,7 +426,7 @@ public class LicenseGovernanceService {
     public Map<ScanTarget, Long> violationsByTarget(Visibility allowed) {
         LicensePolicy policy = getPolicy();
         Map<ScanTarget, Long> violations = new HashMap<>();
-        talliesWithin(allowed, policy).forEach((owner, tally) -> {
+        talliesWithin(allowed).forEach((owner, tally) -> {
             if (owner.target() != null) {
                 violations.put(owner.target(), tally.refusedBy(policy));
             }
@@ -474,7 +461,7 @@ public class LicenseGovernanceService {
         LicensePolicy policy = getPolicy();
         Map<ScanTarget, Long> byTarget = new HashMap<>();
         long total = 0;
-        for (Map.Entry<Owner, Tally> tally : talliesWithin(allowed, policy).entrySet()) {
+        for (Map.Entry<Owner, Tally> tally : talliesWithin(allowed).entrySet()) {
             long refused = tally.getValue().refusedBy(policy);
             total += refused;
             if (tally.getKey().target() != null) {
@@ -490,8 +477,12 @@ public class LicenseGovernanceService {
      */
     private record Owner(ScanTarget target) {}
 
-    /** The licences of one owner's inventory, counted, and the census they were counted under. */
-    private record Tally(Stamp stamp, Map<String, Long> licences) {
+    /**
+     * The licences of one owner's inventory, counted, its entries as {@link LicenceLedger} keeps them,
+     * and the census both were read under — one read, one stamp, so the inventory served from memory and
+     * the figures counted off it cannot be of two different moments.
+     */
+    private record Tally(Stamp stamp, Map<String, Long> licences, LicenceLedger.Kept entries) {
 
         long refusedBy(LicensePolicy policy) {
             long refused = 0;
@@ -517,7 +508,7 @@ public class LicenseGovernanceService {
      * The tallies of every owner {@code allowed} permits that holds a scan, those whose census moved
      * counted again first.
      */
-    private Map<Owner, Tally> talliesWithin(Visibility allowed, LicensePolicy policy) {
+    private Map<Owner, Tally> talliesWithin(Visibility allowed) {
         // Read first: the inventory read after it can only be as new or newer.
         Map<Owner, Stamp> stamps = stamps();
         tallies.keySet().retainAll(stamps.keySet());
@@ -532,7 +523,7 @@ public class LicenseGovernanceService {
             }
         }
         if (!stale.isEmpty()) {
-            recount(stale, stamps, policy);
+            recount(stale, stamps);
         }
 
         Map<Owner, Tally> within = new HashMap<>();
@@ -578,9 +569,10 @@ public class LicenseGovernanceService {
 
     /**
      * Counts again the owners whose census moved — their scans alone, through the very computation
-     * the inventory runs, so that a tally and the inventory cannot disagree about an entry.
+     * the inventory runs, so that a tally and the inventory cannot disagree about an entry — and keeps
+     * their entries, which the estate's inventory is then rebuilt from.
      */
-    private void recount(List<Owner> stale, Map<Owner, Stamp> stamps, LicensePolicy policy) {
+    private void recount(List<Owner> stale, Map<Owner, Stamp> stamps) {
         Map<Owner, Map<String, Long>> counted = new HashMap<>();
         stale.forEach(owner -> counted.put(owner, new HashMap<>()));
         List<ScanTarget> targetsOf = stale.stream().map(Owner::target).filter(java.util.Objects::nonNull).toList();
@@ -592,13 +584,18 @@ public class LicenseGovernanceService {
         // the estate's inventory keys it: its entries count for the repository's tally, or for none
         // when the repository's is not being recounted — and then it is not even parsed.
         read.removeIf(scan -> !counted.containsKey(new Owner(scan.target())));
-        for (LicenseEntry entry : entries(read, scan -> true, policy, scan -> null).values()) {
-            Owner owner = new Owner(targetOf(entry));
+        LicenceLedger ledger = read(read, scan -> true, LicenceLedger.keeping());
+        for (LicenceLedger.Raw entry : ledger.values()) {
+            Owner owner = new Owner(entry.scan().owner());
             if (counted.containsKey(owner)) {
                 counted.get(owner).merge(entry.license(), 1L, Long::sum);
             }
         }
-        counted.forEach((owner, licences) -> tallies.put(owner, new Tally(stamps.get(owner), Map.copyOf(licences))));
+        Map<ScanTarget, LicenceLedger.Kept> kept = ledger.kept();
+        // An owner whose scans hold no entry keeps an empty share, as it keeps an empty tally.
+        LicenceLedger.Kept none = new LicenceLedger.Kept(new long[0], new int[0], new byte[0], new LicenceLedger.Raw[0]);
+        counted.forEach((owner, licences) -> tallies.put(owner,
+                new Tally(stamps.get(owner), Map.copyOf(licences), kept.getOrDefault(owner.target(), none))));
     }
 
     /**
@@ -652,20 +649,41 @@ public class LicenseGovernanceService {
      * this module's services do not use {@code access} — and a route that forgot would get it
      * answered empty here rather than whole.
      *
-     * <p><b>A restricted reader's is read from their targets' scans</b>, not from the estate's narrowed
-     * afterwards: every entry is keyed to the target its scan is attributed to, so the scans attributed
-     * to another target only ever produced entries the narrowing dropped. It read every scan, component
-     * and licence finding of the deployment for a reader granted five targets. A reader who sees
-     * everything still reads the history — the list is one row per component of every scan — through
-     * the columns it needs rather than the rows.
+     * <p><b>Asked for no target, it is served from memory</b> — the entries the tallies' recount keeps
+     * beside each tally ({@link #violationsByTarget}), under the same census: the estate's map rebuilt
+     * from the shares of the targets {@code allowed} permits, so that it iterates in the order the read
+     * of those targets' scans would ({@link LicenceLedger}), then judged by the policy in force and named
+     * after the targets' names of the moment. The administrator's read every scan's SBOM and every
+     * component row of the history at each call — 104,000 rows and about 250 ms on two hundred targets of
+     * two scans and 250 components — for an answer that moves only when a target's scans do. A restricted
+     * reader is answered from their targets' shares alone, as they were read from their targets' scans
+     * alone: every entry is keyed to the target its scan is attributed to, so the scans attributed to
+     * another target only ever produced entries the narrowing dropped. {@link #readInventory} is the read
+     * this replaced, and the test of the two holds them equal, order included.
+     *
+     * <p>A named target's is still read for it: its scans are few, and an image's read keeps the
+     * components of a scan that is the repository's, which no target's share holds.
      */
     public List<LicenseEntry> getInventory(Visibility allowed, Long repoIdFilter, Long containerIdFilter) {
-        if (repoIdFilter == null && containerIdFilter == null && allowed instanceof Visibility.Only only) {
+        if (repoIdFilter == null && containerIdFilter == null) {
+            List<LicenceLedger.Kept> shares = talliesWithin(allowed).values().stream().map(Tally::entries).toList();
+            return visibleOnly(allowed, judged(LicenceLedger.replay(shares).values()));
+        }
+        return visibleOnly(allowed, inventoryOf(repoIdFilter, containerIdFilter));
+    }
+
+    /**
+     * The inventory with no target as it was read before it was kept in memory: the estate's scans for a
+     * reader who sees all of it, a restricted reader's own targets' scans otherwise — the oracle that
+     * {@link #getInventory(Visibility, Long, Long)} answers alike, entry for entry and in the same order.
+     */
+    List<LicenseEntry> readInventory(Visibility allowed) {
+        if (allowed instanceof Visibility.Only only) {
             List<ScanCatalog.ScanSbom> theirs = new ArrayList<>(scansRepo.sbomsOfTargets(only.targets()));
             theirs.removeIf(scan -> !allowed.permits(scan.target()));
             return visibleOnly(allowed, named(theirs, scan -> true));
         }
-        return visibleOnly(allowed, inventoryOf(repoIdFilter, containerIdFilter));
+        return visibleOnly(allowed, inventoryOf(null, null));
     }
 
     /**
@@ -720,7 +738,7 @@ public class LicenseGovernanceService {
     public LicenseSummary getSummary(Visibility allowed) {
         LicensePolicy policy = getPolicy();
         Map<String, Long> licences = new HashMap<>();
-        talliesWithin(allowed, policy).values()
+        talliesWithin(allowed).values()
                 .forEach(tally -> tally.licences().forEach((licence, count) -> licences.merge(licence, count, Long::sum)));
 
         Map<LicenseRiskCategory, Long> breakdown = new EnumMap<>(LicenseRiskCategory.class);

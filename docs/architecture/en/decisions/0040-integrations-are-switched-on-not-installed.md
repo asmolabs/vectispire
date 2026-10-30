@@ -78,9 +78,37 @@ OpenAI, Teams and never Discord, says so once.
 
 | Lot | Content | Size |
 |---|---|---|
-| I1 | The registry, its setting, the governor's route and audit; 409 on the routes of a disabled integration | M |
+| I1 | The registry in a table of its own (`t_integration`, not a setting: a setting records neither who switched it nor when), the governor's route and audit; 409 on the routes of a disabled integration | M |
 | I2 | Forge connections: suspended state, discovery and change review skipped with their reason | M |
 | I3 | SIEM: transports in the registry, the in-use refusal | S |
 | I4 | *Administration → Integrations* screen, forms filtered; documentation in English and French | M |
-| I5 | AI providers: the registry, *AI unavailable — provider disabled* in the features that read it | S |
-| I6 | Notification channels (the in-use refusal) and trackers (suspended) | M |
+| I5 | AI providers: the registry, *AI unavailable — provider disabled* in the features that read it — **built for 1.0.0-rc.1** | S |
+| I6 | Notification channels (the in-use refusal) and trackers (suspended) — **both halves built for 1.0.0-rc.1** | M |
+
+**Until a family's lot was built, its switch-off was refused** (amended for 1.0.0-rc.1, and closed in
+it). I1 listed every family, so a governor could disable an AI provider or a notification channel that no
+adapter checked: recorded and audited, it stopped nothing, against §1. The registry refused `enabled:
+false` for those families — 409 `integration-not-switchable` — until I5 and the notification half of I6
+made every one of their entries ask it. Both are built in the same release, so every family may now be
+switched off, and the refusal, its cause and `IntegrationFamily.suspendable` are gone: no release shipped
+them. A family added later is wired in the change that lists it.
+
+**How I5 and I6 keep §1 and §3** (1.0.0-rc.1):
+
+- **AI.** Every call to a model leaves through one method of `AiReviewService`, which asks the registry
+  for the provider it read once and holds to — its URL, its key, its request — so a disabled provider is
+  refused and never swapped for the other one. The features that read it — the OWASP report from the
+  button or after a scan, the advisor's explanation, the endpoint test — refuse before they record
+  anything, with 409 `integration-disabled` opened by *AI unavailable — provider disabled*; the advisor's
+  status reads `providerEnabled: false` and asks nothing. Choosing a disabled provider, or turning model
+  review on over one, is refused like a tracker's choice: checked, not held — nothing is lost if a switch
+  lands between the check and the write.
+- **Notifications.** A channel is in use when it has somewhere to send: its URL (Teams with its switch on),
+  its recipients or the checklist reminders (mail), a team's own webhook (the generic webhook). The
+  answer and the settings that configure a channel are one reading (`NotificationDestinations`), so the
+  refusal cannot miss a destination the save knows. A save that configures a channel holds its row `for
+  share` in the transaction that writes it — the settings' save became one transaction for this, and a
+  team's webhook another — as the SIEM export does: a switch waits for the save and reads it in use, a save
+  after the switch reads it off. Each channel asks the registry at its own entry, not at the relay, since
+  the weekly report, the reminders, the token alerts and the test button reach channels without it; a row
+  queued for a channel switched off by hand is held, uncounted, never sent and never abandoned.

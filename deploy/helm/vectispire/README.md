@@ -239,6 +239,11 @@ pods get `agents.kubernetes.scanCpuMillis` and `scanMemoryMiB`. The matcher's da
 the scans' namespace (`agents.kubernetes.matcherCache`, kept on uninstall), each version copied once and
 mounted read-only by matching pods on the agent's node. Image targets are not built yet: see the [installation guide](../../../docs-site/getting-started/installation.md#agents-without-docker).
 
+**`agents.extraEnv` must not set `KUBERNETES_SERVICE_HOST` or `KUBERNETES_SERVICE_PORT`.** A variable of the
+pod's spec replaces the one the kubelet provides, and the agent sends its service account's token to that
+address. It checks the host against the addresses of `kubernetes.default.svc` and does not start when they
+differ, saying so; the agent's pod therefore needs the cluster's DNS (the default `dnsPolicy`).
+
 Create the agent on the **Agents** screen, then store its key:
 
 ```bash

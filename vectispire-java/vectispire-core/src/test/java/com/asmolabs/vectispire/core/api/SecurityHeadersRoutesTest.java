@@ -4,9 +4,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 /**
  * The response headers the architecture documents promise.
@@ -17,6 +23,9 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("the security response headers")
 class SecurityHeadersRoutesTest extends ApiTestBase {
+
+    @Autowired
+    private GitRepositoryRepository repositories;
 
     @Test
     @DisplayName("the content security policy reaches a response")
@@ -61,5 +70,46 @@ class SecurityHeadersRoutesTest extends ApiTestBase {
         mvc.perform(get("/api/v1/issues"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().doesNotExist("WWW-Authenticate"));
+    }
+
+    /**
+     * The isolation headers came from the nightly's ZAP baseline, which found them missing on the
+     * running control plane. The interface loads nothing from another origin, so they cost nothing;
+     * a refusal carries them as well as an answer.
+     */
+    @Test
+    @DisplayName("a response and a refusal carry the refused features and same-origin isolation")
+    void responsesAreIsolated() throws Exception {
+        for (MockHttpServletResponse response : new MockHttpServletResponse[] {
+                mvc.perform(authenticated(get("/api/v1/issues"), asReader())).andReturn().getResponse(),
+                mvc.perform(get("/api/v1/issues")).andReturn().getResponse()}) {
+            org.assertj.core.api.Assertions.assertThat(response.getHeader("Permissions-Policy"))
+                    .contains("camera=()", "microphone=()", "geolocation=()");
+            org.assertj.core.api.Assertions.assertThat(response.getHeader("Cross-Origin-Opener-Policy"))
+                    .isEqualTo("same-origin");
+            org.assertj.core.api.Assertions.assertThat(response.getHeader("Cross-Origin-Embedder-Policy"))
+                    .isEqualTo("require-corp");
+            org.assertj.core.api.Assertions.assertThat(response.getHeader("Cross-Origin-Resource-Policy"))
+                    .isEqualTo("same-origin");
+        }
+    }
+
+    @Test
+    @DisplayName("the published badge may be embedded on another origin, and it alone")
+    void theBadgeIsTheOneCrossOriginResource() throws Exception {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setName("corp/headers-service");
+        repository.setUrl("https://github.com/corp/headers-service.git");
+        repository.setBranch("main");
+        Long id = repositories.save(repository).getId();
+        String body = mvc.perform(authenticated(post("/api/v1/scorecards/repositories/" + id + "/badge"), asAdmin()))
+                .andReturn().getResponse().getContentAsString();
+
+        MockHttpServletResponse badge = mvc.perform(get(json.readTree(body).path("url").asText()))
+                .andReturn().getResponse();
+
+        org.assertj.core.api.Assertions.assertThat(badge.getStatus()).isEqualTo(200);
+        org.assertj.core.api.Assertions.assertThat(badge.getHeaders("Cross-Origin-Resource-Policy"))
+                .containsExactly("cross-origin");
     }
 }

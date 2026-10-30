@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.issues.ScanDelta;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -42,6 +43,7 @@ public class ScanDeltaNotifier implements ScanDelta.Sink {
     private final TargetNaming names;
     private final TeamChannels teams;
     private final TargetCatalog targets;
+    private final Integrations integrations;
 
     public ScanDeltaNotifier(
             NotificationService notifications,
@@ -49,13 +51,15 @@ public class ScanDeltaNotifier implements ScanDelta.Sink {
             OutboxService outbox,
             TargetNaming names,
             TeamChannels teams,
-            TargetCatalog targets) {
+            TargetCatalog targets,
+            Integrations integrations) {
         this.notifications = notifications;
         this.channels = channels;
         this.outbox = outbox;
         this.names = names;
         this.teams = teams;
         this.targets = targets;
+        this.integrations = integrations;
     }
 
     /**
@@ -69,6 +73,19 @@ public class ScanDeltaNotifier implements ScanDelta.Sink {
     public void enqueue(ScanDelta delta) {
         Long repoId = delta.target() instanceof ScanTarget.Repository repository ? repository.id() : null;
         Long containerId = delta.target() instanceof ScanTarget.Container container ? container.id() : null;
+
+        // **Who listens, decided first and from every channel.** A channel with no destination, or whose
+        // integration the governor switched off (decision 0040, lot I6), is queued nothing: a row for it would
+        // be held in the outbox for as long as the switch stays off. A team's own webhook is the webhook
+        // channel, and goes with it.
+        List<NotificationChannel> listening = channels.stream()
+                .filter(NotificationChannel::isConfigured)
+                .filter(channel -> ChannelGate.isOn(integrations, channel))
+                .toList();
+        boolean teamsMayListen = notifications.isSwitchedOn() && teams.anyTeamHasOne();
+        if (listening.isEmpty() && !teamsMayListen) {
+            return;
+        }
         notifications
                 .buildScanDelta(
                         names.all().of(repoId, containerId),
@@ -87,14 +104,14 @@ public class ScanDeltaNotifier implements ScanDelta.Sink {
                     // age says nothing. The global channels keep receiving everything: they are
                     // the security team's feed, and narrowing them would be a silent change to
                     // what an existing deployment is told.
-                    channels.stream()
-                            .filter(NotificationChannel::isConfigured)
-                            .forEach(channel -> outbox.enqueue(payload, channel.type()));
+                    listening.forEach(channel -> outbox.enqueue(payload, channel.type()));
 
                     // And one webhook copy per owning team that has a channel of its own.
-                    for (Long teamId : teamsToTell(repoId, containerId)) {
+                    for (Long teamId : teamsMayListen ? teamsToTell(repoId, containerId) : List.<Long>of()) {
+
                         outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA, teamId);
                     }
+
                 });
     }
 

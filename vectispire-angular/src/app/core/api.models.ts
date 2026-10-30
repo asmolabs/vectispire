@@ -1437,6 +1437,10 @@ export type TicketTokenState = Refine<
         refusedStatus: number | null;
         refusedSince: string | null;
         checkedAt: string | null;
+        /** `suspended` while the platform governor has the tracker's integration switched off (decision 0040 §3); null with no tracker chosen. */
+        state: 'active' | 'suspended' | null;
+        /** The registry's key of the chosen tracker, `tracker.jira`; null with no tracker chosen. */
+        integration: string | null;
     }
 >;
 
@@ -3394,6 +3398,26 @@ export type ReportRun = Refine<
 /** Where a forge discovery stands (decision 0037 §3) — the document's own enum. */
 export type ForgeDiscoveryState = NonNullable<Schema<'ForgeDiscoveryView'>['state']>;
 
+/**
+ * One entry of the integrations' registry (decision 0040): an outside system the installation may talk to,
+ * keyed `<family>.<name>` — `forge.gitlab`, `siem.syslog_tls`. `name` is the key's last segment, a token and
+ * not a label: the screens name it through `shared/integrations.ts`. `updatedBy` is `null` for a reader without
+ * a governance role, as well as while nobody has switched it.
+ */
+export type Integration = Refine<
+    Schema<'IntegrationView'>,
+    {
+        key: string;
+        family: string;
+        name: string;
+        updatedAt: string | null;
+        updatedBy: string | null;
+    }
+>;
+
+/** `suspended` when the platform governor disabled the connection's forge integration (decision 0040 §2). */
+export type ForgeConnectionState = NonNullable<Schema<'ForgeConnectionView'>['state']>;
+
 /** Why a discovery ended `partial` or `failed` — the document's own enum. */
 export type ForgeDiscoveryReason = NonNullable<Schema<'ForgeDiscoveryView'>['reason']>;
 
@@ -3441,6 +3465,8 @@ export type ForgeConnection = Refine<
         caSubject: string | null;
         caNotAfter: string | null;
         encryptionState: EncryptionState;
+        state: ForgeConnectionState;
+        integration: string;
         lastDiscovery: ForgeDiscovery | null;
         createdAt: string;
         createdBy: string | null;

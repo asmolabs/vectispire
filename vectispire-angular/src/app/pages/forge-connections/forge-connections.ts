@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -29,6 +29,7 @@ import {
     isCloudAddress,
     type ExpiryState
 } from '../../shared/forge-words';
+import { INTEGRATIONS_ROUTE, IntegrationRegistry, forgeIntegration } from '../../shared/integrations';
 
 const FORGE_TOKEN_HINT_KEYS = {
     current: 'forges.encryption.current_hint',
@@ -37,6 +38,7 @@ const FORGE_TOKEN_HINT_KEYS = {
 } as const satisfies Record<EncryptionState, string>;
 
 type ForgeKindChoice = 'gitlab' | 'github';
+const FORGE_KINDS: readonly ForgeKindChoice[] = ['gitlab', 'github'];
 type CaMode = 'keep' | 'replace' | 'unpin';
 
 interface CreateForm {
@@ -92,6 +94,15 @@ export class ForgeConnections {
     private readonly i18n = inject(I18nService);
 
     readonly stateKeys = DISCOVERY_STATE_KEYS;
+    readonly integrationsRoute = INTEGRATIONS_ROUTE;
+
+    /**
+     * The forges a new connection may be made to: those the platform governor has not switched off
+     * (decision 0040 §1). A connection of a disabled kind stays on the list, suspended; it is only not
+     * offered again.
+     */
+    readonly registry = new IntegrationRegistry();
+    readonly forgeKinds = computed(() => FORGE_KINDS.filter((kind) => this.registry.offers(forgeIntegration(kind))));
 
     readonly connections = signal<ForgeConnection[]>([]);
     readonly loading = signal(true);
@@ -122,6 +133,7 @@ export class ForgeConnections {
 
     reload(): void {
         this.loading.set(true);
+        this.registry.load();
         this.api.forgeConnections().subscribe({
             next: (connections) => {
                 this.connections.set(connections);
@@ -179,6 +191,8 @@ export class ForgeConnections {
 
     openCreate(): void {
         this.form = ForgeConnections.emptyForm();
+        // The first forge still offered: the form must not open on one the governor switched off.
+        this.form.kind = this.forgeKinds()[0] ?? this.form.kind;
         this.createError.set(null);
         this.createVisible.set(true);
     }
@@ -190,7 +204,7 @@ export class ForgeConnections {
 
     create(): void {
         // Enter in a field submits the form too: one request at a time.
-        if (this.saving()) return;
+        if (this.saving() || !this.forgeKinds().includes(this.form.kind)) return;
         const cloud = this.cloud();
         if (!cloud && caPemProblem(this.form.caPem)) return;
         const request: Schema<'ForgeConnectionRequest'> = {

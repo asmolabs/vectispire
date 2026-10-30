@@ -86,6 +86,13 @@ scan failed, the step did not complete…) — in the language the interface is 
 reason twice on each line: `because`, the English sentence, and `reason`, a code with the values the
 sentence is made of, which the interface translates.
 
+**Export CSV**, on the grid, saves it as a spreadsheet: one row per category in the standard's order, with
+its state, its open findings, its reason as a code and as a sentence in the interface's language, the
+declaration made about it, and the scope on every row — so a row copied elsewhere still says what it was
+counted over. The file covers what the grid on screen covers, and no cell is written so that a spreadsheet
+would run it as a formula. The [evidence bundle](compliance.md#the-evidence-bundle) carries the same grid,
+with its declarations, as `15_owasp_top10_coverage.json`.
+
 A code-analysis finding is placed by the category its rule declares in `metadata.owasp`. A rule that
 declares no category of the 2021 edition — most of the upstream catalogue declares only a CWE — has its
 findings placed by that CWE, in the category whose **OWASP Top 10 2021 "List of Mapped CWEs"** holds it:
@@ -164,6 +171,10 @@ clears it, with its report.
   why on the page, as one asked by hand does, and the scan stays completed. The audit log records each
   one as `AI_REVIEW_REQUESTED`, with no user — nobody asked. A request waiting on an instance that stops
   is lost; the next scan asks again.
+- **Not while its provider is disabled.** The platform governor may switch the provider configured off
+  (`ai.ollama`, `ai.openai`, [Settings](../administration/settings.md#ai-review)): **Run the analysis** then
+  answers *AI unavailable — provider disabled* and records nothing, no report is asked after a scan, and the
+  other provider is never asked in its place.
 
 Whoever reads the report reads it through their own visibility: the route refuses a repository you do
 not see, and the counts and links beside the report are counted as your backlog counts them.

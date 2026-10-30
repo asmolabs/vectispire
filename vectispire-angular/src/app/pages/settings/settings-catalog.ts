@@ -1,6 +1,7 @@
 import { Component, DestroyRef, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -13,6 +14,13 @@ import { SettingsApi } from '../../core/api/settings.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { SessionStore } from '../../core/session.store';
+import {
+    INTEGRATIONS_ROUTE,
+    IntegrationRegistry,
+    NOTIFICATION_SETTING_INTEGRATIONS,
+    aiIntegration,
+    trackerIntegration
+} from '../../shared/integrations';
 import { SettingsModelReview } from './settings-model-review';
 import { SettingsState, type SettingsTab } from './settings-state';
 
@@ -53,6 +61,7 @@ const SERVER_STAMPED = new Set(['ai_review_risk_acknowledged_by', 'ai_review_ris
     imports: [
         DatePipe,
         FormsModule,
+        RouterLink,
         ButtonModule,
         CardModule,
         DialogModule,
@@ -84,8 +93,20 @@ export class SettingsCatalog {
      */
     readonly ticketCa = signal<TicketCaState | null>(null);
 
+    readonly integrationsRoute = INTEGRATIONS_ROUTE;
+
+    /**
+     * Which AI providers, notification channels and trackers the platform governor has switched on
+     * (decision 0040): a disabled one is not offered for a new choice, and one already configured reads
+     * suspended, with the way to the screen that switches it back on.
+     */
+    readonly registry = new IntegrationRegistry();
+
     constructor() {
-        this.state.register(() => this.loadTicketCa(), inject(DestroyRef));
+        this.state.register(() => {
+            this.loadTicketCa();
+            this.registry.load();
+        }, inject(DestroyRef));
     }
 
     private loadTicketCa(): void {
@@ -119,11 +140,88 @@ export class SettingsCatalog {
      */
     readonly aiProviders = computed(() => {
         this.i18n.translations();
+        const stored = this.stored('ai_review_provider');
         return [
             { label: this.i18n.t('settings.ai_provider_ollama'), value: 'ollama' },
             { label: this.i18n.t('settings.ai_provider_openai'), value: 'openai' }
-        ];
+        ]
+            .filter((option) => this.registry.offers(aiIntegration(option.value), aiIntegration(stored)))
+            .map((option) => this.markSuspended(option, aiIntegration(option.value)));
     });
+
+    /**
+     * The trackers, offered as a list like the AI provider rather than typed: the five values the server
+     * reads, less those the platform governor has switched off. `none` is always offered — choosing no
+     * tracker is always saved.
+     */
+    readonly trackers = computed(() => {
+        this.i18n.translations();
+        const stored = this.stored('ticket_provider');
+        return (
+            [
+                { label: this.i18n.t('settings.ticket_provider_none'), value: 'none' },
+                { label: this.i18n.t('settings.ticket_provider_gitlab'), value: 'gitlab' },
+                { label: this.i18n.t('settings.ticket_provider_github'), value: 'github' },
+                { label: this.i18n.t('settings.ticket_provider_jira'), value: 'jira' },
+                { label: this.i18n.t('settings.ticket_provider_servicenow'), value: 'servicenow' }
+            ]
+                .filter(
+                    (option) =>
+                        option.value === 'none' ||
+                        this.registry.offers(trackerIntegration(option.value), trackerIntegration(stored))
+                )
+                .map((option) =>
+                    option.value === 'none' ? option : this.markSuspended(option, trackerIntegration(option.value))
+                )
+                // A value a newer server reads and this list does not: shown as stored, never as a blank choice.
+                .concat(
+                    stored && !['none', 'gitlab', 'github', 'jira', 'servicenow'].includes(stored)
+                        ? [{ label: stored, value: stored }]
+                        : []
+                )
+        );
+    });
+
+    /** The value the server holds, not the one being typed: what is configured is what can be suspended. */
+    private stored(key: string): string {
+        return this.state.catalog().find((setting) => setting.key === key)?.value ?? '';
+    }
+
+    private markSuspended(option: { label: string; value: string }, integration: string) {
+        return this.registry.isDisabled(integration)
+            ? { ...option, label: this.i18n.t('integrations.option_suspended', { name: option.label }) }
+            : option;
+    }
+
+    /**
+     * Where a setting stands against the registry: the integration it configures is switched off and it is
+     * configured (`suspended` — kept, and resumed when switched back on), or switched off and empty
+     * (`unavailable` — not offered for a new choice). `null` for a setting no switch concerns.
+     */
+    integrationState(setting: SettingDefinition): { integration: string; state: 'suspended' | 'unavailable' } | null {
+        const integration = this.integrationOf(setting);
+        if (!integration || !this.registry.isDisabled(integration)) return null;
+        return { integration, state: this.configures(setting) ? 'suspended' : 'unavailable' };
+    }
+
+    private integrationOf(setting: SettingDefinition): string | null {
+        if (setting.key === 'ai_review_provider') return aiIntegration(setting.value || 'ollama');
+        if (setting.key === 'ticket_provider') {
+            return setting.value && setting.value !== 'none' ? trackerIntegration(setting.value) : null;
+        }
+        return NOTIFICATION_SETTING_INTEGRATIONS[setting.key] ?? null;
+    }
+
+    /** A channel's URL or recipients set, its switch on, a provider or a tracker chosen. */
+    private configures(setting: SettingDefinition): boolean {
+        if (setting.type === 'boolean') return setting.value === 'true';
+        return setting.value.trim() !== '';
+    }
+
+    /** A notification channel switched off and not configured: its field offers nothing to fill in. */
+    isUnavailable(setting: SettingDefinition): boolean {
+        return this.integrationState(setting)?.state === 'unavailable' && setting.key.startsWith('notification_');
+    }
 
     readonly riskConfirmVisible = signal(false);
 

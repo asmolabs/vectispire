@@ -1,4 +1,64 @@
 {
+  "integrations": {
+    "title": "Integrations",
+    "subtitle": "The outside systems this installation may talk to — forges, SIEM transports, AI providers, notification channels and trackers — and whether each is switched on.",
+    "rule_governor": "Switching an integration off suspends what uses it; it deletes nothing, and switching it back on resumes everything as it was. One still in use — the SIEM transport the export sends over — is refused until that configuration is changed. Every switch is audited.",
+    "rule_reader": "Only the platform governor switches an integration on or off. A disabled integration is not offered in the forms, and what already uses it is suspended, never deleted.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "changed_by": "Last changed on {{date}} by {{user}}",
+    "changed_at": "Last changed on {{date}}",
+    "never_changed": "Never changed since installation",
+    "switch_off": "Switch off",
+    "switch_on": "Switch on",
+    "aria_switch_off": "Switch off {{name}}",
+    "aria_switch_on": "Switch on {{name}}",
+    "confirm_title": "Switch off {{name}}?",
+    "confirm_kept": "Nothing is deleted: switching it back on resumes everything as it was.",
+    "confirm_accept": "Switch off",
+    "switched_on": "{{name}} is switched on; what it had suspended resumes.",
+    "switched_off": "{{name}} is switched off; what uses it is suspended.",
+    "refused_on": "{{name}} was not switched on: {{reason}}",
+    "refused_off": "{{name}} was not switched off: {{reason}}",
+    "error_load": "The integrations could not be read.",
+    "error_switch": "The switch was refused.",
+    "open_screen": "Administration → Integrations",
+    "option_suspended": "{{name}} — suspended, integration disabled",
+    "suspended_tag": "Suspended — integration disabled",
+    "families": {
+      "forge": "Forges",
+      "siem": "SIEM transports",
+      "ai": "AI providers",
+      "notification": "Notification channels",
+      "tracker": "Trackers"
+    },
+    "suspends": {
+      "forge": "The connections to this forge are suspended: no discovery, import, new token or change-review reading goes through them, and a change-review line they feed reads no data. Their tokens, snapshots and import links are kept, and a new connection of this kind is refused.",
+      "siem": "The SIEM export can no longer send over this transport, and switching it off is refused while the enabled export uses it. Events meant for it wait in the outbox and leave once it is switched back on.",
+      "ai": "The features that read this provider say the AI is unavailable rather than asking another provider. Nothing recorded is lost.",
+      "notification": "This channel sends nothing. Switching it off is refused while a configuration still uses it, so that no alert is lost in silence.",
+      "tracker": "No ticket is opened, closed or synchronised on this tracker, and its webhook deliveries are ignored. The token, the settings and the links between issues and tickets are kept."
+    },
+    "names": {
+      "forge_github": "GitHub",
+      "forge_gitlab": "GitLab",
+      "siem_webhook": "HTTPS webhook",
+      "siem_syslog_udp": "Syslog over UDP",
+      "siem_syslog_tcp": "Syslog over TCP",
+      "siem_syslog_tls": "Syslog over TLS",
+      "ai_ollama": "Ollama",
+      "ai_openai": "OpenAI",
+      "notification_webhook": "Generic webhook",
+      "notification_teams": "Microsoft Teams",
+      "notification_slack": "Slack",
+      "notification_discord": "Discord",
+      "notification_mail": "E-mail",
+      "tracker_gitlab": "GitLab issues",
+      "tracker_github": "GitHub issues",
+      "tracker_jira": "Jira",
+      "tracker_servicenow": "ServiceNow"
+    }
+  },
   "account": {
       "mfa_password": "Current password",
     "backup_warning": "Write these backup codes down now — they will never be shown again. Each one signs you in once, if you lose your phone.",
@@ -451,7 +511,8 @@
       "integration_token_stopped": "Integration token stopped working",
       "integration_token_restored": "Integration token working again",
       "checklist_contact_changed": "Checklist contact changed",
-      "checklist_reminder_sent": "Weekly checklist reminder sent"
+      "checklist_reminder_sent": "Weekly checklist reminder sent",
+      "integration_enabled_changed": "Integration enabled or disabled"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",
@@ -1521,6 +1582,7 @@
     "matrix_load_failed": "Could not load the compatibility rules."
   },
   "menu": {
+    "integrations": "Integrations",
     "administration": "Administration",
     "agents": "Agents",
     "api_keys": "API keys",
@@ -1571,6 +1633,7 @@
     "forge_connections": "Forge connections"
   },
   "notifications": {
+    "channel_suspended": "The platform governor switched off {{integration}}: this channel sends nothing until it is switched back on.",
     "alert_teams": "Tell your teams, as it happens, on",
     "channel_configured": "Configured",
     "channel_inactive": "Inactive",
@@ -1632,6 +1695,8 @@
     "declare_failed": "The declaration was not recorded.",
     "load_failed": "The coverage grid could not be loaded.",
     "back_to_estate": "Show the whole estate",
+    "export_csv": "Export CSV",
+    "export_failed": "The grid could not be exported.",
     "open_issues_one": "{{count}} open issue in {{category}}",
     "open_issues_other": "{{count}} open issues in {{category}}",
     "evidence_source": {
@@ -2187,6 +2252,14 @@
     "error_export": "The export could not be produced."
   },
   "settings": {
+    "siem_suspended": "The transport the export is set to, {{integration}}, is switched off by the platform governor: nothing is sent, and the events wait in the outbox until it is switched back on. Choose another transport, or have it switched on.",
+    "integration_suspended": "Suspended: the platform governor switched off {{integration}}. The value is kept, and used again once it is switched back on.",
+    "integration_unavailable": "Not offered: the platform governor switched off {{integration}}.",
+    "ticket_provider_none": "None — no tracker",
+    "ticket_provider_gitlab": "GitLab issues",
+    "ticket_provider_github": "GitHub issues",
+    "ticket_provider_jira": "Jira",
+    "ticket_provider_servicenow": "ServiceNow",
     "active_cisa_kev": "Active CISA KEV Exploits",
     "ai_provider_ollama": "Ollama — a model on a host you run",
     "ai_provider_openai": "OpenAI-compatible API",
@@ -2330,7 +2403,9 @@
     "token_expiry_unknown": "Expiry unknown — GitLab and GitHub report it; for Jira or ServiceNow, set the token expiry date in the tracker settings.",
     "token_expires_on": "Expires on {{date}}",
     "token_expiry_declared": "(declared by an administrator)",
-    "threat_intel_status_failed": "Could not read the state of the threat feeds."
+    "threat_intel_status_failed": "Could not read the state of the threat feeds.",
+    "tracker_suspended_tag": "Suspended — integration disabled",
+    "tracker_suspended": "The platform governor disabled the {{integration}} integration. The token and the settings are kept; no ticket is opened or closed and nothing is sent to the tracker until the integration is enabled again, and then it resumes as it was."
   },
   "severities": {
     "critical": "Critical",
@@ -2583,6 +2658,7 @@
     "target_project": "Project"
   },
   "titles": {
+    "integrations": "Integrations",
     "dashboard": "Dashboard",
     "repositories": "Repositories",
     "containers": "Containers",
@@ -3402,6 +3478,7 @@
     "reason_no_repository": "The project has no repository: there is nothing to measure, and nothing passes by default.",
     "reason_never_examined": "A repository has never been examined for this: no scan or import in which the step looked. Not \"nothing found\" — nothing looked.",
     "reason_forge_unlinked": "A repository is linked to no forge project: no forge connection imported it, and no discovery listed a repository with its URL. Import it from a forge connection, or run a discovery that lists it.",
+    "reason_forge_integration_disabled": "A repository's forge connection is suspended: the platform governor disabled that forge's integration. Nothing is read from it, and a reading taken before the switch is not judged — re-enabling the forge resumes the line.",
     "reason_forge_unreadable": "The forge would not say how a repository's changes are reviewed — the connection's token was refused the project, its merge requests or its pull requests. The evidence gives the forge's own answer.",
     "reason_step_absent": "The step or plugin was absent in every scan within the maximum age: it did not look, which is not finding nothing.",
     "reason_plugin_unsigned": "The plugin was refused: its manifest declares no signer, a signer is required, and the governor waived nothing. Nobody started the tool — sign its image, or record the waiver.",
@@ -3423,6 +3500,7 @@
     "reason_no_test_ran": "The matching suites ran no test; skipped tests do not count.",
     "reason_short_no_repository": "no repository",
     "reason_short_never_examined": "never examined",
+    "reason_short_forge_integration_disabled": "forge disabled",
     "reason_short_forge_unlinked": "no forge project",
     "reason_short_forge_unreadable": "forge refused",
     "reason_short_step_absent": "step absent",
@@ -3782,6 +3860,7 @@
       "read_other": "{{count}} certificates read. The server checks that they are CAs and still valid."
     },
     "connections": {
+      "no_forge_enabled": "Every forge is switched off on this installation: no connection can be made until the platform governor switches one on.",
       "title": "Forge connections",
       "subtitle": "A read-only token per GitLab or GitHub, from which repositories are discovered and imported as targets.",
       "add": "Add a connection",
@@ -3792,6 +3871,8 @@
       "error_rotate": "The token could not be replaced.",
       "error_delete": "The connection could not be deleted.",
       "open_discovery": "Discover and import",
+      "suspended": "Suspended — integration disabled",
+      "suspended_hint": "The platform governor disabled the {{integration}} integration. The connection and its token are kept; nothing is discovered, imported or read through it until the integration is enabled again, and then it resumes as it was.",
       "rotate": "Replace the token",
       "aria_rotate": "Replace the token of {{name}}",
       "aria_edit": "Edit {{name}}",
@@ -4104,6 +4185,8 @@
     "in_progress": "No scan of this target has finished yet."
   },
   "problem": {
+    "integration_disabled": "The integration {{integration}} is switched off on this installation. A platform governor switches it back on in Administration → Integrations; the same request then succeeds.",
+    "integration_in_use": "{{detail}}",
     "invalid_request": "{{detail}}",
     "authentication_required": "{{detail}}",
     "forbidden": "{{detail}}",

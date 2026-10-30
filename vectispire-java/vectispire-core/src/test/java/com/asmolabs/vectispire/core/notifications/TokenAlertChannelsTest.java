@@ -75,6 +75,8 @@ class TokenAlertChannelsTest {
             "Platform GitLab", "GitLab self-managed or Dedicated at https://gitlab.example.com", Notice.EXPIRED,
             Notice.EXPIRES_SOON, Instant.parse("2026-10-27T00:00:00Z"), null, null, Instant.parse("2026-10-27T01:00:00Z"));
 
+    private com.asmolabs.vectispire.core.settings.Integrations registry;
+
     @BeforeEach
     void wire() {
         settings = mock(SettingsService.class);
@@ -90,11 +92,12 @@ class TokenAlertChannelsTest {
         ExportProperties deployment = new ExportProperties(Optional.of("https://vectispire.example.com"), "Vectispire", "0");
 
         Clock clock = Clock.fixed(Instant.parse("2026-10-27T01:00:00Z"), ZoneOffset.UTC);
-        webhook = new NotificationService(settings, post, mock(TeamChannels.class), mock(EncryptionService.class), clock);
-        slack = new SlackNotificationChannel(settings, post, deployment);
-        teams = new TeamsNotificationChannel(settings, post, deployment);
-        discord = new DiscordNotificationChannel(settings, post, deployment, clock);
-        mail = new MailNotificationChannel(settings, Optional.of(mailer), deployment, "vectispire@example.com");
+        registry = com.asmolabs.vectispire.core.settings.EnabledIntegrations.all();
+        webhook = new NotificationService(settings, post, mock(TeamChannels.class), mock(EncryptionService.class), registry, clock);
+        slack = new SlackNotificationChannel(settings, post, deployment, registry);
+        teams = new TeamsNotificationChannel(settings, post, deployment, registry);
+        discord = new DiscordNotificationChannel(settings, post, deployment, clock, registry);
+        mail = new MailNotificationChannel(settings, Optional.of(mailer), deployment, "vectispire@example.com", registry);
     }
 
     @Test
@@ -206,12 +209,57 @@ class TokenAlertChannelsTest {
         OutboxService outbox = mock(OutboxService.class);
         when(settings.get(Setting.DISCORD_WEBHOOK_URL)).thenReturn("");
 
-        new TokenAlerts(outbox, List.of(webhook, slack, teams, discord, mail)).changed(alert);
+        new TokenAlerts(outbox, List.of(webhook, slack, teams, discord, mail), registry).changed(alert);
 
         verify(outbox).enqueue(alert, TokenAlertAudit.TYPE);
         ArgumentCaptor<Object> rows = ArgumentCaptor.forClass(Object.class);
         verify(outbox, org.mockito.Mockito.times(4)).enqueue(rows.capture(), eq(TokenAlertDelivery.TYPE));
         assertThat(rows.getAllValues()).map(row -> ((TokenAlertDelivery.Queued) row).channel())
                 .containsExactly("webhook", "slack", "teams", "mail");
+    }
+
+    @Test
+    @DisplayName("a channel switched off is queued no alert, as one without a destination is (decision 0040, lot I6)")
+    void aSwitchedOffChannelIsQueuedNothing() {
+        OutboxService outbox = mock(OutboxService.class);
+        when(registry.isEnabled(com.asmolabs.vectispire.common.domain.integrations.Integration.of(
+                com.asmolabs.vectispire.common.domain.notifications.NotificationChannelKind.SLACK))).thenReturn(false);
+
+        new TokenAlerts(outbox, List.of(webhook, slack, teams, discord, mail), registry).changed(alert);
+
+        ArgumentCaptor<Object> rows = ArgumentCaptor.forClass(Object.class);
+        verify(outbox, org.mockito.Mockito.times(4)).enqueue(rows.capture(), eq(TokenAlertDelivery.TYPE));
+        assertThat(rows.getAllValues()).map(row -> ((TokenAlertDelivery.Queued) row).channel())
+                .containsExactly("webhook", "teams", "discord", "mail");
+    }
+
+    /**
+     * Each channel asks the integrations' registry at its own entry (decision 0040, lot I6): switched off, the scan's
+     * delta and the alert from the outbox are held — not failed, so the relay counts no attempt — and nothing leaves.
+     */
+    @Test
+    @DisplayName("a channel switched off holds the delta and the alert, and sends nothing: each of the five, each way in")
+    void aSwitchedOffChannelSendsNothing() {
+        when(registry.isEnabled(any())).thenReturn(false);
+        com.asmolabs.vectispire.common.domain.notifications.NotificationPayload payload =
+                new com.asmolabs.vectispire.common.domain.notifications.NotificationPayload("text", "target", 1L, 1, 0, 0, 1,
+                        "CRITICAL", List.of(), 0, "message-1");
+
+        for (com.asmolabs.vectispire.core.outbox.NotificationChannel channel : List.of(webhook, slack, teams, discord, mail)) {
+            assertThatThrownBy(() -> channel.deliver(payload, null)).as(channel.type())
+                    .isInstanceOf(com.asmolabs.vectispire.core.outbox.HeldDeliveryException.class)
+                    .hasMessageContaining("is disabled on this installation");
+        }
+        for (AlertChannel channel : List.<AlertChannel>of(webhook, slack, teams, discord, mail)) {
+            assertThatThrownBy(() -> channel.deliverAlert(alert, "message-2")).as(channel.alertKey())
+                    .isInstanceOf(com.asmolabs.vectispire.core.outbox.HeldDeliveryException.class);
+        }
+        // Outside the outbox — the weekly report, the reminders — the refusal is the integration's own.
+        assertThatThrownBy(() -> mail.sendText("subject", "body"))
+                .isInstanceOf(com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException.class);
+        assertThatThrownBy(() -> mail.sendTextTo(List.of("a@example.com"), "subject", "body"))
+                .isInstanceOf(com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException.class);
+
+        org.mockito.Mockito.verifyNoInteractions(post, mailer);
     }
 }

@@ -172,6 +172,15 @@ public class OwaspCoverageService {
     }
 
     /**
+     * The grid over everything a visibility permits, its unplaced code findings beside it and no scope
+     * stated — for a reader that holds a visibility and names no project, as the evidence bundle does.
+     */
+    @Transactional(readOnly = true)
+    public ScopedGrid estate(Visibility allowed) {
+        return new ScopedGrid(grid(allowed), null, unplacedCode(allowed));
+    }
+
+    /**
      * The open code findings of a scope the grid places in no category, counted as the grid counts — settled
      * triage left out. The difference of two counts the grid already reads, not a third query shape.
      */

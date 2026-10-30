@@ -1,8 +1,8 @@
-import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpHeaders, provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     DECLARED_KEYS,
     GRID_IMPLEMENTATION_KEYS,
@@ -455,6 +455,73 @@ describe('la grille OWASP', () => {
             expect(missingFromBundles([...reasonKeys, ...Object.values(OWASP_GAP_KEYS).flatMap(plural)])).toEqual([]);
             // The French sentence is not the English one copied over: one assertion that the bundles differ.
             expect(french.owasp_grid.reason.NO_SCANNER).not.toBe(english.owasp_grid.reason.NO_SCANNER);
+        });
+    });
+
+    /**
+     * The grid as a file: the scope on screen and the reader's language go with the request, and the file
+     * comes through `HttpClient` — a navigation carries no token and saves the 401's empty body.
+     */
+    describe('the CSV export', () => {
+        const saved: string[] = [];
+
+        beforeEach(() => {
+            saved.length = 0;
+            vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+                saved.push(this.download);
+            });
+            vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test/1');
+            vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+        });
+
+        afterEach(() => vi.restoreAllMocks());
+
+        function exportButton(): HTMLButtonElement {
+            const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+                '[data-testid="grid-export-csv"] button'
+            );
+            expect(button).not.toBeNull();
+            return button!;
+        }
+
+        it("asks for the scope on screen in the reader's language, and saves the server's file", () => {
+            useFrench();
+            fixture.componentRef.setInput('scope', { kind: 'project', id: 7 });
+            fixture.detectChanges();
+            http.expectOne((call) => call.url === '/api/v1/owasp/coverage').flush(GRID);
+            fixture.detectChanges();
+
+            exportButton().click();
+
+            const request = http.expectOne((call) => call.url === '/api/v1/owasp/coverage/export.csv');
+            expect(request.request.method).toBe('GET');
+            expect(request.request.responseType).toBe('blob');
+            expect(request.request.params.get('project_id')).toBe('7');
+            expect(request.request.params.has('solution_id')).toBe(false);
+            expect(request.request.params.get('language')).toBe('fr');
+            request.flush(new Blob(['category\r\n']), {
+                headers: new HttpHeaders({
+                    'Content-Disposition': 'attachment; filename="vectispire-owasp-coverage-project-7.csv"'
+                })
+            });
+
+            expect(saved).toEqual(['vectispire-owasp-coverage-project-7.csv']);
+        });
+
+        it('sends no scope for the estate, and says so when the file does not arrive', () => {
+            useEnglish();
+            exportButton().click();
+
+            const request = http.expectOne((call) => call.url === '/api/v1/owasp/coverage/export.csv');
+            expect(request.request.params.keys()).toEqual(['language']);
+            expect(request.request.params.get('language')).toBe('en');
+            request.error(new ProgressEvent('failed'));
+            fixture.detectChanges();
+
+            expect(saved).toEqual([]);
+            const message = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="grid-export-error"]');
+            expect(message?.textContent.trim()).toBe(english.owasp_grid.export_failed);
+            expect(missingFromBundles(['owasp_grid.export_csv', 'owasp_grid.export_failed'])).toEqual([]);
         });
     });
 });
