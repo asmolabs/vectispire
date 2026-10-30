@@ -185,6 +185,13 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
 
 ## 8. Commit and push
 
+- **Before each commit, read `git diff --cached --stat` against what the change is meant to touch.** A file
+  outside the change's scope is a stop, not a detail. On 2026-10-30 seven refactoring commits (#158,
+  #160–#164) were made from a working tree older than their branch's base: each carried, beside its own
+  change, 22 files of three already-merged PRs as they were before them, and merging them silently undid a
+  memoisation, a lazy-loading change and a security fix (#142, #143, #144; restored in #166). CI stayed green,
+  because the tests guarding those changes went with them. A deleted test file or a file of another page
+  in the stat is the sign; `git diff --cached <base> -- <file>` on it says whether the change is yours.
 - One commit per logical change, message in the repository's style (`fix(area): …`, body saying what
   was wrong, what changed and how it was verified), ending with the attribution line the session
   requires.
