@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -65,7 +67,8 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
                 "11_remediation_timeliness.json",
                 "12_control_coverage.json",
                 "13_statement_of_applicability.json",
-                "14_compliance_progression.json");
+                "14_compliance_progression.json",
+                "15_owasp_top10_coverage.json");
     }
 
     @Autowired
@@ -73,6 +76,9 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
 
     @Autowired
     private GitRepositoryRepository repositories;
+
+    @Autowired
+    private IssueRepository issues;
 
     @Test
     @DisplayName("an attested scan ships its statement and envelope; one that cannot be attested ships the reason")
@@ -120,6 +126,9 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
         scan(mine, "{\"artifacts\":[{\"name\":\"lib-mine\",\"version\":\"1\",\"licenses\":[\"MIT\"]}]}");
         scan(other, "{\"artifacts\":[{\"name\":\"lib-other\",\"version\":\"1\",\"licenses\":[\"GPL-3.0\"]},"
                 + "{\"name\":\"lib-other-2\",\"version\":\"1\",\"licenses\":[\"AGPL-3.0\"]}]}");
+        vulnerability(mine);
+        vulnerability(other);
+        vulnerability(other);
         String key = issueKey(Map.of("name", "one-product", "scopes", List.of("export"),
                 "target_kind", "repository", "target_id", mine));
 
@@ -137,6 +146,11 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
         assertThat(json.readTree(archive.get("07_license_compliance.json")).path("totalDependencies").asLong())
                 .as("the licence summary counts the key's target only")
                 .isEqualTo(1);
+        assertThat(owaspFindings(archive, "A06"))
+                .as("the OWASP grid counts the key's target only")
+                .isEqualTo(1);
+        assertThat(manifest.path("version").asText()).isEqualTo("1.5");
+        assertThat(manifest.path("files").findValuesAsText("path")).contains("15_owasp_top10_coverage.json");
 
         // And the whole archive for an unrestricted key, so the narrowing is the restriction's.
         String whole = issueKey(Map.of("name", "archive", "scopes", List.of("export")));
@@ -148,6 +162,35 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
         assertThat(json.readTree(full.get("manifest.json")).path("withheld")).isEmpty();
         assertThat(json.readTree(full.get("07_license_compliance.json")).path("totalDependencies").asLong())
                 .isEqualTo(3);
+        assertThat(owaspFindings(full, "A06")).isEqualTo(3);
+    }
+
+    /** A category's open findings in section 15, the grid as the screen reads it. */
+    private long owaspFindings(Map<String, byte[]> archive, String category) throws Exception {
+        com.fasterxml.jackson.databind.JsonNode grid = json.readTree(archive.get("15_owasp_top10_coverage.json"));
+        assertThat(grid.path("lines")).hasSize(10);
+        for (com.fasterxml.jackson.databind.JsonNode line : grid.path("lines")) {
+            if (line.path("id").asText().equals(category)) {
+                return line.path("findings").asLong();
+            }
+        }
+        throw new AssertionError(category + " missing from section 15");
+    }
+
+    private void vulnerability(long repoId) {
+        java.time.Instant seen = java.time.Instant.now().minusSeconds(3600);
+        IssueEntity issue = new IssueEntity();
+        issue.setRepoId(repoId);
+        issue.setFingerprint("fp-" + System.nanoTime());
+        issue.setType("vulnerability");
+        issue.setIdentifier("CVE-" + System.nanoTime());
+        issue.setSeverity("high");
+        issue.setState("open");
+        issue.setTriageStatus("under_review");
+        issue.setFirstSeenAt(seen);
+        issue.setLastSeenAt(seen);
+        issue.setTimesSeen(1);
+        issues.save(issue);
     }
 
     private long repository(String name) {

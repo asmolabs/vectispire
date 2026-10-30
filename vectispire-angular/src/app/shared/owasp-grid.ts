@@ -19,6 +19,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { OwaspApi } from '@/app/core/api/owasp.api';
 import { messageOf } from '@/app/core/api-error';
+import { saveDocument } from '@/app/core/download';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { keyFor } from '@/app/core/i18n/literal-keys';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -144,6 +145,8 @@ export class OwaspGridComponent {
      * would give two forms that diverge on the first rule added to either.
      */
     readonly editing = signal<OwaspCoverageLine | null>(null);
+    /** Why the CSV did not arrive; the grid itself is still on screen, so the failure is said beside it. */
+    readonly exportError = signal<string | null>(null);
     readonly busy = signal(false);
     readonly error = signal<string | null>(null);
 
@@ -228,6 +231,25 @@ export class OwaspGridComponent {
                     this.error.set(messageOf(failure, this.i18n.t('owasp_grid.declare_failed')));
                 }
             });
+    }
+
+    /**
+     * The grid as a file, over the scope on screen and with its reasons in the screen's language.
+     *
+     * Through `HttpClient` and `saveDocument`, never a link: a navigation carries no token, and the browser
+     * saves the 401's empty body as a file that looks like an export.
+     */
+    exportCsv(): void {
+        const scope = this.scope();
+        this.exportError.set(null);
+        this.owaspApi.owaspCoverageCsv(scopeQuery(scope), this.i18n.currentLang()).subscribe({
+            next: (response) =>
+                saveDocument(
+                    response,
+                    scope ? `vectispire-owasp-coverage-${scope.kind}-${scope.id}.csv` : 'vectispire-owasp-coverage.csv'
+                ),
+            error: (failure) => this.exportError.set(messageOf(failure, this.i18n.t('owasp_grid.export_failed')))
+        });
     }
 
     private reload(): void {

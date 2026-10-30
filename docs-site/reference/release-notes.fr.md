@@ -240,6 +240,14 @@ Ce qui suit est par rapport à la 0.11.2.
   ou par CWE (`byCwe`), et ceux qui ne le sont pas, par raison (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`,
   `NOT_DECLARED` ; une raison inconnue se lit par son nom). `GET /api/v1/owasp/coverage` gagne
   `unplacedCode`, les constats de code ouverts qu'aucune catégorie ne contient. Ajouts seuls.
+- **La grille OWASP en CSV : `GET /api/v1/owasp/coverage/export.csv`.** Une ligne par catégorie dans
+  l'ordre du standard — état, constats ouverts, la raison en code et en phrase dans `language` (`en`, par
+  défaut, ou `fr` ; toute autre valeur répond 400), la déclaration de la catégorie, et le périmètre sur
+  chaque ligne — avec les `project_id` / `solution_id` de la grille et ses refus. Une route nouvelle.
+- **Le paquet de preuves gagne `15_owasp_top10_coverage.json`**, la grille OWASP Top 10:2021 avec ses
+  déclarations au moment de l'export, dans le périmètre de l'appelant : une clé restreinte à certaines
+  cibles reçoit la grille de ces cibles. La `version` du manifeste est `1.5`. Un outil qui compare la
+  liste des fichiers à un ensemble fixe en voit un de plus.
 
 ### Nouveautés {#nouveautes-100-rc1}
 
@@ -250,6 +258,9 @@ Ce qui suit est par rapport à la 0.11.2.
   pas et ne termine pas des scans.
 - **La page de couverture OWASP nomme l'édition qu'elle note**, l'édition 2021 du Top 10 OWASP. La 1.0
   en reste là ; l'édition 2025 sera ajoutée à côté plus tard.
+- **La grille OWASP s'exporte en CSV**, par **Exporter en CSV** sur la grille, pour le périmètre affiché
+  et avec ses raisons dans la langue de l'interface ; et le paquet de preuves signé porte désormais la
+  grille.
 - **Chaque boîte de dialogue de création et de modification est un formulaire** : Entrée la soumet, une
   seconde soumission pendant qu'une première est en cours n'envoie rien, et les champs que le serveur
   exige sont marqués. Le serveur décide toujours, dans ses propres mots.

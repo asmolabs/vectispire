@@ -67,6 +67,20 @@ export class OwaspApi {
     }
 
     /**
+     * The grid as a CSV, over the same scope as the screen's. `language` is the screen's: the reason column
+     * is written in it, the rest of the file is codes and figures.
+     *
+     * Through `HttpClient`, never a navigation: the token travels only on requests the interceptor sees.
+     */
+    owaspCoverageCsv(query: OwaspScopeQuery, language: SupportedLanguage): Observable<HttpResponse<Blob>> {
+        return this.http.get('/api/v1/owasp/coverage/export.csv', {
+            params: paramsOf(query).set('language', language),
+            responseType: 'blob',
+            observe: 'response'
+        });
+    }
+
+    /**
      * The grid week by week, over the reader's estate or one project or solution.
      *
      * Only what is set is sent: the server's defaults — the last twelve weeks, ending with the
