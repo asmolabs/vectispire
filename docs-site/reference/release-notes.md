@@ -202,6 +202,14 @@ What follows is against 0.11.2.
   at the SIEM, forge connection and tracker CA fields. A bundle already stored is read as it was
   accepted, so a working connection does not stop.
 - **The agent's `hello` refusal** names the served contract range and which side to upgrade.
+- **Twenty-two more list routes page on request**, by the rule every inventory list has used since
+  0.11.1: `limit` 1 to 500 (400 beyond, never a silent clamp), and `offset` zero or a multiple of `limit`,
+  read only together with a `limit`. **A request without them gets what it got before**: the whole list,
+  or for the histories already capped — forge discoveries, and SARIF, coverage, test-report and build-SBOM
+  imports — the latest fifty, now with pages reaching the older ones. They include team members and
+  targets, an account's targets, Git tokens, SSH keys, an issue's tickets, plugins and report plugins,
+  SARIF sources, forge connections, checklist templates and a project's checklists; the REST reference
+  lists them. Additive: optional query parameters only.
 - **The triage history says what a queued request asked for.** A decision that queued a settling status
   for a second person (`toStatus` `pending_approval`) carries `requestedStatus` — `not_affected`,
   `will_not_fix` or `fixed` — in `GET /api/v1/history/repositories/{id}` and in `decisions[]` of

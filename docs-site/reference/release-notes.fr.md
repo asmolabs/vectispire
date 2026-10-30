@@ -220,6 +220,15 @@ Ce qui suit est par rapport à la 0.11.2.
   certificat était épinglé — aux champs du SIEM, des connexions aux forges et de la CA du tracker. Un
   paquet déjà enregistré est lu comme il a été accepté : une connexion qui fonctionne ne s'arrête pas.
 - **Le refus du `hello` d'un agent** nomme la plage de contrats servie et le côté à mettre à jour.
+- **Vingt-deux routes de liste de plus se paginent sur demande**, selon la règle qu'emploie chaque liste
+  de l'inventaire depuis la 0.11.1 : `limit` de 1 à 500 (400 au-delà, jamais de réduction silencieuse), et
+  `offset` nul ou multiple de `limit`, lu seulement avec une `limit`. **Une requête sans eux reçoit ce
+  qu'elle recevait** : la liste entière, ou, pour les historiques déjà plafonnés — découvertes des forges,
+  et imports SARIF, de couverture, de rapports de tests et de SBOM de build — les cinquante derniers, des
+  pages atteignant désormais les plus anciens. Parmi elles : les membres et cibles d'une équipe, les cibles
+  d'un compte, les jetons Git, les clés SSH, les tickets d'un problème, les plugins et plugins de rapport,
+  les sources SARIF, les connexions aux forges, les modèles de checklist et les checklists d'un projet ;
+  la référence REST les liste. Ajout seul : des paramètres de requête facultatifs.
 - **L'historique de tri dit ce qu'une demande mise en file demandait.** Une décision qui a mis en file un
   statut de clôture pour une seconde personne (`toStatus` `pending_approval`) porte `requestedStatus` —
   `not_affected`, `will_not_fix` ou `fixed` — dans `GET /api/v1/history/repositories/{id}` et dans
