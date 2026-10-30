@@ -260,7 +260,8 @@ What follows is against 0.11.2.
   the secret is refused `401` or `403` as before. Not a 409: the tracker would retry, and GitLab disables a
   webhook after repeated failures. Its body enters the replay check: the same delivery sent again after
   re-enabling is answered *"Delivery already processed"*, and a change made in the tracker meanwhile is
-  not caught up.
+  not caught up. The configured tracker's suspension holds on every provider's path, which the one
+  webhook secret opens alike: a delivery to another tracker's path is ignored too while it lasts.
 - **A new no-data reason, `forge_integration_disabled`**, in a checklist measurement's `reason` and
   everywhere that list of reasons is answered; a client switching over the reasons meets one it did not
   know.

@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.text.LogText;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
 import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -187,7 +188,13 @@ public class TicketingWebhookService {
         // captured while the tracker was off could be sent again once it was back on and be acted on then. The
         // owner's call of 2026-10-14; the cost is that the tracker's own redelivery of an ignored event is not
         // applied after re-enabling either.
-        Integration integration = Integration.of(provider);
+        // The configured tracker's suspension counts whatever path the delivery came by: one secret authenticates every
+        // provider's path, and a Jira-shaped body naming a GitLab ticket matches it, so checking only the path's
+        // integration let a suspended GitLab's tickets be synced through /webhook/jira.
+        Integration integration = tickets.standing()
+                .filter(standing -> standing.state() == TrackerState.SUSPENDED)
+                .map(TicketService.Standing::integration)
+                .orElse(Integration.of(provider));
         if (!integrations.isEnabled(integration)) {
             if (ignoring.add(integration.key())) {
                 log.info("Ticket webhook: the {} integration is disabled. Its deliveries are authenticated, answered "

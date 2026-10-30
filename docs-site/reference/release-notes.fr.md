@@ -285,6 +285,8 @@ Ce qui suit est par rapport à la 0.11.2.
   Pas un 409 : le tracker réessaierait, et GitLab désactive un webhook après des échecs répétés. Son
   corps entre dans le contrôle de rejeu : la même livraison renvoyée après la réactivation reçoit
   *« Delivery already processed »*, et un changement fait dans le tracker entre-temps n'est pas rattrapé.
+  La suspension du tracker configuré vaut sur le chemin de chaque fournisseur, que l'unique secret de
+  webhook ouvre tous : une livraison sur le chemin d'un autre tracker est ignorée aussi tant qu'elle dure.
 - **Une nouvelle raison d'absence de données, `forge_integration_disabled`**, dans le `reason` d'une
   mesure de checklist et partout où cette liste de raisons est répondue ; un client qui aiguille sur les
   raisons en rencontre une qu'il ne connaissait pas.

@@ -123,6 +123,29 @@ class TrackerWebhookSuspensionRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the configured tracker's suspension holds on another provider's path, which the same secret opens")
+    void suspensionHoldsOnAnotherPath() throws Exception {
+        IssueEntity issue = issue("fp-suspended-webhook-other-path", "SEC-4403");
+        String configured = settings.get(Setting.TICKET_PROVIDER);
+        settings.set(Setting.TICKET_PROVIDER, TicketProvider.GITLAB.wireName());
+        try {
+            integrations.switchTo(Integration.of(TicketProvider.GITLAB), false, "test");
+
+            // Jira stays enabled; the delivery names the suspended GitLab tracker's ticket through Jira's path.
+            deliver(FALSE_POSITIVE.formatted("SEC-4403"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.matched").value(false))
+                    .andExpect(jsonPath("$.actionTaken").value(startsWith("ignored_integration_disabled: the tracker.gitlab")));
+
+            assertThat(issues.findById(issue.getId()).orElseThrow().getTriageStatus())
+                    .as("nothing of a suspended tracker is synchronised, by whichever path")
+                    .isEqualTo("under_review");
+        } finally {
+            settings.set(Setting.TICKET_PROVIDER, configured);
+        }
+    }
+
+    @Test
     @DisplayName("a delivery without the secret is still refused while the tracker is disabled, and learns nothing of it")
     void unauthenticatedIsStillRefused() throws Exception {
         IssueEntity issue = issue("fp-suspended-webhook-anon", "SEC-4402");
