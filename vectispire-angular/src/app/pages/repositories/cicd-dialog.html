@@ -1,0 +1,125 @@
+<!-- CI/CD Integration Snippet Dialog -->
+<p-dialog
+    [visible]="page.cicdVisible()"
+    (visibleChange)="page.cicdVisible.set($event)"
+    [header]="'repositories.header_cicd' | translate: { name: page.selectedCicdRepo()?.displayName || '' }"
+    [modal]="true"
+    [style]="{ width: '800px', maxWidth: '95vw' }"
+    [draggable]="false"
+    [resizable]="false"
+>
+    @if (page.selectedCicdRepo(); as repo) {
+        <div class="flex flex-col gap-4">
+            <p class="text-sm text-surface-600 dark:text-surface-400 m-0">
+                {{ 'repositories.pipeline_help' | translate }}
+            </p>
+
+            <!-- Tabs selector -->
+            <div class="flex flex-wrap items-center gap-2 border-b border-surface-200 dark:border-surface-800 pb-2">
+                <button
+                    type="button"
+                    (click)="page.cicdActiveTab.set('gitlab')"
+                    [ngClass]="
+                        page.cicdActiveTab() === 'gitlab'
+                            ? 'bg-primary text-primary-contrast'
+                            : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                    "
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                    <i class="pi pi-share-alt"></i>
+                    <span>{{ 'repositories.tab_gitlab' | translate }}</span>
+                </button>
+
+                <button
+                    type="button"
+                    (click)="page.cicdActiveTab.set('github')"
+                    [ngClass]="
+                        page.cicdActiveTab() === 'github'
+                            ? 'bg-primary text-primary-contrast'
+                            : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                    "
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                    <i class="pi pi-github"></i>
+                    <span>{{ 'repositories.tab_github' | translate }}</span>
+                </button>
+
+                <button
+                    type="button"
+                    (click)="page.cicdActiveTab.set('bitbucket')"
+                    [ngClass]="
+                        page.cicdActiveTab() === 'bitbucket'
+                            ? 'bg-primary text-primary-contrast'
+                            : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                    "
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                    <i class="pi pi-box"></i>
+                    <span>{{ 'repositories.tab_bitbucket' | translate }}</span>
+                </button>
+
+                <button
+                    type="button"
+                    (click)="page.cicdActiveTab.set('jenkins')"
+                    [ngClass]="
+                        page.cicdActiveTab() === 'jenkins'
+                            ? 'bg-primary text-primary-contrast'
+                            : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                    "
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                    <i class="pi pi-server"></i>
+                    <span>{{ 'repositories.tab_jenkins' | translate }}</span>
+                </button>
+
+                <button
+                    type="button"
+                    (click)="page.cicdActiveTab.set('cli')"
+                    [ngClass]="
+                        page.cicdActiveTab() === 'cli'
+                            ? 'bg-primary text-primary-contrast'
+                            : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                    "
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                    <i class="pi pi-code"></i>
+                    <span>{{ 'repositories.tab_cli' | translate }}</span>
+                </button>
+            </div>
+
+            <!-- Snippet Code Block & Copy Action -->
+            <div class="relative">
+                <pre
+                    class="p-4 rounded-xl bg-surface-900 text-surface-100 text-xs font-mono overflow-x-auto m-0 border border-surface-700 leading-relaxed"
+                    >{{ snippet() }}</pre>
+                <div class="absolute top-3 right-3">
+                    <p-button
+                        [label]="page.cicdCopied() ? ('common.copied' | translate) : ('common.copy' | translate)"
+                        [icon]="page.cicdCopied() ? 'pi pi-check' : 'pi pi-copy'"
+                        [severity]="page.cicdCopied() ? 'success' : 'primary'"
+                        size="small"
+                        (onClick)="copySnippet(snippet())"
+                    />
+                </div>
+            </div>
+
+            <!-- Secrets configuration guidance -->
+            <div
+                class="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 text-xs flex items-start gap-2.5"
+            >
+                <i class="pi pi-info-circle text-blue-500 text-base mt-0.5 shrink-0"></i>
+                <div class="text-blue-900 dark:text-blue-200 leading-normal">
+                    <strong>{{ 'repositories.config_required' | translate }}</strong>
+                    {{ 'repositories.create_masked_variable' | translate }}
+                    <code class="font-mono bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded">VECTISPIRE_API_KEY</code>
+                    {{ 'repositories.pipeline_variable_help' | translate }}
+                    <em>{{ 'repositories.api_keys' | translate }}</em
+                    >{{ 'repositories.of_vectispire' | translate }}
+                </div>
+            </div>
+        </div>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.close' | translate" [text]="true" (onClick)="page.cicdVisible.set(false)" />
+    </ng-template>
+</p-dialog>

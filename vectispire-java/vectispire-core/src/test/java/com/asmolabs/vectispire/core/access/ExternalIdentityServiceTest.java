@@ -140,8 +140,25 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
         assertThat(users.findById(admin.getId()).orElseThrow().getKeycloakId()).isNull();
 
         ExternalIdentityService trusting =
-                new ExternalIdentityService(users, java.util.Optional.empty(), java.util.Optional.empty(), true);
+                new ExternalIdentityService(users, java.util.Optional.empty(), java.util.Optional.empty(),
+                        OidcSettings.bound("link-privileged-accounts", "true"));
         assertThat(trusting.resolve("sub-admin", ISSUER, "admin").keycloakId()).isEqualTo("sub-admin");
+    }
+
+    @Test
+    @DisplayName("an account the directory lowered out of a privileged role is not bound on a claim either")
+    void aLoweredAccountIsNotBoundByName() {
+        // The directory may lower a CISO to User; the claim path read the role at the binding as SCIM
+        // did, and bound what was now a plain account to whoever claimed its name.
+        UserEntity lowered = account("lowered", Role.USER);
+        lowered.setScimLoweredFrom(Role.CISO.name());
+        users.save(lowered);
+
+        assertThatThrownBy(() -> identities.resolve("sub-evil", ISSUER, "lowered"))
+                .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
+                .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
+                .isEqualTo(ExternalIdentityService.Refusal.PRIVILEGED);
+        assertThat(users.findById(lowered.getId()).orElseThrow().getKeycloakId()).isNull();
     }
 
     @org.junit.jupiter.params.ParameterizedTest
@@ -164,13 +181,35 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("with linking by claim off, even a plain account is not bound to whoever claims its name")
+    void linkingByClaimCanBeSwitchedOff() {
+        // A privileged account had an operator's switch; a plain one was bound to any identity
+        // claiming its name, in a realm where users may write their own.
+        UserEntity plain = account("dave");
+        ExternalIdentityService strict = new ExternalIdentityService(
+                users, java.util.Optional.empty(), java.util.Optional.empty(), OidcSettings.bound("link-by-claim", "false"));
+
+        assertThatThrownBy(() -> strict.resolve("sub-dave", ISSUER, "dave"))
+                .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
+                .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
+                .isEqualTo(ExternalIdentityService.Refusal.NO_ACCOUNT);
+        assertThat(users.findById(plain.getId()).orElseThrow().getKeycloakId()).isNull();
+
+        // A subject provisioning already bound still signs in.
+        plain.setKeycloakId("sub-dave");
+        users.save(plain);
+        assertThat(strict.resolve("sub-dave", ISSUER, "dave").username()).isEqualTo("dave");
+    }
+
+    @Test
     @DisplayName("an account with a local second factor is never bound on a claim, whatever the setting")
     void aLocalSecondFactorIsNotTradedForAClaim() {
         UserEntity account = account("carol");
         account.setMfaEnabled(true);
         users.save(account);
         ExternalIdentityService trusting =
-                new ExternalIdentityService(users, java.util.Optional.empty(), java.util.Optional.empty(), true);
+                new ExternalIdentityService(users, java.util.Optional.empty(), java.util.Optional.empty(),
+                        OidcSettings.bound("link-privileged-accounts", "true"));
 
         assertThatThrownBy(() -> trusting.resolve("sub-carol", ISSUER, "carol"))
                 .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
@@ -194,7 +233,9 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
         org.mockito.Mockito.when(accentBlind.findByKeycloakId("sub-1")).thenReturn(java.util.Optional.empty());
         org.mockito.Mockito.when(accentBlind.findByUsername("álice")).thenReturn(java.util.Optional.of(alice));
 
-        assertThatThrownBy(() -> new ExternalIdentityService(accentBlind).resolve("sub-1", ISSUER, "Álice"))
+        ExternalIdentityService service = new ExternalIdentityService(
+                accentBlind, java.util.Optional.empty(), java.util.Optional.empty(), OidcSettings.bound());
+        assertThatThrownBy(() -> service.resolve("sub-1", ISSUER, "Álice"))
                 .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
                 .hasMessageContaining("No Vectispire account matches");
         org.mockito.Mockito.verify(accentBlind, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());

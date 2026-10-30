@@ -108,6 +108,46 @@ class SastScannerTest {
         }
 
         @Test
+        @DisplayName("places a finding whose rule declares no 2021 category by its CWE, its own category first")
+        void theCweWhenNoCategory() {
+            JsonNode payload = json("""
+                    {"results": [
+                      {"check_id": "java.sqli", "path": "A.java", "start": {"line": 3},
+                       "extra": {"metadata": {"cwe": ["CWE-89: Improper Neutralization of Special Elements"]}}},
+                      {"check_id": "java.ssrf", "path": "B.java", "start": {"line": 5},
+                       "extra": {"metadata": {"cwe": "CWE-918: Server-Side Request Forgery (SSRF)",
+                                              "owasp": ["A01:2025 - Broken Access Control"]}}},
+                      {"check_id": "java.both", "path": "C.java", "start": {"line": 7},
+                       "extra": {"metadata": {"cwe": ["CWE-89: SQL injection"],
+                                              "owasp": ["A01:2021 - Broken Access Control"]}}},
+                      {"check_id": "java.style", "path": "D.java", "start": {"line": 9},
+                       "extra": {"metadata": {"cwe": ["CWE-1078: Inappropriate Source Code Style"]}}}]}""");
+
+            assertThat(SastScanner.findings(payload, null))
+                    .extracting(SastScanner.SastFinding::owaspCategory)
+                    .as("the CWE's category; the CWE beside a 2025 tag; the rule's own 2021 category over its "
+                            + "CWE; a CWE no list holds places nothing")
+                    .containsExactly("A03", "A10", "A01", null);
+        }
+
+        @Test
+        @DisplayName("placing a finding by its CWE leaves every fingerprint input as it was")
+        void theCweMovesNoFingerprint() {
+            // AGENTS.md: the fingerprint is a data contract — rule id, path and type (IssueFingerprint).
+            // The category is not among them, so a backlog scanned before and after this reads the same
+            // issues, now placed.
+            String result = """
+                    {"results": [{"check_id": "java.sqli", "path": "/repo/source/A.java", "start": {"line": 3},
+                                  "extra": {"message": "m", "severity": "ERROR"%s}}]}""";
+            SastScanner.SastFinding before = SastScanner.findings(json(result.formatted("")), null).getFirst();
+            SastScanner.SastFinding after = SastScanner.findings(
+                    json(result.formatted(", \"metadata\": {\"cwe\": [\"CWE-89\"]}")), null).getFirst();
+
+            assertThat(after.owaspCategory()).isEqualTo("A03");
+            assertThat(after).usingRecursiveComparison().ignoringFields("owaspCategory").isEqualTo(before);
+        }
+
+        @Test
         @DisplayName("keeps the rule id exactly as reported")
         void ruleIdIsUntouched() {
             // It enters an issue's fingerprint. Normalizing it here — trimming a prefix,

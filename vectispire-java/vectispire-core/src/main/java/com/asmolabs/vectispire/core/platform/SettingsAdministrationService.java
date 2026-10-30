@@ -200,8 +200,14 @@ public class SettingsAdministrationService {
             // and the reach of the SIEM export and of the notification channels only in an
             // administrator's. Only on a change: a screen that saves every field it shows sends these
             // back unchanged, and refusing that would lock a CISO out of the rest of the section.
+            //
+            // **But never for a secret one.** "Unchanged is accepted, changed is refused" answered
+            // whether a value sent was the stored one: for a setting withheld from a security lead —
+            // the tracker's address, its pinned CA — that was a way to test guesses of it, one 200 or
+            // 403 at a time. A secret administrator-only key is refused from anyone else whatever it
+            // holds; the screen sends only what changed, so it never sends one back.
             if (setting.administratorOnly()
-                    && !value.equals(settings.get(setting))
+                    && (setting.isSecret() || !value.equals(settings.get(setting)))
                     && !administrative(writer)) {
                 throw new AccessDeniedException(setting.directsCredential()
                         .map(credential -> setting.label() + " decides where "
@@ -210,6 +216,9 @@ public class SettingsAdministrationService {
                                 + "may change it.")
                         .orElse(setting == Setting.TICKET_TOKEN_EXPIRES_ON
                                 ? setting.label() + " describes the tracker token, which only an administrator sets, "
+                                        + "and only an administrator may change it."
+                                : setting == Setting.AI_REVIEW_OLLAMA_URL
+                                ? setting.label() + " decides which host receives the findings sent for review, "
                                         + "and only an administrator may change it."
                                 : setting.label() + " decides how far a channel configured by a security lead "
                                         + "may reach, and only an administrator may change it."));
@@ -465,8 +474,16 @@ public class SettingsAdministrationService {
      * <p>It reports rather than throws: "unreachable" is an answer to the question the test button
      * asks, not an error in asking it. The check runs the same URL validation as a real call, so
      * a refusal here is the refusal a report would get.
+     *
+     * <p><b>The endpoint is named to an administrator only.</b> {@code ai_review_ollama_url} is a
+     * secret the catalog withholds from a security lead, and this check is theirs to run: answering
+     * with the URL, or quoting it in a sentence — the guard's refusals quote the address they
+     * refused — handed back the value withheld one screen away. Reachability and the models are
+     * what the test is for; the address adds nothing a security lead can act on, and {@code url}
+     * is null for them.
      */
-    public EndpointCheck checkAiEndpoint() {
+    public EndpointCheck checkAiEndpoint(Optional<UserView> caller) {
+        boolean named = administrative(caller);
         String model = aiReview.selectedModel();
         AiProvider provider = aiReview.provider();
         // Two forms on purpose: `name` goes into sentences a person reads, `wireName` into the
@@ -478,18 +495,24 @@ public class SettingsAdministrationService {
             url = aiReview.validatedUrl();
         } catch (RuntimeException refused) {
             // A public URL with no acknowledgement lands here. It is a configuration answer, and
-            // the operator needs the reason rather than a red cross.
+            // the operator needs the reason rather than a red cross — but the reason quotes the
+            // address, so only the person allowed to read the address gets it.
             return new EndpointCheck(
-                    false, false, model, aiReview.baseUrl(), List.of(), refused.getMessage(),
+                    false, false, model, named ? aiReview.baseUrl() : null, List.of(),
+                    named
+                            ? refused.getMessage()
+                            : "The configured URL is refused by the outbound policy; an administrator can see why.",
                     provider.wireName(), remoteAllowed);
         }
+        String where = named ? url : "the configured endpoint";
+        String answeredUrl = named ? url : null;
 
         // **Checked before the call, not after it fails.** OpenAI answers an unauthenticated
         // request with a 401 that `availableModels` swallows into "unreachable" — sending the
         // operator to check a network path that is fine, over a key they never set.
         if (provider == AiProvider.OPENAI && !aiReview.hasOpenAiKey()) {
-            return new EndpointCheck(false, false, model, url, List.of(),
-                    "No API key is stored for " + url + ". Set one, or point this at a local endpoint that "
+            return new EndpointCheck(false, false, model, answeredUrl, List.of(),
+                    "No API key is stored for " + where + ". Set one, or point this at a local endpoint that "
                             + "authenticates nobody.",
                     provider.wireName(), remoteAllowed);
         }
@@ -503,8 +526,8 @@ public class SettingsAdministrationService {
                 && !models.equals(AiReview.OPENAI_MODEL_SUGGESTIONS);
 
         if (!reachable) {
-            return new EndpointCheck(false, false, model, url, List.of(),
-                    "No answer from " + url + ". Is " + name + " running, and reachable from this process?",
+            return new EndpointCheck(false, false, model, answeredUrl, List.of(),
+                    "No answer from " + where + ". Is " + name + " running, and reachable from this process?",
                     provider.wireName(), remoteAllowed);
         }
         boolean installed = models.contains(model);
@@ -512,7 +535,7 @@ public class SettingsAdministrationService {
                 true,
                 installed,
                 model,
-                url,
+                answeredUrl,
                 models,
                 installed
                         ? "Reachable, and \"" + model + "\" is available."

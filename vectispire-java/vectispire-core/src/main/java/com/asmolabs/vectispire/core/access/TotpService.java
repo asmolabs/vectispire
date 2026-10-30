@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Totp;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -9,6 +10,8 @@ import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * TOTP multi-factor authentication enrolment, verification and emergency recovery.
  */
 @Service
-public class TotpService {
+public class TotpService implements SealedStore {
 
     private static final String TOTP_CONTEXT = "user:totp_secret";
     private static final String BACKUP_CONTEXT = "user:backup_codes";
@@ -46,6 +49,27 @@ public class TotpService {
 
         public SecondFactorLockedException(java.time.Duration retryAfter) {
             super("Too many wrong verification codes. Try again later.");
+            this.retryAfter = retryAfter;
+        }
+
+        public java.time.Duration retryAfter() {
+            return retryAfter;
+        }
+    }
+
+    /** Enrolment's password was wrong; the caller answers 401, as the password change does. */
+    public static class CurrentPasswordWrongException extends RuntimeException {
+        public CurrentPasswordWrongException() {
+            super("Current password is incorrect.");
+        }
+    }
+
+    /** The account's password budget is spent; the caller answers 429. */
+    public static class PasswordLockedException extends RuntimeException {
+        private final java.time.Duration retryAfter;
+
+        public PasswordLockedException(java.time.Duration retryAfter) {
+            super("Too many wrong passwords. Try again later.");
             this.retryAfter = retryAfter;
         }
 
@@ -86,11 +110,44 @@ public class TotpService {
      * The row is read here, by the account's id: the caller holds a {@link UserView}, which carries
      * no secret and is not something to save.
      *
+     * <p><b>The password first.</b> Enrolling with a session alone let whoever held one — stolen, or
+     * left open on a desk — put the account's second factor on their own phone, and the owner, who
+     * had no code to disable it with, was out until somebody edited the database. A wrong password
+     * spends the account's sign-in budget and is recorded, as at the password change, so the route is
+     * no way to guess it either.
+     *
      * @throws java.util.NoSuchElementException when the account is gone — only a deletion racing
      *     this request, which the bearer filter found active
+     * @throws CurrentPasswordWrongException when the password is not the account's
+     * @throws PasswordLockedException when the account's sign-in budget is spent
      */
-    public EnableResponse enable(UserView account, String secret, String code) {
+    public EnableResponse enable(
+            UserView account, String password, String secret, String code, String ipAddress, String userAgent) {
         UserEntity user = users.findById(account.id()).orElseThrow();
+        AuthService.Reservation attempt = auth.reservePassword(user.getId(), ipAddress);
+        if (!attempt.admitted()) {
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_BLOCKED,
+                    String.valueOf(user.getId()),
+                    "MFA enrolment refused by the throttle (" + attempt.retryAfter().toSeconds() + "s to wait)",
+                    user.getUsername(),
+                    ipAddress,
+                    userAgent,
+                    SecurityEventType.SIGN_IN_THROTTLED));
+            throw new PasswordLockedException(attempt.retryAfter());
+        }
+        if (!PasswordHasher.verify(password, user.getPassword())) {
+            // The reservation stays: it is this failure.
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_FAILURE,
+                    String.valueOf(user.getId()),
+                    "MFA enrolment refused: the current password was wrong",
+                    user.getUsername(),
+                    ipAddress,
+                    userAgent));
+            throw new CurrentPasswordWrongException();
+        }
+        auth.clearPasswordFailures(user.getId(), ipAddress);
         // Enrolling over an active factor replaced it with no proof of the old one: a session
         // left open on somebody's desk was enough to move their second factor onto one's own
         // phone. Disabling asks for a code, so replacing goes through disabling.
@@ -162,12 +219,64 @@ public class TotpService {
                 null));
     }
 
+    /**
+     * Re-seals the secret and the backup codes still under a previous key, each only if it is still
+     * the value read: of two sign-ins at once one writes, and the other's value is the same secret
+     * under the same current key. The entity follows what was written, so the checks below read the
+     * new ciphertext — the backup codes' conditional replacement compares against it.
+     */
+    private void resealIfPrevious(UserEntity user) {
+        String secretContext = TOTP_CONTEXT + ":" + user.getId();
+        String secret = user.getTotpSecret();
+        if (secret != null) {
+            SecretCipher.Decrypted opened = encryption.inspect(secret, secretContext);
+            if (opened.state() == SecretCipher.SecretState.PREVIOUS_KEY) {
+                String resealed = encryption.encrypt(opened.plainText(), secretContext);
+                if (users.replaceTotpSecret(user.getId(), secret, resealed) == 1) {
+                    user.setTotpSecret(resealed);
+                }
+            }
+        }
+        String backupContext = BACKUP_CONTEXT + ":" + user.getId();
+        String backups = user.getMfaBackupCodes();
+        if (backups != null) {
+            SecretCipher.Decrypted opened = encryption.inspect(backups, backupContext);
+            if (opened.state() == SecretCipher.SecretState.PREVIOUS_KEY) {
+                String resealed = encryption.encrypt(opened.plainText(), backupContext);
+                if (users.replaceBackupCodes(user.getId(), backups, resealed, clock.instant()) == 1) {
+                    user.setMfaBackupCodes(resealed);
+                }
+            }
+        }
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter secrets = new StoreCensus.Counter("TOTP secrets",
+                "re-sealed at the account's next second-factor check, or by enrolling again");
+        StoreCensus.Counter backups = new StoreCensus.Counter("TOTP backup codes",
+                "re-sealed at the account's next second-factor check, or by enrolling again");
+        for (UserEntity user : users.findHoldingSecondFactorSecrets()) {
+            secrets.add(encryption.sealOf(user.getTotpSecret(), TOTP_CONTEXT + ":" + user.getId()));
+            backups.add(encryption.sealOf(user.getMfaBackupCodes(), BACKUP_CONTEXT + ":" + user.getId()));
+        }
+        return List.of(secrets.done(), backups.done());
+    }
+
     public boolean verify(UserEntity user, String codeOrBackup) {
         if (user == null || !user.getMfaEnabled() || codeOrBackup == null || codeOrBackup.isBlank()) {
             return false;
         }
 
         String cleaned = codeOrBackup.trim();
+
+        // **A value opened by a previous key is re-sealed under the current one as it is read.**
+        // These are read at sign-in and nowhere else, and written only at enrolment: after a
+        // rotation they stayed under the old key for good, and removing it — as the procedure said
+        // once the SSH keys were done — refused the second factor of every enrolled account. Read
+        // here, after the password has been proved or by a session, and before the code is
+        // judged, so an account that only mistypes is moved too.
+        resealIfPrevious(user);
 
         // 1. Try TOTP code
         if (cleaned.length() == 6 && user.getTotpSecret() != null) {

@@ -22,20 +22,34 @@ import org.testcontainers.utility.DockerImageName;
  * "this engine changed its behaviour" into "the build broke this morning". MySQL's is also the unit
  * suite's ({@code TestDatabase.IMAGE}) and CI's job services', and both are the upgrade drill's: moved
  * by hand, held together by {@code scripts/check-db-pins.py}, which fails CI when they disagree.
+ *
+ * <p><b>Only {@link #MYSQL} is supported</b> (decision 0043 §3, amended 2026-10-29) and only it is in
+ * {@code integrationTestAll}. {@link #POSTGRES} is kept with the code it would check, run by nothing
+ * but {@code integrationTestPostgres} on demand.
+ *
+ * <p><b>An engine names its newest and its oldest supported version</b>, and the campaign runs both
+ * (decision 0043 §3: MySQL 8.4 LTS and 9.x). The installation guide promised MySQL 8 and the composition
+ * ships 8.4 while the campaign ran 9.4 only, so the server most installations hold was the one nothing
+ * checked — and the two differ on exactly what the schema depends on: MySQL 9 honours an inline
+ * {@code references}, 8.4 ignores it. Which of the two a run uses is {@code vectispire.db.line}, set by the
+ * Gradle task; the version itself is named here only, so moving it is one line and
+ * {@code scripts/check-db-pins.py} follows. The newest is the unit suite's ({@code TestDatabase.IMAGE}).
  */
 public enum Engine {
-    POSTGRES("postgres:17.6-alpine"),
-    MYSQL("mysql:9.4");
+    POSTGRES("postgres:17.6-alpine", "postgres:17.6-alpine"),
+    MYSQL("mysql:9.4", "mysql:8.4");
 
-    private final String image;
+    private final String newest;
+    private final String oldest;
 
-    Engine(String image) {
-        this.image = image;
+    Engine(String newest, String oldest) {
+        this.newest = newest;
+        this.oldest = oldest;
     }
 
     /** The engine named by {@code -Pdialect}, defaulting to the one deployments use. */
     public static Engine selected() {
-        String name = System.getProperty("vectispire.db.dialect", "postgres").toUpperCase(Locale.ROOT);
+        String name = System.getProperty("vectispire.db.dialect", "mysql").toUpperCase(Locale.ROOT);
         try {
             return valueOf(name);
         } catch (IllegalArgumentException unknown) {
@@ -44,8 +58,24 @@ public enum Engine {
         }
     }
 
+    /**
+     * The image of the version {@code vectispire.db.line} names, defaulting to the newest.
+     *
+     * <p>An unknown line fails rather than falling back: a typo that ran the newest twice would report
+     * the oldest as checked.
+     */
+    public String image() {
+        String line = System.getProperty("vectispire.db.line", "newest");
+        return switch (line) {
+            case "newest" -> newest;
+            case "oldest" -> oldest;
+            default -> throw new IllegalArgumentException(
+                    "Unknown version line \"" + line + "\". Expected one of: newest, oldest.");
+        };
+    }
+
     public JdbcDatabaseContainer<?> container() {
-        DockerImageName reference = DockerImageName.parse(image);
+        DockerImageName reference = DockerImageName.parse(image());
         return switch (this) {
             case POSTGRES -> new PostgreSQLContainer(reference);
             case MYSQL -> new MySQLContainer(reference);

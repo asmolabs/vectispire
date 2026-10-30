@@ -8,6 +8,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,9 +29,15 @@ class LoginRateLimitFilterTest {
     private FilterChain chain;
     private StringWriter responseWriter;
 
+    /** The shipped ceiling: nothing configured, so every limit falls back to its default. */
+    private static LoginRateLimitFilter shipped(String configuredProxies) {
+        return new LoginRateLimitFilter(
+                new TrustedProxies(configuredProxies), new SecurityLimits(configuredProxies, 0, null, 0, null, 0, null, 0));
+    }
+
     @BeforeEach
     void setup() throws Exception {
-        filter = new LoginRateLimitFilter("");
+        filter = shipped("");
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         chain = mock(FilterChain.class);
@@ -158,7 +166,7 @@ class LoginRateLimitFilterTest {
     @Test
     @DisplayName("a trusted proxy's X-Forwarded-For is honoured, so its clients are counted apart")
     void forwardedHeaderIsHonouredBehindATrustedProxy() throws Exception {
-        LoginRateLimitFilter behindProxy = new LoginRateLimitFilter("10.0.0.0/8");
+        LoginRateLimitFilter behindProxy = shipped("10.0.0.0/8");
 
         when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
         when(request.getMethod()).thenReturn("POST");
@@ -187,7 +195,7 @@ class LoginRateLimitFilterTest {
     @Test
     @DisplayName("the leftmost hop a client could have written is not the one counted")
     void onlyTheHopBehindTheTrustedChainIsTaken() throws Exception {
-        LoginRateLimitFilter behindProxy = new LoginRateLimitFilter("10.0.0.0/8");
+        LoginRateLimitFilter behindProxy = shipped("10.0.0.0/8");
 
         when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
         when(request.getMethod()).thenReturn("POST");

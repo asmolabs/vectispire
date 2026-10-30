@@ -546,6 +546,9 @@
             "type" : "array",
             "uniqueItems" : true
           },
+          "owasp" : {
+            "$ref" : "#/components/schemas/OwaspTagging"
+          },
           "ruleFiles" : {
             "format" : "int32",
             "type" : "integer"
@@ -893,16 +896,6 @@
           },
           "purl" : {
             "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
-            "type" : [ "string", "null" ]
-          },
-          "reachability" : {
-            "deprecated" : true,
-            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
-            "type" : "string"
-          },
-          "reachableSymbols" : {
-            "deprecated" : true,
-            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
             "type" : [ "string", "null" ]
           },
           "repoId" : {
@@ -1618,6 +1611,9 @@
       "ChecklistIncompleteProblem" : {
         "description" : "A checklist-incomplete refusal: an RFC 9457 problem whose lines member names each line kept from the submission or the sign-off, with its problems.",
         "properties" : {
+          "code" : {
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },
@@ -1876,6 +1872,9 @@
       "ChecklistMeasurementProblem" : {
         "description" : "A checklist-measurement-contradicted or checklist-measurement-changed refusal: an RFC 9457 problem whose lines member names each line with its answer, what the rule finds now and, for a sign-off, what it found at the submission.",
         "properties" : {
+          "code" : {
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },
@@ -2347,6 +2346,9 @@
               "$ref" : "#/components/schemas/UnrenderableCell"
             },
             "type" : "array"
+          },
+          "code" : {
+            "type" : "string"
           },
           "detail" : {
             "type" : "string"
@@ -3308,6 +3310,10 @@
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
+          "requestedStatus" : {
+            "description" : "On an entry that queued a decision for approval (toStatus pending_approval): the status it asked for — not_affected, will_not_fix or fixed. Null on every other entry, and on a request queued before the request was recorded.",
+            "type" : [ "string", "null" ]
+          },
           "scanId" : {
             "description" : "Null when the target had no scan, on a reopening an import caused, and once that scan is deleted.",
             "format" : "int64",
@@ -3463,12 +3469,16 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "unplacedCode" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "withFindings" : {
             "format" : "int32",
             "type" : "integer"
           }
         },
-        "required" : [ "covered", "unmeasured", "withFindings" ],
+        "required" : [ "covered", "unmeasured", "unplacedCode", "withFindings" ],
         "type" : "object"
       },
       "DependencyFinding" : {
@@ -5610,16 +5620,6 @@
             "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
             "type" : [ "string", "null" ]
           },
-          "reachability" : {
-            "deprecated" : true,
-            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
-            "type" : "string"
-          },
-          "reachableSymbols" : {
-            "deprecated" : true,
-            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
-            "type" : [ "string", "null" ]
-          },
           "repoId" : {
             "description" : "The repository the issue was found on; null on a container image's issue.",
             "format" : "int64",
@@ -5890,16 +5890,6 @@
           },
           "purl" : {
             "description" : "Null on a finding that is not about a package, and when the scanner gave no purl.",
-            "type" : [ "string", "null" ]
-          },
-          "reachability" : {
-            "deprecated" : true,
-            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
-            "type" : "string"
-          },
-          "reachableSymbols" : {
-            "deprecated" : true,
-            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
             "type" : [ "string", "null" ]
           },
           "repoId" : {
@@ -6430,6 +6420,9 @@
           "code" : {
             "type" : "string"
           },
+          "password" : {
+            "type" : "string"
+          },
           "secret" : {
             "type" : "string"
           }
@@ -6815,6 +6808,44 @@
         },
         "type" : "object"
       },
+      "OwaspTagging" : {
+        "properties" : {
+          "byCwe" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "ruleFiles" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "tagged" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "untagged" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OwaspUntaggedCount"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "byCwe", "ruleFiles", "tagged" ],
+        "type" : "object"
+      },
+      "OwaspUntaggedCount" : {
+        "properties" : {
+          "reason" : {
+            "enum" : [ "ONLY_2025_EDITION", "ONLY_2017_EDITION", "NOT_DECLARED" ],
+            "type" : "string"
+          },
+          "ruleFiles" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "ruleFiles" ],
+        "type" : "object"
+      },
       "OwaspWeek" : {
         "properties" : {
           "capturedAt" : {
@@ -7146,6 +7177,9 @@
             "type" : "string"
           },
           "output" : {
+            "type" : "string"
+          },
+          "schema_version" : {
             "type" : "string"
           },
           "signature" : {
@@ -9010,6 +9044,9 @@
           "affectedIssues" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "code" : {
+            "type" : "string"
           },
           "detail" : {
             "type" : "string"
@@ -11802,6 +11839,9 @@
           "isActive" : {
             "type" : "boolean"
           },
+          "mfaEnabled" : {
+            "type" : "boolean"
+          },
           "mustChangePassword" : {
             "type" : "boolean"
           },
@@ -11812,7 +11852,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "activeSessions", "federated", "isActive", "mustChangePassword" ],
+        "required" : [ "activeSessions", "federated", "isActive", "mfaEnabled", "mustChangePassword" ],
         "type" : "object"
       },
       "UserCreateRequest" : {
@@ -12138,6 +12178,9 @@
       "WebhookRefusal" : {
         "description" : "A refused delivery: an RFC 9457 problem whose detail says why.",
         "properties" : {
+          "code" : {
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },
@@ -13284,7 +13327,7 @@
     },
     "/api/v1/auth/mfa/enable" : {
       "post" : {
-        "description" : "Confirms TOTP setup by verifying the first code.",
+        "description" : "Confirms TOTP setup by verifying the first code; requires the current password.",
         "operationId" : "enableMfa",
         "requestBody" : {
           "content" : {
@@ -13456,6 +13499,28 @@
       "get" : {
         "description" : "Every template, with its versions and without their items.",
         "operationId" : "listTemplates",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -14920,6 +14985,28 @@
       "get" : {
         "description" : "Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it; state, suspended while the platform governor has disabled the forge's integration (decision 0040), and the integration's key.",
         "operationId" : "listForgeConnections",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -14977,6 +15064,27 @@
           "schema" : {
             "format" : "uuid",
             "type" : "string"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 discoveries are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -15667,6 +15775,28 @@
     "/api/v1/git-tokens" : {
       "get" : {
         "operationId" : "list_13",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -16342,6 +16472,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -16675,7 +16826,7 @@
     },
     "/api/v1/owasp/coverage" : {
       "get" : {
-        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.",
+        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope. unplacedCode counts the scope's open code findings no category holds: their rule declares no 2021 category, and no CWE the OWASP 2021 lists map to one.",
         "operationId" : "grid",
         "parameters" : [ {
           "in" : "query",
@@ -16803,6 +16954,28 @@
       "get" : {
         "description" : "Every registered plugin, with the manifest it runs.",
         "operationId" : "list_11",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -16960,6 +17133,27 @@
           "required" : true,
           "schema" : {
             "type" : "string"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -17316,6 +17510,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -17422,6 +17637,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -18398,6 +18634,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -18491,6 +18748,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -18950,6 +19228,28 @@
       "get" : {
         "description" : "Every registered report plugin, with the manifest history of each: status, approval, withdrawal.",
         "operationId" : "list_8",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -19254,6 +19554,28 @@
       "get" : {
         "description" : "The repositories filed more than once on the same branch and sub-path, grouped, each group oldest first. Filed before duplicates were refused; merged by hand.",
         "operationId" : "duplicates",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -19536,7 +19858,7 @@
     },
     "/api/v1/repositories/{repositoryId}/build-sbom-imports" : {
       "get" : {
-        "description" : "The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "buildSbomHistory",
         "parameters" : [ {
           "in" : "path",
@@ -19544,6 +19866,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -19632,7 +19975,7 @@
     },
     "/api/v1/repositories/{repositoryId}/coverage-imports" : {
       "get" : {
-        "description" : "The latest fifty. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "coverageHistory",
         "parameters" : [ {
           "in" : "path",
@@ -19640,6 +19983,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -19741,7 +20105,7 @@
     },
     "/api/v1/repositories/{repositoryId}/sarif-imports" : {
       "get" : {
-        "description" : "The latest fifty. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "history",
         "parameters" : [ {
           "in" : "path",
@@ -19749,6 +20113,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -19817,7 +20202,7 @@
     },
     "/api/v1/repositories/{repositoryId}/test-report-imports" : {
       "get" : {
-        "description" : "The latest fifty, without their suites. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty, without their suites. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "testReportHistory",
         "parameters" : [ {
           "in" : "path",
@@ -19825,6 +20210,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -20156,6 +20562,28 @@
     "/api/v1/sarif-sources" : {
       "get" : {
         "operationId" : "list_5",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -21333,6 +21761,28 @@
     "/api/v1/ssh-keys" : {
       "get" : {
         "operationId" : "list_3",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -21731,6 +22181,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -21803,6 +22274,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -22186,6 +22678,33 @@
         "tags" : [ "users-controller" ]
       }
     },
+    "/api/v1/users/{id}/second-factor" : {
+      "delete" : {
+        "operationId" : "resetSecondFactor",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserAdminSummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "users-controller" ]
+      }
+    },
     "/api/v1/users/{id}/targets" : {
       "get" : {
         "operationId" : "targets",
@@ -22195,6 +22714,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -22712,7 +23252,7 @@
                 }
               }
             },
-            "description" : "Another user holds this userName: scimType uniqueness"
+            "description" : "Another user holds this userName or this externalId: scimType uniqueness"
           }
         },
         "tags" : [ "scim-users-controller" ]
@@ -22918,6 +23458,16 @@
               }
             },
             "description" : "No user has this id"
+          },
+          "409" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "Another user is bound to this externalId: scimType uniqueness"
           }
         },
         "tags" : [ "scim-users-controller" ]

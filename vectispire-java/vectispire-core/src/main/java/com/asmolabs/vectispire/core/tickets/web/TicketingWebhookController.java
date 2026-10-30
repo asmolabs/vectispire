@@ -72,7 +72,7 @@ public class TicketingWebhookController {
      * nested {@code properties} member, which no answer carries.
      */
     @Schema(name = "WebhookRefusal", description = "A refused delivery: an RFC 9457 problem whose detail says why.")
-    record Refusal(String type, String title, int status, String detail, String instance) {}
+    record Refusal(String type, String title, int status, String detail, String instance, String code) {}
 
     @Operation(
             summary = "Handle incoming ticketing webhook",

@@ -25,8 +25,9 @@ Le protocole choisit le transport, et chaque protocole lit **un seul** format de
 `collector.example.com:6514` ; une adresse IPv6 s'écrit entre crochets, `[2001:db8::1]:514`. Il n'y a
 pas de schéma — pas de `syslog+tls://` — et le port est obligatoire, parce que les valeurs par défaut
 diffèrent selon le transport (514 en UDP et TCP, 6514 en TLS) et qu'un port deviné est un collecteur
-qui ne reçoit rien. Un point d'arrivée mal formé est refusé à l'enregistrement, pas au premier
-événement.
+qui ne reçoit rien. Un hôte fait de chiffres et de points doit être une adresse IPv4 —
+`999.999.999.999` est refusé — et le port d'une URL de webhook est compris entre 1 et 65535. Un point
+d'arrivée mal formé est refusé à l'enregistrement, pas au premier événement.
 
 L'en-tête syslog porte la facilité 10 (`authpriv`), une sévérité dérivée de la sévérité CEF (très
 élevée → critical, élevée → error, moyenne → warning, faible → notice), le nom d'hôte de l'instance,
@@ -50,7 +51,9 @@ CERTIFICATE-----`), dans **CA du collecteur**, affiché pour *Syslog TLS* seulem
 **à cette connexion seule, et à la place du magasin de l'environnement** : les autorités publiques ne
 sont pas reconnues pour le collecteur, et rien d'autre de ce que Vectispire contacte — trackers,
 modèles, webhooks — ne reconnaît l'autorité épinglée. Un paquet d'une racine et de ses
-intermédiaires est accepté, jusqu'à 8 certificats et 16 384 caractères.
+intermédiaires est accepté, jusqu'à 8 certificats et 16 384 caractères. Un collage dont une ligne
+`-----BEGIN` est illisible est refusé plutôt qu'épinglé en partie : tout ce qui suivait cette ligne aurait
+été ignoré.
 
 L'enregistrement refuse ce qui ne fonctionnerait pas ou ferait trop confiance : un certificat qui
 **n'est pas une autorité** (le certificat du collecteur lui-même, qui rendrait « de confiance »

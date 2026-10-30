@@ -1,0 +1,96 @@
+@let item = solution();
+<p-card styleClass="mb-4">
+    <section [attr.data-testid]="'solution-' + item.id">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+                <h2 class="text-xl font-semibold m-0 flex items-center gap-2">
+                    <i class="pi pi-objects-column text-muted-color" aria-hidden="true"></i>
+                    {{ item.name }}
+                </h2>
+                @if (item.description) {
+                    <p class="text-muted-color mt-1 mb-0">{{ item.description }}</p>
+                }
+                <div class="flex flex-wrap items-center gap-2 mt-2">
+                    <p-tag
+                        severity="secondary"
+                        [value]="'solutions.repository_count' | translate: { count: item.repositoryCount }"
+                    />
+                    <p-tag
+                        severity="secondary"
+                        data-testid="container-count"
+                        [value]="'solutions.container_count' | translate: { count: item.containerCount }"
+                    />
+                    @if (item.partial) {
+                        <p-tag
+                            severity="warn"
+                            icon="pi pi-eye-slash"
+                            data-testid="partial"
+                            [value]="
+                                'solutions.partial'
+                                    | translate: { count: item.repositoryCount, images: item.containerCount }
+                            "
+                        />
+                    }
+                    <app-open-issue-badges
+                        [issues]="item.openIssues"
+                        [scope]="{ solution_id: item.id }"
+                        [name]="item.name"
+                    />
+                    <a
+                        [routerLink]="['/solutions', item.id, 'compliance']"
+                        class="inline-flex items-center gap-1 text-sm px-2 py-1"
+                        [attr.aria-label]="'solutions.aria_compliance' | translate: { name: item.name }"
+                        data-testid="solution-compliance"
+                    >
+                        <i class="pi pi-verified" aria-hidden="true"></i>
+                        {{ 'solutions.compliance_btn' | translate }}
+                    </a>
+                </div>
+            </div>
+            @if (page.isAdmin()) {
+                <div class="whitespace-nowrap">
+                    <p-button
+                        icon="pi pi-plus"
+                        [text]="true"
+                        [label]="'solutions.new_project' | translate"
+                        data-testid="new-project"
+                        (onClick)="page.newProject(item)"
+                    />
+                    <p-button
+                        icon="pi pi-pencil"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'solutions.aria_edit' | translate: { name: item.name }"
+                        (onClick)="page.editSolution(item)"
+                    />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'solutions.aria_delete' | translate: { name: item.name }"
+                        (onClick)="page.askDeleteSolution(item)"
+                    />
+                </div>
+            }
+        </div>
+
+        @if ((item.projects ?? []).length === 0) {
+            <p class="text-muted-color mt-3 mb-0">{{ 'solutions.no_projects' | translate }}</p>
+        }
+
+        <ul class="list-none p-0 m-0 mt-3 flex flex-col gap-3">
+            @for (project of item.projects ?? []; track project.id) {
+                <li
+                    [id]="'project-' + project.id"
+                    class="border rounded-md p-3"
+                    [class.ring-2]="page.focused() === 'project-' + project.id"
+                    style="border-color: var(--surface-border)"
+                    [attr.data-testid]="'project-' + project.id"
+                >
+                    <app-project-card [solution]="item" [project]="project" />
+                </li>
+            }
+        </ul>
+    </section>
+</p-card>

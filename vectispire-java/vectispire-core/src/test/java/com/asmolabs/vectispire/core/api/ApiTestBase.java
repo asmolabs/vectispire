@@ -108,7 +108,9 @@ abstract class ApiTestBase extends VectispireContextTest {
 
     @BeforeEach
     void buildMockMvc() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(securityFilterChain)
+                .build();
         rateLimit.reset();
         bearerRateLimit.reset();
         webhookRateLimit.reset();
@@ -180,6 +182,17 @@ abstract class ApiTestBase extends VectispireContextTest {
 
         return minted.token();
     }
+
+    /**
+     * The SCIM token the suite's configuration enables — the one credential {@code /scim} accepts,
+     * whatever an administrator's session may do elsewhere.
+     */
+    protected String asScim() {
+        return SCIM_TOKEN;
+    }
+
+    /** As {@code application-apitest.yaml} sets it. */
+    protected static final String SCIM_TOKEN = "apitest-scim-token-0123456789abcdef";
 
     protected MockHttpServletRequestBuilder authenticated(MockHttpServletRequestBuilder request, String token) {
         return request.header("Authorization", "Bearer " + token);

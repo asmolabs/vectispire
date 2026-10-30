@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -57,7 +58,7 @@ class TotpServiceTest extends VectispireContextTest {
         user = users.save(user);
 
         String secret = totp.setup(UserView.of(user)).secret();
-        List<String> codes = totp.enable(UserView.of(user), secret, Totp.generateCode(secret, now)).backupCodes();
+        List<String> codes = totp.enable(UserView.of(user), "correct horse battery staple", secret, Totp.generateCode(secret, now), "127.0.0.1", null).backupCodes();
         return new Enrolled(users.findById(user.getId()).orElseThrow(), secret, codes, now);
     }
 
@@ -138,10 +139,45 @@ class TotpServiceTest extends VectispireContextTest {
         Enrolled account = enrolled();
         String attacker = totp.setup(UserView.of(account.user())).secret();
 
-        assertThatThrownBy(() -> totp.enable(UserView.of(account.user()), attacker, Totp.generateCode(attacker, clock.instant())))
+        assertThatThrownBy(() -> totp.enable(UserView.of(account.user()), "correct horse battery staple", attacker, Totp.generateCode(attacker, clock.instant()), "127.0.0.1", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already enabled");
         assertThat(totp.verify(account.user(), Totp.generateCode(account.secret(), account.at().plusSeconds(30))))
                 .isTrue();
+    }
+
+    @Autowired
+    private com.asmolabs.vectispire.core.audit.AuditLogService audit;
+
+    @Autowired
+    private AuthService auth;
+
+    @org.springframework.beans.factory.annotation.Value("${vectispire.encryption.key}")
+    private String currentPassphrase;
+
+    @Test
+    @DisplayName("a secret and backup codes sealed under a previous key are re-sealed at the next check")
+    void aRotatedSecondFactorIsResealed() {
+        // Read at sign-in and written only at enrolment, they stayed under the old key for good, and
+        // removing it refused the second factor of every enrolled account.
+        Enrolled enrolled = enrolled();
+        EncryptionService rotatedKeys = new EncryptionService(new com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties(
+                java.util.Optional.of("totp-rotation-new-passphrase-0123456789"), List.of(currentPassphrase)));
+        TotpService rotated = new TotpService(users, rotatedKeys, audit, clock, auth);
+        long id = enrolled.user().getId();
+        assertThat(rotatedKeys.sealOf(enrolled.user().getTotpSecret(), "user:totp_secret:" + id))
+                .isEqualTo(EncryptionService.Seal.PREVIOUS_KEY);
+
+        // A wrong code: the account is moved all the same, by whoever reaches the check.
+        assertThat(rotated.verify(users.findById(id).orElseThrow(), "000000x")).isFalse();
+
+        UserEntity after = users.findById(id).orElseThrow();
+        assertThat(rotatedKeys.sealOf(after.getTotpSecret(), "user:totp_secret:" + id)).isEqualTo(EncryptionService.Seal.CURRENT);
+        assertThat(rotatedKeys.inspect(after.getTotpSecret(), "user:totp_secret:" + id).plainText()).isEqualTo(enrolled.secret());
+        assertThat(rotatedKeys.sealOf(after.getMfaBackupCodes(), "user:backup_codes:" + id)).isEqualTo(EncryptionService.Seal.CURRENT);
+        // And a backup code still opens it, under the new key alone.
+        TotpService newKeyOnly = new TotpService(users, new EncryptionService(new com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties(
+                java.util.Optional.of("totp-rotation-new-passphrase-0123456789"), List.of())), audit, clock, auth);
+        assertThat(newKeyOnly.verify(after, enrolled.backupCodes().getFirst())).isTrue();
     }
 }

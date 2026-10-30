@@ -40,6 +40,21 @@ class RemediationSlaTest {
     }
 
     @Test
+    @DisplayName("the deadline's own instant is not late yet, the second after it is")
+    void lateIsStrictlyAfterTheDeadline() {
+        // The boundary `AssetTier.isBreached` used to pin for a second rule nothing called; this is
+        // the one the issues, the reports and the SIEM signal read, so the boundary is pinned here.
+        Instant seen = NOW.minus(Duration.ofDays(15));
+
+        assertThat(POLICY.assess(Severity.CRITICAL, seen, true, false, NOW))
+                .get()
+                .returns(false, RemediationSla.Assessment::isOverdue);
+        assertThat(POLICY.assess(Severity.CRITICAL, seen, true, false, NOW.plusSeconds(1)))
+                .get()
+                .returns(true, RemediationSla.Assessment::isOverdue);
+    }
+
+    @Test
     @DisplayName("the last week before the deadline is due-soon")
     void theWarningWindow() {
         assertThat(POLICY.assess(Severity.HIGH, NOW.minus(Duration.ofDays(24)), true, false, NOW))

@@ -330,7 +330,10 @@ public class AuthenticationFlowService {
         challenge.setUserId(userId);
         challenge.setExpiresAt(expiresAt);
         challenge.setAttempts(0);
-        challenge.setUserAgent(userAgent);
+        // Clipped as a session's is, and for the same column width: stored as sent, a User-Agent
+        // past 255 characters failed the insert after the password had been accepted and its
+        // counters cleared — a 500 for an account with a second factor, a session for one without.
+        challenge.setUserAgent(AuthService.clip(userAgent));
         challenge.setIpAddress(ip);
         mfaChallenges.save(challenge);
         return true;
@@ -521,7 +524,7 @@ public class AuthenticationFlowService {
             String userAgent) {
 
         UserEntity user = users.findById(account.id()).orElseThrow();
-        AuthService.Reservation attempt = auth.reservePassword(user.getId());
+        AuthService.Reservation attempt = auth.reservePassword(user.getId(), ipAddress);
         if (!attempt.admitted()) {
             audit.record(new AuditLogService.Record(
                     AuditOperation.LOGIN_BLOCKED,
@@ -545,7 +548,7 @@ public class AuthenticationFlowService {
             return new PasswordChange.CurrentPasswordWrong();
         }
         // The password was right: whatever the new one turns out to be, this was not a guess.
-        auth.clearPasswordFailures(user.getId());
+        auth.clearPasswordFailures(user.getId(), ipAddress);
         AccountRules.validatePassword(newPassword).ifPresent(message -> {
             throw new InvalidInputException(message);
         });

@@ -34,11 +34,12 @@ de tout le reste.
 Chaque contrôle est noté par sa catégorie — vulnérabilités, chaîne d'approvisionnement (la part des
 cibles dotées d'un SBOM), secrets, développement sécurisé, infrastructure as code, gouvernance de la
 barrière, piste d'audit — si bien que son titre nomme l'exigence à laquelle il se rapporte, non tout
-ce qu'elle demande. `CRA-ART11-NOTIF`, par exemple, note les vulnérabilités critiques ouvertes,
+ce qu'elle demande. `CRA-ART14-NOTIF`, par exemple, note les vulnérabilités critiques ouvertes,
 inscrites au catalogue CISA KEV ou en retard dont partirait une notification au titre de l'article
-14 ; il ne fait ni ne suit la notification. Les codes CRA gardent la numérotation de la proposition de 2022 ; les titres citent le règlement
-(UE) 2024/2847 tel qu'adopté, dont l'obligation de signalement de l'article 14 s'applique depuis le
-11 septembre 2026. Les formules sont dans la
+14 ; il ne fait ni ne suit la notification. Les codes CRA nomment les dispositions du règlement (UE) 2024/2847 tel qu'adopté, dont l'obligation de
+signalement de l'article 14 s'applique depuis le 11 septembre 2026 ; jusqu'à la version qui suit
+0.11.2, ils suivaient la numérotation de la proposition de 2022, et la mise à jour a réécrit les
+déclarations enregistrées vers les nouveaux codes. Les formules sont dans la
 [référence de conformité](https://github.com/asmolabs/vectispire/blob/main/docs/fr/COMPLIANCE_AND_REGULATORY.fr.md).
 La même posture donne le même verdict : un résultat peut être reproduit.
 
@@ -135,6 +136,17 @@ paquet transporte : qui modifie un paquet remplace aussi ce fichier. Récupérez
 est une enveloppe DSSE signée sur l'encodage de pré-authentification de la spécification :
 `cosign verify-attestation` et les vérificateurs in-toto la contrôlent comme n'importe quelle autre.
 
+**Épinglez le type de prédicat, et lisez les comptes en constats.** La déclaration d'un scan — dans
+`04_attestations/` du paquet, ou depuis `GET /api/v1/attestations/scans/{scanId}` — porte le type de
+prédicat `https://vectispire.dev/attestation/v2`. Son `findings` compte des **constats**, un par
+endroit qu'un outil a signalé : `critical` à `low` par sévérité, `kev` et `secrets` par nature,
+`total` chaque constat du scan, si bien que `total` n'est jamais inférieur à aucun des autres. Le
+prédicat `v1`, servi jusqu'à la 0.11, comptait `total` en problèmes — un par empreinte — à côté de
+sévérités comptées en constats, et pouvait afficher un total inférieur à la somme de ses propres
+sévérités. La v1 n'est plus servie à côté de la v2 : un vérificateur qui épingle `…/attestation/v1`
+refuse les nouvelles déclarations, et c'est voulu — changez le type qu'il épingle et lisez `total`
+en constats.
+
 ## Registres à l'appui
 
 Trois autres exports pèsent dans la même conversation, tous couverts sous
@@ -150,3 +162,19 @@ Trois autres exports pèsent dans la même conversation, tous couverts sous
 Une preuve de conformité ne vaut que ce que vaut le journal qui la porte. Voir
 [Journal d'audit](../administration/audit-log.md) pour la chaîne d'empreintes, et pour le
 miroir qui place une seconde copie hors de la base de données qu'il surveille.
+
+## OWASP Top 10, édition 2021 {#owasp-edition}
+
+La page de couverture OWASP — la grille par règle, les semaines et le rapport du modèle, sous
+[Analyse de risque](risk-analysis.md#surface-dattaque-et-owasp) — répond à l'**OWASP Top 10, édition
+2021** : `A01` à `A10` avec les intitulés de 2021, dans l'interface, l'API et l'enregistrement
+hebdomadaire. La 1.0 garde cette édition ([décision 0046](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0046-compliance-codes-for-1-0.md) §2) :
+les jeux de règles en usage sont étiquetés avec elle, et les questionnaires d'audit auxquels la page
+répond la demandent encore. L'édition 2025 renumérote et remanie la liste, si bien qu'une catégorie de
+2021 ne correspond pas une à une à une catégorie de 2025 ; elle viendra dans une version 1.x ultérieure
+**à côté** de la vue 2021, jamais à sa place, et un pipeline ou un rapport qui s'appuie sur une
+catégorie de 2021 continue de fonctionner.
+
+D'ici là, une règle étiquetée avec la seule édition 2025 ne place aucun constat, et n'est pas écartée en
+silence : l'écran des jeux de règles la compte parmi les règles non étiquetées, avec cette raison
+([Jeux de règles Semgrep](../administration/rule-sets.md#owasp-categories)).

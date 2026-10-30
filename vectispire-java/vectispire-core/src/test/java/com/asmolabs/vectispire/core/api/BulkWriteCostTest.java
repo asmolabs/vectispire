@@ -99,7 +99,7 @@ class BulkWriteCostTest extends ApiTestBase {
     @Test
     @DisplayName("listing 30 groups reads their members as listing 3 does, and no account whole")
     void scimGroups() throws Exception {
-        String admin = asAdmin();
+        String admin = asScim();
         teamsWithAMember("small", 3);
         Cost few = measure(() -> mvc.perform(authenticated(get("/scim/v2/Groups"), admin))
                 .andExpect(status().isOk())

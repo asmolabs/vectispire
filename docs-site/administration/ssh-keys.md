@@ -26,8 +26,10 @@ VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE=/run/secrets/vectispire-previous-keys
 ```
 
 Previous keys are tried **for decryption only**. Values move to the new key as they are
-re-saved, and this page marks the rows that still depend on an old one — that marking is
-how you know when the rotation is actually finished rather than merely started.
+re-saved, and this page marks the deploy keys that still depend on an old one. The deploy keys
+are one sealed store among eleven — second factors, the signing key and the integration secrets
+are others — so the rotation is finished when `/actuator/encryption` answers
+`"rotationFinished": true`, not when this page alone shows nothing marked.
 
 ![Three deploy keys, one per encryption state: readable under the current key, still on a previous one, and one no configured key reads.](../assets/screens/en/ssh-keys.png)
 

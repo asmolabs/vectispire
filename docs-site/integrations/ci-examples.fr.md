@@ -309,7 +309,8 @@ boucle.
 Chaque refus est un [document de problème](../reference/errors.md) : `application/problem+json`,
 avec un `detail` écrit pour la personne qui lit le journal. Aucun de ces refus ne porte de type
 `urn:vectispire:problem:` — il est réservé aux conflits qu'un écran doit distinguer — donc un script
-décide sur le statut et affiche le `detail`.
+décide sur le statut, ou sur le `code` à côté (`import-refused`, `not-found`, `invalid-request`,
+`content-too-large`), et affiche le `detail`.
 
 ## 2. Jenkins {#jenkins}
 

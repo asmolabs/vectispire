@@ -151,6 +151,14 @@
         <!-- Said once below the table rather than repeated on every uncovered row: the same
              sentence seven times is noise, and noise hides the three rows that do say something
              different. -->
+        <!-- Code findings whose rule declares no 2021 category and no CWE the standard's lists hold are
+             in no row above: said, so a column of zeros is not read as an account of the whole backlog. -->
+        @if (data.unplacedCode > 0) {
+            <p class="text-sm mt-4" style="max-width: 74ch" data-testid="owasp-unplaced">
+                <i class="pi pi-info-circle text-amber-700 mr-1"></i>
+                {{ 'owasp_grid.unplaced_code' | translate: { count: data.unplacedCode } }}
+            </p>
+        }
         <p class="text-muted-color text-sm mt-4" style="max-width: 74ch">
             {{ 'owasp_grid.not_covered_note' | translate }}
         </p>

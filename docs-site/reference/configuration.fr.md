@@ -64,7 +64,8 @@ Dès qu'un compte existe, les deux sont ignorés.
 |---|---|---|
 | `VECTISPIRE_OIDC_ISSUER` | *aucun* | Active l'[authentification unique](../administration/sso.md). |
 | `VECTISPIRE_PASSWORD_LOGIN` | `true` | `false` délègue entièrement l'authentification. **Ignoré, bruyamment, sans émetteur posé** — cela ne laisserait aucune entrée. |
-| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Permet de lier un compte privilégié (tout rôle sauf USER) à sa première connexion par son nom ; jamais un compte doté d'un second facteur local. Seulement pour un realm où personne ne choisit son nom. |
+| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Permet de lier un compte privilégié (tout rôle sauf USER) à sa première connexion par son nom ; jamais un compte doté d'un second facteur local. Seulement pour un realm où personne ne choisit son nom. Vectispire avertit au démarrage quand il est actif en même temps que `VECTISPIRE_OIDC_LINK_BY_CLAIM`. |
+| `VECTISPIRE_OIDC_LINK_BY_CLAIM` | `true` | Si un compte est lié à sa première connexion par son nom, tout simplement. Désactivé, rien n'est lié sur une revendication : les comptes sont liés par [SCIM](../administration/sso.fr.md#provisioning-from-the-directory-scim), et une identité que SCIM n'a pas liée est refusée. À désactiver pour un realm dont les utilisateurs peuvent choisir ou modifier leur nom. |
 | `VECTISPIRE_OIDC_REQUIRE_MFA` | `false` | Refuse une connexion SSO dont le jeton n'atteste aucun second facteur. Une connexion fédérée saute le TOTP local : le second facteur relève du fournisseur. |
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | Les valeurs `amr` (RFC 8176) qui valent second facteur. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *aucun* | Les niveaux `acr` qui en valent un, quand le fournisseur signale le MFA ainsi. |
@@ -105,7 +106,7 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 
 | Variable | Défaut | Notes |
 |---|---|---|
-| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local et les autres adresses de métadonnées du cloud, toujours refusées. Vérifié à la saisie de l'URL et avant chaque analyse. |
+| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local et les autres adresses de métadonnées du cloud, toujours refusées, de même que les points d'accès de Vectispire lui-même — le démon Docker, la base de données et, dans un cluster, l'API Kubernetes — quoi que dise la liste. Vérifié à la saisie de l'URL et avant chaque analyse. |
 | `VECTISPIRE_HOST_SSH` | `true` | Un dépôt sans clé de déploiement attachée se rabat sur le `~/.ssh` de l'hôte qui analyse. Mettez `false` partout où les personnes qui ajoutent des cibles ne sont pas celles qui possèdent cette clé : le repli vaut pour tout l'hôte, si bien qu'ajouter une URL suffit alors à la faire cloner avec une identité que personne ne lui a attachée. `false` dans le `docker-compose.yml` livré, qui ne monte aucun `~/.ssh`. |
 
 Un clone SSH avec clé de déploiement vérifie la clé d'hôte de la forge contre

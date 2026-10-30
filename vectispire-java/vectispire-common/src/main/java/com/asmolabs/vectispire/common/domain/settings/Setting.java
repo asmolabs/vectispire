@@ -680,9 +680,16 @@ public enum Setting {
      * it, and left behind: with the test button answering the sender's error, it let that role read
      * which internal hosts and ports answered. And the tracker token's declared expiry, which describes a
      * credential only an administrator sets and sees the life of.
+     *
+     * <p><b>And the Ollama endpoint, although no credential is sent to it.</b> It receives the open
+     * findings of every reported repository, and its policy admits private addresses by design, so
+     * whoever chooses it chooses an internal host the server will call on every report and on the
+     * test button. The OpenAI address was already an administrator's because of its key; the
+     * Ollama one, the same kind of destination without a key, had been left a security lead's.
      */
     public boolean administratorOnly() {
         return directsCredential().isPresent()
+                || this == AI_REVIEW_OLLAMA_URL
                 || this == TICKET_TOKEN_EXPIRES_ON
                 || this == SIEM_ALLOW_PRIVATE_DESTINATION
                 || this == NOTIFICATION_ALLOW_PRIVATE_URL;
@@ -752,6 +759,14 @@ public enum Setting {
         if (this == TICKET_BASE_URL && value != null && carriesUserInfo(value)) {
             return Optional.of("the address carries a user name or a token: type the address alone, the token has "
                     + "a field of its own.");
+        }
+        // **A model endpoint is an API root, and a path is appended to it.** A query or a fragment
+        // in the root would take that path into itself, and the call would not reach the API path
+        // it names.
+        if ((this == AI_REVIEW_OLLAMA_URL || this == AI_REVIEW_OPENAI_URL) && value != null
+                && !AiReview.isApiRoot(value)) {
+            return Optional.of("the API root carries a query or a fragment (\"?\" or \"#\"): type the address "
+                    + "alone, the path of each call is appended to it.");
         }
         return type.validate(value);
     }

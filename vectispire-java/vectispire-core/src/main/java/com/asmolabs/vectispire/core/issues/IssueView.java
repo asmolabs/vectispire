@@ -118,22 +118,7 @@ public record IssueView(
         @Schema(types = {"string", "null"}, description = "Who attached the ticket; null while none is, and when the ticketing integration opened it.")
                 String ticketAttachedBy,
         @Schema(types = {"string", "null"}, description = "Null while no ticket is attached, and when its reference was attached without a URL.")
-                String ticketUrl,
-        // **Published, not computed.** Nothing writes the columns behind these two since the
-        // reachability analyser went; every row reads UNKNOWN and null. They stay because an
-        // integration key reads this shape, and a field that vanishes breaks a client silently
-        // where a documented dead one does not.
-        @Schema(
-                description = "Not computed: always UNKNOWN. No analysis establishes whether the code calls the "
-                        + "vulnerable component; kept in the response so integrations reading it do not break, "
-                        + "and reserved for a real analysis.",
-                deprecated = true)
-                String reachability,
-        @Schema(
-                types = {"string", "null"},
-                description = "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
-                deprecated = true)
-                String reachableSymbols) {
+                String ticketUrl) {
 
     public static IssueView of(IssueEntity issue) {
         return new IssueView(
@@ -181,8 +166,6 @@ public record IssueView(
                 issue.getLine(),
                 issue.getTicketRef(),
                 issue.getTicketAttachedBy(),
-                issue.getTicketUrl(),
-                issue.getReachability(),
-                issue.getReachableSymbols());
+                issue.getTicketUrl());
     }
 }

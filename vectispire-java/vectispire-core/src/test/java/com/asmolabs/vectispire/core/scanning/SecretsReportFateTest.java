@@ -109,6 +109,8 @@ class SecretsReportFateTest extends VectispireContextTest {
 
         ContainerRunner containers = mock(ContainerRunner.class);
         when(containers.run(any())).thenAnswer(call -> answer(call.getArgument(0)));
+        // A mock's ceiling is zero, and the report is now read only within the runner's.
+        when(containers.outputBytes()).thenReturn(com.asmolabs.vectispire.common.scanning.ScannerLimits.DEFAULT_OUTPUT_BYTES);
         rules = Files.createTempDirectory("secrets-fate-rules");
         ScanRunner real = new ScanRunner(containers, ScannerImages.PINNED, rules, hash -> List.of(),
                 new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE, java.time.Clock.systemUTC());

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.access.web.security.chain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -23,9 +24,9 @@ import org.springframework.util.unit.DataSize;
 class RequestBodyLimitFilterTest {
 
     private final RequestBodyLimitFilter filter =
-            new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40),
+            new RequestBodyLimitFilter(new RequestBodyLimits(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40),
                     DataSize.ofBytes(50), DataSize.ofBytes(70), DataSize.ofBytes(80), DataSize.ofBytes(85), DataSize.ofBytes(90),
-                    DataSize.ofBytes(100), DataSize.ofBytes(60), DataSize.ofBytes(5));
+                    DataSize.ofBytes(100), DataSize.ofBytes(60), DataSize.ofBytes(5)));
 
     @Test
     @DisplayName("a body with no declared length is refused as soon as it passes the ceiling")

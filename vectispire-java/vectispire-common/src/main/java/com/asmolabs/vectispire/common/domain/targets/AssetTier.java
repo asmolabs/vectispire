@@ -1,9 +1,6 @@
 package com.asmolabs.vectispire.common.domain.targets;
 
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
-import com.asmolabs.vectispire.common.domain.issues.Severity;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
@@ -11,25 +8,20 @@ import java.util.Optional;
 /**
  * Business criticality classification of monitored targets (repositories & containers).
  *
- * <p>Drives contextual SLA deadlines, Security Gate severity thresholds, and notification urgency.
+ * <p><b>It sets no remediation deadline.</b> It used to carry a table of SLA days per severity and a
+ * breach test that nothing in production called, beside {@code RemediationSla}, whose windows are
+ * the ones the issues, the reports and the SIEM signal read. Two rules for one deadline drift apart
+ * in silence; the unused one was removed rather than kept as a second answer.
  */
 public enum AssetTier {
-    TIER_1_MISSION_CRITICAL("Tier 1 - Mission Critical", 3, 14, 30, 90),
-    TIER_2_BUSINESS_OPERATIONAL("Tier 2 - Business Operational", 14, 30, 60, 180),
-    TIER_3_INTERNAL("Tier 3 - Internal / Lab", 30, 60, 90, 365);
+    TIER_1_MISSION_CRITICAL("Tier 1 - Mission Critical"),
+    TIER_2_BUSINESS_OPERATIONAL("Tier 2 - Business Operational"),
+    TIER_3_INTERNAL("Tier 3 - Internal / Lab");
 
     private final String displayName;
-    private final int criticalSlaDays;
-    private final int highSlaDays;
-    private final int mediumSlaDays;
-    private final int lowSlaDays;
 
-    AssetTier(String displayName, int criticalSlaDays, int highSlaDays, int mediumSlaDays, int lowSlaDays) {
+    AssetTier(String displayName) {
         this.displayName = displayName;
-        this.criticalSlaDays = criticalSlaDays;
-        this.highSlaDays = highSlaDays;
-        this.mediumSlaDays = mediumSlaDays;
-        this.lowSlaDays = lowSlaDays;
     }
 
     public String getDisplayName() {
@@ -38,26 +30,6 @@ public enum AssetTier {
 
     public String wireName() {
         return name();
-    }
-
-    public Duration slaDuration(Severity severity) {
-        if (severity == null) {
-            return Duration.ofDays(mediumSlaDays);
-        }
-        return switch (severity) {
-            case CRITICAL -> Duration.ofDays(criticalSlaDays);
-            case HIGH -> Duration.ofDays(highSlaDays);
-            case MEDIUM -> Duration.ofDays(mediumSlaDays);
-            case LOW, NEGLIGIBLE, UNKNOWN -> Duration.ofDays(lowSlaDays);
-        };
-    }
-
-    public Instant deadline(Severity severity, Instant firstSeenAt) {
-        return firstSeenAt.plus(slaDuration(severity));
-    }
-
-    public boolean isBreached(Severity severity, Instant firstSeenAt, Instant now) {
-        return now.isAfter(deadline(severity, firstSeenAt));
     }
 
     /**

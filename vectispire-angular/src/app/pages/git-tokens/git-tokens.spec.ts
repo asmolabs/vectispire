@@ -67,6 +67,27 @@ describe('the HTTPS tokens screen', () => {
         expect(input!.type).toBe('password');
     });
 
+    it('is a form requiring the name, the host and the token, and sends once however often it is submitted', () => {
+        list();
+        fixture.componentInstance.openForm();
+        fixture.detectChanges();
+        for (const id of ['git-token-name', 'git-token-host', 'git-token-secret']) {
+            expect(document.querySelector<HTMLInputElement>(`#${id}`)!.required, id).toBe(true);
+        }
+        expect(document.querySelector<HTMLInputElement>('#git-token-username')!.required).toBe(false);
+
+        fixture.componentInstance.form = {
+            name: 'gitlab-read',
+            host: 'gitlab.example.com',
+            username: '',
+            token: 'glpat-x'
+        };
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'POST' && call.url === '/api/v1/git-tokens').length).toBe(1);
+    });
+
     it('sends the token once and forgets it after the save', () => {
         list();
         const screen = fixture.componentInstance;

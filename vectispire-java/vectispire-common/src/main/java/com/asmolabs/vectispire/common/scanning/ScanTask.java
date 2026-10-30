@@ -4,6 +4,8 @@ import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -103,7 +105,13 @@ public record ScanTask(Target target, String rulesHash, Set<Step> steps, List<Pl
      *     ignoring it changes nothing an older agent did before
      */
     public ScanTask {
-        steps = steps == null ? Set.of() : Set.copyOf(steps);
+        // **In the enum's order, not `Set.copyOf`'s**, whose iteration order is salted per JVM run: a task's steps
+        // went out on the wire in a different order from one start to the next — the same set to an agent, but the
+        // recordings the Rust control plane is replayed against drew a new order at every recording, and failed or
+        // passed with it (the reference set's test sorted them for that reason, AgentWireReferenceSetTest).
+        steps = steps == null || steps.isEmpty()
+                ? Set.of()
+                : Collections.unmodifiableSet(EnumSet.copyOf(steps));
         plugins = plugins == null ? List.of() : List.copyOf(plugins);
     }
 

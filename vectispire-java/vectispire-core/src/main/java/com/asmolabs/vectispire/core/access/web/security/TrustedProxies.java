@@ -6,9 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
-import org.springframework.stereotype.Component;
 
 /**
  * Which peers may speak for somebody else.
@@ -32,7 +30,6 @@ import org.springframework.stereotype.Component;
  * configured, {@code X-Forwarded-Proto} is ignored entirely and only a genuinely encrypted
  * connection counts as one.
  */
-@Component
 public class TrustedProxies {
 
     private static final Logger log = LoggerFactory.getLogger(TrustedProxies.class);
@@ -45,7 +42,7 @@ public class TrustedProxies {
 
     private final List<IpAddressMatcher> matchers;
 
-    public TrustedProxies(@Value("${vectispire.security.trusted-proxies:}") String configured) {
+    public TrustedProxies(String configured) {
         this.matchers = parse(configured);
         if (this.matchers.isEmpty()) {
             log.info("No trusted proxies configured — X-Forwarded-For and X-Forwarded-Proto are ignored. "

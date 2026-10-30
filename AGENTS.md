@@ -14,12 +14,12 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
 | Frontend | Angular 22, TypeScript 6.0, Optimus UI 2, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
-| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container — kept across runs as `vectispire-test-mysql` where `testcontainers.reuse.enable=true` ([`vectispire-java/README.md`](vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine)) — or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
+| Database | MySQL 8.4 LTS and 9.x, the campaign running both — PostgreSQL's code is kept but untested and outside 1.0 (decision 0043 §3) — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container — kept across runs as `vectispire-test-mysql` where `testcontainers.reuse.enable=true` ([`vectispire-java/README.md`](vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine)) — or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
 cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites (MySQL: needs Docker)
-cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL, MySQL
+cd vectispire-java && ./gradlew integrationTestAll   # MySQL 9.x and 8.4 (PostgreSQL: integrationTestPostgres, unsupported)
 
 npm ci                                            # respects the lockfile
 npm run build                                     # the Angular interface
@@ -67,7 +67,10 @@ image of a compose file pinned as `name:tag@sha256:…`), `jvm`
 runner, since `jvm`'s container has no Docker), `frontend` (`npm ci && npm run build && npm test`), `sbom`,
 `vulnerabilities` and `npm-audit`; `images` then builds the three images with Jib — the control plane, the agent and the demonstration
 report plugin — **starts the control plane against a real MySQL** before believing them, and renders an
-export twice with the plugin's image to the same bytes. Syft and Grype are digest-pinned to
+export twice with the plugin's image to the same bytes. `previous-agent` runs the newest `v*` release's
+agent image — by digest, verified with cosign by `scripts/release-image.sh` — against the control plane
+built at the commit, and fails unless that agent claims and finishes the composition's scans (decision
+0043 §2). Syft and Grype are digest-pinned to
 what `ScannerImages` pins, so the same scanner version audits Vectispire as audits its targets.
 `main` is not a push trigger: a commit reaching it without going through `develop` has no checks
 to show, and that is the flow the rule is meant to enforce.
@@ -82,7 +85,7 @@ the files, `.dockerignore`, the Gradle build definition, the npm manifests, the 
 range that cannot be resolved counts as changed. Both also run
 unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
 alongside `dockerfiles`, `restore` and `upgrade` — on `cron: '30 2 * * *'`. `upgrade` runs
-`scripts/upgrade-drill.sh` on MySQL and PostgreSQL: the newest `v*` release — by the digest the
+`scripts/upgrade-drill.sh` on MySQL: the newest `v*` release — by the digest the
 registry serves, run only once `cosign verify` accepts it against `release.yml`'s identity at that
 tag, with the cosign `ImageSignatureVerifier` pins — writes data through
 its API, this commit's image starts on the same database — Flyway and `ddl-auto: validate` before
@@ -96,23 +99,12 @@ not mean portability was checked** — a service that hands an existing query ne
 touches none of the engine paths, and a renamed response field touches no front-end file. Those are the nightly's, and a
 release should not go out on a nightly that has not been green.
 
-A **`v*` tag** runs the `release` workflow in two jobs. `build` validates the Gradle wrapper, runs
-`./gradlew build`, builds the interface, the jar and the three images as archives, and hands them over
-with their checksums — holding **no permission but reading the repository**, since it executes every
-plugin and package the tree depends on. Each of those is first checked against
-`vectispire-java/gradle/verification-metadata.xml` — a signature by a key the keyring beside it
-carries, or a recorded sha256 where nothing is signed — so a dependency or plugin change regenerates
-that file and has its diff reviewed (`quality-gate`, step 2). `publish` checks out nothing and builds nothing: it verifies
-the checksums, signs with Sigstore keyless, and **verifies the signature it just made** before
-publishing anything, with the same command a consumer runs — a signature nobody has checked is a
-signature that does not work. The certificate identity is
-`https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>` with issuer
-`https://token.actions.githubusercontent.com` — it names the workflow file, not the job — and
-`publish` needs `permissions: id-token: write` or `cosign` fails at publication time rather than
-before it. Both halves of that identity are
-forge-bound: **renaming the workflow file, the repository, or the owner invalidates every
-signature a consumer has learned to verify**, which is why the repository was renamed before the
-first tag and not after.
+**The Rust port is off `develop` for now** (2026-10-29): the work, its CI jobs, its agent and skills live on
+the `rust/main` branch, at the `develop` commit they left from (ba38a4137). `develop` carries the Java control plane
+and its interface only, and a Java change no longer has a Rust side to move with it. Bringing the port back is a
+merge of `rust/main` brought up to date — its reference sets regenerated against the Java of that day — and the
+required checks `rust-changes`, `rust`, `rust-replay` and `rust-image` restored in the `develop` ruleset.
+
 
 ## Agents and skills
 
@@ -164,6 +156,17 @@ classpath and the violation fails to compile rather than failing review. That is
 property**: an agent holding a database connection would also need `ENCRYPTION_KEY`, which
 decrypts every deployment key Vectispire stores — see
 [decision 0003](docs/architecture/en/decisions/0003-long-polling-for-agents.md).
+
+**A change the previous agent would not understand is made in two releases.** The control plane serves
+an agent of its own minor and of the previous one
+([0043](docs/architecture/en/decisions/0043-what-1-0-promises.md) §2), so `AgentContract` is a range,
+`OLDEST_SERVED` to `CURRENT`. A new envelope, a new mandatory field, a step the agent must now run: the
+first release raises `CURRENT`, keeps the old form beside the new and hands each agent the one its
+announced number reads; the next raises `OLDEST_SERVED` and deletes the old form. Never both in one
+release, and never the new form without the number — 0.11.0 sealed credentials in an envelope 0.10
+agents cannot open and left the contract at 1, so the old agent was accepted and then failed on its
+work. An optional field an agent may ignore is not a break. `previous-agent` is what decides which
+one a change is.
 
 **Four traps**, each with a decision or an executable rule behind it. The first leaks other
 accounts' data; the rest lose your own:

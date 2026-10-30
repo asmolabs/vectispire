@@ -33,10 +33,16 @@ name: verify
 # **The side effect is intended.** A commit reaching `main` without having gone through `develop`
 # would have no checks to show, and the rule would refuse it. That is exactly the flow we want, and
 # it is now held by the mechanism rather than by discipline.
+#
+# **`merge_group`: the merge queue's runs.** A pull request is tested again on top of the ones queued ahead
+# of it, and merged only if that combination is green; without the trigger the queue would wait for checks
+# that never start. The change detectors read the group's base (`merge_group.base_sha`), and a group is
+# judged as `develop` is — every fixable high in `vulnerabilities`, not only the new ones.
 on:
   push:
     branches: [develop]
   pull_request:
+  merge_group:
 
 # Least privilege by default. The release workflow raises what it needs, where it needs it.
 permissions:
@@ -114,11 +120,18 @@ jobs:
       # 2026-10-03 passed a secrets check that examined no commit. Trusting the workspace is the fix;
       # refusing a run that scanned nothing, or logged an error, is what keeps the next silent
       # failure from looking like a pass (AGENTS.md: never skip silently).
+      #
+      # **The history of what is checked, not of every branch.** With `fetch-depth: 0` the checkout holds
+      # every branch pushed to the repository, and gitleaks reads `--all`: on 2026-10-28 a false positive in
+      # an open pull request's reference file turned `secrets` red on three *other* pull requests, whose
+      # trees could not carry its fingerprints. `HEAD` is the whole history of the commit under test — on a
+      # pull request the merge with its base, on `develop` the branch — so nothing that can be merged
+      # escapes the scan, and a branch is judged when it is proposed.
       - name: scan the whole history, and refuse a scan that read nothing
         run: |
           git config --global --add safe.directory "$PWD"
           status=0
-          gitleaks detect --source=. --config .gitleaks.toml --verbose > gitleaks.log 2>&1 || status=$?
+          gitleaks detect --source=. --config .gitleaks.toml --log-opts=HEAD --verbose > gitleaks.log 2>&1 || status=$?
           cat gitleaks.log
           # The log is coloured even off a terminal: read it without the escape sequences.
           sed "s/$(printf '\033')\[[0-9;]*m//g" gitleaks.log > gitleaks.txt
@@ -353,6 +366,7 @@ jobs:
             }
             END { n = 0; for (f in checked) n++; printf "%d Dockerfile(s) read\n", n; exit bad }'
 
+
   # **The Dockerfiles are built on push when what they read moved**, not only by the nightly.
   #
   # `images` builds with Jib, which reads none of these files: on 2026-10-04 both `Dockerfile` and
@@ -379,7 +393,7 @@ jobs:
       - id: detect
         env:
           # Through the environment rather than interpolated into the script, like `migration-changes`.
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           # **Undetermined means "run"**, as for the other two detections below.
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
@@ -672,7 +686,7 @@ jobs:
   jvm:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    container: eclipse-temurin:25-jdk
+    container: eclipse-temurin:25-jdk@sha256:3ab7fc8d0b4ade8fef96903fb36767c1dbb4fd1535dcfad85b59c17afbbb5857
     # **The context and HTTP suites run on MySQL (decision 0034).** A job service beside the job's
     # container shares its network, so the suite reaches `mysql:3306` with no Docker socket and no
     # Testcontainers; `TestDatabase` takes the server from `VECTISPIRE_TEST_DB_URL`, creates its own
@@ -720,7 +734,7 @@ jobs:
           cd vectispire-java
           test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
           ./gradlew build --dependency-verification=strict
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: jar
@@ -729,7 +743,7 @@ jobs:
       # The agent ships too, as its own image on hosts that hold a Docker socket. It had no SBOM and
       # no scan: when GHSA-q4xh-88c3-wmh7 reached jackson-databind, the control plane's gate failed
       # on 2.22.1 while the agent sat on 2.21.5, equally advised, and nothing said so.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: agent-jar
@@ -739,7 +753,7 @@ jobs:
   frontend:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: node:24
+    container: node:24@sha256:e7add2a490bb17d97b485b8641bd88455fff7839ade0f5eba493c3508124d413
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -769,7 +783,7 @@ jobs:
       - run: npm run format:check -w vectispire-angular
       - run: npm run build
       - run: npm test
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui
           path: vectispire-angular/dist/
@@ -787,23 +801,24 @@ jobs:
     needs: [jvm]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: jar
           path: libs
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: agent-jar
           path: libs
       - name: build the SBOMs of the jars that ship
         run: |
+          syft=anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026
+          ./scripts/pull-pinned-image.sh "$syft"
           for jar in core:vectispire-jvm agent:vectispire-agent; do
-            docker run --rm -v "$PWD/libs:/work:ro" \
-              anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+            docker run --rm -v "$PWD/libs:/work:ro" "$syft" \
               scan "file:/work/vectispire-${jar%%:*}.jar" -o cyclonedx-json > "${jar#*:}.cdx.json"
             echo "${jar#*:} components: $(grep -o '"bom-ref"' "${jar#*:}.cdx.json" | wc -l)"
           done
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sbom
           path: |
@@ -815,8 +830,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [sbom]
+    # `actions: read` to fetch the base branch's SBOMs from its own last run (below); nothing is written.
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      # The one file this job runs from the tree: the pull with retries.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/pull-pinned-image.sh
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sbom
       # One invocation, and the log still reads report-then-verdict: grype prints the whole table
@@ -830,22 +854,62 @@ jobs:
       #
       # Both SBOMs are scanned before the verdict: stopping at the first failure would hide the
       # agent's table behind the control plane's, and the fix for one is rarely the fix for both.
+      #
+      # **A pull request answers for what it adds, `develop` for everything.** An advisory published
+      # against a dependency `develop` already ships turned this job red on every open pull request at
+      # once on 2026-10-28 (guava, GHSA-xxph-c9ww-hj94): none of them could go green until a sixth pull
+      # request fixed `develop`, and each then needed `develop` merged in and its forty minutes again. So
+      # on a pull request, a finding the base branch's last SBOMs also have is reported as a warning and
+      # does not fail; a finding they do not have fails as before. On a push to `develop` every fixable
+      # high fails, so the advisory is still red where it has to be fixed. When the base's SBOMs cannot
+      # be fetched, the pull request is judged on everything — never on less than before.
+      - name: the base branch's SBOMs, on a pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          mkdir -p base
+          for run in $(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch "$BASE" --event push \
+                         --limit 10 --json databaseId --jq '.[].databaseId'); do
+            if gh run download "$run" -R "$GITHUB_REPOSITORY" -n sbom -D base 2>/dev/null; then
+              echo "base SBOMs from run $run"; exit 0
+            fi
+          done
+          echo "::warning::no SBOM of $BASE could be fetched: every finding counts"
       - name: report, then fail on a fixable high
         run: |
+          grype=anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db
+          ./scripts/pull-pinned-image.sh "$grype"
+          # One line per fixable high or critical: the advisory and the package it is against.
+          highs() { jq -r '.matches[] | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")
+                           | "\(.vulnerability.id) \(.artifact.name)"' "$1" | sort -u; }
           failed=0
           for sbom in vectispire-jvm vectispire-agent; do
             echo "::group::$sbom"
-            docker run --rm -v "$PWD:/work:ro" \
-              anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
-              "sbom:/work/$sbom.cdx.json" --only-fixed --fail-on high -o table || failed=1
+            docker run --rm -v "$PWD:/work" "$grype" "sbom:/work/$sbom.cdx.json" --only-fixed -o table \
+              -o "json=/work/$sbom.grype.json" || failed=1
             echo "::endgroup::"
+            highs "$sbom.grype.json" > "$sbom.highs"
+            if [ -f "base/$sbom.cdx.json" ]; then
+              docker run --rm -v "$PWD:/work" "$grype" "sbom:/work/base/$sbom.cdx.json" --only-fixed -q \
+                -o "json=/work/base/$sbom.grype.json" || failed=1
+              highs "base/$sbom.grype.json" > "base/$sbom.highs"
+              comm -12 "$sbom.highs" "base/$sbom.highs" | while read -r finding; do
+                echo "::warning::$sbom: $finding is on the base branch too; fix it there"
+              done
+              comm -23 "$sbom.highs" "base/$sbom.highs" > "$sbom.new"
+            else
+              cp "$sbom.highs" "$sbom.new"
+            fi
+            while read -r finding; do echo "::error::$sbom: $finding (fixable, high or critical)"; failed=1; done < "$sbom.new"
           done
           exit $failed
 
   npm-audit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    container: node:24
+    container: node:24@sha256:e7add2a490bb17d97b485b8641bd88455fff7839ade0f5eba493c3508124d413
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: npm ci --prefer-offline
@@ -867,11 +931,11 @@ jobs:
     needs: [jvm, frontend]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25'
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ui
           path: vectispire-angular/dist
@@ -1002,7 +1066,7 @@ jobs:
           # nothing like "never came up".
           set +e
           docker run --rm --network container:vectispire-smoke --entrypoint sh \
-            curlimages/curl:8.11.1 -c '
+            curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93 -c '
               deadline=$(( $(date +%s) + 180 ))
               until curl -sf http://localhost:3180/actuator/health > /dev/null 2>&1; do
                 [ "$(date +%s)" -ge "$deadline" ] && exit 1
@@ -1086,6 +1150,60 @@ jobs:
       - if: always()
         run: docker logs --tail 200 vectispire-smoke || true
 
+  # **The previous release's agent, against this commit's control plane** (decision 0043 §2). The
+  # control plane promises to serve the agent of its own minor and of the one before, because on
+  # Kubernetes the two roll at different moments. The promise had already been broken once without
+  # anything saying so: 0.11.0 sealed credentials in an envelope no 0.10 agent opens, and both agents
+  # announced the same contract number, so the hello accepted the old one and it failed on its work.
+  # `AgentContract` now carries a range; this is what decides whether a change keeps it, rather than
+  # a reviewer's memory of which fields an old agent ignores.
+  #
+  # The agent is the newest `v*` release's, by the digest the registry serves and verified with
+  # cosign against that tag's release workflow before it is pulled — `scripts/release-image.sh`, which
+  # the nightly upgrade drill resolves its control plane with. It then runs the composition's scan
+  # check through the `with-agent` profile, as the nightly runs the agent of this commit: every
+  # scanner reports what the fixture planted, an SSH clone with a sealed deployment key, a changed
+  # host key refused. The check fails unless the agent's own log names each scan as claimed and
+  # submitted, and unless the agent's row reports the release's version: a run in which this agent
+  # claimed nothing, or in which another agent stood in for it, is a red, not a vacuous green.
+  #
+  # **On every push and pull request, without a path filter.** What an old agent misreads is not
+  # confined to a package: the task's fields, the rule sets it fetches, the envelope it opens, the
+  # result it hands back and the answers it parses live across `vectispire-common` and half the
+  # control plane's modules. A filter would be a list of where breaks are expected, and the one this
+  # job exists for came from where nobody expected it. Built with Jib like `images`, without the
+  # interface: the check never loads a page. `fetch-depth: 0` brings the tags the release is resolved
+  # from; verifying needs no `id-token`, only the network.
+  previous-agent:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [jvm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: build the control plane image with Jib
+        run: cd vectispire-java && ./gradlew :vectispire-core:jibDockerBuild -x test
+      - name: the previous release's agent, by digest, verified with cosign
+        id: release
+        run: |
+          release="$(scripts/release-image.sh vectispire-agent)"
+          tag="${release%% *}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "image=${release#* }" >> "$GITHUB_OUTPUT"
+          echo "the agent of $tag: ${release#* }"
+      - name: the previous release's agent claims and finishes the scans
+        env:
+          MODE: agent
+          AGENT_IMAGE: ${{ steps.release.outputs.image }}
+          EXPECT_AGENT_VERSION: ${{ steps.release.outputs.version }}
+        run: ./scripts/composition-scan-check.sh
+
   # **The engine campaign, on any change whose behaviour can differ between engines.**
   #
   # It fired on migrations alone, and the schema is only one of the ways a change reaches the
@@ -1121,7 +1239,7 @@ jobs:
         env:
           # Through the environment rather than interpolated into the script: these values come
           # from GitHub and not from a contributor, but the rule takes no local exception.
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           # **Undetermined means "run".** A range that cannot be resolved — a new branch, a force
           # push, a truncated history — is not evidence that no migration changed. The fallback
@@ -1162,20 +1280,22 @@ jobs:
 
   engines:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Two campaigns in a row since MySQL 8.4 joined 9.x (decision 0043 §3): one took about 26
+    # minutes here, so the former 40 would have cut the second one off halfway.
+    timeout-minutes: 75
     needs: [migration-changes]
     # Skipped rather than run empty: a job reporting green having done nothing is a signal nobody
     # can read, and this file holds that "unexpected" is not a signal.
     if: needs.migration-changes.outputs.touched == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25'
           cache: gradle
       - run: cd vectispire-java && ./gradlew integrationTestAll
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: engine-campaign-reports-verify
@@ -1206,7 +1326,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25'
@@ -1215,7 +1335,7 @@ jobs:
           cd vectispire-java
           test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
           ./gradlew :vectispire-agent:kubernetesCoverageVerification --dependency-verification=strict
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: kubernetes-test-reports
@@ -1234,7 +1354,7 @@ jobs:
       - id: detect
         env:
           # Through the environment rather than interpolated into the script, like `migration-changes`.
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           # **Undetermined means "run"**, for the reason given above: a range that cannot be
           # resolved is not evidence that the interface has not moved.
@@ -1262,10 +1382,10 @@ jobs:
     # nobody can read.
     if: needs.frontend-changes.outputs.touched == 'true'
     container:
-      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.63.0. Playwright
+      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.64.1. Playwright
       # ships its browsers inside this image and refuses to launch one it did not build. The check
       # step below is what makes a mismatch readable rather than fatal in the middle of the suite.
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
     # **On MySQL, the production default, with the schema validated (decision 0034).** A job service
     # beside the Playwright container shares its network, so the control plane and the suite's
     # helpers (`e2e/support/fixture.ts`, through `mysql2`) both reach `mysql:3306` with the variables
@@ -1306,7 +1426,7 @@ jobs:
       VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: '200'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25'
@@ -1337,7 +1457,7 @@ jobs:
       - name: the Playwright image matches the installed Playwright
         run: |
           want="v$(node -p "require('@playwright/test/package.json').version")-noble"
-          have="v1.63.0-noble"
+          have="v1.64.1-noble"
           if [ "$want" != "$have" ]; then
             echo "playwright image $have does not match the installed $want"
             echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"
@@ -1346,7 +1466,7 @@ jobs:
       - run: cd vectispire-angular && npx playwright test
       - if: always()
         run: kill "$(cat control-plane.pid)" 2>/dev/null || true
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: playwright-report-verify

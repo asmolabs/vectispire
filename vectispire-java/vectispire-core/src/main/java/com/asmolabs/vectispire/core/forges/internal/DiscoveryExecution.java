@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges.internal;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
@@ -434,17 +435,17 @@ public class DiscoveryExecution {
                 List<String> read = namespaces.stream().map(path -> path.toLowerCase(Locale.ROOT))
                         .filter(path -> !unreadable.containsKey(path)).distinct().toList();
                 int gone = 0;
-                for (int from = 0; from < read.size(); from += NAMESPACE_BATCH) {
+                for (List<String> batch : Batches.of(read, NAMESPACE_BATCH)) {
                     gone += repositories.markGoneWithin(connectionId, id, now,
-                            read.subList(from, Math.min(read.size(), from + NAMESPACE_BATCH)));
+                            batch);
                 }
                 return gone;
             }
             int gone = repositories.markGone(connectionId, id, now);
             List<String> refused = List.copyOf(unreadable.keySet());
-            for (int from = 0; from < refused.size(); from += NAMESPACE_BATCH) {
+            for (List<String> batch : Batches.of(refused, NAMESPACE_BATCH)) {
                 gone -= repositories.unmarkGone(connectionId, id,
-                        refused.subList(from, Math.min(refused.size(), from + NAMESPACE_BATCH)));
+                        batch);
             }
             return gone;
         }

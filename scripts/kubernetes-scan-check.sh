@@ -38,7 +38,7 @@ PORT="${PORT:-8443}"
 CONTROL_PLANE_IMAGE="${CONTROL_PLANE_IMAGE:-}"
 AGENT_IMAGE="${AGENT_IMAGE:-}"
 # A Kubernetes its upstream still supports, as 0045 requires of a target; the one the executor's tests run.
-K3S_IMAGE=rancher/k3s:v1.34.1-k3s1@sha256:5e0707cfd1239b358ef73f3254bc3eadc027dd30cd5ec6ca41e29e47652a1b8c
+K3S_IMAGE=rancher/k3s:v1.34.12-k3s1@sha256:4ea0adb6b0ffedab0c58ffe5c99a49f2f7be871f38636c8baa2692899648d8c5
 HELM_IMAGE=alpine/helm:3.22.0@sha256:70ed3f7b02ab2eee12aa520ad6870305db8a82516b07aff62f5656c657a26e2a
 # The JDK's keytool, for the agent's truststore: the base the agent's own image is built on.
 JDK_IMAGE="$(sed -n 's/^FROM \(eclipse-temurin[^ ]*\) AS build$/\1/p' "$root/Dockerfile.agent")"
@@ -69,6 +69,12 @@ cleanup() {
   local status=$?
   if [ "$status" -ne 0 ]; then
     echo "── what the cluster had to say"
+    # The nodes first, and the agents' node's own k3s log: on 2026-10-27 a nightly stopped at "k3s did not come
+    # up" with every pod Running on the server, and nothing said whether the agents' node had never registered,
+    # registered NotReady, or been refused its token.
+    k get nodes -o wide 2>/dev/null || true
+    echo "── the agents' node, as its k3s agent logged it"
+    docker logs --tail 60 "$AGENTS_NODE" 2>&1 || true
     k get pods -A -o wide 2>/dev/null || true
     k logs -n vectispire-agents deploy/vs-vectispire-agent --tail 80 2>/dev/null || true
     k logs -n vectispire deploy/vs-vectispire --tail 40 2>/dev/null || true
@@ -77,6 +83,9 @@ cleanup() {
   if [ -z "${KEEP:-}" ]; then
     docker rm -f "$NAME" "$AGENTS_NODE" > /dev/null 2>&1 || true
     docker network rm "$NAME" > /dev/null 2>&1 || true
+    # The matcher's database is written as uid 1000, the agent's, which the runner's user cannot delete on Linux:
+    # removed by a container first, the rest by the runner.
+    docker run --rm --network none -v "$work:/w" "$BASE_IMAGE" rm -rf /w/db > /dev/null 2>&1 || true
     rm -rf "$work"
   else
     echo "── kept: docker exec -it $NAME kubectl get pods -A ; work files in $work"
@@ -121,6 +130,8 @@ python3 "$fixture_dir/matcher-db.py" "$work/matcher/vulnerability.db" "$PACKAGE"
 chmod 644 "$work/matcher/vulnerability.db"
 chmod 777 "$work/db"
 generation="$(python3 -c 'import time; print(int(time.time() * 1000))')-$(openssl rand -hex 4)"
+# With retries, as the composition check pulls it: a registry timeout is not a cluster that cannot scan.
+"$root/scripts/pull-pinned-image.sh" "$GRYPE_IMAGE"
 docker run --rm --network none -u 1000:1000 -v "$work/db:/db" -v "$work/matcher:/in:ro" \
   -e "GRYPE_DB_CACHE_DIR=/db/vectispire-vulnerability-db/generations/$generation" \
   -e GRYPE_CHECK_FOR_APP_UPDATE=false "$GRYPE_IMAGE" db import /in/vulnerability.db > /dev/null
@@ -136,7 +147,9 @@ printf 'subjectAltName=DNS:%s\nextendedKeyUsage=serverAuth\n' "$HOST" > "$work/t
 openssl x509 -req -in "$work/tls.csr" -CA "$work/ca.crt" -CAkey "$work/ca.key" -CAcreateserial -days 2 \
   -extfile "$work/tls.ext" -out "$work/tls.crt" 2> /dev/null
 truststore_password="$(openssl rand -hex 12)"
-docker run --rm --network none -v "$work:/w" "$JDK_IMAGE" keytool -importcert -noprompt -alias check-ca \
+# As the runner's user: run as the image's root, keytool left a file the runner could not chmod on Linux, where a
+# container's files keep their owner (Docker Desktop hands them back, which is why the run passed on a laptop).
+docker run --rm --network none -u "$(id -u):$(id -g)" -v "$work:/w" "$JDK_IMAGE" keytool -importcert -noprompt -alias check-ca \
   -file /w/ca.crt -keystore /w/truststore.p12 -storetype PKCS12 -storepass "$truststore_password" > /dev/null 2>&1
 chmod 644 "$work"/*.crt "$work"/*.key "$work/truststore.p12"
 

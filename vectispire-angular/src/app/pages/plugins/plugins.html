@@ -284,13 +284,15 @@
     [modal]="true"
     [style]="{ width: '44rem', maxWidth: '95vw' }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="submit()">
         <div class="flex flex-col gap-2">
             <label for="plugin-id" class="font-medium">{{ 'plugins.field_id' | translate }}</label>
             <input
                 pInputText
                 id="plugin-id"
+                required
                 name="plugin-id"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.id"
                 [disabled]="editing() !== null"
                 maxlength="40"
@@ -307,7 +309,15 @@
 
         <div class="flex flex-col gap-2">
             <label for="plugin-name" class="font-medium">{{ 'plugins.col_name' | translate }}</label>
-            <input pInputText id="plugin-name" name="plugin-name" maxlength="100" [(ngModel)]="draft.name" />
+            <input
+                pInputText
+                id="plugin-name"
+                required
+                name="plugin-name"
+                maxlength="100"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.name"
+            />
         </div>
 
         <div class="flex flex-col gap-2">
@@ -315,8 +325,10 @@
             <input
                 pInputText
                 id="plugin-image"
+                required
                 name="plugin-image"
                 class="font-mono"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.image"
                 [placeholder]="'plugins.image_placeholder' | translate"
             />
@@ -331,6 +343,7 @@
                 [options]="languageOptions"
                 optionLabel="label"
                 optionValue="value"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.languages"
                 [filter]="true"
                 appendTo="body"
@@ -351,6 +364,7 @@
                         [id]="'plugin-argument-' + index"
                         [name]="'plugin-argument-' + index"
                         [attr.aria-label]="'plugins.aria_argument' | translate: { n: index + 1 }"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="draft.arguments[index]"
                     ></textarea>
                     <p-button
@@ -383,6 +397,7 @@
                     id="plugin-output"
                     name="plugin-output"
                     class="font-mono"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="draft.output"
                 />
             </div>
@@ -393,6 +408,7 @@
                     id="plugin-exit-codes"
                     name="plugin-exit-codes"
                     class="font-mono"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="draft.exitCodes"
                 />
             </div>
@@ -401,6 +417,7 @@
                 <p-inputnumber
                     inputId="plugin-timeout"
                     name="plugin-timeout"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="draft.timeoutSeconds"
                     [min]="10"
                     [max]="900"
@@ -412,7 +429,12 @@
         <small class="text-muted-color">{{ 'plugins.exit_codes_hint' | translate }}</small>
 
         <div class="flex items-center gap-3">
-            <p-toggleswitch inputId="plugin-network" name="plugin-network" [(ngModel)]="draft.network" />
+            <p-toggleswitch
+                inputId="plugin-network"
+                name="plugin-network"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.network"
+            />
             <label for="plugin-network" class="m-0">
                 {{ 'plugins.network_toggle' | translate }}
                 <span class="block text-muted-color text-sm">{{ 'plugins.network_hint' | translate }}</span>
@@ -429,6 +451,7 @@
                     name="plugin-justification"
                     rows="3"
                     [maxlength]="justificationMax"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="draft.networkJustification"
                 ></textarea>
                 <small class="text-muted-color">{{
@@ -451,6 +474,7 @@
                 name="plugin-signer-identity"
                 class="font-mono"
                 maxlength="500"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.signerIdentity"
             />
             <label for="plugin-signer-issuer" class="text-sm">{{ 'plugins.field_signer_issuer' | translate }}</label>
@@ -461,6 +485,7 @@
                 class="font-mono"
                 maxlength="500"
                 placeholder="https://token.actions.githubusercontent.com"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.signerIssuer"
             />
             <label for="plugin-signer-key" class="text-sm">{{ 'plugins.field_signer_key' | translate }}</label>
@@ -471,6 +496,7 @@
                 rows="4"
                 class="font-mono text-xs"
                 maxlength="8192"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.signerKey"
             ></textarea>
         </fieldset>
@@ -478,7 +504,7 @@
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false" data-testid="plugin-form-error">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
         <p-button

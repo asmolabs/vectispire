@@ -12,9 +12,9 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.targets.RepositoryAdministrationService;
 import com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.Changes;
 import com.asmolabs.vectispire.core.targets.RepositoryAdministrationService.Listed;
-import com.asmolabs.vectispire.core.targets.RepositoryAdministrationService;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
@@ -186,8 +186,14 @@ public class RepositoriesController {
     @ApiResponse(responseCode = "200", description = "Groups of two or more targets, possibly none")
     @RequiresAdministrator
     @GetMapping("/duplicates")
-    public List<DuplicateTarget> duplicates(@AuthenticationPrincipal VectispirePrincipal principal) {
-        return inventory.duplicates(allowed(principal)).stream()
+    public List<DuplicateTarget> duplicates(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return inventory.duplicates(allowed(principal), limit, offset).stream()
                 .map(group -> new DuplicateTarget(
                         group.identity().repository(),
                         group.identity().branch(),

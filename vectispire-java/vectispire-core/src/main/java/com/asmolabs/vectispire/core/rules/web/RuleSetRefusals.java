@@ -18,6 +18,6 @@ final class RuleSetRefusals {
             + "9457 problem whose affectedIssues member is the number of open issues the change would resolve at "
             + "the next scan, read at the refusal — the value to send back as acceptLosing — and whose "
             + "losingIssues member names the rule identifiers leaving with them.")
-    record LosesIssues(String type, String title, int status, String detail, String instance,
+    record LosesIssues(String type, String title, int status, String detail, String instance, String code,
             long affectedIssues, List<String> losingIssues) {}
 }

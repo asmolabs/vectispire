@@ -43,10 +43,12 @@ laisse chacun écrire. Elle obéit donc à quatre règles :
 - **Un compte privilégié n'est pas lié par son nom** — tout rôle sauf USER : SUPERUSER, ADMIN, CISO,
   AUDITOR et SECURITY_CHAMPION, puisque chacun administre, gouverne, lit la sécurité de tout le parc
   ou approuve le triage. Dans un realm ouvert à l'inscription, n'importe qui peut s'enregistrer
-  comme `admin`. Liez ces comptes par
-  [SCIM](#provisioning-from-the-directory-scim), qui prend le sujet chez le fournisseur, ou — pour un
-  realm où personne ne choisit son nom — autorisez-le avec
-  `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`. Le Keycloak du profil compose `sso` se connecte en
+  comme `admin`. Un tel compte continue de se connecter avec son mot de passe, là où la connexion par mot de passe est active ; pour donner ce rôle à
+  une personne passant par le fournisseur, faites lier par le fournisseur (ou provisionner par
+  [SCIM](#provisioning-from-the-directory-scim)) un compte simple, et accordez-lui le rôle sur l'écran
+  des utilisateurs. Pour un realm où personne ne choisit son nom, autorisez la liaison avec
+  `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true` — Vectispire avertit au démarrage quand il est actif
+  en même temps que la liaison par revendication. Le Keycloak du profil compose `sso` se connecte en
   `admin` : son `.env.oidc.example` le règle. Ce Keycloak ne démarre pas sans `KEYCLOAK_ADMIN_PASSWORD`
   dans `.env` — le mot de passe de son propre administrateur, qui valait `admin` par défaut — et le mot
   de passe du compte `admin` du realm, publié avec lui, est temporaire : Keycloak en demande un nouveau
@@ -54,8 +56,19 @@ laisse chacun écrire. Elle obéit donc à quatre règles :
 - **Un compte doté d'un second facteur local n'est jamais lié par son nom**, quel que soit le
   réglage ci-dessus. Une connexion unique contourne le TOTP local — le fournisseur possède le second
   facteur — et le lier sur une revendication échangerait le facteur que son titulaire a enrôlé contre
-  un nom que quelqu'un d'autre a pu écrire. Son titulaire se connecte avec mot de passe et code, ou
-  le fait lier par SCIM.
+  un nom que quelqu'un d'autre a pu écrire. Son titulaire se connecte avec mot de passe et code ;
+  pour se connecter plutôt par le fournisseur, il désactive d'abord le second facteur sur la page de
+  son compte. SCIM ne le lie pas non plus.
+- **Rien de cela n'a lieu avec `VECTISPIRE_OIDC_LINK_BY_CLAIM=false`.** Aucun compte n'est alors lié
+  sur une revendication, comptes simples compris : les comptes sont liés à leur sujet par
+  [SCIM](#provisioning-from-the-directory-scim), et une identité que SCIM n'a pas liée est refusée
+  comme ne correspondant à aucun compte. SCIM ne lie un compte existant que sous les mêmes règles
+  qu'en dessous — un compte privilégié seulement avec `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`,
+  un compte à second facteur local jamais — si bien qu'un tel compte garde son mot de passe, ou que sa
+  personne reçoit un nouveau compte que l'annuaire provisionne et auquel un administrateur donne le
+  rôle. Désactivez-le pour un realm dont les utilisateurs peuvent
+  choisir ou modifier leur nom ; il est actif par défaut, ce qui est la façon dont un realm et des
+  comptes existants se rencontrent.
 
 ## Les groupes deviennent des équipes, et en sortir les retire
 
@@ -75,9 +88,16 @@ cette base couperait tout le monde au premier réglage manqué.
 ## Provisionnement depuis l'annuaire (SCIM) {#provisioning-from-the-directory-scim}
 
 Un fournisseur d'identité peut créer, modifier, désactiver et supprimer des comptes par SCIM 2.0
-(`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM. Ce jeton vit dans la
+(`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM (`vectispire.scim.token`, ou
+un fichier nommé par `VECTISPIRE_SCIM_TOKEN_FILE`). SCIM activé, un jeton de moins de 32 caractères
+arrête le démarrage : générez-en un avec `openssl rand -base64 32`. Ce jeton vit dans la
 configuration du fournisseur ; ce qu'il peut faire est donc volontairement borné :
 
+- **`/scim` n'accepte que le jeton SCIM.** Une session d'administrateur ou une clé d'API y est refusée
+  par `403`, et SCIM désactivé (`vectispire.scim.enabled: false`), rien n'y est accepté ; les comptes
+  s'administrent dans Vectispire, par l'écran des utilisateurs. Le journal d'audit nomme
+  `SCIM provisioning` comme auteur de ce que fait l'annuaire, et le compte ou l'équipe modifié comme
+  ressource.
 - **Les comptes administratifs ne relèvent pas de l'annuaire.** Remplacer, modifier ou supprimer un
   administrateur ou un super-administrateur répond `403` ; ils s'administrent dans Vectispire.
 - **L'annuaire n'accorde que les rôles bornés — User et Security Champion.** Une valeur `roles` à
@@ -92,12 +112,19 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
   l'annuaire.** Poser `externalId` sur un RSSI, un auditeur, un champion sécurité — tout rôle sauf
   Utilisateur — ou sur un compte doté de son propre TOTP, tant qu'il n'en a pas, répond `400` : le
   lier laisserait une connexion choisie par l'annuaire sauter le mot de passe et le second facteur de
-  ce compte. Un administrateur lie un tel compte dans Vectispire ;
+  ce compte. Vectispire n'a pas non plus de route qui lie un sujet à un compte existant :
+  provisionnez un nouveau compte et accordez-lui le rôle sur l'écran des utilisateurs, ou faites
+  d'abord désactiver le second facteur par son titulaire.
   `vectispire.oidc.link-privileged-accounts`, le réglage qui laisse une revendication lier un compte
   privilégié, le permet aussi à l'annuaire — jamais pour un compte à second facteur local.
 - **Un compte créé par l'annuaire se connecte par le fournisseur.** Il reçoit un mot de passe que
   personne ne connaît et n'est pas invité à le changer.
 - **Un changement de rôle ferme les sessions du compte**, comme une désactivation.
+- **Abaisser un compte privilégié ne le rend pas liable.** L'annuaire peut retirer un rôle — un CISO
+  abaissé à User est accepté — mais tant que ce compte n'est lié à aucun sujet, lui donner ensuite un
+  `externalId` répond toujours `400`, et une connexion ne le lie pas non plus par son nom, jusqu'à ce
+  qu'un administrateur fixe son rôle sur l'écran des utilisateurs. Sans quoi un rôle que l'annuaire peut
+  abaisser mais non lier serait lié en deux requêtes au lieu d'une.
 - **`GET /scim/v2/Users` évalue deux filtres** : `userName eq "…"` et `externalId eq "…"` (attribut et
   opérateur en toute casse, la valeur une chaîne entre guillemets). Tout autre — `emails[value eq "…"]`,
   un `and` ou un `or`, `co`, une valeur sans guillemets — répond `400` avec `scimType` `invalidFilter`

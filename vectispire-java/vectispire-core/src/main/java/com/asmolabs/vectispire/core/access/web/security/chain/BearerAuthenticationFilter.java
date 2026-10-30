@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.core.access.ApiKeyAuthService;
 import com.asmolabs.vectispire.core.access.AuthService;
@@ -15,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -38,12 +38,6 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     private final VisibilityService visibility;
     private final Optional<ScimProperties> scimProperties;
 
-    public BearerAuthenticationFilter(
-            AuthService auth, ApiKeyAuthService apiKeys, VisibilityService visibility) {
-        this(auth, apiKeys, visibility, Optional.empty());
-    }
-
-    @Autowired
     public BearerAuthenticationFilter(
             AuthService auth,
             ApiKeyAuthService apiKeys,
@@ -85,7 +79,8 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
             return Optional.of(VectispirePrincipal.ofUser(user.get(), session.get()));
         }
 
-        Optional<String> token = bearerToken(header);
+        // The one reading of the header, shared with the ceiling on refused tokens (Sessions).
+        Optional<String> token = Sessions.bearerToken(header);
         if (token.isEmpty()) {
             return Optional.empty();
         }
@@ -133,16 +128,5 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
 
     private static boolean isScimPath(String path) {
         return path.equals("/scim") || path.startsWith("/scim/");
-    }
-
-    /** {@code Bearer zsk…} — the scheme is required, so a bare key does not pass by accident. */
-    private static Optional<String> bearerToken(String header) {
-        if (header == null) {
-            return Optional.empty();
-        }
-        String[] parts = header.trim().split("\\s+", 2);
-        return parts.length == 2 && parts[0].equalsIgnoreCase("bearer")
-                ? Optional.of(parts[1])
-                : Optional.empty();
     }
 }

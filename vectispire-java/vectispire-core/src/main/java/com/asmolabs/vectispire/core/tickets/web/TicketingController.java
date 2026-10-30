@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.tickets.web;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -7,6 +8,8 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.tickets.IssueTicketView;
 import com.asmolabs.vectispire.core.tickets.TicketLinkService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -39,11 +43,17 @@ public class TicketingController {
 
     @GetMapping
     public List<IssueTicketView> list(
-            @AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long issueId) {
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @PathVariable long issueId,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
         // A ticket carries a Jira/GitLab key and URL for a finding. Listing them for any issue id
         // handed the backlog of a target the caller was never given; the issue's own visibility
         // gates the tickets, and a hidden issue reads as absent.
-        return ticketLinks.list(issueId, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+        return ticketLinks.list(issueId, visibility.of(principal.user().orElse(null), principal.credentialRestriction()), limit, offset);
     }
 
     @RequiresWriteAccount

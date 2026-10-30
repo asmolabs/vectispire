@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.checklists.ChangeReviewEvidence;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
@@ -199,17 +200,17 @@ public class ForgeReviewService {
         Set<Long> asked = new HashSet<>();
         wanted.forEach(want -> asked.add(want.repositoryId()));
         List<Long> unasked = readings.repositoriesRead().stream().filter(id -> !asked.contains(id)).toList();
-        for (int from = 0; from < unasked.size(); from += BATCH) {
-            readings.deleteByRepositories(unasked.subList(from, Math.min(from + BATCH, unasked.size())));
+        for (List<Long> batch : Batches.of(unasked, BATCH)) {
+            readings.deleteByRepositories(batch);
         }
     }
 
     /** The link of each target: its provenance first, then the snapshots' URLs, only for the targets left. */
     private Map<Long, Link> links(List<Long> repositoryIds) {
         Map<Long, Link> linked = new HashMap<>();
-        for (int from = 0; from < repositoryIds.size(); from += BATCH) {
+        for (List<Long> batch : Batches.of(repositoryIds, BATCH)) {
             for (ForgeImportLinkEntity link : links.findByRepositoryIdIn(
-                    repositoryIds.subList(from, Math.min(from + BATCH, repositoryIds.size())))) {
+                    batch)) {
                 linked.put(link.getRepositoryId(), new Link(link.getConnectionId(), link.getForgeId()));
             }
         }
@@ -228,8 +229,8 @@ public class ForgeReviewService {
                     RepositoryUrl.identity(row.httpUrl()).ifPresent(identity -> byIdentity.putIfAbsent(identity, link));
                     RepositoryUrl.identity(row.sshUrl()).ifPresent(identity -> byIdentity.putIfAbsent(identity, link));
                 });
-        for (int from = 0; from < left.size(); from += BATCH) {
-            for (RepositoryView repository : targets.repositories(left.subList(from, Math.min(from + BATCH, left.size())))) {
+        for (List<Long> batch : Batches.of(left, BATCH)) {
+            for (RepositoryView repository : targets.repositories(batch)) {
                 RepositoryUrl.identity(repository.url()).map(byIdentity::get)
                         .ifPresent(link -> linked.put(repository.id(), link));
             }

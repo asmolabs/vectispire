@@ -13,11 +13,14 @@ import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.PinnedCa;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.forges.internal.ForgeClient;
 import com.asmolabs.vectispire.core.forges.internal.ForgeIntegrations;
 import com.asmolabs.vectispire.core.forges.internal.ForgeProbes;
@@ -26,8 +29,8 @@ import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkRepository;
-import com.asmolabs.vectispire.core.forges.persistence.ForgeReviewReadingRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeReviewReadingRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -66,7 +69,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * this one, and presenting it to a server typed later is the binding decision 0022 exists to keep.
  */
 @Service
-public class ForgeConnectionService {
+public class ForgeConnectionService implements SealedStore {
 
     static final int NAME_LENGTH = 255;
 
@@ -143,9 +146,17 @@ public class ForgeConnectionService {
         this.transactions = new TransactionTemplate(transactions);
     }
 
-    public List<ForgeConnectionView> list() {
+    /**
+     * The connections by name — unique — all of them or one page.
+     *
+     * @param limit rows per page, or null for every connection ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ForgeConnectionView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<ForgeConnectionEntity> every = connections.findAllByOrderByNameAsc();
         Set<ForgeKind> suspended = integrations.disabled();
-        return connections.findAllByOrderByNameAsc().stream().map(entity -> viewOf(entity, suspended)).toList();
+        return window.map(page -> page.of(every)).orElse(every).stream().map(entity -> viewOf(entity, suspended)).toList();
     }
 
     public ForgeConnectionView get(UUID id) {
@@ -415,7 +426,7 @@ public class ForgeConnectionService {
     }
 
     private Optional<PinnedCa> caOf(String pem) {
-        return pem == null || pem.isBlank() ? Optional.empty() : Optional.of(PinnedCa.parse(pem, clock.instant(), CA));
+        return pem == null || pem.isBlank() ? Optional.empty() : Optional.of(PinnedCa.parsePasted(pem, clock.instant(), CA));
     }
 
     private static ForgeEdition editionOf(ForgeConnectionEntity entity) {
@@ -479,5 +490,14 @@ public class ForgeConnectionService {
 
     private static String actorName(RequestActor actor) {
         return actor.username() == null ? "unknown" : BoundedText.clip(actor.username(), 255);
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("Forge connection tokens",
+                "save the connection (PATCH /api/v1/forge-connections/{id} with {}) or replace its token");
+        connections.findAll().forEach(connection -> counter.add(encryption.sealOf(
+                connection.getToken(), SecretCipher.forgeConnectionContext(connection.getId().toString()))));
+        return List.of(counter.done());
     }
 }

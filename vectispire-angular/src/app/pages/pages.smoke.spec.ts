@@ -148,7 +148,14 @@ describe('every screen', () => {
         // The grid is one verdict per category: returned empty, it is an object of ten rows, never
         // a bare list.
         if (url.endsWith('/owasp/coverage')) {
-            return asSchema('DeclaredGrid', { lines: [], covered: 0, withFindings: 0, unmeasured: 0, scope: null });
+            return asSchema('DeclaredGrid', {
+                lines: [],
+                covered: 0,
+                withFindings: 0,
+                unmeasured: 0,
+                unplacedCode: 0,
+                scope: null
+            });
         }
         if (url.endsWith('/compliance/scope')) {
             return asSchema('ScopeView', {

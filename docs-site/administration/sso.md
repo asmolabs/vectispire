@@ -40,10 +40,12 @@ held to four rules:
   `preferred_username` came.
 - **A privileged account is not bound by name** — every role but USER: SUPERUSER, ADMIN, CISO,
   AUDITOR and SECURITY_CHAMPION, since each administers, governs, reads the whole estate's security
-  or approves triage. In a realm with self-registration, anyone can register `admin`. Link those accounts through
-  [SCIM](#provisioning-from-the-directory-scim), which takes the subject from the provider, or —
-  for a realm where nobody chooses their own username — allow it with
-  `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`. The Keycloak of the `sso` compose profile signs
+  or approves triage. In a realm with self-registration, anyone can register `admin`. Such an
+  account keeps signing in with its password, where password sign-in is on; to give a person that role through the provider, have
+  the provider link (or [SCIM](#provisioning-from-the-directory-scim) provision) a plain account, and
+  grant it the role on the users screen. For a realm where nobody chooses their own username, allow
+  the link with `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true` — Vectispire warns at start when it
+  is on together with linking by claim. The Keycloak of the `sso` compose profile signs
   in as `admin`, so its `.env.oidc.example` sets it. That Keycloak does not start without
   `KEYCLOAK_ADMIN_PASSWORD` in `.env` — its own administrator's, which used to default to `admin` —
   and the realm's `admin` password, published with the realm, is temporary: Keycloak asks for a new
@@ -51,7 +53,16 @@ held to four rules:
 - **An account with a local second factor is never bound by name**, whatever the setting above. A
   sign-on skips the local TOTP — the provider owns the second factor — so binding it on a claim
   would trade the factor its owner enrolled for a name somebody may have written. Its owner signs
-  in with password and code, or has it linked through SCIM.
+  in with password and code; to sign on through the provider instead, the owner turns the second
+  factor off on the account page first. SCIM does not bind it either.
+- **None of this happens with `VECTISPIRE_OIDC_LINK_BY_CLAIM=false`.** Then no account is linked
+  on a claim, plain ones included: accounts are bound to their subject through
+  [SCIM](#provisioning-from-the-directory-scim), and an identity SCIM did not bind is refused as
+  matching no account. SCIM binds an existing account only under the same rules as below — a
+  privileged one only with `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`, one with a local second
+  factor never — so such an account keeps its password, or its person gets a new account the
+  directory provisions and an administrator gives the role. Turn it off for a realm whose users can choose or edit their own username;
+  it is on by default, which is how a realm and an existing set of accounts meet.
 
 ## Groups become teams, and leaving one takes it away
 
@@ -70,9 +81,16 @@ the first time a mapper was misconfigured.
 ## Provisioning from the directory (SCIM)
 
 An identity provider can create, update, deactivate and delete accounts through SCIM 2.0
-(`/scim/v2/Users`, `/scim/v2/Groups`), authenticated by the SCIM bearer token. That token lives in
-the provider's configuration, so what it may do is deliberately bounded:
+(`/scim/v2/Users`, `/scim/v2/Groups`), authenticated by the SCIM bearer token
+(`vectispire.scim.token`, or a file named by `VECTISPIRE_SCIM_TOKEN_FILE`). With SCIM enabled, a
+token shorter than 32 characters stops the start: generate one with `openssl rand -base64 32`. That
+token lives in the provider's configuration, so what it may do is deliberately bounded:
 
+- **`/scim` takes the SCIM token and nothing else.** An administrator's session or an API key is
+  refused there with `403`, and with SCIM switched off (`vectispire.scim.enabled: false`) nothing is
+  accepted at all; accounts are administered in Vectispire through the users screen. The audit log
+  names `SCIM provisioning` as the actor of what the directory does, and the account or team it
+  changed as the resource.
 - **Administrative accounts are not the directory's to change.** Replacing, patching or deleting an
   administrator or a superuser answers `403`; they are administered in Vectispire.
 - **The directory grants the scoped roles only — User and Security Champion.** A `roles` value of
@@ -86,12 +104,19 @@ the provider's configuration, so what it may do is deliberately bounded:
 - **An existing account that holds a privileged role or a local second factor is not bound by the
   directory.** Setting `externalId` on a CISO, an auditor, a security champion — any role but User —
   or on an account with its own TOTP, while it has none, answers `400`: binding it would let a sign-on
-  of the directory's choosing skip that account's password and second factor. An administrator links
-  such an account in Vectispire; `vectispire.oidc.link-privileged-accounts`, the setting that lets a
-  claim link a privileged account, lets the directory too — never one with a local second factor.
+  of the directory's choosing skip that account's password and second factor. Vectispire has no
+  route that binds a subject to an existing account either: provision a new account and grant it the
+  role on the users screen, or have the owner turn the second factor off first.
+  `vectispire.oidc.link-privileged-accounts`, the setting that lets a claim link a privileged account,
+  lets the directory too — never one with a local second factor.
 - **An account the directory creates signs in through the provider.** It gets a password nobody
   knows and is not asked to change it.
 - **A role change closes the account's sessions**, as a deactivation does.
+- **Lowering a privileged account does not make it bindable.** The directory may take a role away —
+  a CISO lowered to User is accepted — but while that account is bound to no subject, setting its
+  `externalId` afterwards still answers `400`, and a sign-on does not link it by name either, until an
+  administrator sets its role on the users screen. Otherwise a role the directory may lower but not
+  bind would be bound in two requests instead of one.
 - **`GET /scim/v2/Users` evaluates two filters**: `userName eq "…"` and `externalId eq "…"` (attribute and
   operator in any case, the value a quoted string). Any other — `emails[value eq "…"]`, an `and` or `or`,
   `co`, an unquoted value — answers `400` with `scimType` `invalidFilter` (RFC 7644 §3.4.2.2); it used to

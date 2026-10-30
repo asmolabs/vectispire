@@ -10,6 +10,8 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
@@ -46,7 +48,7 @@ import org.springframework.stereotype.Service;
  * it points at localhost, and would have let a public Ollama through under a different name.
  */
 @Service
-public class AiReviewService {
+public class AiReviewService implements SealedStore {
 
     private static final Logger log = LoggerFactory.getLogger(AiReviewService.class);
 
@@ -113,7 +115,12 @@ public class AiReviewService {
      * database or may predate the guard.
      */
     public String validatedUrl() {
-        return trimTrailingSlashes(post.validate(baseUrl(), policy(), provider().wireName() + " URL"));
+        String url = baseUrl();
+        if (!AiReview.isApiRoot(url)) {
+            throw new InvalidInputException(
+                    "The " + provider().wireName() + " URL carries a query or a fragment; it must be the API root alone.");
+        }
+        return trimTrailingSlashes(post.validate(url, policy(), provider().wireName() + " URL"));
     }
 
     /** Stores the URL after validating it — the entry point is where a mistake costs least. */
@@ -121,6 +128,9 @@ public class AiReviewService {
         if (url == null || url.isBlank()) {
             throw new InvalidInputException("The Ollama service URL cannot be empty.");
         }
+        Setting.AI_REVIEW_OLLAMA_URL.validate(url.trim()).ifPresent(problem -> {
+            throw new InvalidInputException("Ollama URL — " + problem);
+        });
         post.validate(url.trim(), policy(), "Ollama URL");
         settings.set(Setting.AI_REVIEW_OLLAMA_URL, url.trim());
     }
@@ -439,5 +449,12 @@ public class AiReviewService {
 
     private static String trimTrailingSlashes(String url) {
         return url.replaceAll("/+$", "");
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        return List.of(new StoreCensus.Counter("OpenAI API key", "set the key again on the model review settings")
+                .add(encryption.sealOf(settings.get(Setting.AI_REVIEW_OPENAI_KEY), OPENAI_KEY_CONTEXT))
+                .done());
     }
 }

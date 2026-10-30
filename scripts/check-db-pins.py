@@ -3,8 +3,9 @@
 
 Why this exists
 ---------------
-The campaign's engines are named once, in ``Engine.java`` (``postgres:17.6-alpine``,
-``mysql:9.4``), and the unit suite's fixture repeats MySQL's in ``TestDatabase.IMAGE``. Testcontainers
+The campaign's engines are named once, in ``Engine.java``, each by its newest and its oldest supported
+version (``mysql:9.4`` and ``mysql:8.4``, decision 0043 §3; ``postgres:17.6-alpine`` for both ends), and
+the unit suite's fixture repeats MySQL's newest in ``TestDatabase.IMAGE``. Testcontainers
 reads those tags. Everything else that starts one of those servers cannot: the upgrade drill's
 ``DB_IMAGE`` defaults (``scripts/upgrade-drill.sh``) and the MySQL job services of ``ci.yml`` and
 ``nightly.yml`` are pinned by patch and index digest, and Dependabot reads neither a script nor a
@@ -16,18 +17,24 @@ server the campaign had stopped checking — and nothing anywhere would have sai
 The rule
 --------
 For each pin ``<repository>:<tag>@sha256:<64 hex>``, the campaign must name the same repository, and
-the pin's tag must be the campaign's tag **or extend it by dotted components**: ``mysql:9.4`` accepts
-``9.4.0`` and ``9.4.12`` — Testcontainers resolves the floating minor, the pin records the patch it
-resolved to — but neither ``9.40`` nor ``9.5.0``. A campaign tag with a suffix (``17.6-alpine``)
+the pin's tag must be one of the campaign's tags for it **or extend it by dotted components**:
+``mysql:9.4`` accepts ``9.4.0`` and ``9.4.12`` — Testcontainers resolves the floating minor, the pin
+records the patch it resolved to — but neither ``9.40`` nor ``9.5.0``, and ``mysql:8.4`` accepts
+``8.4.11`` but not ``8.0.40``: a pin on a version between or outside the two ends is a server nothing
+checked. A campaign tag with a suffix (``17.6-alpine``)
 therefore has to be matched exactly. The patch itself is not compared to anything: the campaign does not
 name one, and pretending it does would be a second copy of a fact nobody owns.
 
-``TestDatabase.IMAGE`` must equal ``Engine.MYSQL`` exactly; both are Testcontainers tags.
+``TestDatabase.IMAGE`` must equal ``Engine.MYSQL``'s newest exactly; both are Testcontainers tags.
 
 A pin without a digest, or naming an engine the campaign does not run, fails too. A source that cannot
 be read, or in which the expected pins are not found, fails: a check that passes having read nothing
-is worse than no check, because it is believed. The restore drill's MySQL 8.4 comes from
-``docker-compose.yml``, deliberately another line, and is not compared here.
+is worse than no check, because it is believed.
+
+``docker-compose.yml``'s MySQL — the server the composition ships, and the restore drill's — is compared
+too. It was left out while the campaign ran 9.4 alone, as "deliberately another line"; that line, 8.4 LTS,
+is now the campaign's oldest, and the composition holding a version the campaign no longer runs is
+exactly the drift this check exists for.
 """
 from __future__ import annotations
 
@@ -40,6 +47,7 @@ JAVA = ROOT / "vectispire-java" / "vectispire-core" / "src"
 ENGINE = JAVA / "integrationTest/java/com/asmolabs/vectispire/core/persistence/Engine.java"
 TEST_DATABASE = JAVA / "test/java/com/asmolabs/vectispire/core/TestDatabase.java"
 DRILL = ROOT / "scripts" / "upgrade-drill.sh"
+COMPOSE = ROOT / "docker-compose.yml"
 # The workflows whose job services must carry a campaign engine; each must yield at least one, so a
 # service that is renamed or moved out of reach of the pattern below fails here rather than escaping.
 # Any `image:` naming either engine is read, registry prefix included: `docker.io/library/mysql:…`
@@ -57,25 +65,29 @@ def read(path: Path) -> str:
                          "A source that moved has to be followed here, not skipped.")
 
 
-def campaign() -> dict[str, str]:
-    """Repository -> Testcontainers tag, as ``Engine.java`` declares them."""
-    engines = re.findall(r'^\s*([A-Z_]+)\("([a-z0-9./-]+):([A-Za-z0-9._-]+)"\)[,;]',
-                         read(ENGINE), re.MULTILINE)
+def campaign() -> dict[str, list[str]]:
+    """Repository -> its Testcontainers tags, newest first, as ``Engine.java`` declares them."""
+    image = r'"([a-z0-9./-]+):([A-Za-z0-9._-]+)"'
+    engines = re.findall(rf'^\s*([A-Z_]+)\({image},\s*{image}\)[,;]', read(ENGINE), re.MULTILINE)
     if not engines:
         raise SystemExit("check-db-pins: no engine image found in Engine.java — the pattern no longer "
                          "reads it, and every comparison below would be against nothing.")
-    by_repository: dict[str, str] = {}
-    for constant, repository, tag in engines:
-        if repository in by_repository:
-            raise SystemExit(f"check-db-pins: Engine.java names {repository} twice; which one a pin "
-                             "should follow is a decision this check cannot make.")
-        by_repository[repository] = tag
-        print(f"  Engine.{constant:<10} {repository}:{tag}")
+    by_repository: dict[str, list[str]] = {}
+    for constant, newest_repository, newest, oldest_repository, oldest in engines:
+        if newest_repository != oldest_repository:
+            raise SystemExit(f"check-db-pins: Engine.{constant} names {newest_repository} as its newest "
+                             f"and {oldest_repository} as its oldest; one engine is one repository.")
+        if newest_repository in by_repository:
+            raise SystemExit(f"check-db-pins: Engine.java names {newest_repository} twice; which one a "
+                             "pin should follow is a decision this check cannot make.")
+        by_repository[newest_repository] = list(dict.fromkeys([newest, oldest]))
+        print(f"  Engine.{constant:<10} {newest_repository}:{newest} (newest), "
+              f"{newest_repository}:{oldest} (oldest)")
     return by_repository
 
 
-def agrees(campaign_tag: str, pinned_tag: str) -> bool:
-    return pinned_tag == campaign_tag or pinned_tag.startswith(campaign_tag + ".")
+def agrees(campaign_tags: list[str], pinned_tag: str) -> bool:
+    return any(pinned_tag == tag or pinned_tag.startswith(tag + ".") for tag in campaign_tags)
 
 
 def pins() -> list[tuple[str, str]]:
@@ -88,6 +100,13 @@ def pins() -> list[tuple[str, str]]:
         raise SystemExit(f"check-db-pins: expected 2 DB_IMAGE defaults in scripts/upgrade-drill.sh "
                          f"(mysql, postgresql), found {len(defaults)}.")
     found += [("scripts/upgrade-drill.sh DB_IMAGE", image) for image in defaults]
+
+    composed = re.findall(r"^\s*image:\s*(mysql:\S+)\s*$", read(COMPOSE), re.MULTILINE)
+    if len(composed) != 1:
+        raise SystemExit(f"check-db-pins: expected one mysql image in docker-compose.yml, found "
+                         f"{len(composed)}.")
+    found += [("docker-compose.yml db", composed[0])]
+
 
     for workflow in WORKFLOWS:
         text = read(workflow)
@@ -112,10 +131,11 @@ def main() -> int:
         raise SystemExit(f"check-db-pins: expected one IMAGE constant in TestDatabase.java, "
                          f"found {len(fixture)}.")
     print(f"  TestDatabase.IMAGE {fixture[0]}")
-    if fixture[0] != f"mysql:{engines.get('mysql', '<absent>')}":
-        failures.append(f"TestDatabase.IMAGE is {fixture[0]} but Engine.MYSQL is "
-                        f"mysql:{engines.get('mysql', '<absent>')}: the unit suite would run on a "
-                        "server the campaign does not.")
+    newest_mysql = f"mysql:{engines.get('mysql', ['<absent>'])[0]}"
+    if fixture[0] != newest_mysql:
+        failures.append(f"TestDatabase.IMAGE is {fixture[0]} but Engine.MYSQL's newest is "
+                        f"{newest_mysql}: the unit suite would run on a server the campaign's newest "
+                        "end does not.")
 
     print("check-db-pins: the hand-maintained pins")
     found = pins()
@@ -136,9 +156,10 @@ def main() -> int:
             failures.append(f"{where}: {repository} is not an engine Engine.java runs")
         elif not agrees(expected, tag):
             failures.append(f"{where} pins {repository}:{tag}, but Engine.java runs "
-                            f"{repository}:{expected}")
+                            f"{' and '.join(f'{repository}:{t}' for t in expected)}")
         else:
-            print(f"  {where:<42} {repository}:{tag} follows {repository}:{expected}")
+            followed = next(t for t in expected if tag == t or tag.startswith(t + "."))
+            print(f"  {where:<42} {repository}:{tag} follows {repository}:{followed}")
 
     if failures:
         print("\nThe database pins disagree with the integration campaign:\n", file=sys.stderr)

@@ -338,11 +338,6 @@ public final class ScanRunner {
         return root;
     }
 
-    /** Is the daemon reachable? Asked before claiming a scan rather than in the middle of one. */
-    public boolean canScan() {
-        return containers.isAvailable();
-    }
-
     /**
      * Runs a step, and remembers its failure without interrupting the scan.
      *

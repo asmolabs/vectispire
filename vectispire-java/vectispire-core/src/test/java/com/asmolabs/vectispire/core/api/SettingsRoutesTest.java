@@ -103,6 +103,37 @@ class SettingsRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the connection test names the endpoint to an administrator only")
+    void theConnectionTestWithholdsTheEndpointFromACiso() throws Exception {
+        // The CISO may run the test, but `ai_review_ollama_url` is a secret the catalog withholds
+        // from them: the answer gave it back in `url`, and quoted it in `detail` — both on an
+        // endpoint that does not answer and in the guard's refusal of a public one.
+        String before = settingsStore.get(Setting.AI_REVIEW_OLLAMA_URL);
+        try {
+            for (String endpoint : new String[] {"http://127.0.0.1:19", "http://93.184.215.14:11434"}) {
+                settingsStore.set(Setting.AI_REVIEW_OLLAMA_URL, endpoint);
+                String address = endpoint.substring("http://".length());
+
+                String ciso = mvc.perform(authenticated(post("/api/v1/settings/ollama-test"), asCiso()))
+                        .andExpect(status().isOk())
+                        .andReturn().getResponse().getContentAsString();
+                assertThat(json.readTree(ciso).get("url").isNull())
+                        .as("the CISO was answered the endpoint %s: %s", endpoint, ciso)
+                        .isTrue();
+                assertThat(ciso).as("the CISO's answer names the host").doesNotContain(address.split(":")[0]);
+
+                // The counterpart: the administrator, who may read the setting, still gets it.
+                String admin = mvc.perform(authenticated(post("/api/v1/settings/ollama-test"), asAdmin()))
+                        .andExpect(status().isOk())
+                        .andReturn().getResponse().getContentAsString();
+                assertThat(admin).contains(address.split(":")[0]);
+            }
+        } finally {
+            settingsStore.set(Setting.AI_REVIEW_OLLAMA_URL, before);
+        }
+    }
+
+    @Test
     @DisplayName("a CISO cannot move where the tracker token or the OpenAI key is sent")
     void aCisoCannotRedirectACredential() throws Exception {
         // The credentials are administrator-only, their destinations were not: pointing
@@ -117,6 +148,7 @@ class SettingsRoutesTest extends ApiTestBase {
             "{\"ticket_base_url\":\"https://tracker.attacker.example\"}",
             "{\"ticket_allow_private_url\":\"true\"}",
             "{\"ai_review_openai_url\":\"https://llm.attacker.example/v1\"}",
+            "{\"ai_review_ollama_url\":\"http://10.0.0.1:11434\"}",
             "{\"ai_review_allow_remote_url\":\"true\"}"
         }) {
             mvc.perform(authenticated(put("/api/v1/settings"), ciso)
@@ -137,6 +169,35 @@ class SettingsRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"ticket_base_url\":\"https://tracker.example.com\"}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
+
+    @Test
+    @DisplayName("a model endpoint carrying a query or a fragment is refused 400, and nothing is stored")
+    void aModelEndpointIsAnApiRoot() throws Exception {
+        String before = settingsStore.get(Setting.AI_REVIEW_OLLAMA_URL);
+        MvcResult refused = mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ai_review_ollama_url\":\"http://localhost:11434/x?y=\"}"))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        assertThat(detailOf(refused)).contains("query or a fragment");
+        assertThat(settingsStore.get(Setting.AI_REVIEW_OLLAMA_URL)).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("a CISO sending a secret administrator-only setting is refused whether or not the value is the stored one")
+    void aSecretSettingIsNoOracle() throws Exception {
+        // "Unchanged accepted, changed refused" answered whether a guess was the stored value, for a
+        // setting the role is not shown.
+        settingsStore.set(Setting.TICKET_BASE_URL, "https://tracker.internal.example");
+        String ciso = asCiso();
+        for (String guess : new String[] {"https://tracker.internal.example", "https://other.example"}) {
+            mvc.perform(authenticated(put("/api/v1/settings"), ciso)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("ticket_base_url", guess))))
+                    .andExpect(status().isForbidden());
+        }
+        assertThat(settingsStore.get(Setting.TICKET_BASE_URL)).isEqualTo("https://tracker.internal.example");
     }
 
     /**

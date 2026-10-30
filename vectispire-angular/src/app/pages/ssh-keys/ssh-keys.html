@@ -74,12 +74,14 @@
     [modal]="true"
     [style]="{ width: '40rem' }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="submit()">
         <div class="flex flex-col gap-2">
             <label for="name" class="font-medium">{{ 'ssh_keys.name_label' | translate }}</label>
             <input
                 pInputText
                 id="name"
+                required
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.name"
                 [placeholder]="'ssh_keys.name_placeholder' | translate"
             />
@@ -89,6 +91,8 @@
             <textarea
                 pTextarea
                 id="private"
+                required
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.privateKey"
                 rows="7"
                 class="font-mono text-sm"
@@ -104,6 +108,7 @@
             <textarea
                 pTextarea
                 id="public"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.publicKey"
                 rows="2"
                 class="font-mono text-sm"
@@ -114,7 +119,7 @@
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
         <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />

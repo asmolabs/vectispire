@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues.persistence;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
@@ -292,8 +293,8 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
     public List<WeeklyFlow> weeklyFlows(Specification<IssueEntity> filter, List<Instant> weekStarts) {
         List<Instant> weeks = weekStarts.stream().distinct().sorted().toList();
         List<WeeklyFlow> flows = new java.util.ArrayList<>();
-        for (int from = 0; from < weeks.size(); from += WEEKS_PER_STATEMENT) {
-            flows.addAll(weeklyFlowsOf(filter, weeks.subList(from, Math.min(from + WEEKS_PER_STATEMENT, weeks.size()))));
+        for (List<Instant> batch : Batches.of(weeks, WEEKS_PER_STATEMENT)) {
+            flows.addAll(weeklyFlowsOf(filter, batch));
         }
         return List.copyOf(flows);
     }

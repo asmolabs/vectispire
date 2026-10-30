@@ -62,7 +62,11 @@ public class OutboundGuardConfiguration {
      * {@link GitHostAllowlist} for why it is opt-in, and why it is checked twice.
      */
     @Bean
-    public GitHostAllowlist gitHostAllowlist(@Value("${vectispire.git.allowed-hosts:}") String allowedHosts) {
-        return GitHostAllowlist.parse(allowedHosts);
+    public GitHostAllowlist gitHostAllowlist(
+            @Value("${vectispire.git.allowed-hosts:}") String allowedHosts, OutboundUrlGuard guard) {
+        // The guard's reserved endpoints too: a repository URL naming the daemon or the database is
+        // refused when it is entered and before each scan, as every other outbound door refuses it.
+        return GitHostAllowlist.parse(allowedHosts)
+                .refusing((host, port) -> guard.reservedReason(host, port, "Repository URL"));
     }
 }

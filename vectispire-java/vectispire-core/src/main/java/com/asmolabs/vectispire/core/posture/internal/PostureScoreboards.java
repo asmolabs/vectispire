@@ -61,7 +61,7 @@ public final class PostureScoreboards {
 
         Map<ScanTarget, IssueAggregates.TargetResolutions> closed = new HashMap<>();
         for (IssueAggregates.TargetResolutions row : resolved) {
-            ScanTarget target = targetOf(row.repoId(), row.containerId());
+            ScanTarget target = ScanTarget.ofColumns(row.repoId(), row.containerId());
             if (target != null) {
                 closed.put(target, row);
             }
@@ -80,7 +80,7 @@ public final class PostureScoreboards {
             Map<ScanTarget, TargetGrade> grades, List<IssueAggregates.TargetResolutions> resolved) {
         Set<ScanTarget> listed = new LinkedHashSet<>(grades.keySet());
         resolved.forEach(row -> {
-            ScanTarget target = targetOf(row.repoId(), row.containerId());
+            ScanTarget target = ScanTarget.ofColumns(row.repoId(), row.containerId());
             if (target != null) {
                 listed.add(target);
             }
@@ -120,13 +120,5 @@ public final class PostureScoreboards {
             case ScanTarget.Repository repository -> repository.id();
             case ScanTarget.Container container -> container.id();
         };
-    }
-
-    /** A row attached to neither target ranks nowhere: there is no card to agree with. */
-    private static ScanTarget targetOf(Long repoId, Long containerId) {
-        if (repoId != null) {
-            return new ScanTarget.Repository(repoId);
-        }
-        return containerId == null ? null : new ScanTarget.Container(containerId);
     }
 }

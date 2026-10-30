@@ -156,13 +156,8 @@ public class ExportsController {
     }
 
     private static ScanTarget targetOf(String kind, long id) {
-        if ("repository".equals(kind)) {
-            return new ScanTarget.Repository(id);
-        }
-        if ("container".equals(kind)) {
-            return new ScanTarget.Container(id);
-        }
-        throw new InvalidInputException("Unknown target kind: " + kind + ". Expected \"repository\" or \"container\".");
+        return ScanTarget.of(kind, id).orElseThrow(() -> new InvalidInputException(
+                "Unknown target kind: " + kind + ". Expected \"repository\" or \"container\"."));
     }
 
     /**

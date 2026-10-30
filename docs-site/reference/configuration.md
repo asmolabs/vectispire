@@ -63,7 +63,8 @@ Once any account exists, both are ignored.
 |---|---|---|
 | `VECTISPIRE_OIDC_ISSUER` | *none* | Enables [single sign-on](../administration/sso.md). |
 | `VECTISPIRE_PASSWORD_LOGIN` | `true` | `false` delegates authentication entirely. **Ignored, loudly, with no issuer set** — it would leave no way in. |
-| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Lets a privileged account (any role but USER) be linked on its first sign-on by its username; never one with a local second factor. Only for a realm where nobody chooses their own username. |
+| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Lets a privileged account (any role but USER) be linked on its first sign-on by its username; never one with a local second factor. Only for a realm where nobody chooses their own username. Vectispire warns at start when it is on together with `VECTISPIRE_OIDC_LINK_BY_CLAIM`. |
+| `VECTISPIRE_OIDC_LINK_BY_CLAIM` | `true` | Whether an account is linked on its first sign-on by its username at all. Off, nothing is linked on a claim: accounts are bound by [SCIM](../administration/sso.md#provisioning-from-the-directory-scim), and an identity SCIM did not bind is refused. Turn it off for a realm whose users can choose or edit their username. |
 | `VECTISPIRE_OIDC_REQUIRE_MFA` | `false` | Refuses a single sign-on whose token states no second factor. A federated sign-in skips the local TOTP: the provider owns the second factor. |
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | The RFC 8176 `amr` values that count as a second factor. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *none* | `acr` levels that count as one, when the provider signals MFA that way. |
@@ -104,7 +105,7 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 
 | Variable | Default | Notes |
 |---|---|---|
-| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local and other cloud metadata addresses, which are always refused. Checked when a URL is entered and again before each scan. |
+| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local and other cloud metadata addresses, which are always refused, as are Vectispire's own endpoints — the Docker daemon, the database and, in a cluster, the Kubernetes API — whatever the list says. Checked when a URL is entered and again before each scan. |
 | `VECTISPIRE_HOST_SSH` | `true` | A repository with no deployment key attached falls back to the scanning host's own `~/.ssh`. Set `false` wherever the people adding targets are not the people who own that key: the fallback is host-wide, so adding a URL is then enough to have it cloned with an identity nobody attached to it. `false` in the shipped `docker-compose.yml`, which mounts no `~/.ssh`. |
 
 A clone over SSH with a deploy key checks the forge's host key against `<home>/.ssh/known_hosts` of

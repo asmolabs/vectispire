@@ -103,6 +103,16 @@
                             (onClick)="askLift(user)"
                         />
                     }
+                    @if (canResetSecondFactor(user)) {
+                        <p-button
+                            icon="pi pi-shield"
+                            [text]="true"
+                            [rounded]="true"
+                            [ariaLabel]="'users.aria_reset_second_factor' | translate: { name: user.username }"
+                            [disabled]="busy() === user.id"
+                            (onClick)="askResetSecondFactor(user)"
+                        />
+                    }
                     <p-button
                         icon="pi pi-trash"
                         severity="danger"
@@ -129,17 +139,23 @@
     [modal]="true"
     [style]="{ width: '32rem' }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="submit()">
         <div class="flex flex-col gap-2">
             <label for="username" class="font-medium">{{ 'users.username' | translate }}</label>
-            <input pInputText id="username" [(ngModel)]="form.username" />
+            <input
+                pInputText
+                id="username"
+                required
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.username"
+            />
         </div>
         <div class="flex flex-col gap-2">
             <label for="displayName" class="font-medium"
                 >{{ 'users.display_name' | translate }}
                 <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
             >
-            <input pInputText id="displayName" [(ngModel)]="form.displayName" />
+            <input pInputText id="displayName" [ngModelOptions]="{ standalone: true }" [(ngModel)]="form.displayName" />
         </div>
         <div class="flex flex-col gap-2">
             <label for="role" class="font-medium">{{ 'users.role' | translate }}</label>
@@ -148,13 +164,20 @@
                 [options]="roles()"
                 optionLabel="label"
                 optionValue="value"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="form.role"
                 styleClass="w-full"
             />
         </div>
         <div class="flex flex-col gap-2">
             <label for="password" class="font-medium">{{ 'users.initial_password' | translate }}</label>
-            <input pInputText id="password" [(ngModel)]="form.password" />
+            <input
+                pInputText
+                id="password"
+                required
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="form.password"
+            />
             <small class="text-muted-color">
                 {{ 'users.initial_password_hint' | translate }}
             </small>
@@ -162,7 +185,7 @@
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
         <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />
@@ -213,6 +236,33 @@
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="liftVisible.set(false)" />
         <p-button id="lift-confirm" [label]="'users.lift' | translate" [loading]="saving()" (onClick)="confirmLift()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'users.second_factor_header' | translate"
+    [(visible)]="secondFactorVisible"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+>
+    @if (pendingSecondFactor(); as user) {
+        <div class="flex flex-col gap-4">
+            <p id="second-factor-consequence" class="m-0">
+                {{ 'users.second_factor_consequence' | translate: { name: user.username } }}
+            </p>
+            @if (formError(); as message) {
+                <p-message severity="error" [closable]="false">{{ message }}</p-message>
+            }
+        </div>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="secondFactorVisible.set(false)" />
+        <p-button
+            id="second-factor-confirm"
+            [label]="'users.second_factor_reset' | translate"
+            [loading]="saving()"
+            (onClick)="confirmResetSecondFactor()"
+        />
     </ng-template>
 </p-dialog>
 

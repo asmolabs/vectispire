@@ -63,6 +63,34 @@ class ScanRunnerTest {
     }
 
     @Test
+    @DisplayName("on a worker whose daemon cannot be reached, fails the step with the daemon's own reason")
+    void anUnreachableDaemonIsAFailureThatSaysWhy() {
+        // **Nothing checks the daemon before a scan is claimed, on purpose.** A check that refused the
+        // claim would leave the scan pending with no reason anywhere; claimed, it fails here, on the
+        // scan, in the daemon's words. Every call throws, as every call to a dead socket does.
+        String refused = "Cannot connect to the Docker daemon at unix:///var/run/docker.sock";
+        ContainerRunner containers = mock(ContainerRunner.class, invocation -> {
+            throw new IllegalStateException(refused);
+        });
+
+        ScanArtifacts artifacts = runner(containers).run(new ScanTask(
+                new ScanTask.Target.Image(new ImageReference(null, "nginx", "1.27"), "linux/amd64"),
+                null,
+                Set.of(ScanTask.Step.DEPENDENCIES)));
+
+        assertThat(artifacts.failures())
+                .describedAs("the operator reads why on the scan, not in a worker's log")
+                .singleElement()
+                .satisfies(failure -> {
+                    assertThat(failure.step()).isEqualTo("dependencies");
+                    assertThat(failure.reason()).contains(refused);
+                });
+        assertThat(artifacts.observedNothing())
+                .describedAs("so the dispatcher fails the scan instead of completing it clean")
+                .isTrue();
+    }
+
+    @Test
     @DisplayName("a repository task's plugins reach the artifacts in their states, and the absent and refused ones are failures")
     void pluginsAreRecorded(@org.junit.jupiter.api.io.TempDir Path root) throws java.io.IOException {
         Workspace workspace = new Workspace(root, root.resolve("source"), root.resolve("rules"));

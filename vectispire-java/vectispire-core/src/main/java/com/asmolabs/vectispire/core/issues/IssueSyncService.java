@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
@@ -171,8 +172,8 @@ public class IssueSyncService {
         // would fail whole. The first row of a fingerprint is kept, as the single statement kept it.
         Map<String, IssueEntity> existing = new LinkedHashMap<>();
         List<String> sought = List.copyOf(byFingerprint.keySet());
-        for (int from = 0; from < sought.size(); from += FINGERPRINT_BATCH) {
-            issues.findByFingerprintIn(sought.subList(from, Math.min(from + FINGERPRINT_BATCH, sought.size())))
+        for (List<String> batch : Batches.of(sought, FINGERPRINT_BATCH)) {
+            issues.findByFingerprintIn(batch)
                     .forEach(issue -> existing.putIfAbsent(issue.getFingerprint(), issue));
         }
 

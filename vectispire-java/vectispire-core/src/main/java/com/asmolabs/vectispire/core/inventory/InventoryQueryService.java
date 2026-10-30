@@ -117,7 +117,7 @@ public class InventoryQueryService {
         // of targets, and expressing it in SQL would duplicate a predicate that already exists — and
         // getting it wrong here leaks an inventory.
         List<ComponentEntity> visible = rows.stream()
-                .filter(row -> allowed.permits(targetOf(row.getRepoId(), row.getContainerId())))
+                .filter(row -> allowed.permits(ScanTarget.ofColumns(row.getRepoId(), row.getContainerId())))
                 .toList();
 
         // The branch and the project version are the scan's, asked for the page's scans only: at most
@@ -152,19 +152,11 @@ public class InventoryQueryService {
         // here would drop versions the caller may see, which reads as "we do not run it".
         return components.versionsOf("%" + wanted.toLowerCase(Locale.ROOT) + "%", Limit.of(MAX_ROWS))
                 .stream()
-                .filter(row -> allowed.permits(targetOf((Long) row[1], (Long) row[2])))
+                .filter(row -> allowed.permits(ScanTarget.ofColumns((Long) row[1], (Long) row[2])))
                 .map(row -> (String) row[0])
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-    }
-
-    /** The target a row was catalogued on: its repository if it has one, else its image. */
-    private static ScanTarget targetOf(Long repoId, Long containerId) {
-        if (repoId != null) {
-            return new ScanTarget.Repository(repoId);
-        }
-        return containerId == null ? null : new ScanTarget.Container(containerId);
     }
 
     /** @param label the scan's branch and project version, which the row does not carry */

@@ -1,24 +1,252 @@
 # Notes de version
 
-## 0.12.0 — en préparation
+## Comment un retrait est annoncé {#deprecations}
 
-Pas encore publiée. Ce qui suit est ce que contiendra la 0.12.0, par rapport à la 0.11.2 : les trois
-premiers lots de la
-[décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md),
-par laquelle le gouverneur de la plateforme active ou désactive chaque système extérieur auquel
-Vectispire peut parler, et la part du sixième qui touche les gestionnaires de tickets.
+À partir de la 1.0, `/api/v1` ne change que par ajout : une version peut ajouter des routes, des champs
+de requête facultatifs, des champs de réponse et des valeurs d'énumération, et ne retire ni ne renomme
+jamais l'un d'eux, ne restreint pas ce qu'une requête accepte et ne change pas le sens d'un champ
+([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md) §1).
+Un retrait se fait en trois temps :
 
-### Avant la mise à jour {#avant-la-mise-a-jour-0120}
+1. **Déprécié dans le contrat.** L'opération ou le champ est marqué `deprecated` dans `openapi.json`, et
+   continue de fonctionner.
+2. **Nommé dans ces notes**, dans la version qui le déprécie, avec son remplaçant, sous un intertitre
+   *Déprécié*.
+3. **Retiré deux versions mineures plus tard** — déprécié en 1.2, disparu en 1.4 — et nommé de nouveau
+   dans les notes de la version qui le retire.
 
-- **La migration V92 s'exécute au démarrage.** Elle crée le registre des intégrations, `t_integration`,
-  et y inscrit activées les dix-sept intégrations d'aujourd'hui : une mise à jour ne change rien tant
-  qu'un gouverneur n'agit pas. Sauvegardez la base d'abord, comme pour toute migration
-  ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
-  La migration V93 ajoute la réclamation du balayage des tickets, deux colonnes nulles sur `t_issue`. Rien
-  d'autre n'est demandé à un opérateur.
+Un changement impossible à faire ainsi va dans `/api/v2`. La CI compare le contrat de chaque pull
+request à celui de la dernière version et échoue sur un changement qui casse un client, sauf si le retrait
+figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
+couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
+encore rompre, et le dit sous *Avant la mise à jour*.
 
-### Changements visibles d'une intégration {#changements-visibles-dune-integration-0120}
+## 1.0.0-rc.1
 
+La version qui précède la 1.0, et son essai : ce que la 1.0 promettra
+([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md))
+est en place, pour qu'on puisse le faire tourner avant qu'il ne soit figé. **MySQL est la seule base
+prise en charge**, un agent d'une mineure en retard continue de fonctionner, les contrats d'API que le §6
+nommait sont corrigés maintenant plutôt que deux mineures après une annonce, et une revue de sécurité
+complète de `develop` est close — chaque constat corrigé ou documenté comme risque résiduel. Plusieurs de
+ces corrections refusent ce que la 0.11.2 acceptait : lisez *Avant la mise à jour* en entier. Une
+installation dont SCIM est actif avec un jeton court ne démarre pas tant que le jeton n'est pas remplacé.
+Elle apporte aussi les premiers lots de la
+[décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md) :
+le gouverneur de la plateforme active ou désactive les forges, les transports SIEM et les gestionnaires
+de tickets.
+Ce qui suit est par rapport à la 0.11.2.
+
+### Avant la mise à jour {#avant-la-mise-a-jour-100-rc1}
+
+- **La 1.0.0-rc.1 est la version candidate à l'aune de laquelle la 1.0 est mesurée.** Chaque promesse
+  de la décision 0043 y est en place ; la 1.0.0 suit quand elle a tourné en usage réel sans rupture
+  imprévue. Ce qui y casse est un défaut à signaler, pas un changement à attendre.
+
+**Base de données et déploiement**
+
+- **MySQL 8.4 LTS ou 9.x est la seule base prise en charge.** PostgreSQL n'est plus testé et sort de ce
+  que la 1.0 promet (décision 0043 §3, amendée) ; son code et ses migrations restent, pour qu'il puisse
+  revenir par l'ajout de vérifications. La campagne fait tourner chaque version sur le plus ancien et le
+  plus récent MySQL pris en charge, 8.4 et 9.4. Une installation sur PostgreSQL démarre encore dessus, sans
+  prise en charge : prévoyez le passage à MySQL avant la 1.0.
+- **Quatre migrations, V92 à V95**, appliquées au premier démarrage. V92 réécrit les codes des contrôles
+  CRA enregistrés (plus bas) ; V93 ajoute une colonne à la table des comptes ; V94 crée le registre des
+  intégrations, `t_integration`, et y inscrit activées les dix-sept intégrations d'aujourd'hui, de sorte que
+  la mise à jour ne change rien tant qu'un gouverneur n'agit pas ; V95 ajoute la réclamation du balayage des
+  tickets, deux colonnes nulles sur `t_issue`. **Sauvegardez d'abord la base** :
+  revenir à la 0.11.2 veut dire restaurer cette sauvegarde.
+- **Une seule instance du plan de contrôle est prise en charge**
+  ([installation](../getting-started/installation.md#one-instance)). Les tâches de maintenance, le verrou
+  de la chaîne d'audit et la boîte d'envoi ont chacun été testés entre deux sessions ou deux fils, jamais
+  entre deux applications en marche. Un déploiement qui fait tourner un second réplica revient à un.
+
+**Comptes, authentification unique et SCIM**
+
+- **Avec SCIM actif, le jeton SCIM doit compter au moins 32 caractères**, donné en ligne
+  (`vectispire.scim.token`) ou par `VECTISPIRE_SCIM_TOKEN_FILE`. **Un jeton plus court arrête le
+  démarrage.** Générez un jeton plus long, réglez-le dans le fournisseur d'identité et dans Vectispire,
+  puis mettez à jour.
+- **`/scim` n'accepte que le jeton SCIM.** La session d'un administrateur y reçoit désormais 403, comme une
+  clé d'API déjà, et une installation où SCIM est inactif n'y accepte rien. Un script qui pilotait `/scim`
+  avec une session d'administrateur utilise le jeton à la place. Les entrées d'audit du provisionnement
+  nomment `SCIM provisioning` comme acteur et le compte (ou l'équipe) comme ressource ; elles nommaient le
+  compte modifié comme acteur. Une règle SIEM ou une requête d'audit qui filtre sur l'acteur de ces
+  entrées suit ([authentification unique](../administration/sso.md#provisioning-from-the-directory-scim)).
+- **Activer un second facteur demande le mot de passe du compte.** `POST /api/v1/auth/mfa/enable` exige
+  le `password` actuel à côté de `secret` et `code` : sans lui 400, faux 401. Un mot de passe faux
+  consomme le budget de connexion du compte et est audité, comme au changement de mot de passe.
+  L'interface le demande ; un client à vous l'envoie. Le contrat marque le champ facultatif, donc la
+  comparaison de la CI ne le signale pas — cette note en est l'annonce.
+- **Un administrateur peut réinitialiser le second facteur d'un autre compte** :
+  `DELETE /api/v1/users/{id}/second-factor`, sur l'écran **Utilisateurs** derrière une confirmation. Elle
+  ferme les sessions de ce compte et est auditée ; jamais sur son propre compte, et celui d'un
+  superutilisateur par un superutilisateur seulement. Jusqu'ici, un titulaire qui avait perdu ses codes ne
+  se récupérait que par la base de données ([utilisateurs et équipes](../administration/users-and-teams.md)).
+- **`vectispire.oidc.link-by-claim`** (`VECTISPIRE_OIDC_LINK_BY_CLAIM`, **`true` par défaut**, donc rien
+  ne change si vous ne le réglez pas) décide si un compte est lié à sa première connexion par son nom
+  d'utilisateur. Désactivez-le pour un realm dont les utilisateurs peuvent choisir ou modifier leur nom :
+  une identité ne se connecte alors qu'à un compte que SCIM a lié à son sujet. **Vectispire avertit à
+  chaque démarrage** quand il est actif en même temps que `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` —
+  lisez cet avertissement comme une question sur votre realm ([configuration](configuration.md)).
+- **Un compte que l'annuaire a abaissé hors d'un rôle privilégié n'est lié à aucun sujet**, ni par SCIM
+  ni par une revendication à la connexion, tant qu'un administrateur n'a pas fixé son rôle sur l'écran
+  **Utilisateurs** (V93 consigne l'abaissement). Abaisser reste l'affaire immédiate de l'annuaire ; seule
+  la liaison attend.
+
+**Réglages**
+
+- **L'URL d'Ollama (`ai_review_ollama_url`) est un réglage d'administrateur**, comme l'URL d'OpenAI :
+  elle reçoit les constats ouverts de chaque dépôt rapporté. Un responsable sécurité choisit toujours le
+  fournisseur et le modèle, et le test de connexion n'appelle que le point d'accès qu'un administrateur a
+  fixé — sa réponse ne nomme ce point d'accès qu'à un administrateur.
+- **L'URL de base d'un modèle est une racine d'API** : une URL portant une requête (`?`) ou un fragment
+  (`#`) est refusée à l'enregistrement (`PUT /api/v1/settings` répond 400) et de nouveau avant chaque
+  appel, puisqu'une valeur enregistrée peut précéder la vérification. Vérifiez les deux URL de modèle
+  avant la mise à jour si l'une en porte.
+- **Un réglage secret réservé aux administrateurs** (l'adresse du tracker, sa CA épinglée) envoyé par
+  quelqu'un d'autre est refusé **quoi qu'il contienne**, même la valeur enregistrée. L'écran des réglages
+  n'envoie que les champs modifiés ; un script qui renvoie chaque champ sans être administrateur les
+  laisse de côté ([réglages](../administration/settings.md)).
+
+**Intégrations**
+
+- **Un événement webhook GitHub ou GitLab n'atteint que le ticket de son propre dépôt.** Il correspond aux
+  constats dont l'URL de ticket enregistrée est l'URL du ticket de l'événement ou, pour un ticket attaché à
+  la main sans URL, à ceux du dépôt réglé comme projet du tracker. Avant, un événement sur le ticket 12 de
+  n'importe quel dépôt déplaçait chaque constat dont le ticket était le 12. Une telle référence attachée à
+  la main ne se synchronise plus que si le fournisseur et le projet du tracker sont réglés. Les références
+  Jira et ServiceNow portent leur espace de noms et correspondent comme avant
+  ([tickets](../integrations/ticketing.md#inbound-webhook)).
+- **Un problème ne porte plus `reachability` ni `reachableSymbols`.** Dépréciés en 0.11.0, ils valaient
+  `UNKNOWN` et null sur chaque problème, puisque rien ne calcule l'atteignabilité. Ils quittent toutes les
+  réponses qui portent un problème : `GET /api/v1/issues`, `GET /api/v1/issues/{id}`,
+  `POST /api/v1/issues/triage`, `POST /api/v1/issues/{id}/triage` et `PUT /api/v1/issues/{id}/ticket`.
+  Un client qui les lisait ne lit rien à leur place ; aucun champ ne les remplace. Les colonnes restent en
+  base, sans lecteur. Les retraits figurent dans `ci/openapi/accepted-breaks.txt`.
+- **L'attestation d'un scan porte le prédicat `https://vectispire.dev/attestation/v2`**, depuis
+  `GET /api/v1/attestations/scans/{scanId}` et dans `04_attestations/` du paquet de preuves. Son
+  `findings.total` compte chaque constat du scan, l'unité que ses sévérités comptaient déjà ; la v1 y
+  mettait le nombre de problèmes du scan, qui pouvait être inférieur à la somme des sévérités. Les noms
+  des champs ne changent pas. **La v1 n'est pas servie à côté** : un vérificateur qui épingle
+  `…/attestation/v1` refuse les nouvelles déclarations jusqu'à ce qu'il épingle la v2
+  ([conformité](../guide/compliance.md#le-paquet-de-preuves)).
+- **Les codes des contrôles CRA suivent le règlement (UE) 2024/2847 tel qu'adopté** (décision 0046).
+  Ils nommaient les articles de la proposition de 2022 alors que leurs titres citaient le texte adopté :
+
+  | Jusqu'à 0.11.2 | À partir de cette version |
+  |---|---|
+  | `CRA-ART11-NOTIF` | `CRA-ART14-NOTIF` |
+  | `CRA-ART10-SBOM` | `CRA-ANNEX1-SBOM` |
+  | `CRA-ART10-LIFECYCLE` | `CRA-ART13-LIFECYCLE` |
+  | `CRA-ART10-VULN` | `CRA-ANNEX1-VULN` |
+
+  Ils changent partout où un contrôle est nommé : les réponses de conformité et de déclaration
+  d'applicabilité, la route de déclaration `PUT /api/v1/compliance/soa/EU_CRA/{controlId}`, le rapport
+  PDF et le paquet de preuves. Un pipeline ou un modèle qui reconnaît un ancien code reconnaît le
+  nouveau à sa place. La migration V92 réécrit les déclarations déjà enregistrées ; les entrées du journal
+  d'audit écrites avant la mise à jour gardent le code qu'elles ont consigné. Les titres, les scores et
+  les codes des autres référentiels ne changent pas.
+- **Chaque document « problem » porte un `code`** à côté de son `detail` : un jeton stable comme
+  `not-found`, `no-such-route`, `invalid-request` ou `rate-limited`, et pour un conflit qui nomme sa
+  cause, la cause elle-même. Un pipeline décide sur lui plutôt que sur de l'anglais
+  ([erreurs de l'API](errors.md#les-codes)). Ajout seul : rien d'autre ne change dans un refus. Le
+  verdict de la barrière nommait déjà la `rule` de chaque violation.
+- **Le manifeste d'un plugin de scan dit son format**, `schema_version` (`MAJEUR.MINEUR`, `1.0`
+  aujourd'hui), sur le modèle de l'export des plugins de rapport. Facultatif : un manifeste qui ne le
+  porte pas est lu comme `1.0`, et enregistré, conservé et exécuté comme avant sous le même digest ;
+  `GET /api/v1/plugins` le renvoie désormais sur chaque manifeste. Un manifeste d'une autre majeure est
+  refusé, de même qu'à l'enregistrement un manifeste d'une mineure plus récente que celle que connaît le
+  plan de contrôle ([plugins](../administration/plugins.md#la-version-du-manifeste)). L'agent de la
+  version précédente fait tourner tout manifeste `1.x` tel quel.
+
+**Clé de chiffrement**
+
+- **Une rotation de clé est terminée quand `/actuator/encryption` le dit**, et non quand les clés SSH, les
+  jetons de clonage et les connexions aux forges n'ont plus de ligne sur l'ancienne clé. Sous la 0.11.2,
+  la clé de signature des documents, les seconds facteurs et l'en-tête d'autorisation du SIEM restaient
+  sur l'ancienne clé, et la retirer refusait chaque second facteur enrôlé et arrêtait chaque signature.
+  La clé de signature se rescelle désormais d'elle-même au démarrage, et un second facteur à la
+  vérification suivante de son titulaire ; le rapport, réservé à une session d'administrateur, liste les
+  onze magasins scellés et répond `"rotationFinished": true` quand plus rien ne dépend d'une clé
+  précédente. Chaque démarrage journalise ceux qui en dépendent encore. **Si une rotation est en cours,
+  gardez la clé précédente jusqu'à ce que ce rapport la dise terminée** — les secrets des intégrations
+  passent à la nouvelle clé quand on les règle de nouveau
+  ([rotation et purge](../administration/maintenance.md)).
+
+**Agents, images et dépendances**
+
+- **Un agent d'une mineure en retard est servi** (décision 0043 §2) : ce plan de contrôle confie du
+  travail à un agent 0.11. Mettez à jour le plan de contrôle d'abord, puis les agents à votre rythme ;
+  l'ordre inverse n'est pas pris en charge. Un agent hors de la plage servie est refusé à son `hello`
+  par un 409 qui nomme la plage et le côté à mettre à jour
+  ([agents](../administration/agents.md#upgrading-the-control-plane-first)).
+- **Les images tierces de la composition avancent**, chacune toujours par étiquette et empreinte d'index :
+  MySQL 8.4.11 → 8.4.13 (même ligne LTS, même volume de données), le proxy du socket Docker 0.3.0 → 0.5.0
+  (HAProxy 3 dessous), et le Keycloak du profil `sso` 26.0.8 → 26.8.1, hors d'une ligne que Keycloak ne
+  corrige plus. Le realm d'exemple s'importe à l'identique sur 26.8.1. Le Docker-in-Docker de la chart
+  passe de 29.8.2 à 29.9.2.
+- **Ce que le proxy du socket laisse passer, dit exactement.** `CONTAINERS: 1`, dont les scans ont besoin
+  pour créer, démarrer, lire et supprimer leurs conteneurs, admet toute route `/containers/…`, puisque le
+  proxy la reconnaît comme un préfixe : stop, kill, pause et unpause compris, comme sous 0.3.0. Les
+  `ALLOW_PAUSE` et `ALLOW_UNPAUSE` de 0.5.0 ne peuvent qu'ouvrir ces chemins, jamais les fermer.
+  `EVENTS`, la seule section que l'image ouvre par défaut, est désormais à `0` dans `docker-compose.yml`
+  pour les deux proxies — rien dans Vectispire ne lit le flux d'événements du démon. Une composition à
+  vous devrait la nommer aussi.
+- **Les images sont reconstruites sur des bases rafraîchies.** La base Java du plan de contrôle et de
+  l'agent (`eclipse-temurin:25-jre-alpine`) passe à l'empreinte actuelle de son étiquette, qui porte les
+  corrections d'OpenSSL et d'expat du système ; de même la base distroless du plugin de rapport de
+  démonstration. Dedans : Spring Boot 4.1.1 → 4.1.2, Spring Modulith 2.1.2, springdoc 3.2.0, MySQL
+  Connector/J 26.10.0, Jackson 2.22.4 et 3.1.8, Apache HttpClient 5.6.5 et Guava 33.7.2 ; l'interface
+  passe à Angular 22.2.3 et Chart.js 4.6.1. Aucun réglage ne change avec elles.
+
+**Les versions à partir de maintenant**
+
+- **Une version corrective ne change jamais le schéma** ([décision 0047](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0047-patch-releases-carry-no-migration.md)) :
+  `x.y.z` tourne sur la base de `x.y.0` telle quelle, et le workflow de publication refuse une étiquette
+  corrective qui porte une migration. Une correction qui en demande une sort dans la mineure suivante.
+- **Les lignes prises en charge ont une date de fin**, dans [`SECURITY.md`](https://github.com/asmolabs/vectispire/blob/main/SECURITY.md#supported-versions) :
+  la dernière mineure reçoit toutes les corrections, la précédente les corrections de sécurité pendant
+  trois mois après celle qui lui succède. La manière dont un retrait de l'API est annoncé figure en tête
+  de cette page.
+
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-100-rc1}
+
+- **SCIM : un `externalId` qu'un autre compte détient est un 409 `uniqueness`**, sur
+  `POST /scim/v2/Users` et sur un `PUT` qui lie un compte non lié, sans rien écrire — ce qu'un annuaire lit
+  comme « déjà provisionné ». C'était un 500. Un membre de `PATCH` de groupe dont la `value` est un objet
+  ou un tableau ne nomme personne et est ignoré, comme un membre inconnu, au lieu d'un 500.
+- **`GET /api/v1/users` renvoie `mfaEnabled`** sur chaque compte (ajout).
+- **Une mise à jour de statut du tracker qui ne trie rien est auditée sous `<PROVIDER>_webhook`**, comme un
+  tri par le webhook ; le nom que le tracker revendique est gardé dans la description, borné à 200
+  caractères.
+- **Un point d'accès SIEM est vérifié à la saisie.** Un port de webhook hors de 1–65535 est refusé (il ne
+  livrait jamais), un hôte syslog fait de chiffres et de points doit être une adresse IPv4, et un paquet
+  de CA collé dont un certificat est abîmé est refusé en nommant la ligne, là où seul son premier
+  certificat était épinglé — aux champs du SIEM, des connexions aux forges et de la CA du tracker. Un
+  paquet déjà enregistré est lu comme il a été accepté : une connexion qui fonctionne ne s'arrête pas.
+- **Le refus du `hello` d'un agent** nomme la plage de contrats servie et le côté à mettre à jour.
+- **Vingt-deux routes de liste de plus se paginent sur demande**, selon la règle qu'emploie chaque liste
+  de l'inventaire depuis la 0.11.1 : `limit` de 1 à 500 (400 au-delà, jamais de réduction silencieuse), et
+  `offset` nul ou multiple de `limit`, lu seulement avec une `limit`. **Une requête sans eux reçoit ce
+  qu'elle recevait** : la liste entière, ou, pour les historiques déjà plafonnés — découvertes des forges,
+  et imports SARIF, de couverture, de rapports de tests et de SBOM de build — les cinquante derniers, des
+  pages atteignant désormais les plus anciens. Parmi elles : les membres et cibles d'une équipe, les cibles
+  d'un compte, les jetons Git, les clés SSH, les tickets d'un problème, les plugins et plugins de rapport,
+  les sources SARIF, les connexions aux forges, les modèles de checklist et les checklists d'un projet ;
+  la référence REST les liste. Ajout seul : des paramètres de requête facultatifs.
+- **L'historique de tri dit ce qu'une demande mise en file demandait.** Une décision qui a mis en file un
+  statut de clôture pour une seconde personne (`toStatus` `pending_approval`) porte `requestedStatus` —
+  `not_affected`, `will_not_fix` ou `fixed` — dans `GET /api/v1/history/repositories/{id}` et dans
+  `decisions[]` de `GET /api/v1/issues/{id}` ; null sur toute autre entrée, et sur une demande mise en
+  file avant que la 0.11.0 ne l'enregistre. Le CSV de l'historique gagne une dernière colonne,
+  `decision_requested_status`, de sorte qu'une feuille qui lit les colonnes par position lit les mêmes
+  cellules ; le PDF imprime `asking for <status>` sur la ligne de la demande. Ajout seul.
+- **Les chiffres OWASP disent ce qu'ils laissent de côté.** `GET /api/v1/rule-sets/coverage` gagne
+  `owasp` : combien de fichiers de règles sont placés dans une catégorie de l'édition 2021, par leur propre étiquette
+  ou par CWE (`byCwe`), et ceux qui ne le sont pas, par raison (`ONLY_2025_EDITION`, `ONLY_2017_EDITION`,
+  `NOT_DECLARED` ; une raison inconnue se lit par son nom). `GET /api/v1/owasp/coverage` gagne
+  `unplacedCode`, les constats de code ouverts qu'aucune catégorie ne contient. Ajouts seuls.
 - **Deux routes.** `GET /api/v1/integrations`, pour tout compte, liste chaque intégration avec `key`,
   `family`, `name`, `enabled`, `updatedAt` et `updatedBy` — ces deux derniers `null` tant qu'aucun
   gouverneur ne l'a basculée, et `updatedBy` `null` aussi pour un lecteur sans rôle de gouvernance.
@@ -27,11 +255,13 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   n'enregistre rien
   ([référence de l'API REST](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
   Leurs identifiants d'opération dans `openapi.json` sont `listIntegrations` et `setIntegrationEnabled` ;
-  chaque identifiant que publient 0.11.0 et 0.11.1 garde son nom.
-- **Deux causes de 409**, chacune nommant la clé dans le membre `integration` :
-  `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée, et
+  chaque identifiant que publie une 0.11.x garde son nom.
+- **Trois causes de 409**, chacune nommant la clé dans le membre `integration` :
+  `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée ;
   `urn:vectispire:problem:integration-in-use` sur la bascule du gouverneur, pour le transport SIEM par
-  lequel un export activé envoie ([causes d'un 409](errors.fr.md#causes-dun-409)). Le `detail` de
+  lequel un export activé envoie ; et `urn:vectispire:problem:integration-not-switchable` sur la bascule du
+  gouverneur, pour un fournisseur d'IA ou un canal de notification, que rien ne suspend encore
+  ([causes d'un 409](errors.fr.md#causes-dun-409)). Le `detail` de
   `integration-disabled`, et la raison que porte une ligne de checklist alimentée par une connexion de
   forge suspendue, nomment la route qui active l'intégration, `PUT /api/v1/integrations/{key}/enabled`,
   plutôt qu'un écran que cette version n'a pas ; le type et le membre sont ce que lit un client, et ils
@@ -62,8 +292,18 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   `VECTI-SEC-019`, le changement de paramètre de sécurité
   ([catalogue des événements SIEM](../integrations/siem.fr.md#catalogue-des-evenements)).
 
-### Nouveautés {#nouveautes-0120}
+### Nouveautés {#nouveautes-100-rc1}
 
+- **`/actuator/encryption`**, le recensement des magasins scellés, et la réinitialisation du second
+  facteur — tous deux plus haut.
+- **L'agent de la version précédente est testé à chaque changement** : la CI fait tourner l'image signée
+  de l'agent de la dernière version contre le plan de contrôle en construction, et échoue s'il ne prend
+  pas et ne termine pas des scans.
+- **La page de couverture OWASP nomme l'édition qu'elle note**, l'édition 2021 du Top 10 OWASP. La 1.0
+  en reste là ; l'édition 2025 sera ajoutée à côté plus tard.
+- **Chaque boîte de dialogue de création et de modification est un formulaire** : Entrée la soumet, une
+  seconde soumission pendant qu'une première est en cours n'envoie rien, et les champs que le serveur
+  exige sont marqués. Le serveur décide toujours, dans ses propres mots.
 - **Le registre des intégrations.** Chaque système extérieur est une intégration de clé
   `<famille>.<nom>` : les forges (`forge.github`, `forge.gitlab`), les transports SIEM (`siem.webhook`,
   `siem.syslog_udp`, `siem.syslog_tcp`, `siem.syslog_tls`), les fournisseurs d'IA (`ai.ollama`,
@@ -71,8 +311,12 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   `.mail`) et les gestionnaires de tickets (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Toutes
   commencent activées ; une intégration ajoutée plus tard — Bitbucket d'abord — arrive désactivée. La
   bascule passe par l'API pour l'instant ; il n'y a pas encore d'écran. **Les forges, les transports
-  SIEM et les gestionnaires de tickets en tiennent compte dans cette version** : désactiver un
-  fournisseur d'IA ou un canal de notification est enregistré et audité, et n'arrête encore rien.
+  SIEM et les gestionnaires de tickets en tiennent compte dans cette version** ; les fournisseurs d'IA
+  et les canaux de notification pas encore, aussi **le registre refuse-t-il de les désactiver** :
+  `enabled: false` sur une clé `ai.*` ou `notification.*` répond 409 `integration-not-switchable`, la clé
+  dans le membre `integration`, sans rien changer ni rien auditer. Une bascule qui n'arrêterait rien se
+  lirait comme une garantie qu'elle n'est pas. En attendant, désactivez la revue par IA dans les réglages,
+  et videz l'URL d'un canal dans les réglages de notification.
 - **Une forge dont l'intégration est désactivée suspend ses connexions, sans jamais les supprimer.**
   Chacune garde sa ligne, son jeton chiffré, son instantané, ses liens d'import et ses lectures de revues
   des changements, et se lit *Suspendue — intégration désactivée* sur l'écran des connexions de forge.
@@ -105,14 +349,96 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   intégration désactivée*, et le réactiver reprend tout tel quel
   ([tickets](../integrations/ticketing.fr.md#tracker-suspended)).
 
-### Corrigé {#corrige-0120}
+### Sécurité {#securite-100-rc1}
 
+D'une revue complète de `develop` avant cette version. Chaque constat est corrigé, ou documenté comme
+risque résiduel là où une correction serait une décision à part entière :
+
+- **Le verrouillage de connexion est par client.** Le plafond de cinq échecs compte les échecs d'un compte
+  depuis un client, à côté d'un plafond de cinquante depuis tous les clients ensemble, contre les essais
+  répartis sur plusieurs machines. Qui connaît le nom d'un compte ne peut plus en tenir le titulaire
+  verrouillé depuis une seule machine. Un succès n'efface que les compteurs de son propre client ; le
+  budget du second facteur reste par compte.
+- **Une seule lecture de l'en-tête `Authorization`** pour l'authentification, les sessions et le plafond
+  des jetons refusés, de sorte que chaque jeton porteur rencontre ce plafond et son entrée d'audit.
+- **Une URL de dépôt qui nomme le démon Docker, la base de données ou l'API du cluster de Vectispire lui-même
+  est refusée**, à la saisie et de nouveau à chaque construction d'un scan, que la liste des hôtes
+  autorisés la nomme ou non. Le démon propre d'un agent distant n'est pas connu du plan de contrôle et
+  reste protégé par l'isolement de l'agent et son proxy de socket, comme le dit la référence de
+  configuration.
+- **L'étape des secrets ne lit le rapport de gitleaks que comme un fichier ordinaire**, jamais à travers
+  un lien, et pas plus grand que le plafond de sortie des scanners ; au-delà, l'étape échoue au lieu de ne
+  rien rapporter.
+- **Sur l'exécuteur Kubernetes, un scanner ne démarre qu'une fois son pod coupé du serveur d'API.** Une
+  politique réseau peut atteindre un nouveau pod un instant après son démarrage ; chaque pod de scan
+  vérifie désormais avant que son scanner ne tourne, et fait échouer l'étape si la coupure ne vient pas.
+  Là où la politique rejette en silence plutôt que de refuser, cela coûte jusqu'à deux secondes par pod.
+  La sonde d'isolement de l'exécuteur attend de la même façon avant de trancher.
+- **Un scanner tué à sa limite de mémoire est un échec** même quand le runtime des conteneurs ne signale
+  pas `OOMKilled`, de sorte que la sortie partielle d'une exécution tuée n'est jamais lue comme un
+  rapport.
+- **Les chemins d'API déclarés et découverts sont comparés littéralement à côté de leurs paramètres, en
+  temps borné.**
+- **Les champs des réglages réservés aux administrateurs, le test du point d'accès du modèle et les
+  règles de liaison SCIM et de connexion** — tous plus haut.
+- **Risques résiduels documentés** : les rôles ne séparent pas un administrateur d'agir à travers un
+  compte qu'il administre (le contrôle à quatre yeux couvre les décisions, pas cela) ; et les réserves
+  de clonage couvrent les points d'accès du plan de contrôle lui-même, pas ceux de l'hôte d'un agent
+  distant. Les documents de sécurité de l'architecture disent les deux.
+- **Dépendances** : Guava 33.7.2 (GHSA-xxph-c9ww-hj94) et les bases d'images rafraîchies plus haut ;
+  `npm audit` lit zéro sur tout l'arbre de l'interface, dépendances de développement comprises (vitest
+  4.1.12, happy-dom 21, Playwright 1.64.1).
+
+### Corrigé {#corrige-100-rc1}
+
+- **Un constat de code dont la règle déclare une CWE mais aucune catégorie OWASP est placé par sa CWE**,
+  d'après les listes d'OWASP des CWE que couvre chaque catégorie de l'édition 2021. La plupart des règles amont ne
+  déclarent qu'une CWE : leurs constats n'entraient dans aucune catégorie, et la catégorie affichait
+  « rien trouvé ». Un problème existant reçoit sa catégorie au scan suivant de sa cible ; les empreintes
+  ne changent pas, aucun tri n'est perdu. Attendez-vous à ce que les chiffres de la grille OWASP bougent
+  après ce scan. Les constats d'un agent de la mineure précédente, qui n'envoie pas la CWE, restent non
+  placés et sont comptés sous la grille.
+- **Une règle étiquetée seulement avec une autre édition OWASP** (`A01:2025`) tournait et ses constats
+  arrivaient au backlog, mais la grille n'en plaçait aucun sans dire pourquoi. La 1.0 note toujours
+  l'édition 2021 (décision 0046) ; l'écran des jeux de règles dit désormais combien de fichiers de règles
+  ne déclarent qu'une autre édition.
+- **L'interface en français affichait la phrase anglaise du serveur** pour la raison d'une violation de
+  la barrière et pour chaque refus. Les deux sont désormais traduits depuis la `rule` de la violation et
+  le `code` du problème ; là où une valeur n'est pas un champ à part (le seuil d'une politique, les
+  écosystèmes non couverts), la phrase du serveur reste en infobulle de la ligne.
+- Une connexion avec un User-Agent de plus de 255 caractères répondait 500 pour un compte à second
+  facteur, après que son mot de passe avait été accepté.
+- Activer un second facteur avec un secret sans aucune lettre Base32 répondait 500 ; c'est un 400.
+- Remplacer les membres ou les cibles d'une équipe, ou supprimer une équipe, pouvait s'arrêter à
+  mi-chemin et laisser l'équipe sans aucun ; chaque écriture est désormais une transaction. Une cible
+  envoyée deux fois est une seule attribution, dans la réponse et l'entrée d'audit aussi.
+- Une longue description d'équipe ou un long rappel de checklist pouvait être coupé au milieu d'un
+  caractère.
+- Une règle de couverture des branches écrivait « branchs » dans la preuve qu'une signature fige ; les
+  mesures déjà enregistrées gardent leur texte. Un motif de suite commençant par `*` reconnaît désormais
+  les noms de suite commençant par `*`.
+- Les corrections à fort impact de la page de posture sont lues dans une seule transaction.
+- Les filtres de la chaîne de l'API tournaient une seconde fois, sans effet, hors de la chaîne ; ils ne
+  tournent plus que dans la chaîne.
+- Les répertoires temporaires laissés par la récupération du catalogue de règles sont supprimés comme
+  les autres.
 - **Deux plans de contrôle n'ouvrent plus deux tickets pour un constat.** Chaque instance exécute le balayage
   horaire des tickets, et deux passages qui se chevauchaient demandaient tous deux au tracker un ticket pour le
-  même constat. Le balayage réclame désormais chaque constat avant de demander (migration V93, deux colonnes
+  même constat. Le balayage réclame désormais chaque constat avant de demander (migration V95, deux colonnes
   nulles sur `t_issue`) : un passage qui perd la réclamation laisse le constat à l'autre, une tentative refusée
-  rend la réclamation, et la réclamation d'une instance morte est reprise après dix minutes. Une seule réplique,
-  la valeur par défaut de la chart, n'a jamais rencontré ce cas.
+  rend la réclamation, et la réclamation d'une instance morte est reprise après dix minutes. Une seule instance,
+  ce que cette version prend en charge (plus haut), n'a jamais rencontré ce cas.
+
+### Performances {#performances-100-rc1}
+
+- Le premier téléchargement de l'interface passe de 932 ko à 612 ko : la coquille et les thèmes Lara et
+  Nora se chargent à la demande, et la construction échoue désormais si un import immédiat ramène un
+  écran dans ce premier téléchargement.
+- Les traductions, la carte de chaleur hebdomadaire OWASP et les pages des dépôts, des agents, des
+  problèmes, des solutions, de la checklist de projet et des modèles de checklist calculent une fois ce
+  qu'elles recalculaient à chaque changement.
+- La découverte d'API rapproche les points d'accès des chemins d'ingress par recherche de préfixe plutôt
+  qu'en comparant chaque paire.
 
 ## 0.11.2 — 27 octobre 2026
 

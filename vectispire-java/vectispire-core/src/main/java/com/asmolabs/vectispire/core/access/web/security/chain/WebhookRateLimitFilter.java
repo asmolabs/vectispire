@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.access.web.security.chain;
 import com.asmolabs.vectispire.common.domain.auth.ClientBuckets;
 import com.asmolabs.vectispire.core.access.RateWindows;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
@@ -15,7 +16,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -75,8 +75,9 @@ public class WebhookRateLimitFilter extends OncePerRequestFilter {
     public WebhookRateLimitFilter(
             TrustedProxies proxies,
             RateWindows shared,
-            @Value("${vectispire.security.webhook-requests-per-window:300}") int capacity,
-            @Value("${vectispire.security.webhook-request-window:PT1M}") Duration window) {
+            SecurityLimits limits) {
+        int capacity = limits.webhookRequestsPerWindow();
+        Duration window = limits.webhookRequestWindow();
         this.proxies = proxies;
         this.shared = shared;
         // A ceiling of zero would refuse every delivery, so a misconfiguration falls back to the

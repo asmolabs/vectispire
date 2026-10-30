@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
@@ -71,7 +70,8 @@ import tools.jackson.databind.JsonNode;
  *       SECURITY_CHAMPION — see {@link #grantable};
  *   <li>an absent role leaves the account's role as it is;
  *   <li>{@code externalId} is set once and never rebound, and an existing account that holds a
- *       privileged role or a local second factor is not bound at all — see {@link #bindOnce};
+ *       privileged role or a local second factor is not bound at all — see {@link #bindOnce} — nor one
+ *       the directory lowered out of a privileged role, until an administrator sets its role;
  *   <li>a role change closes the account's sessions, as a deactivation does.
  * </ul>
  *
@@ -82,6 +82,13 @@ import tools.jackson.databind.JsonNode;
  */
 @Service
 public class ScimProvisioningService {
+
+    /**
+     * Who acted, in the audit trail: the identity provider through its token. The entries used to
+     * carry the account they changed as their actor, so a provisioning read as the account acting
+     * on itself. A space keeps it apart from every account name (AccountRules' grammar has none).
+     */
+    public static final String ACTOR = "SCIM provisioning";
 
     /** The width of {@code display_name}, {@code email} and {@code keycloak_id}. */
     private static final int IDENTITY_COLUMN = 255;
@@ -103,7 +110,7 @@ public class ScimProvisioningService {
             AuditLogService audit,
             TransactionTemplate transactions,
             Clock clock,
-            @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged) {
+            OidcProperties oidc) {
         this.users = users;
         this.teams = teams;
         this.members = members;
@@ -111,7 +118,7 @@ public class ScimProvisioningService {
         this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
-        this.linkPrivileged = linkPrivileged;
+        this.linkPrivileged = oidc.linkPrivilegedAccounts();
     }
 
     /** An account as the directory describes it, already read out of the SCIM document. */
@@ -153,6 +160,18 @@ public class ScimProvisioningService {
         record Created(UserView user) implements UserCreation {}
 
         record UsernameTaken() implements UserCreation {}
+
+        /** Another account is bound to this {@code externalId}: nothing written. */
+        record ExternalIdTaken() implements UserCreation {}
+    }
+
+    /** A replacement's outcome. {@code ExternalIdTaken} is a binding to a subject another account holds. */
+    public sealed interface UserChange {
+        record Changed(UserView user) implements UserChange {}
+
+        record Absent() implements UserChange {}
+
+        record ExternalIdTaken() implements UserChange {}
     }
 
     /** @param display the member's username, or its identifier when the account is gone */
@@ -260,6 +279,11 @@ public class ScimProvisioningService {
         user.setKeycloakId(bounded(attributes.externalId(), "externalId"));
         user.setIsActive(attributes.active() == null || attributes.active());
         user.setRole(grantable(attributes.role(), Role.USER.name()));
+        // Asked before the insert: the column's unique constraint answered it, and the directory read a
+        // 500 it could not act on where "already provisioned, link it" is what it needed to hear.
+        if (boundToAnother(user.getKeycloakId(), null)) {
+            return new UserCreation.ExternalIdTaken();
+        }
         // A password nobody knows, so the account has none to sign in with; it signs in through the
         // provider. Not "must change": that flag held every federated session of a provisioned
         // account on the change-password screen, which asks for a current password nobody had.
@@ -272,20 +296,19 @@ public class ScimProvisioningService {
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.USER_CREATED,
-                "SCIM",
+                String.valueOf(saved.getId()),
                 "SCIM provisioned account: " + username,
-                username,
+                ACTOR,
                 origin.ipAddress(),
                 origin.userAgent()));
 
         return new UserCreation.Created(UserView.of(saved));
     }
 
-    /** Empty when there is no such account. */
-    public Optional<UserView> replaceUser(Long id, UserAttributes attributes, RequestActor origin) {
+    public UserChange replaceUser(Long id, UserAttributes attributes, RequestActor origin) {
         Optional<UserEntity> found = users.findById(id);
         if (found.isEmpty()) {
-            return Optional.empty();
+            return new UserChange.Absent();
         }
 
         UserEntity user = requireProvisionable(found.get());
@@ -297,7 +320,17 @@ public class ScimProvisioningService {
         user.setDisplayName(bounded(attributes.displayName(), "displayName"));
         user.setEmail(bounded(attributes.email(), "emails"));
         if (attributes.externalId() != null) {
-            bindOnce(user, bounded(attributes.externalId(), "externalId"), linkPrivileged);
+            String externalId = bounded(attributes.externalId(), "externalId");
+            if (user.getKeycloakId() == null && boundToAnother(externalId, id)) {
+                return new UserChange.ExternalIdTaken();
+            }
+            bindOnce(user, externalId, linkPrivileged);
+        }
+        if (user.getKeycloakId() == null && user.getScimLoweredFrom() == null && heldPrivilege(previousRole)
+                && !heldPrivilege(role)) {
+            // Lowering stays the directory's to do — taking a privilege away must not wait for anybody —
+            // but the account keeps what it held for the binding: see bindOnce.
+            user.setScimLoweredFrom(previousRole);
         }
         user.setIsActive(nowActive);
         user.setRole(role);
@@ -311,32 +344,32 @@ public class ScimProvisioningService {
             auth.revokeAllForUser(saved.getId());
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM changed the role of " + saved.getUsername() + " from " + previousRole + " to " + role
                             + " and revoked its sessions",
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         } else if (wasActive && !nowActive) {
             auth.revokeAllForUser(saved.getId());
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM deactivated account and revoked all active sessions for " + saved.getUsername(),
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         } else {
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM updated account: " + saved.getUsername(),
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         }
 
-        return Optional.of(UserView.of(saved));
+        return new UserChange.Changed(UserView.of(saved));
     }
 
     /** Empty when there is no such account. */
@@ -362,9 +395,9 @@ public class ScimProvisioningService {
             auth.revokeAllForUser(saved.getId());
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
-                    "SCIM",
+                    String.valueOf(saved.getId()),
                     "SCIM deactivated account and revoked active sessions for " + saved.getUsername(),
-                    saved.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         }
@@ -379,9 +412,9 @@ public class ScimProvisioningService {
             users.delete(user);
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_DELETED,
-                    "SCIM",
+                    String.valueOf(user.getId()),
                     "SCIM deleted account: " + user.getUsername(),
-                    user.getUsername(),
+                    ACTOR,
                     origin.ipAddress(),
                     origin.userAgent()));
         });
@@ -479,6 +512,15 @@ public class ScimProvisioningService {
         return BoundedText.within(value, IDENTITY_COLUMN, "The SCIM attribute " + attribute);
     }
 
+    private boolean boundToAnother(String externalId, Long id) {
+        return externalId != null
+                && users.findByKeycloakId(externalId).filter(other -> !other.getId().equals(id)).isPresent();
+    }
+
+    private static boolean heldPrivilege(String role) {
+        return Role.of(role).map(ExternalIdentityService::privileged).orElse(true);
+    }
+
     /**
      * Sets the identity-provider subject once.
      *
@@ -489,9 +531,16 @@ public class ScimProvisioningService {
      * could not <em>grant</em> a CISO, an auditor or a champion ({@link #grantable}), but it could bind
      * an existing one, still unbound, to a subject of its choosing — and the next sign-in landed on
      * that account with neither its password nor its local second factor. The same rule as a claim's
-     * ({@code ExternalIdentityService}): a privileged account, or one with a local second factor, is
-     * not bound from outside unless the operator allows privileged linking; an administrator binds it
-     * in Vectispire. A binding the account already has is not a binding, and passes.
+     * ({@code ExternalIdentityService}): a privileged account is not bound from outside unless the
+     * operator allows privileged linking, and one with a local second factor never is. Nothing in
+     * Vectispire binds a subject to an existing account either, so the refusals say what does work:
+     * a new account the directory provisions, given its role by an administrator, or the second
+     * factor turned off by its owner. A binding the account already has is not a binding, and passes.
+     *
+     * <p><b>Nor an account the directory has just emptied.</b> The role is read at the binding, and
+     * the directory may lower a role: a CISO lowered to User by one request was bound by the next.
+     * {@code replaceUser} records the role it lowered an unbound account out of, and that record
+     * refuses the binding until an administrator sets the account's role in Vectispire.
      */
     private static void bindOnce(UserEntity user, String externalId, boolean linkPrivileged) {
         if (user.getKeycloakId() != null && !user.getKeycloakId().equals(externalId)) {
@@ -502,11 +551,19 @@ public class ScimProvisioningService {
             boolean privileged = Role.of(user.getRole()).map(ExternalIdentityService::privileged).orElse(true);
             if (Boolean.TRUE.equals(user.getMfaEnabled())) {
                 throw new InvalidInputException("This account has a local second factor, so the directory "
-                        + "does not bind it to an identity-provider subject; an administrator does, in Vectispire.");
+                        + "does not bind it to an identity-provider subject. Its owner turns the second factor off "
+                        + "first, or the directory provisions a new account.");
             }
             if (privileged && !linkPrivileged) {
                 throw new InvalidInputException("This account holds a privileged role, so the directory does "
-                        + "not bind it to an identity-provider subject; an administrator does, in Vectispire.");
+                        + "not bind it to an identity-provider subject. Provision a new account and have an "
+                        + "administrator grant it the role in Vectispire, or allow it with "
+                        + "vectispire.oidc.link-privileged-accounts.");
+            }
+            if (user.getScimLoweredFrom() != null && !linkPrivileged) {
+                throw new InvalidInputException("This account held the " + user.getScimLoweredFrom() + " role until "
+                        + "the directory lowered it, so the directory does not bind it to an identity-provider "
+                        + "subject until an administrator sets its role in Vectispire.");
             }
         }
         user.setKeycloakId(externalId);
@@ -709,7 +766,9 @@ public class ScimProvisioningService {
         Set<Long> listed = new LinkedHashSet<>();
         for (JsonNode item : items) {
             if (item != null && item.has("value")) {
-                resolveUserId(item.get("value").asString()).ifPresent(listed::add);
+                // asString(null): an object or an array names nobody and is skipped, where asString()
+                // threw and answered the whole PATCH 500.
+                resolveUserId(item.get("value").asString(null)).ifPresent(listed::add);
             }
         }
         Set<Long> kept = new HashSet<>();
@@ -777,11 +836,11 @@ public class ScimProvisioningService {
 
     /**
      * Called only once the group's transaction has committed — see the class note for the
-     * deadlock this avoids. Attributed to the team's name, as these entries always were.
+     * deadlock this avoids. The team is what the entry is about, and the directory is who acted.
      */
     private void recordGroup(RequestActor origin, String description, String teamName) {
         audit.record(new AuditLogService.Record(
-                AuditOperation.TEAM_UPDATED, "SCIM", description, teamName, origin.ipAddress(), origin.userAgent()));
+                AuditOperation.TEAM_UPDATED, teamName, description, ACTOR, origin.ipAddress(), origin.userAgent()));
     }
 
     private void handleAddMembers(Long teamId, JsonNode value) {
@@ -789,14 +848,14 @@ public class ScimProvisioningService {
         if (value.isArray()) {
             for (JsonNode item : value) {
                 if (item.has("value")) {
-                    resolveUserId(item.get("value").asString()).ifPresent(userId ->
+                    resolveUserId(item.get("value").asString(null)).ifPresent(userId ->
                             members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }
         } else if (value.isObject() && value.has("members") && value.get("members").isArray()) {
             for (JsonNode item : value.get("members")) {
                 if (item.has("value")) {
-                    resolveUserId(item.get("value").asString()).ifPresent(userId ->
+                    resolveUserId(item.get("value").asString(null)).ifPresent(userId ->
                             members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }

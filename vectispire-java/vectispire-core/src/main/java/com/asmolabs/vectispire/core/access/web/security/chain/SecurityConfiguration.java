@@ -1,9 +1,13 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.access.web.security.SecurityLimits;
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,6 +20,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.firewall.RequestRejectedHandler;
+import org.springframework.security.web.header.writers.CrossOriginEmbedderPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -160,6 +167,16 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             "frame-ancestors 'none'");
 
     /**
+     * The browser features no screen of Vectispire uses, refused to the page and to anything injected
+     * into it. The clipboard stays allowed: the CI/CD snippets are copied with a button. A feature a
+     * screen starts to need comes out of this list in the same change.
+     */
+    private static final String PERMISSIONS_POLICY = String.join(", ",
+            "accelerometer=()", "bluetooth=()", "camera=()", "display-capture=()", "geolocation=()",
+            "gyroscope=()", "hid=()", "magnetometer=()", "microphone=()", "midi=()", "payment=()",
+            "serial=()", "usb=()");
+
+    /**
      * The firewall's refusal — {@code //}, an encoded {@code ..} or {@code ;}, a control character —
      * answered by the chain, as its other refusals are.
      *
@@ -179,6 +196,16 @@ public class SecurityConfiguration implements WebMvcConfigurer {
         };
     }
 
+    /**
+     * The proxies whose forwarding headers are believed, from {@code vectispire.security.trusted-proxies}.
+     *
+     * <p>Static: the filters this class is constructed with need it, so it must not wait for this class.
+     */
+    @Bean
+    static TrustedProxies trustedProxies(SecurityLimits limits) {
+        return new TrustedProxies(limits.trustedProxies());
+    }
+
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http, ClientAddressFilter clientAddress) throws Exception {
         return http
@@ -187,8 +214,21 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 // On every response, static files included: the document that carries the
                 // injected string is `index.html`, so a policy applied only to `/api` would
                 // guard the JSON and leave the page it is rendered into unprotected.
-                .headers(headers -> headers.contentSecurityPolicy(
-                        policy -> policy.policyDirectives(CONTENT_SECURITY_POLICY)))
+                .headers(headers -> headers
+                        .contentSecurityPolicy(policy -> policy.policyDirectives(CONTENT_SECURITY_POLICY))
+                        .permissionsPolicyHeader(policy -> policy.policy(PERMISSIONS_POLICY))
+                        // The interface opens no window it must talk to and loads nothing from another
+                        // origin (the policy above says so), so it can be isolated at no cost: no other
+                        // site's window keeps a handle on it, and none of its responses can be read into
+                        // another site's process. The published badge is the one response meant to be
+                        // embedded elsewhere; its route says so itself, and this writer leaves a header
+                        // already set alone.
+                        .crossOriginOpenerPolicy(coop -> coop.policy(
+                                CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy.SAME_ORIGIN))
+                        .crossOriginEmbedderPolicy(coep -> coep.policy(
+                                CrossOriginEmbedderPolicyHeaderWriter.CrossOriginEmbedderPolicy.REQUIRE_CORP))
+                        .crossOriginResourcePolicy(corp -> corp.policy(
+                                CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy.SAME_ORIGIN)))
                 // No CSRF token: this API is consumed by a client that sends a bearer token, and
                 // a bearer token is not attached by a browser to a cross-site request. Enabling
                 // it would only break the agent protocol, which has no page to read a token from.
@@ -253,6 +293,13 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         // The rest of Actuator: an administrator's session, and no other credential
                         // — the MVC confinement does not reach these endpoints. See ActuatorAccess.
                         .requestMatchers("/actuator/**").access(ActuatorAccess.administratorSession())
+                        // **`/scim` is the identity provider's, and only its token opens it.** The
+                        // controllers' administrator marker let an administrator's session
+                        // provision through it too, whether SCIM was enabled or not, with the
+                        // directory's powers — external ids among them — and none of the account
+                        // screens' rules or audit. The SCIM principal exists only while SCIM is
+                        // enabled with a token, so this also closes the path where it never was.
+                        .requestMatchers("/scim", "/scim/**").hasAuthority(VectispirePrincipal.SCIM_SCOPE)
                         // **A complete endpoint catalogue, and who may read it is now a
                         // decision.** `springdoc` is off by default, so nothing is served at
                         // all until somebody turns it on — but when they did, this line handed
@@ -345,5 +392,51 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             // whose credentials to go after.
             ProblemResponses.write(request, response, HttpStatus.FORBIDDEN, FORBIDDEN);
         };
+    }
+
+    /*
+     * **The chain's filters run in the chain alone.** Each is a bean, so Spring Boot also registered
+     * it with the servlet container, behind Spring Security's own filter: every request went through
+     * each twice, and `OncePerRequestFilter` turned the second pass into a no-op on the routes this
+     * chain serves. The second registration was only ever live where the single sign-on chain answers
+     * instead of this one and lets a request through — an unknown `/oauth2/…` path on its way to a
+     * 404 — and there it ran these filters after the response had been decided. One registration, the
+     * one the HTTP suite exercises, is the one that runs.
+     */
+
+    @Bean
+    static FilterRegistrationBean<ClientAddressFilter> clientAddressInChainOnly(ClientAddressFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<LoginRateLimitFilter> loginRateLimitInChainOnly(LoginRateLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<WebhookRateLimitFilter> webhookRateLimitInChainOnly(WebhookRateLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<RequestBodyLimitFilter> bodyLimitInChainOnly(RequestBodyLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<BearerRateLimitFilter> bearerRateLimitInChainOnly(BearerRateLimitFilter filter) {
+        return chainOnly(filter);
+    }
+
+    @Bean
+    static FilterRegistrationBean<BearerAuthenticationFilter> bearerInChainOnly(BearerAuthenticationFilter filter) {
+        return chainOnly(filter);
+    }
+
+    private static <F extends Filter> FilterRegistrationBean<F> chainOnly(F filter) {
+        FilterRegistrationBean<F> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
@@ -91,8 +92,16 @@ public class PluginService {
         this.clock = clock;
     }
 
-    public List<PluginView> list() {
-        return plugins.findAllByOrderByIdAsc().stream().map(this::view).toList();
+    /**
+     * The registered plugins by id, all of them or one page.
+     *
+     * @param limit rows per page, or null for every plugin ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<PluginView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<PluginEntity> every = plugins.findAllByOrderByIdAsc();
+        return window.map(page -> page.of(every)).orElse(every).stream().map(this::view).toList();
     }
 
     public PluginView get(String id) {
@@ -106,7 +115,7 @@ public class PluginService {
      * @throws PluginConflictException an id already registered (409) — ids are never reused
      */
     public PluginView register(PluginManifest requested, RequestActor actor) {
-        PluginManifest manifest = requireManifest(requested).validated();
+        PluginManifest manifest = requireManifest(requested).validatedForRegistration();
         Instant now = clock.instant();
 
         PluginEntity saved = transactions.execute(status -> {
@@ -137,7 +146,7 @@ public class PluginService {
      * every issue's identity and triage. The same manifest again changes nothing and records nothing.
      */
     public PluginView update(String id, PluginManifest requested, RequestActor actor) {
-        PluginManifest manifest = requireManifest(requested).validated();
+        PluginManifest manifest = requireManifest(requested).validatedForRegistration();
         if (!manifest.id().equals(id)) {
             throw new InvalidInputException("The manifest's id \"" + manifest.id() + "\" is not the plugin's \"" + id
                     + "\": an id is never changed, since it names every issue the plugin ever opened.");
@@ -276,16 +285,33 @@ public class PluginService {
 
     // ------------------------------------------------------------------ activations
 
-    /** The plugins switched on for a project; 404 for a project that does not exist. */
-    public List<PluginActivationView> activations(long projectId) {
+    /**
+     * The plugins switched on for a project, by plugin id, all of them or one page; 404 for a project that does
+     * not exist, before the window is read.
+     *
+     * @param limit rows per page, or null for every activation ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<PluginActivationView> activations(long projectId, Integer limit, Integer offset) {
         requireProject(projectId);
-        return labelled(activations.findByProjectIdOrderByPluginIdAsc(projectId));
+        return labelled(windowed(activations.findByProjectIdOrderByPluginIdAsc(projectId), limit, offset));
     }
 
-    /** The projects a plugin is switched on for; 404 for a plugin that does not exist. */
-    public List<PluginActivationView> activationsOf(String pluginId) {
+    /**
+     * The projects a plugin is switched on for, by project id, all of them or one page; 404 for a plugin that
+     * does not exist, before the window is read.
+     *
+     * @param limit rows per page, or null for every activation ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<PluginActivationView> activationsOf(String pluginId, Integer limit, Integer offset) {
         require(pluginId);
-        return labelled(activations.findByPluginIdOrderByProjectIdAsc(pluginId));
+        return labelled(windowed(activations.findByPluginIdOrderByProjectIdAsc(pluginId), limit, offset));
+    }
+
+    /** The rows, or the page of them asked for — cut before they are labelled, so a page looks up its own projects. */
+    private static List<PluginActivationEntity> windowed(List<PluginActivationEntity> rows, Integer limit, Integer offset) {
+        return ListWindow.requested(limit, offset).map(page -> page.of(rows)).orElse(rows);
     }
 
     /** The rows with their projects' names, read in one batched lookup rather than one per row. */

@@ -44,6 +44,15 @@ En **PDF** et en **CSV**.
 Le PDF est écrit pour une personne : un auditeur, l'équipe sécurité d'un client, un assureur.
 Le CSV est destiné à l'analyse que quelqu'un veut mener lui-même.
 
+## Les demandes en attente d'approbation
+
+Une décision de clôture prise par quelqu'un qui ne peut pas l'approuver est mise en attente
+d'approbation, et l'historique dit ce qu'elle demandait — *asking for will_not_fix* — parce que
+l'approbation accorde ce statut ou est refusée : sans lui, la trace montrerait une demande et une
+approbation sans dire si l'approbateur a accordé ce qui était demandé. Le JSON le porte dans
+`requestedStatus`, le CSV dans sa dernière colonne, `decision_requested_status`, vide sur toute
+autre ligne. Une demande mise en attente avant que 0.11.0 ne l'enregistre apparaît sans.
+
 ## Voir aussi
 
 - [Constats et triage](issues.md) — comment les décisions sont consignées en premier lieu.

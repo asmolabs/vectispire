@@ -18,8 +18,6 @@ public interface ApiContractRepository extends JpaRepository<ApiContractEntity, 
 
     List<ApiContractEntity> findByRepositoryIdOrderByCreatedAtDesc(Long repositoryId);
 
-    List<ApiContractEntity> findByScanIdOrderByCreatedAtDesc(Long scanId);
-
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
     @org.springframework.data.jpa.repository.Query("delete from ApiContractEntity c where (:repositoryId is not null and c.repositoryId = :repositoryId) or c.scanId = :scanId")
     @Transactional

@@ -37,16 +37,18 @@ jobs:
     # 0.11.0's acceptance; a release candidate and the release it becomes are built and checked on one
     # image. Moving to the next one is a change of its own, reviewed, with the suites green on it.
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Two campaigns in a row since MySQL 8.4 joined 9.x (decision 0043 §3): one took about 26
+    # minutes here, so the former 40 would have cut the second one off halfway.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25'
           cache: gradle
       - run: cd vectispire-java && ./gradlew integrationTestAll
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: engine-campaign-reports
@@ -100,11 +102,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
-      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.63.0. Playwright
+      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.64.1. Playwright
       # ships its browsers in this image and refuses to launch one it did not build; the tag
       # inherited from an earlier workflow had drifted thirteen minor versions, which nobody could
       # know because that workflow never ran.
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
     # **On MySQL, the production default, with the schema validated (decision 0034).** A job service
     # beside the Playwright container shares its network, so the control plane and the suite's
     # helpers (`e2e/support/fixture.ts`, through `mysql2`) both reach `mysql:3306` with the variables
@@ -153,7 +155,7 @@ jobs:
       VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW: '200'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25'
@@ -184,7 +186,7 @@ jobs:
       - name: the Playwright image matches the installed Playwright
         run: |
           want="v$(node -p "require('@playwright/test/package.json').version")-noble"
-          have="v1.63.0-noble"
+          have="v1.64.1-noble"
           if [ "$want" != "$have" ]; then
             echo "playwright image $have does not match the installed $want"
             echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"
@@ -193,7 +195,7 @@ jobs:
       - run: cd vectispire-angular && npx playwright test
       - if: always()
         run: kill "$(cat control-plane.pid)" 2>/dev/null || true
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: playwright-report
@@ -203,7 +205,9 @@ jobs:
             vectispire-angular/test-results/
           retention-days: 7
 
-  # **The upgrade an installation takes next, executed on both engines** (decision 0043 §3, §6).
+  # **The upgrade an installation takes next, executed on MySQL** (decision 0043 §3, §6). PostgreSQL
+  # left the matrix when §3 was amended to MySQL only (2026-10-29): `scripts/upgrade-drill.sh` still
+  # takes `ENGINE=postgresql`, and nothing runs it.
   # `databases` migrates an empty schema; no job had ever started a new control plane on a database
   # the previous release had been living in, which is the only way an operator ever runs a
   # migration. A NOT NULL column without a default, or a backfill that is wrong, passes on zero rows
@@ -224,10 +228,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
-      # One engine's failure says nothing about the other's; both verdicts are wanted.
+      # A matrix of one, kept as one: bringing an engine back is a line here, not a new job.
       fail-fast: false
       matrix:
-        engine: [mysql, postgresql]
+        engine: [mysql]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

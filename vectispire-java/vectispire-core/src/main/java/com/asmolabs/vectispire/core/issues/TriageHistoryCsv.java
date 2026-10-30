@@ -49,7 +49,10 @@ public final class TriageHistoryCsv {
             "decision_comment",
             // Last, so that a sheet reading the columns by position before it was added reads the same
             // cells: a reopening's ended resolution, empty on every decision.
-            "decision_previous_resolved_at");
+            "decision_previous_resolved_at",
+            // After it for the same reason: the status a request queued for approval asked for, empty on
+            // every other row.
+            "decision_requested_status");
 
     public static String render(TriageHistory.Repository repository, List<Scan> scans) {
         StringBuilder csv = new StringBuilder();
@@ -98,7 +101,8 @@ public final class TriageHistoryCsv {
                 quote(decision == null ? "" : decision.origin()),
                 quote(decision == null ? "" : stamp(decision.expiresAt())),
                 quote(decision == null ? "" : decision.comment()),
-                quote(decision == null ? "" : stamp(decision.previousResolvedAt())));
+                quote(decision == null ? "" : stamp(decision.previousResolvedAt())),
+                quote(decision == null ? "" : decision.requestedStatus()));
     }
 
     private static String component(ObservedIssue issue) {

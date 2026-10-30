@@ -77,6 +77,12 @@ class PluginStepsTest {
                 List.of("--out", "{output}", "{source}"), "results.sarif", Set.of(0, 1), false, null, 120);
     }
 
+    static PluginManifest versioned(PluginManifest manifest, String schemaVersion) {
+        return new PluginManifest(manifest.id(), manifest.name(), manifest.image(), manifest.languages(),
+                manifest.arguments(), manifest.output(), manifest.exitCodes(), manifest.network(),
+                manifest.networkJustification(), manifest.timeoutSeconds(), manifest.signature(), schemaVersion);
+    }
+
     private static PluginRef ref(PluginManifest manifest) {
         return new PluginRef(manifest.id(), manifest.digest());
     }
@@ -623,6 +629,28 @@ class PluginStepsTest {
 
             assertThat(absentOf(steps).reason()).contains("not the one the task names");
             verify(containers, never()).run(any());
+        }
+
+        @Test
+        @DisplayName("a manifest of a major this executor does not read is not run, and the step names the version")
+        void unknownMajor() {
+            plugin(0, writing(REPORT));
+            PluginManifest served = versioned(manifest(Set.of(Language.PYTHON)), "2.0");
+
+            List<PluginStep> steps = run(served);
+
+            assertThat(absentOf(steps).reason()).contains("schema_version 2.0").contains("major 1 only");
+            verify(containers, never()).run(any());
+        }
+
+        @Test
+        @DisplayName("a later minor of the major it reads is run: the fields it adds are optional, and in the digest when set")
+        void laterMinor() {
+            plugin(0, writing(REPORT));
+
+            assertThat(run(versioned(manifest(Set.of(Language.PYTHON)), "1.7")))
+                    .singleElement()
+                    .isInstanceOf(PluginStep.Produced.class);
         }
 
         @Test

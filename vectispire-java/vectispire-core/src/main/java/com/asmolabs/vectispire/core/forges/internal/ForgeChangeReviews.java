@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.forges.internal;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.checklists.ChangeReviewEvidence;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Look;
@@ -50,9 +51,9 @@ class ForgeChangeReviews implements ChangeReviews {
         List<Long> ids = repositoryIds.stream().distinct().toList();
         Map<Long, MeasurementFacts.ReviewFacts> recorded = new HashMap<>();
         Map<UUID, ForgeKind> suspended = suspendedConnections();
-        for (int from = 0; from < ids.size(); from += BATCH) {
+        for (List<Long> batch : Batches.of(ids, BATCH)) {
             for (ForgeReviewReadingEntity row : readings.findByWantedBranchAndRepositoryIdIn(
-                    branch.orElse(ForgeReviewReadingEntity.DEFAULT_BRANCH), ids.subList(from, Math.min(from + BATCH, ids.size())))) {
+                    branch.orElse(ForgeReviewReadingEntity.DEFAULT_BRANCH), batch)) {
                 ForgeKind off = row.getConnectionId() == null ? null : suspended.get(row.getConnectionId());
                 Optional<Look> newest = Optional.ofNullable(row.getReadAt()).map(at -> new Look(
                         MeasurementFacts.Source.FORGE_REVIEW, row.getId(), at, Optional.ofNullable(row.getEvidenceSha256())));

@@ -269,7 +269,7 @@ public final class ContainerRunner implements ContainerExecutor {
         return limits.timeout();
     }
 
-    /** Is the daemon reachable? Checked before claiming a scan rather than in the middle of one. */
+    /** Is the daemon reachable? A ping, nothing more. */
     @Override
     public boolean isAvailable() {
         try {

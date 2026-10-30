@@ -20,7 +20,17 @@ public record InTotoAttestation(
         Predicate predicate) {
 
     public static final String IN_TOTO_STATEMENT_V01 = "https://in-toto.io/Statement/v0.1";
-    public static final String VECTISPIRE_PREDICATE_V1 = "https://vectispire.dev/attestation/v1";
+    /**
+     * The predicate this statement carries: every count of {@link FindingsSummary} in findings.
+     *
+     * <p><b>v1 is not served beside it.</b> v1's {@code findings.total} counted issues while its
+     * severities counted findings (decision 0043 §6), and nothing in a v1 document says which unit
+     * a reader is holding. Serving both would have needed a selector on the route and in the
+     * evidence bundle, which 1.0 would then freeze with the defect it exists to retire. The type
+     * changing is what makes the switch safe: a verifier that pins its predicate type — the reason
+     * to have one — refuses a v2 statement rather than reading its {@code total} in the old unit.
+     */
+    public static final String VECTISPIRE_PREDICATE_V2 = "https://vectispire.dev/attestation/v2";
 
     public record Subject(
             String name,
@@ -64,14 +74,18 @@ public record InTotoAttestation(
             Instant decidedAt) {}
 
     /**
-     * What the scan recorded, in <b>two units the names do not tell apart</b>.
+     * What the scan recorded, <b>counted in findings</b>: one per place a tool reported, so a rule
+     * hitting a file twice counts two.
      *
-     * <p>{@code critical} to {@code secrets} count the scan's findings — one per place a tool
-     * reported — while {@code total} is the scan's issue count, one per fingerprint, created,
-     * reopened or still open. A rule hitting a file twice is two in the first and one in the second,
-     * so {@code total} can be lower than the sum of the severities. The names are the v1 predicate's
-     * and a verifier reads them: renaming a field, or making {@code total} count findings, is a new
-     * predicate type, not a correction.
+     * <p>{@code critical} to {@code low} are the findings of that severity, {@code kev} those on an
+     * actively exploited CVE, {@code secrets} those of type secret, and {@code total} every finding
+     * of the scan, informational and unrated included. The categories overlap — a secret has a
+     * severity too — so {@code total} is not their sum; it is never less than any of them.
+     *
+     * <p><b>In v1 {@code total} was the scan's issue count</b> — one per fingerprint, created,
+     * reopened or still open — under the same name, and could be lower than the sum of the
+     * severities. That is the defect v2 exists for; the field names are kept so that a verifier
+     * moving from v1 changes the predicate type it pins and the meaning of one number, nothing else.
      */
     public record FindingsSummary(
             long critical,
@@ -114,6 +128,6 @@ public record InTotoAttestation(
                 findings,
                 sbomDigestSha256);
 
-        return new InTotoAttestation(IN_TOTO_STATEMENT_V01, List.of(subject), VECTISPIRE_PREDICATE_V1, predicate);
+        return new InTotoAttestation(IN_TOTO_STATEMENT_V01, List.of(subject), VECTISPIRE_PREDICATE_V2, predicate);
     }
 }

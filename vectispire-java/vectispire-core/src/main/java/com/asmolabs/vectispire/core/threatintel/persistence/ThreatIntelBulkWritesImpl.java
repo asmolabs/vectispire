@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.threatintel.persistence;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.Instant;
@@ -28,8 +29,8 @@ public class ThreatIntelBulkWritesImpl implements ThreatIntelBulkWrites {
     @Override
     @Transactional
     public void insertListed(List<Listing> listings, Instant updatedAt) {
-        for (int from = 0; from < listings.size(); from += ROWS_PER_STATEMENT) {
-            List<Listing> rows = listings.subList(from, Math.min(from + ROWS_PER_STATEMENT, listings.size()));
+        for (List<Listing> batch : Batches.of(listings, ROWS_PER_STATEMENT)) {
+            List<Listing> rows = batch;
             StringBuilder sql = new StringBuilder(
                     "insert into t_threat_intel_feed (cve_id, is_kev, date_added, updated_at) values ");
             for (int row = 0; row < rows.size(); row++) {

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.scanning;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
@@ -126,14 +127,14 @@ public class ScanCatalog {
         PageRequest newest = PageRequest.of(0, limit);
         List<ScanEntity> candidates = new java.util.ArrayList<>();
         List<Long> repositories = List.copyOf(java.util.Set.copyOf(repoIds));
-        for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
+        for (List<Long> batch : Batches.of(repositories, LOOKUP_BATCH)) {
             candidates.addAll(scans.findHistoryWithin(null, null,
-                    repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())), none, newest));
+                    batch, none, newest));
         }
         List<Long> images = List.copyOf(java.util.Set.copyOf(containerIds));
-        for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
+        for (List<Long> batch : Batches.of(images, LOOKUP_BATCH)) {
             candidates.addAll(scans.findHistoryWithin(null, null,
-                    none, images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())), newest));
+                    none, batch, newest));
         }
         return candidates.stream()
                 .sorted(Comparator.comparing(ScanEntity::getCreatedAt, Comparator.reverseOrder())
@@ -231,12 +232,12 @@ public class ScanCatalog {
                 .map(target -> target instanceof ScanTarget.Container container ? container.id() : null)
                 .filter(java.util.Objects::nonNull).distinct().toList();
         Map<Long, ScanSbom> found = new LinkedHashMap<>();
-        for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
-            scans.sbomsOfRepositories(repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())))
+        for (List<Long> batch : Batches.of(repositories, LOOKUP_BATCH)) {
+            scans.sbomsOfRepositories(batch)
                     .forEach(row -> found.putIfAbsent(((Number) row[0]).longValue(), ScanSbom.of(row)));
         }
-        for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
-            scans.sbomsOfContainers(images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())))
+        for (List<Long> batch : Batches.of(images, LOOKUP_BATCH)) {
+            scans.sbomsOfContainers(batch)
                     .forEach(row -> found.putIfAbsent(((Number) row[0]).longValue(), ScanSbom.of(row)));
         }
         return List.copyOf(found.values());
@@ -323,9 +324,9 @@ public class ScanCatalog {
         }
         List<Long> distinct = List.copyOf(java.util.Set.copyOf(repositoryIds));
         Map<Long, ExaminingScanRow> newest = new java.util.HashMap<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
             scans.findNewestExamining(
-                            distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())),
+                            batch,
                             com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName(),
                             since,
                             ExaminedTypes.pattern(type))
@@ -556,8 +557,8 @@ public class ScanCatalog {
     private static List<List<Long>> batches(Collection<Long> repositoryIds) {
         List<Long> distinct = List.copyOf(new java.util.LinkedHashSet<>(repositoryIds));
         List<List<Long>> batches = new java.util.ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            batches.add(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())));
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            batches.add(batch);
         }
         return batches;
     }
@@ -642,9 +643,9 @@ public class ScanCatalog {
     public int refundAttempts(Collection<Long> ids) {
         List<Long> distinct = List.copyOf(java.util.Set.copyOf(ids));
         int changed = 0;
-        for (int from = 0; from < distinct.size(); from += 1_000) {
+        for (List<Long> batch : Batches.of(distinct, 1_000)) {
             changed += scans.resetAttempts(
-                    distinct.subList(from, Math.min(from + 1_000, distinct.size())),
+                    batch,
                     com.asmolabs.vectispire.common.domain.scans.ScanStatus.PENDING.wireName());
         }
         return changed;
@@ -697,8 +698,8 @@ public class ScanCatalog {
     public List<ScanFindingView> licenseFindings(Collection<Long> scanIds) {
         List<Long> distinct = List.copyOf(java.util.Set.copyOf(scanIds));
         List<ScanFindingView> found = new java.util.ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            findings.findLicenseFindings(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            findings.findLicenseFindings(batch)
                     .forEach(row -> found.add(ScanFindingView.of(row)));
         }
         return found;
@@ -706,6 +707,11 @@ public class ScanCatalog {
 
     public long countFindings(long scanId, String severity) {
         return findings.countByScanIdAndSeverity(scanId, severity);
+    }
+
+    /** Every finding the scan recorded, whatever its severity or type. */
+    public long countAllFindings(long scanId) {
+        return findings.countByScanId(scanId);
     }
 
     public long countKevFindings(long scanId) {

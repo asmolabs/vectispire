@@ -14,3 +14,4 @@
 # **The list only shrinks.** A line for another tag than the release the drill starts from fails the
 # run, and so does a line no difference used: once the next tag carries the migration, there is
 # nothing left to accept. It is empty at every release, and the release notes name the rewrite.
+v0.11.2 | declarations[upgrade-drill].controlId | V92 | decision 0046 §1: the CRA's control codes move from the 2022 proposal's article numbers to Regulation (EU) 2024/2847 as adopted, and stored declarations follow them

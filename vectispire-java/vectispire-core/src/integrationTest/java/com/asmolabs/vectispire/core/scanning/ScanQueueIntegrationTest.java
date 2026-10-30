@@ -823,6 +823,26 @@ class ScanQueueIntegrationTest {
         assertThat(scans.findById(id).orElseThrow().getStatus()).isEqualTo(pending);
     }
 
+    /**
+     * The lapse is decided by the statements alone ({@code findLapsed}, {@code releaseLapsed},
+     * {@code countHeld}), on every engine — the domain's copy of the rule, which nothing called,
+     * is gone, and its case is pinned here against the rule that runs.
+     */
+    @Test
+    @DisplayName("a held scan with no lease counts as lapsed, and one whose lease runs does not")
+    void anAbsentLeaseHasLapsed() {
+        // A lease that never expires is not a lease. Reading absence as "still held" strands the
+        // row forever, and nothing on screen says why the scan never runs.
+        enqueue(2, null);
+        List<ScanEntity> held = queue.claim(2, "worker-a", List.of());
+        ScanEntity absent = scans.findById(held.get(0).getId()).orElseThrow();
+        absent.setLeaseExpiresAt(null);
+        scans.save(absent);
+
+        assertThat(queue.reclaimLapsedLeases().requeued()).containsExactly(absent.getId());
+        assertThat(scans.findById(held.get(1).getId()).orElseThrow().getClaimedBy()).isEqualTo("worker-a");
+    }
+
     /** Claims one scan for {@code worker}, then makes its lease lapse as a silent worker's would. */
     private long claimedThenLapsed(String worker) {
         enqueue(1, null);

@@ -16,7 +16,7 @@ the default is for. Beyond that, no: daemon access is root on the host, and that
 `zricethezav/gitleaks`, `bridgecrew/checkov`, `semgrep/semgrep` — are pulled on demand the
 first time each is used. Later scans reuse the cache.
 
-**Can I use SQLite?** No. MySQL 8 — the default, the engine the composition ships — and PostgreSQL are the supported engines. SQLite was the
+**Can I use SQLite?** No. MySQL is the supported engine, at 8.4 LTS — what the composition ships — or 9.x; PostgreSQL still starts but is no longer tested, and will not be part of 1.0. SQLite was the
 test suites' fixture until those moved to MySQL; it is no longer in the build at all, and a
 `jdbc:sqlite:` URL stops the start: no driver for it is shipped.
 

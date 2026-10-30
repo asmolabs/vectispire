@@ -1,5 +1,6 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from '../core/i18n/i18n.service';
+import { LanguageMemo } from '../core/i18n/language-memo';
 import { keyFor } from '../core/i18n/literal-keys';
 import type { ComplianceFramework, ComplianceStatus, TargetCompliance } from '../core/api.models';
 
@@ -81,26 +82,15 @@ export function frameworkDescription(i18n: Pick<I18nService, 't'>, framework: st
 }
 
 @Pipe({
-    name: 'complianceStatus',
-    // Impure like `translate`: the text changes when the language does.
-    pure: false
-})
-export class ComplianceStatusPipe implements PipeTransform {
-    private readonly i18n = inject(I18nService);
-
-    transform(status: string | null | undefined): string {
-        return complianceStatusLabel(this.i18n, status);
-    }
-}
-
-@Pipe({
     name: 'frameworkLabel',
+    // Impure like `translate`: the text changes when the language does.
     pure: false
 })
 export class FrameworkLabelPipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
+    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(framework: string): string {
-        return frameworkLabel(this.i18n, framework);
+        return this.memo.get([framework], () => frameworkLabel(this.i18n, framework));
     }
 }

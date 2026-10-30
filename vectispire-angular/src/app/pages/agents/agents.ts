@@ -1,389 +1,53 @@
-import { DatePipe, LowerCasePipe } from '@angular/common';
-import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { ButtonModule } from '@openng/optimus-ui/button';
-import { CardModule } from '@openng/optimus-ui/card';
-import { DialogModule } from '@openng/optimus-ui/dialog';
-import { InputNumberModule } from '@openng/optimus-ui/inputnumber';
-import { InputTextModule } from '@openng/optimus-ui/inputtext';
-import { MessageModule } from '@openng/optimus-ui/message';
-import { SelectModule } from '@openng/optimus-ui/select';
-import { TableModule } from '@openng/optimus-ui/table';
-import { TagModule } from '@openng/optimus-ui/tag';
-import { messageOf } from '../../core/api-error';
-import { AgentsApi } from '../../core/api/agents.api';
-import { SessionStore } from '../../core/session.store';
-import type {
-    AgentActivitySummary,
-    AgentSummary,
-    RunningScanItem,
-    UnroutableLabel,
-    UnservedCredentialedScans
-} from '../../core/api.models';
-
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { pollWhile } from '@/app/core/poll-while';
+import { AgentKpis } from './agent-kpis';
+import { AgentNotices } from './agent-notices';
+import { AgentTable } from './agent-table';
+import { AgentsPage } from './agents-page';
+import { ConcurrencyDialog } from './concurrency-dialog';
+import { DeclareAgentDialog } from './declare-agent-dialog';
+import { DeleteAgentDialog } from './delete-agent-dialog';
+import { IssuedSecretDialog } from './issued-secret-dialog';
+import { PendingScans } from './pending-scans';
+import { ResetSealingDialog } from './reset-sealing-dialog';
+import { RunningScans } from './running-scans';
+import { SigningKeyDialog } from './signing-key-dialog';
 
+/**
+ * The scan executors: what is running and waiting, the figures over a day, and the registered agents
+ * with the acts on them. Administrators only; the server refuses anyone else.
+ *
+ * The screen is the frame: the fleet and what each dialog is open on are `AgentsPage`, provided here
+ * so each visit starts from nothing; the notices, the tiles, the two queues, the agent table and the
+ * six dialogs are components of their own.
+ */
 @Component({
     selector: 'app-agents',
     imports: [
-        DatePipe,
-        LowerCasePipe,
-        FormsModule,
         ButtonModule,
-        CardModule,
-        DialogModule,
-        InputNumberModule,
-        InputTextModule,
-        MessageModule,
-        SelectModule,
-        TableModule,
-        TagModule,
-        TranslatePipe
+        TranslatePipe,
+        AgentKpis,
+        AgentNotices,
+        AgentTable,
+        ConcurrencyDialog,
+        DeclareAgentDialog,
+        DeleteAgentDialog,
+        IssuedSecretDialog,
+        PendingScans,
+        ResetSealingDialog,
+        RunningScans,
+        SigningKeyDialog
     ],
+    providers: [AgentsPage],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './agents.html'
 })
 export class Agents implements OnInit {
-    private readonly i18n = inject(I18nService);
-    private readonly agentsApi = inject(AgentsApi);
-    private readonly session = inject(SessionStore);
-    /** Cosmetic: the route and every admin endpoint already refuse anyone else. */
-    readonly isAdmin = this.session.isAdmin;
-    readonly credentials = computed(() => {
-        this.i18n.translations();
-        return [
-            {
-                label: this.i18n.t('agents.credentials_modes.local'),
-                value: 'local',
-                hint: this.i18n.t('agents.credentials_modes.local_hint')
-            },
-            {
-                label: this.i18n.t('agents.credentials_modes.delegated'),
-                value: 'delegated',
-                hint: this.i18n.t('agents.credentials_modes.delegated_hint')
-            }
-        ];
-    });
-
-    readonly agents = signal<AgentSummary[]>([]);
-    readonly activity = signal<AgentActivitySummary | null>(null);
-    readonly unroutable = signal<UnroutableLabel[]>([]);
-    readonly credentialedBacklog = signal<UnservedCredentialedScans | null>(null);
-    /** The labels those scans require, `''` — no label — said in words. */
-    readonly credentialedLabels = computed(() =>
-        (this.credentialedBacklog()?.labels ?? [])
-            .map((label) => (label === '' ? this.i18n.t('agents.credentialed_backlog.no_label') : label))
-            .join(', ')
-    );
-    readonly loading = signal(true);
-    readonly saving = signal(false);
-    readonly busy = signal<string | null>(null);
-    readonly error = signal<string | null>(null);
-    readonly formError = signal<string | null>(null);
-    readonly formVisible = signal(false);
-    readonly secretVisible = signal(false);
-    readonly issuedSecret = signal<string | null>(null);
-
-    /**
-     * The private half of a freshly pinned signing key, shown once.
-     *
-     * Same dialog shape as the API key for the same reason: the control plane does not keep it,
-     * so this is the operator's only chance to put it in the agent's configuration.
-     */
-    readonly signingKeyVisible = signal(false);
-    readonly issuedSigningKey = signal<string | null>(null);
-    readonly deleteVisible = signal(false);
-    readonly pendingDelete = signal<AgentSummary | null>(null);
-    readonly resetSealingVisible = signal(false);
-    readonly pendingResetSealing = signal<AgentSummary | null>(null);
-    readonly notice = signal<string | null>(null);
-    /**
-     * Why the running and waiting scans are not shown. Swallowed, a failed read left the figures out
-     * and read as an idle fleet; set on each failure and cleared by the next answer, so a poll that
-     * recovers says so too.
-     */
-    readonly activityError = signal<string | null>(null);
-
-    form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
-
-    /**
-     * The bound the control plane enforces, repeated here so the input cannot offer what the
-     * server will refuse. The server stays the authority — a value typed past the spinner still
-     * gets its 400 — this only saves the round trip.
-     */
-    readonly concurrencyBounds = { min: 1, max: 16 } as const;
-
-    readonly concurrencyVisible = signal(false);
-    readonly concurrencyAgent = signal<AgentSummary | null>(null);
-    readonly concurrencyError = signal<string | null>(null);
-    concurrencyValue = 1;
-
-    /**
-     * **Only counts while there is something to wait for.**
-     *
-     * This screen queried the server every five seconds unconditionally — 720 requests an hour per
-     * open tab, including on an estate where nothing is running. The first load says whether there
-     * is activity; the timer starts only if there is, and stops as soon as the queue is empty.
-     */
-    private readonly hasActivity = computed(() => {
-        const activity = this.activity();
-        return (activity?.runningScans?.length ?? 0) > 0 || (activity?.pendingScans?.length ?? 0) > 0;
-    });
-
-    constructor() {
-        pollWhile(this.hasActivity, () => this.refreshActivity());
-    }
+    protected readonly page = inject(AgentsPage);
 
     ngOnInit(): void {
-        this.reload();
-        this.refreshActivity();
-    }
-
-    hintFor(mode: string): string {
-        return this.credentials().find((entry) => entry.value === mode)?.hint ?? '';
-    }
-
-    formatDuration(seconds: number): string {
-        if (!seconds || seconds <= 0) return '0s';
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        if (m > 0) {
-            return `${m}m ${s}s`;
-        }
-        return `${s}s`;
-    }
-
-    getRunningScanForAgent(agentId: string): RunningScanItem | undefined {
-        return this.activity()?.runningScans.find((s) => s.agentId === agentId);
-    }
-
-    refreshActivity(): void {
-        this.agentsApi.getAgentActivity().subscribe(this.activityObserver);
-    }
-
-    private readonly activityObserver = {
-        next: (act: AgentActivitySummary) => {
-            this.activity.set(act);
-            this.activityError.set(null);
-        },
-        error: (response: unknown) => this.activityError.set(messageOf(response, this.i18n.t('agents.activity_failed')))
-    };
-
-    reload(preserveError = false): void {
-        this.loading.set(true);
-
-        this.agentsApi.unroutableLabels().subscribe({
-            next: (blocked) => this.unroutable.set(blocked),
-            error: () => this.unroutable.set([])
-        });
-
-        this.agentsApi.credentialedBacklog().subscribe({
-            next: (backlog) => this.credentialedBacklog.set(backlog),
-            error: () => this.credentialedBacklog.set(null)
-        });
-
-        this.agentsApi.getAgentActivity().subscribe(this.activityObserver);
-
-        this.agentsApi.agents().subscribe({
-            next: (agents) => {
-                this.agents.set(agents);
-                if (!preserveError) this.error.set(null);
-                this.loading.set(false);
-            },
-            error: (response: unknown) => {
-                this.error.set(messageOf(response, this.i18n.t('agents.error_load')));
-                this.loading.set(false);
-            }
-        });
-    }
-
-    toggle(agent: AgentSummary): void {
-        this.busy.set(agent.id);
-        this.error.set(null);
-        this.agentsApi.setAgentEnabled(agent.id, !agent.enabled).subscribe({
-            next: () => {
-                this.busy.set(null);
-                this.reload();
-            },
-            error: (response) => {
-                this.busy.set(null);
-                this.error.set(messageOf(response, this.i18n.t('agents.error_operation')));
-                this.reload(true);
-            }
-        });
-    }
-
-    openForm(): void {
-        this.form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
-        this.formError.set(null);
-        this.formVisible.set(true);
-    }
-
-    save(): void {
-        if (!this.form.name.trim()) {
-            this.formError.set(this.i18n.t('agents.error_name_required'));
-            return;
-        }
-        if (!this.withinBounds(this.form.maxConcurrent)) {
-            this.formError.set(this.i18n.t('agents.error_concurrency_range'));
-            return;
-        }
-        this.saving.set(true);
-        this.formError.set(null);
-        this.agentsApi
-            .createAgent({
-                name: this.form.name.trim(),
-                description: this.form.description.trim() || undefined,
-                credentials_mode: this.form.credentialsMode,
-                labels: this.form.labels.trim() || undefined,
-                max_concurrent: this.form.maxConcurrent
-            })
-            .subscribe({
-                next: ({ secret }) => {
-                    this.saving.set(false);
-                    this.formVisible.set(false);
-                    this.issuedSecret.set(secret);
-                    this.secretVisible.set(true);
-                    this.reload();
-                },
-                error: (response) => {
-                    this.saving.set(false);
-                    this.formError.set(messageOf(response, this.i18n.t('agents.error_declare')));
-                }
-            });
-    }
-
-    openConcurrency(agent: AgentSummary): void {
-        this.concurrencyAgent.set(agent);
-        this.concurrencyValue = agent.maxConcurrent;
-        this.concurrencyError.set(null);
-        this.concurrencyVisible.set(true);
-    }
-
-    saveConcurrency(): void {
-        const agent = this.concurrencyAgent();
-        if (!agent) return;
-        if (!this.withinBounds(this.concurrencyValue)) {
-            this.concurrencyError.set(this.i18n.t('agents.error_concurrency_range'));
-            return;
-        }
-        this.saving.set(true);
-        this.agentsApi.setAgentMaxConcurrent(agent.id, this.concurrencyValue).subscribe({
-            next: () => {
-                this.saving.set(false);
-                this.concurrencyVisible.set(false);
-                this.reload();
-            },
-            error: (response) => {
-                this.saving.set(false);
-                this.concurrencyError.set(messageOf(response, this.i18n.t('agents.error_concurrency')));
-            }
-        });
-    }
-
-    private withinBounds(value: number | null | undefined): boolean {
-        return (
-            typeof value === 'number' &&
-            Number.isInteger(value) &&
-            value >= this.concurrencyBounds.min &&
-            value <= this.concurrencyBounds.max
-        );
-    }
-
-    dismissSecret(): void {
-        this.issuedSecret.set(null);
-        this.secretVisible.set(false);
-    }
-
-    /**
-     * Pins a generated key, or removes the one that is there.
-     *
-     * Removing is a confirmation-free single click on purpose here — it is audited, and the row
-     * immediately says the agent is no longer attested, which is the feedback that matters.
-     */
-    toggleSigning(agent: AgentSummary): void {
-        this.busy.set(agent.id);
-        this.agentsApi.pinAgentSigningKey(agent.id, agent.signsResults ? '' : 'generate').subscribe({
-            next: (pinned) => {
-                this.busy.set(null);
-                if (pinned.privateKey) {
-                    this.issuedSigningKey.set(pinned.privateKey);
-                    this.signingKeyVisible.set(true);
-                }
-                this.reload();
-            },
-            error: (response) => {
-                this.busy.set(null);
-                this.error.set(messageOf(response, this.i18n.t('agents.error_signing_key')));
-            }
-        });
-    }
-
-    dismissSigningKey(): void {
-        this.issuedSigningKey.set(null);
-        this.signingKeyVisible.set(false);
-    }
-
-    askDelete(agent: AgentSummary): void {
-        this.pendingDelete.set(agent);
-        this.deleteVisible.set(true);
-    }
-
-    confirmDelete(): void {
-        const agent = this.pendingDelete();
-        if (!agent) return;
-        this.agentsApi.deleteAgent(agent.id).subscribe({
-            next: () => {
-                this.deleteVisible.set(false);
-                this.pendingDelete.set(null);
-                this.reload();
-            },
-            error: (response) => {
-                this.deleteVisible.set(false);
-                this.pendingDelete.set(null);
-                this.error.set(messageOf(response, this.i18n.t('agents.error_delete')));
-            }
-        });
-    }
-
-    /**
-     * Asks before forgetting an agent's sealing key, because the effect is not visible where it is
-     * clicked: the agent's delegated scans stop — withheld, not failed — until it proves a new key.
-     */
-    askResetSealing(agent: AgentSummary): void {
-        this.pendingResetSealing.set(agent);
-        this.resetSealingVisible.set(true);
-    }
-
-    confirmResetSealing(): void {
-        const agent = this.pendingResetSealing();
-        if (!agent) return;
-        this.busy.set(agent.id);
-        this.error.set(null);
-        this.notice.set(null);
-        this.agentsApi.resetAgentSealingKey(agent.id).subscribe({
-            next: () => {
-                this.busy.set(null);
-                this.resetSealingVisible.set(false);
-                this.pendingResetSealing.set(null);
-                this.notice.set(this.i18n.t('agents.reset_sealing_notice', { name: agent.name }));
-                this.reload();
-            },
-            error: (response) => {
-                this.busy.set(null);
-                this.resetSealingVisible.set(false);
-                this.pendingResetSealing.set(null);
-                // A 404 is an agent deleted meanwhile, in another tab: said as such, and the list
-                // reloaded so the row it was clicked on goes away.
-                this.error.set(
-                    (response as { status?: number } | null)?.status === 404
-                        ? this.i18n.t('agents.error_not_found')
-                        : messageOf(response, this.i18n.t('agents.error_reset_sealing'))
-                );
-                this.reload(true);
-            }
-        });
+        this.page.reload();
+        this.page.refreshActivity();
     }
 }

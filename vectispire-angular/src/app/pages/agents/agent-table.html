@@ -1,0 +1,179 @@
+<p-card>
+    <ng-template #title>
+        <div class="flex items-center gap-2">
+            <i class="pi pi-server text-primary text-lg"></i>
+            <span>{{ 'agents.agents_title' | translate }}</span>
+        </div>
+    </ng-template>
+
+    <p-table [value]="rows()" [loading]="page.loading()" dataKey="row.agent.id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>{{ 'agents.agent' | translate }}</th>
+                <th>{{ 'agents.state' | translate }}</th>
+                <th>{{ 'agents.machine' | translate }}</th>
+                <th>{{ 'agents.labels' | translate }}</th>
+                <th>{{ 'agents.credentials' | translate }}</th>
+                <th class="text-right">{{ 'agents.scans' | translate }}</th>
+                <th class="w-1"></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-row>
+            <tr>
+                <td>
+                    <div class="font-medium">{{ row.agent.name }}</div>
+                    @if (row.agent.description) {
+                        <div class="text-sm text-muted-color">{{ row.agent.description }}</div>
+                    }
+                </td>
+                <td>
+                    @if (!row.agent.enabled) {
+                        <p-tag [value]="'agents.disabled_badge' | translate" severity="secondary" />
+                    } @else if (row.agent.online) {
+                        @if (row.agent.runningScans > 0) {
+                            <p-tag
+                                [value]="'agents.status_busy' | translate"
+                                severity="info"
+                                icon="pi pi-spin pi-spinner"
+                            />
+                            @if (row.run; as run) {
+                                <div
+                                    class="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium truncate max-w-xs"
+                                >
+                                    {{ run.targetName }} ({{ run.durationSeconds | duration }})
+                                </div>
+                            }
+                        } @else {
+                            <p-tag [value]="'agents.status_idle' | translate" severity="success" icon="pi pi-check" />
+                        }
+                    } @else {
+                        <p-tag [value]="'agents.silent_badge' | translate" severity="warn" />
+                    }
+                    @if (row.agent.lastSeenAt) {
+                        <div class="text-xs text-muted-color mt-1">
+                            {{
+                                'agents.seen_at' | translate: { at: (row.agent.lastSeenAt | date: 'dd/MM HH:mm') ?? '' }
+                            }}
+                        </div>
+                    } @else {
+                        <div class="text-xs text-muted-color mt-1">{{ 'agents.never_announced' | translate }}</div>
+                    }
+                </td>
+                <td>
+                    @if (row.agent.hostname) {
+                        <div class="text-sm">{{ row.agent.hostname }}</div>
+                        <div class="text-xs text-muted-color">
+                            {{ row.agent.platform }}
+                            @if (row.agent.version) {
+                                · {{ row.agent.version }}
+                            }
+                        </div>
+                    } @else {
+                        <span class="text-muted-color">—</span>
+                    }
+                </td>
+                <td>
+                    @if (row.agent.labels) {
+                        @for (label of row.labels; track label) {
+                            <p-tag [value]="label" severity="info" styleClass="mr-1" />
+                        }
+                    } @else {
+                        <span class="text-muted-color text-sm">{{ 'agents.unlabelled_targets' | translate }}</span>
+                    }
+                </td>
+                <td>
+                    <span class="text-sm">{{
+                        (row.agent.credentialsMode === 'delegated'
+                            ? 'agents.credentials_modes.delegated'
+                            : 'agents.credentials_modes.local'
+                        ) | translate
+                    }}</span>
+                    @if (row.agent.credentialsMode === 'delegated') {
+                        <div class="text-xs" [class.text-muted-color]="row.agent.sealsCredentials">
+                            {{
+                                (row.agent.sealsCredentials ? 'agents.sealing.sealed' : 'agents.sealing.withheld')
+                                    | translate
+                            }}
+                        </div>
+                    }
+                    <!-- Said on the row and not behind a dialog: an operator who believes their
+                         results are attested has no other way to find out they are not. -->
+                    <div class="text-xs" [class.text-muted-color]="row.agent.signsResults">
+                        {{
+                            (row.agent.signsResults ? 'agents.signing.attested' : 'agents.signing.unsigned') | translate
+                        }}
+                    </div>
+                </td>
+                <td
+                    class="text-right font-medium whitespace-nowrap"
+                    [title]="
+                        'agents.running_of_max'
+                            | translate: { running: row.agent.runningScans, max: row.agent.maxConcurrent }
+                    "
+                >
+                    {{ row.agent.runningScans }} / {{ row.agent.maxConcurrent }}
+                </td>
+                <td class="text-right whitespace-nowrap">
+                    <p-button
+                        icon="pi pi-sliders-h"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'agents.aria_concurrency' | translate: { name: row.agent.name }"
+                        [disabled]="page.busy() === row.agent.id"
+                        (onClick)="page.openConcurrency(row.agent)"
+                    />
+                    <p-button
+                        [icon]="row.agent.signsResults ? 'pi pi-lock' : 'pi pi-lock-open'"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="
+                            row.agent.signsResults
+                                ? ('agents.aria_stop_requiring_signatures' | translate: { name: row.agent.name })
+                                : ('agents.aria_require_signatures' | translate: { name: row.agent.name })
+                        "
+                        [disabled]="page.busy() === row.agent.id"
+                        (onClick)="page.toggleSigning(row.agent)"
+                    />
+                    <!-- Only when there is a key to forget; the server refuses a non-administrator anyway. -->
+                    @if (page.isAdmin() && row.agent.sealsCredentials) {
+                        <p-button
+                            icon="pi pi-eraser"
+                            severity="warn"
+                            [text]="true"
+                            [rounded]="true"
+                            data-testid="reset-sealing-key"
+                            [ariaLabel]="'agents.aria_reset_sealing' | translate: { name: row.agent.name }"
+                            [disabled]="page.busy() === row.agent.id"
+                            (onClick)="page.askResetSealing(row.agent)"
+                        />
+                    }
+                    <p-button
+                        [icon]="row.agent.enabled ? 'pi pi-ban' : 'pi pi-check'"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="
+                            row.agent.enabled
+                                ? ('agents.aria_disable' | translate: { name: row.agent.name })
+                                : ('agents.aria_reenable' | translate: { name: row.agent.name })
+                        "
+                        [disabled]="page.busy() === row.agent.id"
+                        (onClick)="page.toggle(row.agent)"
+                    />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'agents.aria_delete' | translate: { name: row.agent.name }"
+                        (onClick)="page.askDelete(row.agent)"
+                    />
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="7" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>

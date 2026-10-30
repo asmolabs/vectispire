@@ -389,7 +389,7 @@ public final class RuleEvaluation {
             }
             coveredSum += covered;
             totalSum += total;
-            String ratio = inScope + covered + " of " + total + " " + rule.metric().wireName() + "s covered";
+            String ratio = inScope + covered + " of " + total + " " + plural(rule.metric()) + " covered";
             if (rule.aggregation() == ChecklistRule.Aggregation.PER_REPOSITORY) {
                 collector.examined(repository, Optional.empty(), report.look(),
                         Ratios.atLeast(covered, total, rule.minimumRatio())
@@ -402,8 +402,8 @@ public final class RuleEvaluation {
         List<String> projectUnmet = new ArrayList<>();
         if (rule.aggregation() == ChecklistRule.Aggregation.PROJECT_WEIGHTED && collector.complete()
                 && !Ratios.atLeast(coveredSum, totalSum, rule.minimumRatio())) {
-            projectUnmet.add("the project's " + coveredSum + " of " + totalSum + " " + rule.metric().wireName()
-                    + "s covered is under " + percent(rule.minimumRatio()));
+            projectUnmet.add("the project's " + coveredSum + " of " + totalSum + " " + plural(rule.metric())
+                    + " covered is under " + percent(rule.minimumRatio()));
         }
         // A scoped pass states its figures too: the document a reviewer signs shows the filter beside the
         // figure it produced, not a "pass" over a part of the report that names no part.
@@ -799,6 +799,14 @@ public final class RuleEvaluation {
         }
         collector.examined(repository, Optional.empty(), look, unmet, where + ": " + (unmet.isEmpty() ? counted + "; " : "")
                 + settingsNote);
+    }
+
+    /** "lines" and "branches": the wire name with an s wrote "branchs" into signed evidence. */
+    private static String plural(ChecklistRule.Metric metric) {
+        return switch (metric) {
+            case LINE -> "lines";
+            case BRANCH -> "branches";
+        };
     }
 
     private static String peers(int count) {

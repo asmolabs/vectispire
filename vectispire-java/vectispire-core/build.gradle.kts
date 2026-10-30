@@ -253,32 +253,50 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
     // The suites share one server, so they cannot run against it concurrently.
     maxParallelForks = 1
     systemProperty("vectispire.db.dialect", providers.gradleProperty("dialect").getOrElse("mysql"))
+    systemProperty("vectispire.db.line", providers.gradleProperty("line").getOrElse("newest"))
     shouldRunAfter(tasks.test)
 }
 
 /**
- * The two supported engines.
+ * The engines the campaign has a task for.
  *
  * A portability defect only shows up by running them — PostgreSQL and MySQL have each produced
  * one that was invisible on the other. The SQLite fixture had a leg here while the HTTP suite ran
  * on it; that suite runs on MySQL now, and the leg went with the engine (decision 0034).
+ *
+ * **Only MySQL is supported** (decision 0043 §3, amended 2026-10-29), so only MySQL is in
+ * `integrationTestAll`, which is what CI and the nightly run. `integrationTestPostgres` stays for
+ * whoever brings PostgreSQL back: its code is kept, and a task that still runs it is what makes that
+ * a matter of checks rather than of writing. Nothing runs it on its own.
+ *
+ * **A supported engine runs on its newest and its oldest version** — MySQL 9.x and 8.4 LTS, the two
+ * the installation guide names. `integrationTestMysql` is the newest, `integrationTestMysqlOldest` the
+ * oldest; `Engine.java` names the versions, these tasks only say which end. The composition ships 8.4
+ * and the campaign ran 9.4 alone, which left the server most installations hold checked by nothing.
  */
 val engines = listOf("postgres", "mysql")
+val supportedEngines = listOf("mysql")
+val lines = mapOf("" to "newest", "Oldest" to "oldest")
 
 engines.forEach { engine ->
-    tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}") {
-        description = "Runs the campaign against $engine."
-        group = "verification"
-        testClassesDirs = integrationTest.output.classesDirs
-        classpath = configurations["integrationTestRuntimeClasspath"] +
-            integrationTest.output +
-            sourceSets.main.get().output
-        maxParallelForks = 1
-        systemProperty("vectispire.db.dialect", engine)
-        // Each engine gets its own results directory: one shared directory means the last run
-        // overwrites the others, and "which engine failed" stops being answerable.
-        reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/integrationTest-$engine")
-        reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/integrationTest-$engine")
+    // PostgreSQL names one version for both ends, so its oldest would run the same server twice.
+    (if (engine in supportedEngines) lines else mapOf("" to "newest")).forEach { (suffix, line) ->
+        val name = engine + suffix.lowercase().let { if (it.isEmpty()) "" else "-$it" }
+        tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}$suffix") {
+            description = "Runs the campaign against the $line version of $engine."
+            group = "verification"
+            testClassesDirs = integrationTest.output.classesDirs
+            classpath = configurations["integrationTestRuntimeClasspath"] +
+                integrationTest.output +
+                sourceSets.main.get().output
+            maxParallelForks = 1
+            systemProperty("vectispire.db.dialect", engine)
+            systemProperty("vectispire.db.line", line)
+            // Each engine and version gets its own results directory: one shared directory means the
+            // last run overwrites the others, and "which one failed" stops being answerable.
+            reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/integrationTest-$name")
+            reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/integrationTest-$name")
+        }
     }
 }
 
@@ -332,9 +350,11 @@ tasks.named<Test>("test") {
 }
 
 tasks.register("integrationTestAll") {
-    description = "Runs the campaign on both supported engines."
+    description = "Runs the campaign on every supported engine at its newest and oldest version (MySQL 9.x and 8.4; decision 0043 §3)."
     group = "verification"
-    dependsOn(engines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
+    dependsOn(supportedEngines.flatMap { engine ->
+        lines.keys.map { suffix -> "integrationTest${engine.replaceFirstChar { c -> c.uppercase() }}$suffix" }
+    })
 }
 
 /**
@@ -410,7 +430,7 @@ jib {
     from {
         // eclipse-temurin:25-jre-alpine, resolved with
         // `docker buildx imagetools inspect eclipse-temurin:25-jre-alpine`.
-        image = "eclipse-temurin@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a34312f858bd2c67dd01e732e6b682"
+        image = "eclipse-temurin@sha256:b7528962e65d43064d8a8b67ba175367896bc948363ea2d3fcd7f10d34e1f048"
         platforms {
             platform {
                 architecture = "amd64"
@@ -495,7 +515,8 @@ tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configure
  * while a service is where the branches live. Four separate floors would encode today's ratios as
  * a target and fail the day somebody moves a method between layers for good reasons.
  *
- * Set just under the measured 71%: a floor catches a regression — a class added with no test, a
+ * Set about three points under the measured figure — 92.0% on 2026-10-29, once the HTTP suites ran in
+ * `test` on MySQL; it was first set at 68 against 71: a floor catches a regression — a class added with no test, a
  * suite deleted in a hurry — and is not an aspiration. The domain keeps its own, higher bar in
  * `vectispire-common`, because that is the layer argued to be exhaustively testable.
  *
@@ -568,7 +589,7 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
             element = "BUNDLE"
             limit {
                 counter = "INSTRUCTION"
-                minimum = "0.68".toBigDecimal()
+                minimum = "0.89".toBigDecimal()
             }
         }
     }

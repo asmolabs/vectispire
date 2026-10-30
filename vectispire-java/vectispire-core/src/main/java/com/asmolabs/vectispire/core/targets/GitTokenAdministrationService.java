@@ -4,11 +4,14 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenEntity;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
@@ -18,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +33,7 @@ import org.springframework.stereotype.Service;
  * reasons.
  */
 @Service
-public class GitTokenAdministrationService {
+public class GitTokenAdministrationService implements SealedStore {
 
     private static final int NAME_LENGTH = 255;
 
@@ -69,11 +73,24 @@ public class GitTokenAdministrationService {
             long usedByRepositories) {}
 
     public List<TokenView> list() {
+        return list(null, null);
+    }
+
+    /**
+     * The tokens, newest first and by id among those created in the same instant, so that the pages are the list
+     * cut — all of them or one page, the page's rows alone decrypted to say their state.
+     *
+     * @param limit rows per page, or null for every token ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<TokenView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         Map<UUID, Long> usage = new HashMap<>();
         for (Object[] row : repositories.countByHttpsToken()) {
             usage.put((UUID) row[0], ((Number) row[1]).longValue());
         }
-        return tokens.findAllByOrderByCreatedAtDesc().stream()
+        List<GitTokenEntity> every = tokens.findAllByOrderByCreatedAtDescIdDesc();
+        return window.map(page -> page.of(every)).orElse(every).stream()
                 .map(token -> new TokenView(
                         token.getId(),
                         token.getName(),
@@ -161,5 +178,14 @@ public class GitTokenAdministrationService {
 
     private static String trim(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("HTTPS clone tokens",
+                "add the token again, move the repositories to it, and delete the old row");
+        tokens.findAllByOrderByCreatedAtDescIdDesc().forEach(token -> counter.add(
+                encryption.sealOf(token.getToken(), SecretCipher.gitTokenContext(token.getId().toString()))));
+        return List.of(counter.done());
     }
 }

@@ -9,6 +9,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -41,6 +43,9 @@ import java.util.stream.Collectors;
  * @param timeoutSeconds {@code null} for the scanner limits' timeout, otherwise shorter than it
  * @param signature who the image must be signed by, or {@code null} for an image trusted by its
  *     digest alone — which an executor may refuse ({@code VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED})
+ * @param schemaVersion the manifest format, {@code MAJOR.MINOR} as the report plugins' export states
+ *     its own: a minor adds an optional field, a major may change what a field means. Absent is
+ *     {@value #UNVERSIONED}
  */
 public record PluginManifest(
         String id,
@@ -53,7 +58,30 @@ public record PluginManifest(
         boolean network,
         @JsonProperty("network_justification") String networkJustification,
         @JsonProperty("timeout_seconds") Integer timeoutSeconds,
-        PluginSignature signature) {
+        PluginSignature signature,
+        @JsonProperty("schema_version") String schemaVersion) {
+
+    /**
+     * The newest format this build reads, and the one a governor may register. A newer minor is refused
+     * at registration — its fields would be dropped unread here and stored as if never written — but run
+     * by an executor, which needs no field it does not know: a minor's fields are optional, and one that
+     * is set enters the {@link #digest()}, so an executor that does not know it refuses the manifest
+     * there.
+     */
+    public static final String SCHEMA_VERSION = "1.0";
+
+    /**
+     * What a manifest stating no version is read as: the format every manifest had before the field
+     * existed, which every stored row and every governor's file written until then is. <b>Pinned, not
+     * {@link #SCHEMA_VERSION}</b>: when a major 2 comes, a manifest without the field was still written
+     * for 1, and reading it as 2 would change what its fields mean under the digest it is run by.
+     */
+    public static final String UNVERSIONED = "1.0";
+
+    /** The one major this build reads; a manifest of another is refused, never read field by field. */
+    static final int SCHEMA_MAJOR = 1;
+
+    private static final Pattern VERSION = Pattern.compile("(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})");
 
     /** Where the analysed tree is mounted, read-only. */
     public static final String SOURCE = "/repo/source";
@@ -84,7 +112,18 @@ public record PluginManifest(
         this(id, name, image, languages, arguments, output, exitCodes, network, networkJustification, timeoutSeconds, null);
     }
 
-    /** Absent collections become empty, absent exit codes {@code [0]}, a blank output the default. */
+    /** A manifest stating no version, read as {@value #UNVERSIONED}. */
+    public PluginManifest(String id, String name, String image, Set<Language> languages, List<String> arguments,
+            String output, Set<Integer> exitCodes, boolean network, String networkJustification, Integer timeoutSeconds,
+            PluginSignature signature) {
+        this(id, name, image, languages, arguments, output, exitCodes, network, networkJustification, timeoutSeconds,
+                signature, null);
+    }
+
+    /**
+     * Absent collections become empty, absent exit codes {@code [0]}, a blank output the default, an
+     * absent version {@value #UNVERSIONED}.
+     */
     public PluginManifest {
         languages = languages == null || languages.isEmpty()
                 ? Set.of()
@@ -100,6 +139,7 @@ public record PluginManifest(
         networkJustification = networkJustification == null || networkJustification.isBlank()
                 ? null
                 : networkJustification.strip();
+        schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? UNVERSIONED : schemaVersion.strip();
     }
 
     /**
@@ -108,6 +148,13 @@ public record PluginManifest(
      * @throws InvalidPluginException meant to be shown to the governor as it is
      */
     public PluginManifest validated() {
+        // First: under another major the fields below may not mean what they are checked for.
+        int major = major(schemaVersion);
+        if (major != SCHEMA_MAJOR) {
+            throw new InvalidPluginException("The manifest is schema_version " + schemaVersion + "; this Vectispire "
+                    + "reads major " + SCHEMA_MAJOR + " only, and a manifest of another major may mean something else "
+                    + "by the same field.");
+        }
         requireId(id);
         requireText(name, MAX_NAME, "The plugin's name");
         ImageDigest.parse(image);
@@ -146,6 +193,23 @@ public record PluginManifest(
     }
 
     /**
+     * {@link #validated()}, and a version this build knows field by field — what a governor may register.
+     *
+     * <p>Only registration asks it. A field of a newer minor would be dropped unread by this build and
+     * the manifest stored without it, a confinement or a choice the governor wrote silently gone; an
+     * executor is spared the check because such a field, once set, is in the digest it verifies.
+     */
+    public PluginManifest validatedForRegistration() {
+        validated();
+        if (minor(schemaVersion) > minor(SCHEMA_VERSION)) {
+            throw new InvalidPluginException("The manifest is schema_version " + schemaVersion + "; this Vectispire "
+                    + "knows " + SCHEMA_VERSION + " and would drop what a later version added. Register it on a "
+                    + "release that knows it, or state " + SCHEMA_VERSION + ".");
+        }
+        return this;
+    }
+
+    /**
      * The manifest's identity: what a task names and an executor checks.
      *
      * <p>Every field, in a fixed order, sets sorted by value rather than by enum position, lists
@@ -158,6 +222,12 @@ public record PluginManifest(
      * names — served to nobody, every plugin absent until re-registered. The two forms cannot
      * collide: the last field without a signer is the timeout, digits or nothing, and with one it is
      * followed by the signer's fields; no field may contain the separator.
+     *
+     * <p><b>The version is appended only outside major {@value #SCHEMA_MAJOR}</b>, for the same reason:
+     * a 1.x manifest hashes as it did before the field existed, so an agent of the release before it —
+     * which ignores the field and hashes the rest (decision 0043 §2) — still finds the digest its task
+     * names. A minor needs nothing more, since the field it adds hashes itself when it is set. A manifest
+     * of another major does hash differently, and that agent refuses it rather than run it misread.
      */
     @JsonIgnore
     public String digest() {
@@ -177,6 +247,9 @@ public record PluginManifest(
         if (signature != null) {
             fields.addAll(signature.digestFields());
         }
+        if (!VERSION.matcher(schemaVersion).matches() || major(schemaVersion) != SCHEMA_MAJOR) {
+            fields.add("schema_version " + schemaVersion);
+        }
         return Digests.sha256Fields(fields.toArray(String[]::new));
     }
 
@@ -190,6 +263,23 @@ public record PluginManifest(
     /** The plugin's id checked alone — for a route that names one in its path. */
     public static String requireId(String id) {
         return ManifestRules.requireId(id, "it enters every issue's fingerprint and is never renamed.");
+    }
+
+    private static int major(String version) {
+        return Integer.parseInt(parsed(version).group(1));
+    }
+
+    private static int minor(String version) {
+        return Integer.parseInt(parsed(version).group(2));
+    }
+
+    private static Matcher parsed(String version) {
+        Matcher matcher = VERSION.matcher(version);
+        if (!matcher.matches()) {
+            throw new InvalidPluginException("A manifest's schema_version is MAJOR.MINOR, such as " + SCHEMA_VERSION
+                    + ", or absent for " + UNVERSIONED + ".");
+        }
+        return matcher;
     }
 
     private static void requireText(String value, int max, String what) {

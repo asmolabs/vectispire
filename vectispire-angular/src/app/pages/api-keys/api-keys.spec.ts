@@ -51,6 +51,16 @@ describe('the API key form', () => {
         fixture.detectChanges();
     }
 
+    it('is a form requiring the name, and sends once however often it is submitted', () => {
+        openForm();
+        expect(document.querySelector<HTMLInputElement>('#name')!.required).toBe(true);
+        fixture.componentInstance.form.name = 'payments-ci';
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match({ method: 'POST', url: '/api/v1/api-keys' }).length).toBe(1);
+    });
+
     function issue(): { scopes: string[] } {
         fixture.componentInstance.form.name = 'payments-ci';
         fixture.componentInstance.submit();

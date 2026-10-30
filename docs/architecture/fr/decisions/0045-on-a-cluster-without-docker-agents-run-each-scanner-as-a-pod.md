@@ -82,7 +82,13 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    base de l'appariement, la copie d'image, cosign, les plugins qui déclarent du réseau — en portent une
    autre, autorisée vers l'extérieur sauf les plages du cluster, privées et de métadonnées. Une
    NetworkPolicy que le CNI n'applique pas est acceptée puis ignorée : **l'agent sonde au démarrage** — il
-   lance un pod hors ligne qui tente de sortir, et refuse d'analyser s'il y parvient.
+   lance un pod hors ligne qui tente de sortir, et refuse d'analyser s'il y parvient. *Amendé le
+   2026-10-29* : appliquée ne veut pas encore dire appliquée à un pod créé depuis — kube-router, celui de
+   k3s, laisse passer un nouveau pod jusqu'à ce qu'il ait posé ses règles, mesuré entre 0,3 et 0,7 s sur un
+   nœud au repos et au-delà d'une seconde sur un runner de CI chargé. La sonde essaie donc jusqu'au refus,
+   30 s au plus, et **chaque pod d'analyse vérifie sa propre isolation** de la même façon depuis son
+   conteneur de réception avant que son scanner puisse démarrer ; un pod encore servi au-delà fait échouer
+   l'étape.
 6. **Trois propriétés de la forme fermée ne se règlent pas par pod, et sont acceptées avec leurs
    compensations :** la limite de processus (le `podPidsLimit` du kubelet, réglé sur le pool de nœuds
    dédié que le chart exige) ; `noexec` et `nosuid` sur l'espace de travail temporaire (aucune option de
@@ -104,8 +110,9 @@ Trois formes moins coûteuses ont été pesées le 2026-10-25 et écartées :
    identifiants aux analyseurs de métadonnées hostiles. Un jeu de référence confronte Syft sur une
    disposition OCI à Syft sur une archive Docker : **les empreintes ne doivent pas bouger**.
 9. **Jamais vide.** Chaque issue Kubernetes est un échec nommant l'étape — une image qui ne se tire pas,
-   un pod que personne ne peut placer, `OOMKilled`, le délai, une éviction, une lecture au-delà de son
-   plafond, un pod supprimé en route — donc l'étape est absente et son backlog reste tel quel (0007).
+   un pod que personne ne peut placer, `OOMKilled` (ou le code 137 du kill, quand le runtime perd cette
+   raison), le délai, une éviction, une lecture au-delà de son plafond, un pod supprimé en route —
+   donc l'étape est absente et son backlog reste tel quel (0007).
 10. **Construit d'abord dans l'agent Java.** L'agent Rust n'est pas prêt à servir une installation ;
     l'exécuteur sera porté avec le reste quand il le sera.
 
@@ -191,7 +198,8 @@ le Role ci-dessus (`kubernetesTest`, dans le job `kubernetes` de la CI, sur le r
 - **La sonde (§5) tourne à chaque démarrage** : un pod hors ligne et un en ligne tentent l'adresse du
   serveur d'API avec `nc` ; que l'un l'atteigne, ou qu'une sonde ne puisse pas tourner, arrête l'agent. Sur
   k3s, elle refuse l'espace de noms sans politique et la politique en ligne dont les exclusions manquent le
-  serveur d'API, et démarre sous celles de la chart.
+  serveur d'API, et démarre sous celles de la chart ; un pod d'analyse qui atteint encore le serveur d'API
+  ne démarre jamais son scanner.
 - **Les ressources des pods de scan sont fixées, pas déduites** (`cpu-millis`, `memory-mib`) : le quota de
   CPU par défaut est le nombre de cœurs de cette JVM moins un, la vue qu'a le pod de l'agent de son nœud, et
   des pods de scan demandant neuf CPU sur la machine d'un développeur n'étaient jamais planifiés — mesuré.

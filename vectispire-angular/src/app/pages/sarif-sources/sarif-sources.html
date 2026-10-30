@@ -117,7 +117,7 @@
     [modal]="true"
     [style]="{ width: '38rem', maxWidth: '95vw' }"
 >
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="declare()">
         <p-message severity="info" [closable]="false">{{ 'sarif_sources.internal_only' | translate }}</p-message>
 
         <div class="flex flex-col gap-2">
@@ -125,8 +125,10 @@
             <input
                 pInputText
                 id="source-slug"
+                required
                 name="source-slug"
                 class="font-mono"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.slug"
                 [placeholder]="'sarif_sources.slug_placeholder' | translate"
             />
@@ -135,7 +137,14 @@
 
         <div class="flex flex-col gap-2">
             <label for="source-name" class="font-medium">{{ 'sarif_sources.field_name' | translate }}</label>
-            <input pInputText id="source-name" name="source-name" [(ngModel)]="draft.name" />
+            <input
+                pInputText
+                id="source-name"
+                required
+                name="source-name"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="draft.name"
+            />
         </div>
 
         <fieldset class="flex flex-col gap-2 border-0 p-0 m-0">
@@ -145,6 +154,7 @@
                     <p-checkbox
                         [inputId]="'source-kind-' + kind.value"
                         [binary]="true"
+                        [ngModelOptions]="{ standalone: true }"
                         [ngModel]="draft.kinds.includes(kind.value)"
                         (ngModelChange)="setKind(kind.value, $event)"
                     />
@@ -166,6 +176,7 @@
                 [options]="keyOptions()"
                 optionLabel="label"
                 optionValue="value"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="draft.apiKeyId"
                 [placeholder]="'sarif_sources.key_placeholder' | translate"
                 appendTo="body"
@@ -189,6 +200,7 @@
                     [options]="scopeKinds()"
                     optionLabel="label"
                     optionValue="value"
+                    [ngModelOptions]="{ standalone: true }"
                     [ngModel]="draft.scopeKind"
                     (ngModelChange)="setScopeKind($event)"
                     appendTo="body"
@@ -206,6 +218,7 @@
                     [options]="draft.scopeKind === 'project' ? projectOptions() : repositoryOptions()"
                     optionLabel="label"
                     optionValue="value"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="draft.scopeId"
                     [filter]="true"
                     appendTo="body"
@@ -225,6 +238,7 @@
                     id="source-tools"
                     name="source-tools"
                     required
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="draft.tools"
                     [placeholder]="'sarif_sources.tools_placeholder' | translate"
                 />
@@ -235,7 +249,7 @@
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false" data-testid="source-form-error">{{ message }}</p-message>
         }
-    </div>
+    </form>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
         <p-button

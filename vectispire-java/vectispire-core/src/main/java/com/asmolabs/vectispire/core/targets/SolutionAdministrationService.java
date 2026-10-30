@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.targets;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
@@ -390,13 +391,13 @@ public class SolutionAdministrationService {
         }
         List<ProjectEntity> found = new ArrayList<>();
         List<Long> distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            found.addAll(projects.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))));
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            found.addAll(projects.findAllById(batch));
         }
         List<Long> solutionIds = found.stream().map(ProjectEntity::getSolutionId).filter(Objects::nonNull).distinct().toList();
         Map<Long, String> solutionNames = new HashMap<>();
-        for (int from = 0; from < solutionIds.size(); from += LOOKUP_BATCH) {
-            solutions.findAllById(solutionIds.subList(from, Math.min(from + LOOKUP_BATCH, solutionIds.size())))
+        for (List<Long> batch : Batches.of(solutionIds, LOOKUP_BATCH)) {
+            solutions.findAllById(batch)
                     .forEach(solution -> solutionNames.put(solution.getId(), solution.getName()));
         }
         Map<Long, ProjectLabel> labels = new HashMap<>();

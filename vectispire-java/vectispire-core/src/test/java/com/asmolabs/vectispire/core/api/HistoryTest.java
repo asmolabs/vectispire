@@ -24,6 +24,7 @@ import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -186,7 +187,7 @@ class HistoryTest extends ApiTestBase {
                         + "issue_id,issue_type,identifier,severity,component,location,issue_state,current_triage,"
                         + "first_seen_at,resolved_at,decision_at,decision_from,decision_to,decision_justification,"
                         + "decision_actor,decision_origin,decision_expires_at,decision_comment,"
-                        + "decision_previous_resolved_at");
+                        + "decision_previous_resolved_at,decision_requested_status");
         assertThat(csv).contains("\"CVE-2026-1234\"");
         assertThat(csv).contains("\"under_review\",\"not_affected\"");
         // Every field quoted, comment included: a triage comment is free text and routinely
@@ -208,9 +209,10 @@ class HistoryTest extends ApiTestBase {
                 // definition of an issue that drifts the day a column is added.
                 .andExpect(jsonPath("$.identifier").value("CVE-2026-1234"))
                 .andExpect(jsonPath("$.targetName").value("Arm Libs Spring"))
-                // Dormant but published: an integration key reads this shape, so the field stays
-                // and says what the column holds — nothing computes it.
-                .andExpect(jsonPath("$.reachability").value("UNKNOWN"))
+                // Deprecated in 0.11 and gone before 1.0 froze the contract (decision 0043 §6):
+                // nothing computes reachability, and a field that always read UNKNOWN said so to
+                // nobody who needed it.
+                .andExpect(jsonPath("$.reachability").doesNotExist())
                 .andExpect(jsonPath("$.reachableSymbols").doesNotExist())
                 // What a row cannot carry: the version it was seen on, and the decision taken.
                 .andExpect(jsonPath("$.sightings[0].version").value("2.4.1"))
@@ -259,6 +261,60 @@ class HistoryTest extends ApiTestBase {
         }
         assertThat(text).contains("fixed -> under_review reopened, found again (resolved since 2026-03-05)");
         assertThat(text).doesNotContain("expired automatically");
+    }
+
+    @Test
+    @DisplayName("a request queued for approval says what it asked for, in the JSON, the CSV and the PDF")
+    void aQueuedRequestNamesTheStatusItAskedFor() throws Exception {
+        long repositoryId = seedRepository();
+        long scanId = seedScan(repositoryId, "2.4.1", "maven");
+        long issueId = seedIssue(repositoryId, scanId);
+        TriageEventEntity request = new TriageEventEntity();
+        request.setIssueId(issueId);
+        request.setFromStatus(TriageStatus.UNDER_REVIEW.wireName());
+        request.setToStatus(TriageStatus.PENDING_APPROVAL.wireName());
+        request.setRequestedStatus(TriageStatus.WILL_NOT_FIX.wireName());
+        request.setJustification("inline_mitigations_already_exist");
+        request.setActor("bob");
+        request.setOrigin("manual");
+        request.setOccurredAt(DECIDED);
+        request.setScanId(scanId);
+        events.save(request);
+        seedDecision(issueId, scanId);
+
+        mvc.perform(authenticated(get("/api/v1/issues/" + issueId), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decisions[0].requestedStatus").value("will_not_fix"))
+                .andExpect(jsonPath("$.decisions[1].requestedStatus").doesNotExist());
+        mvc.perform(authenticated(get("/api/v1/history/repositories/" + repositoryId), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scans[0].issues[0].decisions[0].requestedStatus").value("will_not_fix"))
+                .andExpect(jsonPath("$.scans[0].issues[0].decisions[1].requestedStatus").doesNotExist());
+
+        List<String> rows = new String(
+                        mvc.perform(authenticated(
+                                        get("/api/v1/history/repositories/" + repositoryId + "/export.csv"), asAdmin()))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsByteArray(),
+                        StandardCharsets.UTF_8)
+                .lines().skip(1).toList();
+        // The last cell: the request's, and empty on the decision that asked for nothing.
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0)).contains("\"pending_approval\"").endsWith(",\"will_not_fix\"");
+        assertThat(rows.get(1)).contains("\"not_affected\"").endsWith(",\"\"");
+
+        byte[] pdf = mvc.perform(
+                        authenticated(get("/api/v1/history/repositories/" + repositoryId + "/export.pdf"), asAdmin()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+        try (PDDocument document = Loader.loadPDF(pdf)) {
+            assertThat(new PDFTextStripper().getText(document))
+                    .contains("under_review -> pending_approval asking for will_not_fix");
+        }
     }
 
     @Test

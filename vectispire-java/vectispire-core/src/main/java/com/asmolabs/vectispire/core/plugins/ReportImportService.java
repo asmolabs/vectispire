@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.reports.CoverageFormat;
 import com.asmolabs.vectispire.common.domain.reports.CoveragePackages;
 import com.asmolabs.vectispire.common.domain.reports.CoverageReport;
@@ -26,6 +27,7 @@ import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultRepository;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
@@ -35,11 +37,9 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.unit.DataSize;
 
 /**
  * Recording a declared internal source's coverage and test reports for a repository (decision 0032
@@ -118,9 +118,7 @@ public class ReportImportService {
             ReportedRepositories reported,
             BuildSbomInventory buildSboms,
             Clock clock,
-            @Value("${vectispire.http.max-body.coverage-import:16MB}") DataSize maxCoverageBytes,
-            @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize maxTestReportBytes,
-            @Value("${vectispire.http.max-body.sbom-import:32MB}") DataSize maxSbomBytes) {
+            RequestBodyLimits limits) {
         this.sources = sources;
         this.coverage = coverage;
         this.coveragePackages = coveragePackages;
@@ -132,9 +130,9 @@ public class ReportImportService {
         this.reported = reported;
         this.buildSboms = buildSboms;
         this.clock = clock;
-        this.maxCoverageBytes = maxCoverageBytes.toBytes();
-        this.maxTestReportBytes = maxTestReportBytes.toBytes();
-        this.maxSbomBytes = maxSbomBytes.toBytes();
+        this.maxCoverageBytes = limits.coverageImport().toBytes();
+        this.maxTestReportBytes = limits.testReportImport().toBytes();
+        this.maxSbomBytes = limits.sbomImport().toBytes();
     }
 
     /**
@@ -305,24 +303,58 @@ public class ReportImportService {
         return saved;
     }
 
-    /** A repository's latest build SBOMs, within the caller's visibility — 404 for one it cannot see. */
-    public List<BuildSbomView> buildSbomHistory(long repositoryId, Visibility allowed) {
+    /**
+     * A repository's build SBOMs, newest first, within the caller's visibility — 404 for one it cannot see.
+     *
+     * <p>The latest fifty unless a page is asked for — and a page reaches past them, as the report
+     * runs' list does. The repository's 404 comes first, so a refused window says nothing of a repository the
+     * caller cannot see.
+     *
+     * @param limit rows per page, or null for the latest fifty ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<BuildSbomView> buildSbomHistory(long repositoryId, Visibility allowed, Integer limit, Integer offset) {
         requireVisible(repositoryId, allowed);
-        return buildSboms.history(repositoryId);
+        return buildSboms.history(repositoryId, ListWindow.requested(limit, offset));
     }
 
-    /** A repository's latest coverage imports, within the caller's visibility — 404 for one it cannot see. */
-    public List<CoverageImportView> coverageHistory(long repositoryId, Visibility allowed) {
+    /**
+     * A repository's coverage imports, newest first, within the caller's visibility — 404 for one it cannot see.
+     *
+     * <p>The latest {@link #HISTORY} unless a page is asked for — and a page reaches past them, as the report
+     * runs' list does. The repository's 404 comes first, so a refused window says nothing of a repository the
+     * caller cannot see.
+     *
+     * @param limit rows per page, or null for the latest {@link #HISTORY} ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<CoverageImportView> coverageHistory(long repositoryId, Visibility allowed, Integer limit, Integer offset) {
         requireVisible(repositoryId, allowed);
-        return coverage.findByRepoIdOrderByImportedAtDescIdDesc(repositoryId, PageRequest.of(0, HISTORY)).stream()
+        PageRequest asked = ListWindow.requested(limit, offset)
+                .map(window -> PageRequest.of(window.page(), window.limit()))
+                .orElse(PageRequest.of(0, HISTORY));
+        return coverage.findByRepoIdOrderByImportedAtDescIdDesc(repositoryId, asked).stream()
                 .map(CoverageImportView::of)
                 .toList();
     }
 
-    /** A repository's latest test-report imports, within the caller's visibility — 404 for one it cannot see. */
-    public List<TestReportImportView> testReportHistory(long repositoryId, Visibility allowed) {
+    /**
+     * A repository's test-report imports, newest first, within the caller's visibility — 404 for one it cannot see.
+     *
+     * <p>The latest {@link #HISTORY} unless a page is asked for — and a page reaches past them, as the report
+     * runs' list does. The repository's 404 comes first, so a refused window says nothing of a repository the
+     * caller cannot see.
+     *
+     * @param limit rows per page, or null for the latest {@link #HISTORY} ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<TestReportImportView> testReportHistory(
+            long repositoryId, Visibility allowed, Integer limit, Integer offset) {
         requireVisible(repositoryId, allowed);
-        return testReports.findByRepoIdOrderByImportedAtDescIdDesc(repositoryId, PageRequest.of(0, HISTORY)).stream()
+        PageRequest asked = ListWindow.requested(limit, offset)
+                .map(window -> PageRequest.of(window.page(), window.limit()))
+                .orElse(PageRequest.of(0, HISTORY));
+        return testReports.findByRepoIdOrderByImportedAtDescIdDesc(repositoryId, asked).stream()
                 .map(TestReportImportView::of)
                 .toList();
     }

@@ -254,7 +254,16 @@ export class Plugins {
         return index;
     }
 
+    /** The form's submit: what the save button is disabled without, a submit must not get past either. */
+    submit(): void {
+        const draft = this.draft;
+        if (!draft.id.trim() || !draft.name.trim() || !draft.image.trim() || draft.languages.length === 0) return;
+        this.save();
+    }
+
     save(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         const exitCodes = parseExitCodes(this.draft.exitCodes);
         if (exitCodes === null) {
             this.formError.set(this.i18n.t('plugins.error_exit_codes'));

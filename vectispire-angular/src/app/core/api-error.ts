@@ -20,6 +20,9 @@
  * error body looks like and there is no reason to refuse one.
  */
 export function messageOf(response: unknown, fallback: string): string {
+    const translated = translateProblem(response);
+    if (translated) return translated;
+
     const body = (response as { error?: unknown } | null)?.error;
 
     // A `responseType: 'blob'` request fails with a Blob body, not JSON. Reading it needs an
@@ -36,4 +39,49 @@ export function messageOf(response: unknown, fallback: string): string {
         if (message) return message;
     }
     return fallback;
+}
+
+/**
+ * A problem document as the translation reads it: the token, and the values a sentence may quote.
+ */
+export interface ProblemWords {
+    code: string;
+    detail: string;
+    retryAfterSeconds?: number;
+    correlationId?: string;
+}
+
+/** Answers a sentence for a code it knows, nothing for one it does not. */
+export type ProblemTranslator = (problem: ProblemWords) => string | undefined;
+
+let translator: ProblemTranslator | undefined;
+
+/**
+ * Lets the interface's language speak for the server's `detail` (decision 0019).
+ *
+ * **Since 0.11.0 every problem carries `code`** (decision 0043 §6), and the French interface still
+ * printed the English `detail` of every refusal. The translator is registered once by `I18nService`
+ * rather than passed to each of the eighty call sites of {@link messageOf}: those sites already hand
+ * it the response, and a screen that forgot to pass a translator would show English again with
+ * nothing failing. Without one — a unit test that builds no service — `detail` is shown, as before.
+ */
+export function translateProblemsWith(next: ProblemTranslator | undefined): void {
+    translator = next;
+}
+
+function translateProblem(response: unknown): string | undefined {
+    if (!translator) return undefined;
+    const body = (response as { error?: unknown } | null)?.error;
+    if (!body || typeof body !== 'object') return undefined;
+    const problem = body as { code?: unknown; detail?: unknown; retryAfterSeconds?: unknown; correlationId?: unknown };
+    if (typeof problem.code !== 'string' || typeof problem.detail !== 'string' || !problem.detail.trim()) {
+        return undefined;
+    }
+    const sentence = translator({
+        code: problem.code,
+        detail: problem.detail.trim(),
+        retryAfterSeconds: typeof problem.retryAfterSeconds === 'number' ? problem.retryAfterSeconds : undefined,
+        correlationId: typeof problem.correlationId === 'string' ? problem.correlationId : undefined
+    });
+    return sentence?.trim() || undefined;
 }

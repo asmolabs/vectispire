@@ -603,13 +603,13 @@
                             </td>
                             <td>
                                 @for (violation of firstViolations(target.violations); track $index) {
-                                    <div class="text-sm">
+                                    <div class="text-sm" [title]="violation.reason" data-testid="violation-reason">
                                         <p-tag
                                             [value]="ruleLabel(violation.rule)"
                                             severity="danger"
                                             styleClass="mr-2"
                                         />
-                                        {{ violation.reason }}
+                                        {{ reasonOf(violation) }}
                                     </div>
                                 }
                                 @if (target.violations.length > 3) {

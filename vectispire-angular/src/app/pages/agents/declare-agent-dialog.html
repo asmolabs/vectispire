@@ -1,0 +1,95 @@
+<p-dialog
+    [header]="'agents.modal_title' | translate"
+    [(visible)]="page.formVisible"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+>
+    <form id="declare-agent" class="flex flex-col gap-4" (ngSubmit)="save()">
+        <div class="flex flex-col gap-2">
+            <label for="name" class="font-medium">{{ 'agents.name_label' | translate }}</label>
+            <input
+                pInputText
+                id="name"
+                name="name"
+                required
+                [attr.aria-invalid]="invalid() === 'name'"
+                [attr.aria-describedby]="invalid() === 'name' ? 'declare-agent-error' : null"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.formName"
+                [placeholder]="'agents.name_placeholder' | translate"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="description" class="font-medium"
+                >{{ 'agents.desc_label' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="description"
+                name="description"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.formDescription"
+                [placeholder]="'agents.desc_placeholder' | translate"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="mode" class="font-medium">{{ 'agents.credentials' | translate }}</label>
+            <p-select
+                id="mode"
+                name="mode"
+                [options]="credentials()"
+                optionLabel="label"
+                optionValue="value"
+                [required]="true"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.formCredentialsMode"
+                styleClass="w-full"
+            />
+            <small class="text-muted-color">{{ hint() }}</small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="labels" class="font-medium">{{ 'agents.labels_label' | translate }}</label>
+            <input
+                pInputText
+                id="labels"
+                name="labels"
+                aria-describedby="labels-hint"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.formLabels"
+                [placeholder]="'agents.labels_placeholder' | translate"
+            />
+            <small id="labels-hint" class="text-muted-color">
+                {{ 'agents.labels_hint' | translate }}
+            </small>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="concurrent" class="font-medium">{{ 'agents.concurrent_label' | translate }}</label>
+            <p-inputnumber
+                inputId="concurrent"
+                name="concurrent"
+                [required]="true"
+                [ariaRequired]="true"
+                [invalid]="invalid() === 'concurrent'"
+                [ngModelOptions]="{ standalone: true }"
+                [(ngModel)]="page.formMaxConcurrent"
+                [min]="bounds.min"
+                [max]="bounds.max"
+                [showButtons]="true"
+                [useGrouping]="false"
+                [ariaDescribedBy]="
+                    invalid() === 'concurrent' ? 'concurrent-hint declare-agent-error' : 'concurrent-hint'
+                "
+                styleClass="w-full"
+            />
+            <small id="concurrent-hint" class="text-muted-color">{{ 'agents.concurrent_hint' | translate }}</small>
+        </div>
+        @if (page.formError(); as message) {
+            <p-message severity="error" [closable]="false" id="declare-agent-error">{{ message }}</p-message>
+        }
+    </form>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="page.formVisible.set(false)" />
+        <p-button [label]="'common.create' | translate" [loading]="page.saving()" (onClick)="save()" />
+    </ng-template>
+</p-dialog>

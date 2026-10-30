@@ -71,7 +71,13 @@
                             <p-tag severity="warn" [value]="observationLabel(target)" styleClass="ml-2" />
                         }
                         @if (target.verdict.violations.length) {
-                            <div class="text-muted-color text-sm mt-1">{{ target.verdict.violations[0].reason }}</div>
+                            <div
+                                class="text-muted-color text-sm mt-1"
+                                [title]="target.verdict.violations[0].reason"
+                                data-testid="violation-reason"
+                            >
+                                {{ reasonOf(target) }}
+                            </div>
                         }
                     </td>
                     <td>{{ target.verdict.evaluated }}</td>

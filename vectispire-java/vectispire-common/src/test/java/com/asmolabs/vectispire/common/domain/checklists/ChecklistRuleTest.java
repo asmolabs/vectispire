@@ -295,5 +295,7 @@ class ChecklistRuleTest {
         assertThat(SuitePattern.of("Suite?").matches("Suite")).isFalse();
         assertThat(SuitePattern.of("*").matches("")).isTrue();
         assertThat(SuitePattern.of("a*b*c").matches("aXbYbZc")).isTrue();
+        assertThat(SuitePattern.of("*a").matches("*xa")).as("a star is a wildcard, even before a name's own star").isTrue();
+        assertThat(SuitePattern.of("a*").matches("a*")).isTrue();
     }
 }

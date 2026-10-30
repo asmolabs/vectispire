@@ -22,11 +22,11 @@ import org.springframework.web.context.WebApplicationContext;
  * token that exists to create and deactivate accounts could also read the audit log, rewrite the
  * gate policy, issue API keys and change the settings.
  */
-@TestPropertySource(properties = {"vectispire.scim.enabled=true", "vectispire.scim.token=scim-test-token-0123456789"})
+@TestPropertySource(properties = {"vectispire.scim.enabled=true", "vectispire.scim.token=scim-test-token-0123456789abcdef0123"})
 @DisplayName("the SCIM provisioning token")
 class ScimTokenScopeTest extends VectispireContextTest {
 
-    private static final String SCIM = "Bearer scim-test-token-0123456789";
+    private static final String SCIM = "Bearer scim-test-token-0123456789abcdef0123";
 
     @Autowired
     private WebApplicationContext context;
@@ -38,7 +38,9 @@ class ScimTokenScopeTest extends VectispireContextTest {
 
     @BeforeEach
     void mvc() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(securityFilterChain)
+                .build();
     }
 
     @Test
@@ -46,6 +48,9 @@ class ScimTokenScopeTest extends VectispireContextTest {
     void reachesScim() throws Exception {
         mvc.perform(get("/scim/v2/Users").header("Authorization", SCIM)).andExpect(status().isOk());
     }
+
+    // The converse — /scim takes the token and nothing else — is ScimUsersRoutesTest's
+    // `scimTakesOnlyTheToken`, where an administrator's session can be minted.
 
     @Test
     @DisplayName("is nobody on the rest of the API, however administrative the route")

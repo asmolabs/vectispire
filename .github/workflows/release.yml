@@ -55,6 +55,40 @@ jobs:
         with:
           persist-credentials: false
 
+      # **A patch release carries no migration** (decision 0047). A migration on an older line takes
+      # either the next free number, which `develop` has already given to something else, or a number
+      # below what the newer minor ships, which Flyway refuses on an installation already on it. So a
+      # fix that needs a schema change goes into the next minor, and a `vX.Y.Z` tag with Z > 0 whose
+      # migration directories differ from `vX.Y.0`'s is refused here, before anything is built — a
+      # rule kept by memory is the one forgotten on the day of an urgent fix. A pre-release of a patch
+      # (`v1.0.1-rc.1`) is held to the same rule; a minor, a major and a rehearsal are not concerned.
+      # Only `vX.Y.0` is fetched, one commit deep: the diff compares two trees and needs no history.
+      - name: A patch release carries no migration
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          migrations=vectispire-java/vectispire-core/src/main/resources/db/migration/
+          if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-.+)?$ ]]; then
+            echo "::error::$TAG is not vX.Y.Z[-pre]: which line it belongs to cannot be told, so it is not released."
+            exit 1
+          fi
+          if [ "${BASH_REMATCH[3]}" = 0 ]; then
+            echo "$TAG opens its line: migrations are allowed."
+            exit 0
+          fi
+          base="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
+          if ! git fetch --quiet --no-tags --depth=1 origin "refs/tags/$base:refs/tags/$base"; then
+            echo "::error::$TAG is a patch release, and $base, the release it patches, cannot be fetched: nothing to compare its migrations with."
+            exit 1
+          fi
+          if ! git diff --quiet "refs/tags/$base" HEAD -- "$migrations"; then
+            echo "::error::$TAG is a patch release and changes the migrations of $base (decision 0047). A fix that needs a schema change goes into the next minor."
+            git diff --name-status "refs/tags/$base" HEAD -- "$migrations"
+            exit 1
+          fi
+          echo "$TAG carries the migrations of $base unchanged."
+
       # **The wrapper is the first thing the build executes**, and a `gradle-wrapper.jar` swapped
       # in a pull request runs before any plugin or dependency is resolved. Checked against the
       # checksums Gradle publishes for every released wrapper; the distribution it then downloads
@@ -70,7 +104,7 @@ jobs:
       # npm cache would run here and shape what `publish` signs with the genuine identity. The
       # two-job split keeps this job from writing outward; this keeps it from reading inward. A
       # release can afford a cold build.
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25'
@@ -85,7 +119,7 @@ jobs:
 
       # The control plane image serves the interface, so the interface has to exist before the
       # image is built. `ci.yml` passes this between jobs as an artifact; here it is built in place.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       # **`--ignore-scripts`, still.** This job holds no token worth stealing any more, but a
@@ -184,7 +218,7 @@ jobs:
             vectispire-gate.sh vectispire-cli.sh vectispire-report-demo.manifest.template.json > SHA256SUMS
           cat SHA256SUMS
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-build
           path: |
@@ -234,7 +268,7 @@ jobs:
       # secret to create, nothing to rotate, and it works on the first tag.
       packages: write
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-build
 
@@ -498,7 +532,7 @@ jobs:
 
       # Kept for the rehearsal, which has no tag to publish against and must leave something a
       # human can inspect.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release
           path: |

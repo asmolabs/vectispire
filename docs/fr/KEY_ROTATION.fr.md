@@ -24,27 +24,40 @@ VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS="<ancienne clé>" \
 cd vectispire-java && ./gradlew :vectispire-core:bootRun
 ```
 
-L'ancienne clé sert **au déchiffrement uniquement** — toute écriture passe sous la nouvelle. Les
-valeurs migrent au fur et à mesure qu'elles sont ré-enregistrées, et la page *Clés SSH* affiche
-**« À tourner »** tant qu'une ligne dépend encore de l'ancienne. **L'ancienne clé sort de
-l'environnement quand plus aucune ligne ne l'affiche**, pas avant : la retirer trop tôt laisse ces
-lignes illisibles sans que rien ne le dise.
+L'ancienne clé sert **au déchiffrement uniquement** — toute écriture passe sous la nouvelle.
+**L'ancienne clé sort de l'environnement quand plus aucun stockage scellé n'en dépend**, pas avant :
+la retirer trop tôt laisse ces valeurs illisibles — seconds facteurs refusés à la connexion, plus
+rien de signé, l'en-tête d'autorisation du SIEM abandonné — sans que rien ne le dise.
 
 Plusieurs clés précédentes peuvent être listées, séparées par des virgules — c'est ce qu'exige une
 rotation interrompue.
 
-### Les stockages qui montrent leur état
+### Où en est la rotation : `/actuator/encryption`
 
-Trois stockages disent, ligne par ligne, sous quelle clé ils sont scellés (`encryptionState` :
-`current`, `previous_key`, `unreadable`), et chacun est rescellé par son propre geste :
+Un seul rapport, pour une session d'administrateur, liste chaque stockage que Vectispire garde
+scellé et combien de ses valeurs sont sous la clé courante, sous une précédente, sous aucune
+(`unreadable`), ou en clair parce qu'antérieures au chiffrement :
 
-| Stockage | Où l'état se voit | Ce qui rescelle une ligne |
-|---|---|---|
-| Clés de déploiement SSH | la page *Clés SSH*, `GET /api/v1/ssh-keys` | ajouter la clé à nouveau et supprimer l'ancienne ligne |
-| Jetons de clonage HTTPS ([0022](../architecture/fr/decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | `GET /api/v1/git-tokens` | ajouter le jeton à nouveau et supprimer l'ancienne ligne |
-| Connexions de forge ([0037](../architecture/fr/decisions/0037-discovering-repositories-at-setup.md)) | `GET /api/v1/forge-connections` | enregistrer la connexion (`PATCH /api/v1/forge-connections/{id}` — un `{}` vide suffit) ou remplacer son jeton (`PUT …/token`) |
+```bash
+curl -s -H "Authorization: Bearer <session d'un administrateur>" https://vectispire.example.com/actuator/encryption
+```
 
-La rotation est terminée quand aucun d'eux ne liste de ligne `previous_key`.
+**La rotation est terminée quand il répond `"rotationFinished": true`** — aucun stockage n'a de
+`previousKey` au-dessus de zéro. D'ici là, chaque démarrage journalise aussi un avertissement par
+stockage qui dépend encore d'une clé précédente, en nommant ce qui le rescelle. Le rapport dit
+combien de valeurs sont où, jamais ce qu'elles contiennent.
+
+| Stockage | Ce qui rescelle une valeur encore sous une clé précédente |
+|---|---|
+| Clés de déploiement SSH | ajouter la clé à nouveau, y déplacer les dépôts, supprimer l'ancienne ligne (la page *Clés SSH* et `GET /api/v1/ssh-keys` montrent l'état de chaque ligne) |
+| Jetons de clonage HTTPS ([0022](../architecture/fr/decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | ajouter le jeton à nouveau, y déplacer les dépôts, supprimer l'ancienne ligne (`GET /api/v1/git-tokens`) |
+| Jetons des connexions de forge ([0037](../architecture/fr/decisions/0037-discovering-repositories-at-setup.md)) | enregistrer la connexion (`PATCH /api/v1/forge-connections/{id}` — un `{}` vide suffit) ou remplacer son jeton (`PUT …/token`) |
+| Clé de signature des documents | le démarrage suivant, de lui-même |
+| Secrets TOTP et codes de secours | la vérification suivante du second facteur du compte — une connexion, ou une désactivation —, d'elle-même ; ou un nouvel enrôlement |
+| Jeton d'accès au tracker, secret du webhook entrant du tracker | le reposer dans les réglages de ticketing (et, pour le secret du webhook, dans le tracker) |
+| Secret de signature du webhook de notification | le reposer dans les réglages de notification, et chez le destinataire |
+| Clé d'API OpenAI | la reposer dans les réglages de la revue par modèle |
+| En-tête d'autorisation SIEM | le reposer dans les réglages SIEM |
 
 ## En production, les deux moitiés appartiennent à des fichiers
 

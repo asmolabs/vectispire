@@ -42,7 +42,8 @@ describe('the teams screen', () => {
                 mustChangePassword: false,
                 federated: false,
                 createdAt: '2026-01-01T00:00:00Z',
-                activeSessions: 1
+                activeSessions: 1,
+                mfaEnabled: false
             },
             {
                 id: 2,
@@ -54,7 +55,8 @@ describe('the teams screen', () => {
                 mustChangePassword: false,
                 federated: false,
                 createdAt: '2026-01-01T00:00:00Z',
-                activeSessions: 0
+                activeSessions: 0,
+                mfaEnabled: false
             }
         ],
         total: 2,
@@ -121,6 +123,19 @@ describe('the teams screen', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
     }, 20_000);
+
+    it('is a form requiring the name, and sends once however often it is submitted', () => {
+        settleBoot();
+        fixture.componentInstance.openCreate();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#team-name')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#team-description')!.required).toBe(false);
+        fixture.componentInstance.form = { name: 'payments', description: '' };
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'POST' && call.url === '/api/v1/teams').length).toBe(1);
+    });
 
     it('offers every account in the member picker, administrators included', () => {
         settleBoot();

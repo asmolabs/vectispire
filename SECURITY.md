@@ -35,18 +35,30 @@ an exploit for one that is not.
 | Credit | your name, or none, whichever you prefer |
 
 **These are honest numbers for a project of this size, not a support contract.** Vectispire is
-maintained by a small team. If a deadline slips you will be told it slipped, rather than told
+maintained by **one person**. If a deadline slips you will be told it slipped, rather than told
 nothing — a report that goes quiet is the failure this policy exists to prevent.
 
 ## Supported versions
 
-| Version | Supported |
-|---|---|
-| `0.11.x` | ✅ the current line |
-| earlier, `0.10.x` and the `0.11.0` release candidates included | ❌ — upgrade to `0.11.x` |
+**The latest minor receives fixes. The previous minor receives security fixes for three months after
+its successor is released**, then none ([decision 0043](docs/architecture/en/decisions/0043-what-1-0-promises.md) §5).
+A line's end date is written below on the day its successor is released.
 
-The project has not reached 1.0. There is no long-term support line yet, and pretending otherwise
-would be the first thing wrong on this page.
+| Version | Supported | Until |
+|---|---|---|
+| `0.11.x` | ✅ the latest minor: every fix | `0.12.0`'s release, then security fixes for three months after it |
+| `0.10.x` and earlier, the `0.11.0` release candidates included | ❌ — upgrade to `0.11.x` | ended 2026-10-25, with `0.11.0` |
+
+The three-month rule starts with `0.11`: `0.10.x` was out of support before it was written, and stays so.
+
+**A patch release never changes the schema** ([decision 0047](docs/architecture/en/decisions/0047-patch-releases-carry-no-migration.md)).
+`0.11.3` runs on `0.11.0`'s database as it is, and the release workflow refuses a patch tag that
+carries a migration. A security fix that cannot be made without one ships in the next minor only,
+and its notice says so — for the previous line, that means upgrading to get it.
+
+The project has not reached 1.0. Three months on the previous minor is the whole of the support
+promise; there is no long-term support line, and pretending otherwise would be the first thing wrong
+on this page.
 
 ## Scope
 
@@ -129,19 +141,34 @@ mieux qu'un exploit pour un contrôle qui ne l'est pas.
 | Correctif sur `develop` pour quelque chose d'exploitable | aussi vite que le correctif le permet, et on vous dira ce que « aussi vite » aura voulu dire |
 | Attribution | votre nom, ou aucun, à votre choix |
 
-**Ce sont des délais honnêtes pour un projet de cette taille, pas un contrat de support.** Si un
-délai glisse, on vous le dira — un rapport qui reste sans réponse est précisément l'échec que
+**Ce sont des délais honnêtes pour un projet de cette taille, pas un contrat de support.** Vectispire
+est maintenu par **une seule personne**. Si un délai glisse, on vous le dira — un rapport qui reste sans réponse est précisément l'échec que
 cette politique existe pour empêcher.
 
 ## Versions suivies
 
-| Version | Suivie |
-|---|---|
-| `0.11.x` | ✅ la ligne courante |
-| antérieures, `0.10.x` et les versions candidates de `0.11.0` comprises | ❌ — passez en `0.11.x` |
+**La dernière version mineure reçoit les correctifs. La mineure précédente reçoit les correctifs de
+sécurité pendant trois mois après la sortie de celle qui lui succède**, puis plus aucun
+([décision 0043](docs/architecture/fr/decisions/0043-what-1-0-promises.md) §5). La date de fin d'une
+ligne est écrite ci-dessous le jour où sort celle qui lui succède.
 
-Le projet n'a pas atteint la 1.0. Il n'existe pas encore de ligne de support long terme, et
-prétendre le contraire serait la première chose fausse sur cette page.
+| Version | Suivie | Jusqu'à |
+|---|---|---|
+| `0.11.x` | ✅ la dernière mineure : tous les correctifs | la sortie de `0.12.0`, puis les correctifs de sécurité pendant trois mois après elle |
+| `0.10.x` et antérieures, versions candidates de `0.11.0` comprises | ❌ — passez en `0.11.x` | terminée le 2026-10-25, avec `0.11.0` |
+
+La règle des trois mois commence avec `0.11` : `0.10.x` n'était plus suivie avant qu'elle soit écrite,
+et le reste.
+
+**Une version corrective ne change jamais le schéma** ([décision 0047](docs/architecture/fr/decisions/0047-patch-releases-carry-no-migration.md)).
+`0.11.3` tourne sur la base de `0.11.0` telle qu'elle est, et le workflow de publication refuse une
+étiquette corrective qui porte une migration. Un correctif de sécurité impossible sans migration ne
+sort que dans la mineure suivante, et son avis le dit — pour la ligne précédente, l'obtenir veut dire
+monter de version.
+
+Le projet n'a pas atteint la 1.0. Trois mois sur la mineure précédente sont toute la promesse de
+support ; il n'existe pas de ligne de support long terme, et prétendre le contraire serait la première
+chose fausse sur cette page.
 
 ## Périmètre
 

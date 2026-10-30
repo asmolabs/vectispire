@@ -23,8 +23,9 @@ The protocol decides the transport, and each protocol reads **one** endpoint for
 `host:port` is a name or an IPv4 address and a port, for example `collector.example.com:6514`; an IPv6
 address is written in brackets, `[2001:db8::1]:514`. There is no scheme — no `syslog+tls://` — and the
 port is required, because the defaults differ by transport (514 for UDP and TCP, 6514 for TLS) and a
-guessed port is a collector that receives nothing. A malformed endpoint is refused when you save, not
-at the first event.
+guessed port is a collector that receives nothing. A host of digits and dots has to be an IPv4 address —
+`999.999.999.999` is refused — and a webhook URL's port lies between 1 and 65535. A malformed endpoint
+is refused when you save, not at the first event.
 
 The syslog header carries facility 10 (`authpriv`), a severity derived from the CEF one (very high →
 critical, high → error, medium → warning, low → notice), the instance's host name, `vectispire` as the
@@ -46,7 +47,8 @@ store. Paste the CA certificate, in PEM (`-----BEGIN CERTIFICATE-----`), into **
 for *Syslog TLS* only. It is then used **for this connection alone, and in place of the runtime's
 store**: the public CAs are not trusted for the collector, and nothing else Vectispire connects to —
 trackers, models, webhooks — trusts the pinned CA. A bundle of a root and its intermediates is
-accepted, up to 8 certificates and 16,384 characters.
+accepted, up to 8 certificates and 16,384 characters. A paste with a `-----BEGIN` line that cannot be read
+is refused rather than pinned in part: whatever followed that line would have been ignored.
 
 The save refuses what would not work or would trust too much: a certificate that is **not a CA**
 (the collector's own certificate, which would make anybody holding a copy of it "trusted"), a CA

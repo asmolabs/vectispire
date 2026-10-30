@@ -137,7 +137,7 @@ class SecurityDebtIntegrationTest {
     @Test
     @DisplayName("distinct identifiers, the case-sum and the version pick, all on the server")
     void thePackageWeightsParse() {
-        List<HighImpactFix> fixes = debt.highImpactFixes(null, null, Visibility.everything());
+        List<HighImpactFix> fixes = debt.highImpactFixes(null, null, 10, Visibility.everything());
 
         assertThat(fixes).extracting(HighImpactFix::packageName)
                 .as("a blank package name is not an upgrade candidate on any engine")

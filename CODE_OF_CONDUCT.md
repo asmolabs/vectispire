@@ -42,15 +42,19 @@ in public, for instance by speaking for it at a conference or a meet-up.
 ## Reporting
 
 **E-mail `asmolabs@outlook.com` with `[vectispire-conduct]` in the subject.** Every report is read
-by the maintainers, answered, and kept confidential. If the report concerns a maintainer, say so
-in the subject: that person will not take part in handling it.
+by the maintainer, answered, and kept confidential.
+
+**Vectispire has one maintainer.** A report about that person cannot be handled by someone else
+inside the project, and this page will not pretend otherwise: report it to GitHub instead, through
+*Report content* on the comment or *Report abuse* on the account, which reaches GitHub's own
+support and not the maintainer.
 
 You will get an acknowledgement within **3 working days**. Reporting in good faith will never be
 held against you.
 
 ## Enforcement
 
-The maintainers decide what happens, in proportion to what was done:
+The maintainer decides what happens, in proportion to what was done:
 
 1. **Correction** — a private, written note explaining what was wrong. A public apology may be
    requested.
@@ -113,15 +117,19 @@ rencontre.
 ## Signaler
 
 **Écrire à `asmolabs@outlook.com` avec `[vectispire-conduct]` en objet.** Chaque signalement est lu
-par les mainteneurs, reçoit une réponse et reste confidentiel. Si le signalement concerne un
-mainteneur, indiquez-le dans l'objet : cette personne ne participera pas à son traitement.
+par le mainteneur, reçoit une réponse et reste confidentiel.
+
+**Vectispire a un seul mainteneur.** Un signalement qui le concerne ne peut pas être traité par
+quelqu'un d'autre au sein du projet, et cette page ne prétendra pas le contraire : signalez-le à
+GitHub, par *Report content* sur le commentaire ou *Report abuse* sur le compte, qui arrive au
+support de GitHub et non au mainteneur.
 
 Vous recevrez un accusé de réception sous **3 jours ouvrés**. Un signalement fait de bonne foi ne
 sera jamais retenu contre vous.
 
 ## Application
 
-Les mainteneurs décident de la suite, en proportion de ce qui a été fait :
+Le mainteneur décide de la suite, en proportion de ce qui a été fait :
 
 1. **Correction** — un message privé et écrit expliquant ce qui n'allait pas. Des excuses publiques
    peuvent être demandées.

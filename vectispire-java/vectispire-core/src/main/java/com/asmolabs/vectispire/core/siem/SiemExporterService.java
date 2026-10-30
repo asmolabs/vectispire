@@ -15,11 +15,14 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.SealedStore;
+import com.asmolabs.vectispire.core.crypto.StoreCensus;
 import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.siem.internal.SiemSender;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import java.time.Clock;
+import java.util.List;
 import java.util.Arrays;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -41,7 +44,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * holds until it commits ({@link Integrations#holdEnabled}).
  */
 @Service
-public class SiemExporterService {
+public class SiemExporterService implements SealedStore {
 
     private static final Logger log = LoggerFactory.getLogger(SiemExporterService.class);
 
@@ -157,7 +160,7 @@ public class SiemExporterService {
                     "A collector CA applies to syslog over TLS only: the other protocols do not verify a "
                             + "collector's certificate against it.");
         }
-        CollectorCa pinned = caGiven ? CollectorCa.parse(tlsCaPem, clock.instant()) : null;
+        CollectorCa pinned = caGiven ? CollectorCa.parsePasted(tlsCaPem, clock.instant()) : null;
 
         Written written = transactions.execute(status -> {
             if (enabled) {
@@ -226,7 +229,11 @@ public class SiemExporterService {
         }
         entity.setEnabled(enabled);
         entity.setProtocol(parsedProtocol.name());
-        entity.setEndpoint(endpoint);
+        // **Stored as it was checked: trimmed.** The length was checked on the trimmed text and the text as typed was
+        // stored, so an endpoint of 1,024 characters with a space around it passed the check and was refused by the
+        // column, as a 500 — the defect the check exists for. Every reader trims it anyway (the endpoint's parser,
+        // the comparison with the collector being left).
+        entity.setEndpoint(endpoint == null ? null : endpoint.trim());
         // **Blank keeps the stored header.** The screen says so ("leave empty to keep current")
         // and the response never sends the header back, so the form cannot resubmit it: writing
         // what arrived erased the credential on every save that changed anything else, and the
@@ -390,7 +397,10 @@ public class SiemExporterService {
             destination = SiemEndpoint.parse(parsed, endpoint);
             String ca = tlsCaPem != null ? tlsCaPem : getConfig().map(SiemConfigView::tlsCaPem).orElse(null);
             pinned = parsed == SiemProtocol.SYSLOG_TLS && ca != null && !ca.isBlank()
-                    ? Optional.of(CollectorCa.parse(ca, clock.instant()))
+                    // The stored one is read as it was accepted; only a CA typed for this test is a paste.
+                    ? Optional.of(tlsCaPem != null
+                            ? CollectorCa.parsePasted(ca, clock.instant())
+                            : CollectorCa.parse(ca, clock.instant()))
                     : Optional.empty();
         } catch (IllegalArgumentException refused) {
             return new TestResult(false, refused.getMessage(), 0);
@@ -425,4 +435,12 @@ public class SiemExporterService {
     }
 
     public record TestResult(boolean success, String message, int statusCode) {}
+
+    @Override
+    public List<StoreCensus> census() {
+        StoreCensus.Counter counter = new StoreCensus.Counter("SIEM authorization header",
+                "set the header again on the SIEM settings");
+        repository.findAll().forEach(row -> counter.add(encryption.sealOf(row.getAuthHeader(), AUTH_HEADER_CONTEXT)));
+        return List.of(counter.done());
+    }
 }

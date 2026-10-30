@@ -29,12 +29,14 @@ final class SuitePattern {
         int star = -1;
         int resume = 0;
         while (n < name.length()) {
-            if (p < pattern.length() && (pattern.charAt(p) == '?' || pattern.charAt(p) == name.charAt(n))) {
-                p++;
-                n++;
-            } else if (p < pattern.length() && pattern.charAt(p) == '*') {
+            // The star first: tried as a literal, a pattern's leading * matched a name's leading * and was spent, so
+            // "*a" did not match "*xa".
+            if (p < pattern.length() && pattern.charAt(p) == '*') {
                 star = p++;
                 resume = n;
+            } else if (p < pattern.length() && (pattern.charAt(p) == '?' || pattern.charAt(p) == name.charAt(n))) {
+                p++;
+                n++;
             } else if (star >= 0) {
                 p = star + 1;
                 n = ++resume;

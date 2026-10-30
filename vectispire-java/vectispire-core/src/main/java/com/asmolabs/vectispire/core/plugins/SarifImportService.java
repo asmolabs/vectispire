@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.ToolKeys;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.sarif.InvalidSarifException;
 import com.asmolabs.vectispire.common.domain.sarif.SarifFinding;
 import com.asmolabs.vectispire.common.domain.sarif.SarifReport;
@@ -20,6 +21,7 @@ import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFinding;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
@@ -33,12 +35,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.unit.DataSize;
 
 /**
  * Importing a declared internal source's SARIF report into a repository's backlog.
@@ -100,7 +100,7 @@ public class SarifImportService {
             TransactionTemplate transactions,
             ReportedRepositories reported,
             Clock clock,
-            @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize maxBytes) {
+            RequestBodyLimits limits) {
         this.sources = sources;
         this.imports = imports;
         this.targets = targets;
@@ -109,7 +109,7 @@ public class SarifImportService {
         this.transactions = transactions;
         this.reported = reported;
         this.clock = clock;
-        this.maxBytes = maxBytes.toBytes();
+        this.maxBytes = limits.sarifImport().toBytes();
     }
 
     /**
@@ -236,12 +236,24 @@ public class SarifImportService {
         return SarifImportView.of(saved);
     }
 
-    /** A repository's latest imports, within the caller's visibility — 404 for one it cannot see. */
-    public List<SarifImportView> history(long repositoryId, Visibility allowed) {
+    /**
+     * A repository's SARIF imports, newest first, within the caller's visibility — 404 for one it cannot see.
+     *
+     * <p>The latest {@link #HISTORY} unless a page is asked for — and a page reaches past them, as the report
+     * runs' list does. The repository's 404 comes first, so a refused window says nothing of a repository the
+     * caller cannot see.
+     *
+     * @param limit rows per page, or null for the latest {@link #HISTORY} ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<SarifImportView> history(long repositoryId, Visibility allowed, Integer limit, Integer offset) {
         targets.repository(repositoryId)
                 .filter(found -> allowed.permits(new ScanTarget.Repository(repositoryId)))
                 .orElseThrow(() -> new NotFoundException("No repository " + repositoryId + "."));
-        return imports.findByRepoIdOrderByImportedAtDescIdDesc(repositoryId, PageRequest.of(0, HISTORY)).stream()
+        PageRequest asked = ListWindow.requested(limit, offset)
+                .map(window -> PageRequest.of(window.page(), window.limit()))
+                .orElse(PageRequest.of(0, HISTORY));
+        return imports.findByRepoIdOrderByImportedAtDescIdDesc(repositoryId, asked).stream()
                 .map(SarifImportView::of)
                 .toList();
     }

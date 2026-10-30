@@ -53,6 +53,20 @@ describe('the container list', () => {
         fixture.detectChanges();
     }
 
+    it('is a form requiring the image, and sends once however often it is submitted', () => {
+        load();
+        fixture.componentInstance.openForm();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#image')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#registry')!.required).toBe(false);
+
+        fixture.componentInstance.form.imageName = 'team/service';
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'POST' && call.url === '/api/v1/containers').length).toBe(1);
+    });
+
     it('keeps every field the row carried', () => {
         load();
 

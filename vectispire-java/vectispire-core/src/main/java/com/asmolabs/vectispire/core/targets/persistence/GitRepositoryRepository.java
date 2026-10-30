@@ -95,8 +95,6 @@ public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity,
     @Query("update RepositoryEntity r set r.projectId = null where r.projectId = :projectId")
     int detachProject(@Param("projectId") Long projectId);
 
-    long countByProjectId(Long projectId);
-
     /** How many repositories use each key, so the list can refuse a deletion that would break one. */
     @Query("""
             select r.sshKeyId, count(r.id) from RepositoryEntity r

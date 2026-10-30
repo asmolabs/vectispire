@@ -82,14 +82,16 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
         rule {
             element = "BUNDLE"
             limit {
+                // About three points under the 80.4% instruction and 68.1% branch measured on
+                // 2026-10-29, without the cluster-bound classes; first set at 60 and 45.
                 counter = "INSTRUCTION"
-                minimum = "0.60".toBigDecimal()
+                minimum = "0.77".toBigDecimal()
             }
             limit {
                 // Lower than instruction coverage, and honestly so — same reasoning as the other
                 // two modules: a branch is the half of an `if` nobody wrote a case for.
                 counter = "BRANCH"
-                minimum = "0.45".toBigDecimal()
+                minimum = "0.65".toBigDecimal()
             }
         }
     }
@@ -165,7 +167,7 @@ val imageExtraTags = (findProperty("imageExtraTags") as String?)
 jib {
     from {
         // eclipse-temurin:25-jre-alpine, pinned by digest like every other image this project runs.
-        image = "eclipse-temurin@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a34312f858bd2c67dd01e732e6b682"
+        image = "eclipse-temurin@sha256:b7528962e65d43064d8a8b67ba175367896bc948363ea2d3fcd7f10d34e1f048"
         platforms {
             platform {
                 architecture = "amd64"

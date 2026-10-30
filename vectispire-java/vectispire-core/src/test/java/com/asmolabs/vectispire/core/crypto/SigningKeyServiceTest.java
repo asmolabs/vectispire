@@ -173,4 +173,32 @@ class SigningKeyServiceTest extends VectispireContextTest {
         assertThatThrownBy(() -> service.sign(PAYLOAD)).isInstanceOf(MissingEncryptionKeyException.class);
         assertThat(settings.findById(SigningKeyService.STORED_KEY)).isEmpty();
     }
+
+    @Test
+    @DisplayName("a key sealed under a previous ENCRYPTION_KEY is re-sealed under the current one as it loads")
+    void aRotatedKeyIsResealed() {
+        // Written once and read once per start: nothing else would ever move it, and removing the
+        // previous key — as the rotation procedure said once the SSH keys were done — stopped every
+        // signature.
+        EncryptionService before = new EncryptionService(new com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties(
+                java.util.Optional.of("signing-rotation-old-passphrase-0123456789"), java.util.List.of()));
+        EncryptionService after = new EncryptionService(new com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties(
+                java.util.Optional.of("signing-rotation-new-passphrase-0123456789"),
+                java.util.List.of("signing-rotation-old-passphrase-0123456789")));
+        KeyPair pair = CosignSigner.generateKeyPair();
+        settingsService.storeInternalIfAbsent(SigningKeyService.STORED_KEY,
+                before.encrypt(CosignSigner.toPem(pair.getPrivate()), "internal:document_signing_key"));
+        SigningKeyService rotated = new SigningKeyService("", settingsService, after);
+        assertThat(rotated.census()).singleElement().returns(1L, StoreCensus::previousKey);
+
+        // Loaded the way the first document after a restart loads it: inside a read-only transaction.
+        TransactionTemplate readOnly = new TransactionTemplate(transactions);
+        readOnly.setReadOnly(true);
+        String keyId = readOnly.execute(status -> rotated.getKeyId());
+
+        String stored = settings.findById(SigningKeyService.STORED_KEY).orElseThrow().getValue();
+        assertThat(after.sealOf(stored, "internal:document_signing_key")).isEqualTo(EncryptionService.Seal.CURRENT);
+        assertThat(keyId).isEqualTo(CosignSigner.computeKeyId(pair.getPublic()));
+        assertThat(rotated.census()).singleElement().returns(0L, StoreCensus::previousKey).returns(1L, StoreCensus::current);
+    }
 }

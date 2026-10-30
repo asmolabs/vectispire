@@ -104,6 +104,36 @@ class SettingTest {
     }
 
     @Test
+    @DisplayName("the administrator-only settings are exactly these")
+    void administratorOnlySettingsArePinned() {
+        // Pinned by name, so a setting that leaves the list — or a new destination that never
+        // joins it — is a decision made in review rather than a side effect. The Ollama endpoint
+        // was a security lead's while the OpenAI one, the same kind of destination, was not.
+        assertThat(Arrays.stream(Setting.values()).filter(Setting::administratorOnly))
+                .containsExactlyInAnyOrder(
+                        Setting.TICKET_BASE_URL,
+                        Setting.TICKET_ALLOW_PRIVATE_URL,
+                        Setting.TICKET_PROJECT,
+                        Setting.TICKET_USER,
+                        Setting.TICKET_CA,
+                        Setting.TICKET_TOKEN_EXPIRES_ON,
+                        Setting.AI_REVIEW_OPENAI_URL,
+                        Setting.AI_REVIEW_ALLOW_REMOTE,
+                        Setting.AI_REVIEW_OLLAMA_URL,
+                        Setting.SIEM_ALLOW_PRIVATE_DESTINATION,
+                        Setting.NOTIFICATION_ALLOW_PRIVATE_URL);
+    }
+
+    @ParameterizedTest(name = "a model endpoint refuses [{0}]")
+    @ValueSource(strings = {"http://localhost:11434/?", "http://localhost:11434/x?y=", "http://localhost:11434/#"})
+    void aModelEndpointIsAnApiRoot(String value) {
+        // The call's path is appended to the root; a query or a fragment would take it in.
+        assertThat(Setting.AI_REVIEW_OLLAMA_URL.validate(value)).isPresent();
+        assertThat(Setting.AI_REVIEW_OPENAI_URL.validate(value)).isPresent();
+        assertThat(Setting.AI_REVIEW_OLLAMA_URL.validate("http://ollama.internal:11434/base")).isEmpty();
+    }
+
+    @Test
     @DisplayName("the dangerous switches are off by default")
     void dangerousDefaultsAreOff() {
         // Each of these, on, sends something somewhere it was not going before.

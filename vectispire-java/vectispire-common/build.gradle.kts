@@ -48,6 +48,11 @@ dependencies {
     // architecture suite forbids `domain` from depending on anything, and this is exactly the
     // kind of dependency that would make the calculations untestable without a daemon.
     implementation(libs.docker.java.core)
+    // docker-java-core's guava, raised for the advisory the catalogue names; a constraint, so it
+    // raises the version without making guava a dependency anything here may start calling.
+    constraints {
+        implementation(libs.guava) { because("GHSA-xxph-c9ww-hj94") }
+    }
     // **Raised for named advisories, not for freshness.** docker-java's transport brings
     // Apache's client, and the versions it and the Spring Boot BOM agree on carry fixable High
     // findings that Vectispire's own SBOM scan reports (see `supply-chain` in CI). Declared here
@@ -144,8 +149,9 @@ tasks.register<Test>("integrationTest") {
  * claim. The rest of the tree is mostly plumbing whose coverage number would say more about how
  * many getters it has than about whether it works.
  *
- * **Why a floor and not a target.** The numbers below sit just under what the suite achieves
- * today (83.5% instruction, 69.2% branch). That is deliberate: a floor exists to catch a
+ * **Why a floor and not a target.** The numbers below sit about three points under what the suite
+ * achieved when they were last raised, on 2026-10-29 (87.3% instruction, 78.1% branch; first set at
+ * 80 and 65 against 83.5 and 69.2). That is deliberate: a floor exists to catch a
  * regression — a class added with no test, a suite deleted in a hurry — not to reward
  * improvement. Set at today's exact figure it fails on rounding; set aspirationally it fails on
  * the next honest commit and gets raised until nobody reads it.
@@ -167,14 +173,14 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
             element = "BUNDLE"
             limit {
                 counter = "INSTRUCTION"
-                minimum = "0.80".toBigDecimal()
+                minimum = "0.84".toBigDecimal()
             }
             limit {
                 // Lower than instruction coverage, and honestly so: a branch is an `if` nobody
                 // wrote the other half of, and it is the counter that actually tracks whether
                 // the decisions were tested rather than merely executed.
                 counter = "BRANCH"
-                minimum = "0.65".toBigDecimal()
+                minimum = "0.75".toBigDecimal()
             }
         }
     }
@@ -197,6 +203,9 @@ tasks.named("check") {
  *
  * No branch floor for the same reason: this code is mostly error branches whose other half needs
  * a daemon.
+ *
+ * Set about three points under the 79.9% the suite reached on 2026-10-29; it had stood at 50 since
+ * the floor was introduced, low enough that half the package could have lost its tests unnoticed.
  */
 val scanningCoverage = tasks.register<JacocoCoverageVerification>("jacocoScanningCoverageVerification") {
     dependsOn(tasks.test)
@@ -212,7 +221,7 @@ val scanningCoverage = tasks.register<JacocoCoverageVerification>("jacocoScannin
             element = "BUNDLE"
             limit {
                 counter = "INSTRUCTION"
-                minimum = "0.50".toBigDecimal()
+                minimum = "0.77".toBigDecimal()
             }
         }
     }

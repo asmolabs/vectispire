@@ -1,13 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, beforeEach, it, expect } from 'vitest';
+import { afterEach, describe, beforeEach, it, expect, vi } from 'vitest';
 import { LayoutService } from './layout.service';
 
 /**
- * Smoke test of the service that carries the shell's state (dark theme, collapsed menu,
- * open configurator).
- *
- * It exists mostly so that the `test` target checks something at all: an empty suite always
- * passes, including on the day the harness is broken.
+ * The service that carries the shell's state: the dark theme, and which menu the toggle in the
+ * top bar opens or closes — a different one on a desktop, on a phone and in overlay mode.
  */
 describe('LayoutService', () => {
     let service: LayoutService;
@@ -28,5 +25,38 @@ describe('LayoutService', () => {
     it('toggles the dark theme', () => {
         service.layoutConfig.update((config) => ({ ...config, darkTheme: true }));
         expect(service.layoutConfig().darkTheme).toBe(true);
+    });
+
+    describe('the menu toggle', () => {
+        afterEach(() => vi.unstubAllGlobals());
+
+        const width = (pixels: number) => vi.stubGlobal('innerWidth', pixels);
+
+        it('collapses the static menu on a desktop, and leaves the phone menu alone', () => {
+            width(1280);
+            service.onMenuToggle();
+            expect(service.layoutState().staticMenuDesktopInactive).toBe(true);
+            expect(service.layoutState().mobileMenuActive).toBe(false);
+
+            service.onMenuToggle();
+            expect(service.layoutState().staticMenuDesktopInactive).toBe(false);
+        });
+
+        it('opens the phone menu below the desktop breakpoint, and leaves the static menu alone', () => {
+            width(991);
+            service.onMenuToggle();
+            expect(service.layoutState().mobileMenuActive).toBe(true);
+            expect(service.layoutState().staticMenuDesktopInactive).toBe(false);
+        });
+
+        it('opens the overlay in overlay mode, and only then', () => {
+            width(1280);
+            service.onMenuToggle();
+            expect(service.layoutState().overlayMenuActive).toBe(false);
+
+            service.layoutConfig.update((config) => ({ ...config, menuMode: 'overlay' }));
+            service.onMenuToggle();
+            expect(service.layoutState().overlayMenuActive).toBe(true);
+        });
     });
 });

@@ -2,8 +2,8 @@ package com.asmolabs.vectispire.core.access.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
-import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
+import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -63,7 +63,9 @@ public class UsersController {
             boolean mustChangePassword,
             boolean federated,
             Instant createdAt,
-            long activeSessions) {}
+            long activeSessions,
+            // Whether a local second factor is enrolled: the screen offers to reset it only then.
+            boolean mfaEnabled) {}
 
     /**
      * @param total every account the list holds — {@code users}' length unless a page was asked for, as the
@@ -153,10 +155,30 @@ public class UsersController {
                 id, actingAccountId(principal), RequestActors.of(principal, request)));
     }
 
+    /**
+     * Clears another account's second factor and closes its sessions — never one's own; see
+     * {@link AccountAdministrationService#resetSecondFactor}. {@code DELETE}, like the password-change
+     * requirement: what is removed is a thing the account holds, and the answer is the account as it
+     * now stands.
+     */
+    @DeleteMapping("/{id}/second-factor")
+    public UserAdminSummary resetSecondFactor(
+            @PathVariable long id,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return summaryOf(accounts.resetSecondFactor(id, actingAccountId(principal), RequestActors.of(principal, request)));
+    }
+
     /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
     @GetMapping("/{id}/targets")
-    public List<GrantableTargets.TargetGrant> targets(@PathVariable long id) {
-        return accounts.targets(id);
+    public List<GrantableTargets.TargetGrant> targets(
+            @PathVariable long id,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return accounts.targets(id, limit, offset);
     }
 
     /** Replaces the set wholesale, so that removing a target is something the screen can do. */
@@ -209,6 +231,7 @@ public class UsersController {
                 user.mustChangePassword(),
                 user.keycloakId() != null,
                 user.createdAt(),
-                view.activeSessions());
+                view.activeSessions(),
+                user.mfaEnabled());
     }
 }

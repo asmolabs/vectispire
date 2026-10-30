@@ -11,16 +11,17 @@ import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.internal.AccountAdminService;
 import com.asmolabs.vectispire.core.access.internal.GrantTargets;
-import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
-import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -81,7 +82,12 @@ public class AccountAdministrationService {
     public record AccountView(UserView user, long activeSessions) {}
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
-    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {}
+    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {
+
+        /** By kind, then id: the primary key's order after the owner's column. */
+        static final Comparator<TargetAssignment> ORDER =
+                Comparator.comparing(TargetAssignment::kind).thenComparing(TargetAssignment::id);
+    }
 
     public record NewAccount(String username, String password, String role, String email, String displayName) {}
 
@@ -198,6 +204,12 @@ public class AccountAdministrationService {
             changes.add("password reset");
         }
 
+        if (change.role() != null && user.getScimLoweredFrom() != null) {
+            // An administrator who sets the role has looked at the account: the directory's lowering no
+            // longer holds its binding back (V93).
+            changes.add("role confirmed after the directory lowered it from " + user.getScimLoweredFrom());
+            user.setScimLoweredFrom(null);
+        }
         user.setRole(role);
         user.setIsActive(isActive);
         user.setUpdatedAt(clock.instant());
@@ -336,6 +348,53 @@ public class AccountAdministrationService {
         return new AccountView(UserView.of(user), activeSessionsByUser().getOrDefault(id, 0L));
     }
 
+    /**
+     * Clears another account's second factor, and closes its sessions.
+     *
+     * <p><b>The way back for an account locked out of its own factor.</b> Enrolling asks for the
+     * password, but a lost phone, or a factor enrolled by whoever held the password and a session, used
+     * to be recoverable only in the database. Disabling asks for a current code, which is exactly what
+     * the owner no longer has.
+     *
+     * <p>Never one's own — an administrator who could clear their own factor would make it a password
+     * again — and under the governor's rules, as a password reset is: the governor's factor is the
+     * governor's. The sessions close because a factor enrolled by somebody else came with a session of
+     * theirs. The account's API keys stay: resetting the password, as for any suspected compromise, is
+     * what takes them.
+     *
+     * <p><b>Idempotent.</b> An account without a factor is answered as it is, with no write and no entry.
+     *
+     * @param actingAccountId the account clearing it. Read, not trusted: it must hold an administrative role
+     *     today, whatever the route's marker admitted
+     * @throws AccessDeniedException when the caller is not an administrative account
+     */
+    public AccountView resetSecondFactor(long id, Long actingAccountId, RequestActor actor) {
+        boolean administers = actingAccountId != null && users.findById(actingAccountId)
+                .flatMap(account -> Role.of(account.getRole()))
+                .map(Role::isAdministrative)
+                .orElse(false);
+        if (!administers) {
+            throw new AccessDeniedException("Only an administrator can reset another account's second factor.");
+        }
+        UserEntity user = requireAccount(id);
+        if (isSelf(actingAccountId, id)) {
+            throw new InvalidInputException("You cannot reset your own second factor: disable it with a current code.");
+        }
+        refuseGovernorAdministration(actingAccountId, Role.of(user.getRole()), Optional.empty());
+
+        if (!user.getMfaEnabled()) {
+            return new AccountView(UserView.of(user), activeSessionsByUser().getOrDefault(id, 0L));
+        }
+        user.setMfaEnabled(false);
+        user.setTotpSecret(null);
+        user.setMfaBackupCodes(null);
+        user.setTotpLastStep(null);
+        user.setUpdatedAt(clock.instant());
+        accounts.save(user, true);
+        record(actor, id, "Account " + user.getUsername() + ": second factor reset by an administrator, sessions closed");
+        return new AccountView(UserView.of(user), 0);
+    }
+
     /** Holds a password and no provider subject: the password is how it signs in. */
     private static boolean signsInWithItsPassword(UserEntity user) {
         return user.getPassword() != null && user.getKeycloakId() == null;
@@ -346,12 +405,21 @@ public class AccountAdministrationService {
      *
      * <p>A project grant is listed as the project, not as its repositories: the grant is what an
      * administrator made and can revoke, and what it resolves to changes as repositories are filed.
+     *
+     * <p>By kind, then id — the primary key's order, made explicit so that the pages are the list cut on every
+     * engine — all of them or one page, named for the page's rows only.
+     *
+     * @param limit rows per page, or null for every target ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses — after the account's 404
      */
-    public List<GrantableTargets.TargetGrant> targets(long id) {
+    public List<GrantableTargets.TargetGrant> targets(long id, Integer limit, Integer offset) {
         requireAccount(id);
-        return targets.named(assignments.findByUserId(id).stream()
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<TargetAssignment> every = assignments.findByUserId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
-                .toList());
+                .sorted(TargetAssignment.ORDER)
+                .toList();
+        return targets.named(window.map(page -> page.of(every)).orElse(every));
     }
 
     /**

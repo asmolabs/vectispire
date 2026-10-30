@@ -8,8 +8,8 @@ HTTP.
 ./gradlew build                      # compile + unit, architecture and HTTP suites (on MySQL: Docker)
 ./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: mysql)
-./gradlew integrationTest -Pdialect=postgres
-./gradlew integrationTestAll         # PostgreSQL and MySQL
+./gradlew integrationTestAll         # every supported engine at both ends: MySQL 9.x and 8.4 LTS (decision 0043 §3)
+./gradlew integrationTestPostgres    # PostgreSQL, unsupported: kept for whoever brings it back
 ```
 
 ## Three modules, and why three
@@ -406,7 +406,7 @@ foreign keys of the seventeen tables that carry one really exist, and that a sec
 nothing.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on
-PostgreSQL and MySQL through Testcontainers. `MigrationPlaceholdersIntegrationTest`
+MySQL through Testcontainers (and on PostgreSQL by `integrationTestPostgres`, which nothing runs). `MigrationPlaceholdersIntegrationTest`
 applies a test-only common migration using every placeholder, through the application's own Flyway,
 and reads back on each engine the declared types and the behaviour — a millisecond kept, an identity
 never reused. **There is no "skip if Docker is missing" guard, deliberately** — a
@@ -420,7 +420,7 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 MySQL — one container per test JVM through Testcontainers, or the server `VECTISPIRE_TEST_DB_URL`
 names, as CI's `jvm` job does with a job service — and without either it fails rather than skips
 (decision 0034, `TestDatabase`). `./gradlew integrationTestAll` runs the schema and concurrency checks
-on PostgreSQL and MySQL through Testcontainers. CI runs it in two places.
+on MySQL through Testcontainers — the one supported engine (decision 0043 §3, amended 2026-10-29). CI runs it in two places.
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
 **when anything engine-sensitive changed** — a migration, a module's `core/<module>/persistence/`
 (every query, `Specification` and entity lives there, which `ArchitectureTest` enforces),
@@ -455,7 +455,11 @@ database. What keeps the shared server clean is the database, not the container:
 `vectispire_test_<epoch seconds>_<random>`, drops it — and any scratch database a test left open —
 when it exits, and at start drops those of ours older than a day, which only a killed JVM leaves.
 Nothing else on the server is touched, and a run in another worktree, whose database is minutes old,
-keeps its own. Two runs starting at once race for the name: the daemon refuses the second create, and
+keeps its own. Two runs share nothing but the server — no table, no lock — so they cannot deadlock
+each other; what they share is its disk. **Every connection of the suite runs without the binary
+log** (`sessionVariables=sql_log_bin=0`): with the log on, a commit on a full disk waits for space
+and the run hangs — an hour and a half on 2026-10-29 — where without it the commit fails at once.
+Two runs starting at once race for the name: the daemon refuses the second create, and
 that run waits for the first one's container instead of making a second. A container a Docker restart
 stopped is replaced; one of another image or Testcontainers version — an older branch's — is left
 alone, the run reuses one without the name, and the log says to remove the old one. To remove it, or

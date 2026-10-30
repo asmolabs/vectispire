@@ -47,6 +47,7 @@ describe('la grille OWASP', () => {
         covered: 3,
         withFindings: 1,
         unmeasured: 1,
+        unplacedCode: 0,
         scope: null
     });
 
@@ -107,6 +108,17 @@ describe('la grille OWASP', () => {
                 ...Object.values(GRID_IMPLEMENTATION_KEYS)
             ])
         ).toEqual([]);
+    });
+
+    it('says how many open code findings no category holds, and nothing when there are none', () => {
+        const unplaced = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="owasp-unplaced"]');
+        expect(unplaced()).toBeNull();
+
+        useEnglish();
+        fixture.componentInstance.grid.set(asSchema('DeclaredGrid', { ...GRID, unplacedCode: 3 }));
+        fixture.detectChanges();
+
+        expect(unplaced()?.textContent).toContain('3 open code findings are in no category');
     });
 
     it("garde l'ordre du serveur, qui est celui du standard", () => {
@@ -180,6 +192,7 @@ describe('la grille OWASP', () => {
             covered: 0,
             withFindings: 0,
             unmeasured: 0,
+            unplacedCode: 0,
             scope: null
         };
         asSchema('DeclaredGrid', declared);
@@ -364,6 +377,7 @@ describe('la grille OWASP', () => {
             covered: 3,
             withFindings: 0,
             unmeasured: 2,
+            unplacedCode: 0,
             scope: null
         });
 

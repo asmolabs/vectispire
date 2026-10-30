@@ -217,14 +217,14 @@ class TrackerSuspensionRoutesTest extends ApiTestBase {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.type").value(DISABLED))
                 .andExpect(jsonPath("$.integration").value("tracker.gitlab"));
-        assertThat(ticketLinks.findByIssueIdOrderByCreatedAtDesc(id)).isEmpty();
+        assertThat(ticketLinks.findByIssueIdOrderByCreatedAtDescIdDesc(id)).isEmpty();
 
         mvc.perform(authenticated(post("/api/v1/issues/" + id + "/tickets"), admin)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of("provider", "jira", "ticketKey", "SEC-12",
                                 "ticketUrl", "https://jira.example.org/browse/SEC-12"))))
                 .andExpect(status().isCreated());
-        assertThat(ticketLinks.findByIssueIdOrderByCreatedAtDesc(id)).singleElement()
+        assertThat(ticketLinks.findByIssueIdOrderByCreatedAtDescIdDesc(id)).singleElement()
                 .satisfies(link -> assertThat(link.getProvider()).isEqualTo("JIRA"));
     }
 

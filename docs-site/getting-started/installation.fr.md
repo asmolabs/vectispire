@@ -9,7 +9,7 @@ installation sur une seule machine n'a besoin ni de l'agent ni d'aucune configur
 | Prérequis | Pourquoi |
 |---|---|
 | **Docker**, démarré et joignable | Chaque scanner s'exécute comme un conteneur éphémère que Vectispire demande à un démon Docker de démarrer — à travers un proxy de socket dans la composition, voir ci-dessous. Ce n'est pas facultatif : il y a un seul moteur de scan, et c'est Docker. |
-| **MySQL 8** (défaut) ou **PostgreSQL** | Les deux sont supportés et exercés par la campagne d'intégration ; MySQL est le défaut et le moteur que livre la composition. Le moteur est lu depuis l'URL JDBC ; il n'y a pas de réglage de dialecte séparé. |
+| **MySQL 8.4 LTS ou 9.x** | Le moteur supporté, aux deux versions qu'exerce la campagne d'intégration — 8.4, la branche que livre la composition, et 9.x. Une autre version de MySQL peut démarrer ; rien ne la vérifie. Le moteur est lu depuis l'URL JDBC ; il n'y a pas de réglage de dialecte séparé. PostgreSQL démarre encore, mais n'est plus testé et ne fera pas partie de 1.0 ([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md) §3). |
 | **Git** | Vectispire clone ce qu'il analyse. |
 | **Node 24 (LTS)**, **JDK 25** | Uniquement si vous construisez depuis les sources plutôt que d'exécuter les images publiées. Node est épinglé par `.nvmrc` ; Angular 22 refuse Node 25. |
 
@@ -139,8 +139,9 @@ VECTISPIRE_DB_USER=vectispire
 VECTISPIRE_DB_PASSWORD=…
 ```
 
-Cette URL est aussi la valeur par défaut. Pour PostgreSQL, pointez la même variable dessus —
-`jdbc:postgresql://localhost:5432/vectispire` — et ne changez rien d'autre. Un réglage du serveur MySQL compte si vous utilisez des [plugins de rapport](../administration/report-plugins.fr.md)
+Cette URL est aussi la valeur par défaut. PostgreSQL n'est plus testé ; une installation existante qui
+l'utilise pointe la même variable dessus — `jdbc:postgresql://localhost:5432/vectispire` — et prévoit son
+passage à MySQL avant 1.0. Un réglage du serveur MySQL compte si vous utilisez des [plugins de rapport](../administration/report-plugins.fr.md)
 sur de grands projets : au `max_allowed_packet` par défaut (64 Mio), l'export d'un rapport est gardé jusqu'à
 environ 32 Mio, et `--max-allowed-packet=160M` rétablit toute la borne de 64 Mio.
 
@@ -212,6 +213,27 @@ de protéger qui que ce soit.
 
 Les deux sont consignés avec leur raisonnement dans le modèle de menaces du projet.
 
+### Une seule instance du plan de contrôle {#one-instance}
+
+**Exécutez un seul plan de contrôle.** Une seconde instance sur la même base — un second réplica sur
+Kubernetes, un second conteneur dans la même composition — n'est pas prise en charge en 1.0
+([décision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0043-what-1-0-promises.md) §4).
+Le code est écrit pour plusieurs, et trois mécanismes sont ce sur quoi deux instances s'appuieraient :
+
+- **les tâches de maintenance**, que chaque instance exécute : chacune est écrite pour supporter de
+  tourner deux fois, et celles qui ne doivent tourner qu'une fois — planifier les scans — élisent un
+  meneur par un bail en base ;
+- **le verrou de la chaîne d'audit** : chaque entrée est écrite sous un verrou sur la tête de la
+  chaîne, pour que deux écrivains ne la fassent jamais bifurquer ;
+- **l'outbox** : le relais réclame chaque notification avant de la livrer, pour que deux instances ne
+  l'envoient pas deux fois.
+
+Chacun est testé sur MySQL par deux sessions ou deux fils d'exécution ; **aucun par deux applications
+en marche**. Une garantie qu'aucune vérification n'exécute n'est pas une garantie que nous promettons :
+la haute disponibilité est un objectif de 1.x, avec sa propre décision une fois que deux instances
+auront tourné ensemble dans un test. D'ici là, une seconde instance est à vos risques, et un défaut
+qu'elle seule révèle n'est pas traité comme tel.
+
 ## Kubernetes {#kubernetes}
 
 Une chart Helm est livrée dans [`deploy/helm/vectispire/`](https://github.com/asmolabs/vectispire/tree/main/deploy/helm/vectispire).
@@ -251,7 +273,7 @@ Installé et sauvegardé à part. La chart pointe vers lui :
   le serveur évalue dans le fuseau de la session. Ne fixez pas `TZ` sur le pod.
 - **Sauvegardez avant chaque mise à jour.** Les migrations tournent au démarrage et n'ont pas de retour
   arrière. Revenir en arrière, c'est restaurer la sauvegarde et l'empreinte de l'image précédente.
-  Le passage depuis la version précédente est exécuté chaque nuit sur MySQL et PostgreSQL, sur une
+  Le passage depuis la version précédente est exécuté chaque nuit sur MySQL, sur une
   base qui contient des données et qui se relit ensuite à l'identique ; aucune version n'est publiée
   sur une nuit en échec.
 
@@ -360,7 +382,8 @@ aussi la plage des nœuds. Ce qui rend l'adresse du client dépend du répartite
   `trustedProxies`. Seulement si le répartiteur est le seul chemin vers le contrôleur : sinon un client
   écrit l'en-tête que le contrôleur transmet, et il est cru.
 
-**Deux réplicas** sont possibles, mais pas par défaut. Ils demandent :
+**Deux réplicas ne sont pas pris en charge en 1.0** — voir [Une seule instance du plan de contrôle](#one-instance).
+Outre ce que nomme cette section, un second réplica demanderait :
 
 - l'affinité par cookie (`ingress.stickySessions`) : l'authentification unique garde son état dans la
   session du pod qui a envoyé la personne vers le fournisseur ;
@@ -398,10 +421,11 @@ services:
     restart: unless-stopped
     networks: [outside, docker]
   agent-docker-proxy:
-    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     # Ce qu'appelle ContainerRunner, et rien d'autre ; toute autre section garde sa valeur par
-    # défaut, 0. docker-compose.yml les liste toutes, chacune avec sa raison.
-    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0}
+    # défaut, 0, sauf EVENTS, que l'image ouvre et qui est fermée ici.
+    # docker-compose.yml les liste toutes, chacune avec sa raison.
+    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0, EVENTS: 0}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
@@ -530,7 +554,10 @@ listées, l'agent les atteint et chaque pod de scan en est exclu.
 **L'agent prouve l'isolation avant de scanner.** Au démarrage, il lance deux pods de sonde, hors ligne et
 en ligne, qui tentent de joindre le serveur d'API ; si l'un y parvient — un CNI qui ignore les
 NetworkPolicies, ou des politiques absentes —, l'agent ne démarre pas et dit pourquoi dans son journal.
-Une sonde qui ne peut pas tourner arrête aussi le démarrage. Seulement là où `agents.networkPolicy.enabled`
+Une sonde qui ne peut pas tourner arrête aussi le démarrage. Un CNI peut appliquer les politiques à un
+nouveau pod un instant après son démarrage : chaque sonde essaie donc jusqu'au refus, 30 secondes au plus,
+et **chaque pod d'analyse vérifie la même chose avant que son scanner démarre** ; un pod qui joint encore le
+serveur d'API passé ce délai fait échouer son étape. Seulement là où `agents.networkPolicy.enabled`
 vaut false, avec son acquittement, la chart dit à l'agent de ne pas vérifier.
 
 La base de vulnérabilités, quelque 3 Go, est conservée pour les pods de scan sur une revendication de

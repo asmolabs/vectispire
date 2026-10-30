@@ -3,8 +3,8 @@ package com.asmolabs.vectispire.core.access.web;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
-import com.asmolabs.vectispire.core.access.TeamAdministrationService.TeamView;
 import com.asmolabs.vectispire.core.access.TeamAdministrationService;
+import com.asmolabs.vectispire.core.access.TeamAdministrationService.TeamView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
@@ -123,8 +123,14 @@ public class TeamsController {
     }
 
     @GetMapping("/{id}/members")
-    public List<Long> members(@PathVariable long id) {
-        return teams.members(id);
+    public List<Long> members(
+            @PathVariable long id,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return teams.members(id, limit, offset);
     }
 
     /** Replaces the membership wholesale, so that removing somebody is something the screen can do. */
@@ -138,8 +144,14 @@ public class TeamsController {
     }
 
     @GetMapping("/{id}/targets")
-    public List<GrantableTargets.TargetGrant> targets(@PathVariable long id) {
-        return teams.targets(id);
+    public List<GrantableTargets.TargetGrant> targets(
+            @PathVariable long id,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return teams.targets(id, limit, offset);
     }
 
     @PutMapping("/{id}/targets")

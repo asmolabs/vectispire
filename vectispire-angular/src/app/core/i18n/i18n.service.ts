@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { translateProblemsWith } from '../api-error';
+import { problemSentence } from '../problem-codes';
 
 export type SupportedLanguage = 'en' | 'fr';
 
@@ -18,6 +20,11 @@ export class I18nService {
     readonly currentLang = signal<SupportedLanguage>('en');
     readonly translations = signal<TranslationTree>({});
     readonly isLoaded = signal<boolean>(false);
+
+    constructor() {
+        // Every refusal a screen shows goes through `messageOf`; from here it speaks the reader's language.
+        translateProblemsWith((problem) => problemSentence(this, problem));
+    }
 
     /**
      * Initializes the language from stored preference or browser settings,
@@ -80,7 +87,9 @@ export class I18nService {
         }
 
         return Object.entries(params).reduce((acc, [paramKey, paramVal]) => {
-            return acc.replace(new RegExp(`{{\\s*${paramKey}\\s*}}`, 'g'), String(paramVal));
+            // A function, not a string: a value is quoted as it is, and a server's sentence holding `$&`
+            // or `$1` would otherwise be read as a replacement pattern.
+            return acc.replace(new RegExp(`{{\\s*${paramKey}\\s*}}`, 'g'), () => String(paramVal));
         }, value);
     }
 

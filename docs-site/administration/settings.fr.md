@@ -18,12 +18,20 @@ ils partent — l'URL du tracker, son projet, son compte Jira et sa CA épinglé
 l'URL OpenAI et l'acceptation qui laisse partir le code vers un point d'accès distant — sont donc
 aussi ceux d'un administrateur, et s'affichent en lecture seule pour les autres. Sans cela, un rôle
 qui ne peut pas lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte, ou le
-faire écrire dans un projet de son choix sur l'hôte du tracker.
+faire écrire dans un projet de son choix sur l'hôte du tracker. Envoyé par un autre rôle, un tel
+réglage est refusé quelle que soit sa valeur quand l'écran le masque (l'URL du tracker, sa CA), et
+accepté s'il revient inchangé dans les autres cas.
 *Autoriser une destination SIEM privée* et *Autoriser une URL de webhook privée* reviennent à un
 administrateur pour une raison voisine : l'export SIEM et les canaux de notification sont configurés
 et testés par un CISO, et l'interrupteur qui décide s'ils peuvent joindre le réseau interne n'est pas
 laissé au même rôle. Le bouton de test des canaux répond délivré ou non délivré ; la raison d'un échec
 est écrite dans le journal du serveur, pas renvoyée.
+L'URL d'Ollama revient aussi à un administrateur, bien qu'aucun identifiant n'y parte : elle reçoit
+les constats ouverts de chaque dépôt dont le rapport est écrit et peut viser l'intérieur de votre
+réseau, si bien que la choisir revient à choisir un hôte interne que le serveur appelle. Un CISO choisit
+toujours le fournisseur et le modèle, et le test de connexion n'appelle que l'URL posée par un
+administrateur. Les deux URL de modèle sont des racines d'API : celle qui porte une requête ou un
+fragment (`?`, `#`) est refusée, puisque chaque appel y ajoute son chemin.
 
 Quatre paramètres décident des règles plutôt que des réglages et reviennent au seul **gouverneur de
 plateforme** — qui voit quelles cibles, si un triage demande [deux personnes](four-eyes.fr.md), si

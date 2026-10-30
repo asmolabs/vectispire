@@ -25,7 +25,6 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Teams: who is in one, what it owns, and where its alerts go.
@@ -71,6 +71,14 @@ public class TeamAdministrationService {
     private final GrantTargets grantTargets;
     private final GrantableTargets grantable;
 
+    /**
+     * One transaction per replacement or deletion, the audit entry after it. Each repository call
+     * used to commit alone: a failure between the delete and the inserts left a team with none of
+     * its members or targets, or a deleted team's rows half gone — the state
+     * {@code AccountAdminService.replaceTargets} exists to prevent for an account.
+     */
+    private final TransactionTemplate transactions;
+
     public TeamAdministrationService(
             TeamRepository teams,
             TeamMemberRepository memberships,
@@ -82,7 +90,8 @@ public class TeamAdministrationService {
             AuditLogService audit,
             Clock clock,
             GrantTargets grantTargets,
-            GrantableTargets grantable) {
+            GrantableTargets grantable,
+            TransactionTemplate transactions) {
         this.teams = teams;
         this.memberships = memberships;
         this.targets = targets;
@@ -94,6 +103,7 @@ public class TeamAdministrationService {
         this.clock = clock;
         this.grantTargets = grantTargets;
         this.grantable = grantable;
+        this.transactions = transactions;
     }
 
     /**
@@ -120,7 +130,12 @@ public class TeamAdministrationService {
     }
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
-    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {}
+    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {
+
+        /** By kind, then id: the primary key's order after the owner's column. */
+        static final Comparator<TargetAssignment> ORDER =
+                Comparator.comparing(TargetAssignment::kind).thenComparing(TargetAssignment::id);
+    }
 
     /**
      * The teams by name, all of them or one page. A name is unique whatever its casing, so the order is one a
@@ -220,17 +235,30 @@ public class TeamAdministrationService {
         int members = memberships.findByTeamId(id).size();
         int owned = targets.findByTeamId(id).size();
 
-        memberships.deleteByTeamId(id);
-        targets.deleteByTeamId(id);
-        webhooks.deleteById(id);
-        teams.deleteById(id);
+        transactions.executeWithoutResult(status -> {
+            memberships.deleteByTeamId(id);
+            targets.deleteByTeamId(id);
+            webhooks.deleteById(id);
+            teams.deleteById(id);
+        });
         record(actor, id, AuditOperation.TEAM_UPDATED,
                 "Team deleted: " + team.getName() + " (" + members + " member(s), " + owned + " target(s))");
     }
 
-    public List<Long> members(long id) {
+    /**
+     * The team's members by account id, all of them or one page.
+     *
+     * <p>Sorted here rather than left to the table: the pages of a list are that list cut, which needs an order
+     * every engine agrees on. It is the primary key's, which MySQL answered before paging existed.
+     *
+     * @param limit rows per page, or null for every member ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses — after the team's 404
+     */
+    public List<Long> members(long id, Integer limit, Integer offset) {
         requireTeam(id);
-        return memberships.findByTeamId(id).stream().map(row -> row.getId().userId()).toList();
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<Long> every = memberships.findByTeamId(id).stream().map(row -> row.getId().userId()).sorted().toList();
+        return window.map(page -> page.of(every)).orElse(every);
     }
 
     /**
@@ -255,20 +283,33 @@ public class TeamAdministrationService {
             throw new InvalidInputException("No such account(s): " + unknown);
         }
 
-        memberships.deleteByTeamId(id);
-        wanted.forEach(userId -> memberships.save(new TeamMemberEntity(id, userId)));
+        transactions.executeWithoutResult(status -> {
+            memberships.deleteByTeamId(id);
+            wanted.forEach(userId -> memberships.save(new TeamMemberEntity(id, userId)));
+        });
 
         record(actor, id, AuditOperation.TEAM_ACCESS_CHANGED,
                 "Members of " + team.getName() + ": " + wanted.size());
         return wanted;
     }
 
-    /** What the team owns, each target named — a project grant included, which no selector lists. */
-    public List<GrantableTargets.TargetGrant> targets(long id) {
+    /**
+     * What the team owns, each target named — a project grant included, which no selector lists.
+     *
+     * <p>By kind, then id — the primary key's order, made explicit for the same reason as {@link #members}'s — all
+     * of them or one page, named for the page's rows only.
+     *
+     * @param limit rows per page, or null for every target ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses — after the team's 404
+     */
+    public List<GrantableTargets.TargetGrant> targets(long id, Integer limit, Integer offset) {
         requireTeam(id);
-        return grantable.named(targets.findByTeamId(id).stream()
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<TargetAssignment> every = targets.findByTeamId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
-                .toList());
+                .sorted(TargetAssignment.ORDER)
+                .toList();
+        return grantable.named(window.map(page -> page.of(every)).orElse(every));
     }
 
     /**
@@ -285,7 +326,9 @@ public class TeamAdministrationService {
         java.util.Set<TargetAssignment> held = targets.findByTeamId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
                 .collect(java.util.stream.Collectors.toSet());
-        List<TargetAssignment> wanted = new ArrayList<>();
+        // A set, as for an account's grants: the pair is the table's primary key, and the same
+        // target sent twice was answered and audited as two grants while one row was stored.
+        java.util.LinkedHashSet<TargetAssignment> unique = new java.util.LinkedHashSet<>();
         for (TargetAssignment assignment : requested) {
             if (assignment == null || assignment.id() == null) {
                 continue;
@@ -296,12 +339,15 @@ public class TeamAdministrationService {
             // confusing possible outcome.
             String kind = grantTargets.validate(assignment.kind(), assignment.id(), granter,
                     (normalized, targetId) -> held.contains(new TargetAssignment(normalized, targetId)));
-            wanted.add(new TargetAssignment(kind, assignment.id()));
+            unique.add(new TargetAssignment(kind, assignment.id()));
         }
+        List<TargetAssignment> wanted = List.copyOf(unique);
 
-        targets.deleteByTeamId(id);
-        wanted.forEach(assignment -> targets.save(
-                new TeamTargetEntity(id, assignment.kind(), assignment.id())));
+        transactions.executeWithoutResult(status -> {
+            targets.deleteByTeamId(id);
+            wanted.forEach(assignment -> targets.save(
+                    new TeamTargetEntity(id, assignment.kind(), assignment.id())));
+        });
 
         record(actor, id, AuditOperation.TEAM_ACCESS_CHANGED,
                 "Targets of " + team.getName() + ": " + wanted.size());

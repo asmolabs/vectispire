@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
@@ -186,8 +187,7 @@ public class HistoryQueryService {
         Map<Long, IssueEntity> issuesById = new LinkedHashMap<>();
         Map<Long, List<TriageEventEntity>> decisionsByIssue = new LinkedHashMap<>();
         List<Long> observedIssues = List.copyOf(issueIds);
-        for (int from = 0; from < observedIssues.size(); from += ISSUE_BATCH) {
-            List<Long> batch = observedIssues.subList(from, Math.min(from + ISSUE_BATCH, observedIssues.size()));
+        for (List<Long> batch : Batches.of(observedIssues, ISSUE_BATCH)) {
             issues.findAllById(batch).forEach(issue -> issuesById.put(issue.getId(), issue));
             events.findForIssues(batch).forEach(event ->
                     decisionsByIssue.computeIfAbsent(event.getIssueId(), id -> new ArrayList<>()).add(event));
@@ -255,7 +255,8 @@ public class HistoryQueryService {
                                 event.getExpiresAt(),
                                 event.getScanId(),
                                 event.getScanId() == null ? null : versionByScan.get(event.getScanId()),
-                                event.getPreviousResolvedAt()))
+                                event.getPreviousResolvedAt(),
+                                event.getRequestedStatus()))
                         .toList());
     }
 }

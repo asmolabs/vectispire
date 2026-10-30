@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCwe;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Analysis of the source code itself.
@@ -61,10 +63,12 @@ public final class SastScanner {
      * @param ruleId enters the fingerprint: it must not move
      * @param category {@code security} or a quality category — this is what decides where the
      *     finding goes, and whether it can fail a build
-     * @param owaspCategory the OWASP 2021 id the rule declares about itself, or null. <b>Read,
-     *     never inferred</b>: see {@link com.asmolabs.vectispire.common.domain.owasp.OwaspTag}.
-     *     Null is the ordinary case — most rules declare nothing — and it means the finding is
-     *     placed in no category rather than in a guessed one
+     * @param owaspCategory the OWASP 2021 id the rule declares about itself, or — when it declares
+     *     none — the one its CWE belongs to in the standard's own lists, or null. <b>Read, never
+     *     inferred</b>: see {@link com.asmolabs.vectispire.common.domain.owasp.OwaspTag} and {@link
+     *     com.asmolabs.vectispire.common.domain.owasp.OwaspCwe}. Null means a rule declaring neither,
+     *     and the finding is placed in no category rather than in a guessed one. Not a fingerprint
+     *     input: placing a finding moves no issue
      * @param message for a SAST finding, the message <em>is</em> the finding
      */
     public record SastFinding(
@@ -232,7 +236,7 @@ public final class SastScanner {
                     ContainerPaths.relativeToSource(entry.path("path").asText(""), subPath),
                     entry.path("start").path("line").asInt(0),
                     extra.path("message").asText(""),
-                    owaspOf(metadata.path("owasp"))));
+                    owaspOf(metadata.path("owasp"), metadata.path("cwe"))));
         }
         return List.copyOf(findings);
     }
@@ -248,19 +252,29 @@ public final class SastScanner {
      * categories would inflate the only number the grid carries — the same reason a secret is
      * filed under A07 alone rather than under A02 as well.
      */
-    static String owaspOf(JsonNode declared) {
+    static String owaspOf(JsonNode declared, JsonNode cwe) {
+        return firstOf(declared, OwaspTag::categoryOf)
+                // **The rule's CWE when it declares no 2021 category.** Most of the upstream corpus
+                // declares a CWE and no OWASP category, and its findings entered no category of the
+                // grid, silently. The CWE is the author's declaration too, and OWASP lists which CWEs
+                // each category holds; its own category, when it has one, stays the first word.
+                .or(() -> firstOf(cwe, OwaspCwe::categoryOfDeclaration))
+                .orElse(null);
+    }
+
+    private static Optional<String> firstOf(JsonNode declared, Function<String, Optional<String>> reading) {
         if (declared.isTextual()) {
-            return OwaspTag.categoryOf(declared.asText()).orElse(null);
+            return reading.apply(declared.asText());
         }
         if (declared.isArray()) {
             for (JsonNode value : declared) {
-                Optional<String> category = OwaspTag.categoryOf(value.asText(""));
+                Optional<String> category = reading.apply(value.asText(""));
                 if (category.isPresent()) {
-                    return category.get();
+                    return category;
                 }
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     /**

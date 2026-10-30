@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.auth;
 
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
@@ -9,18 +10,26 @@ import java.util.Locale;
 /**
  * Throttling of login attempts.
  *
- * <p><b>Two independent counters, and both have to pass.</b> This is not redundancy — each
- * one alone has a hole the other closes:
+ * <p><b>Three counters, and all have to pass.</b> This is not redundancy — each one alone has a
+ * hole another closes:
  *
  * <ul>
- *   <li>Count per <b>user</b> only, and anybody can lock a colleague's account whose username
- *       they know: a denial of service at a third of the cost of an attack.
- *   <li>Count per <b>client</b> only, and an attacker spread across several machines tries as
- *       many passwords as they like against one account.
+ *   <li>An <b>account from one client</b> — {@link #MAX_ATTEMPTS_PER_USER}: the owner's mistypes,
+ *       and a guesser working from one place.
+ *   <li>An <b>account from everywhere</b> — {@link #MAX_ATTEMPTS_PER_ACCOUNT}, ten times higher:
+ *       a guesser spread across many machines tries no more than that against one account.
+ *   <li>A <b>client</b> across every account — {@link #MAX_ATTEMPTS_PER_CLIENT}: one password
+ *       tried across many names.
  * </ul>
  *
- * <p>Hence two thresholds rather than one. A shared workstation can legitimately watch several
- * people mistype; an account cannot.
+ * <p><b>The account's low ceiling used to be shared by every client.</b> Five wrong passwords a
+ * quarter of an hour, from anywhere, kept any account whose name was known locked — the governor's
+ * included — and its owner, typing the right password from their own workstation, was refused with
+ * the rest. Keyed per client, the same five lock out only the client that sent them; locking the
+ * owner out takes the global ceiling, ten times higher and from at least ten clients, which is
+ * exactly the distributed guessing it exists to stop.
+ *
+ * <p>A shared workstation can legitimately watch several people mistype; an account cannot.
  *
  * <p><b>The window slides rather than being fixed.</b> A fixed window resets on the hour, which
  * hands an attacker a free burst at the boundary.
@@ -32,7 +41,10 @@ public final class LoginThrottle {
 
     private LoginThrottle() {}
 
+    /** Failures against one account, or one typed name, from one client. */
     public static final int MAX_ATTEMPTS_PER_USER = 5;
+    /** Failures against one account, or one typed name, whatever the client. */
+    public static final int MAX_ATTEMPTS_PER_ACCOUNT = 50;
     public static final int MAX_ATTEMPTS_PER_CLIENT = 20;
     public static final Duration WINDOW = Duration.ofMinutes(15);
 
@@ -145,6 +157,28 @@ public final class LoginThrottle {
      */
     public static String accountKey(long accountId) {
         return "login:account:" + accountId;
+    }
+
+    /** The account's failures from one client — see {@link #MAX_ATTEMPTS_PER_USER}. */
+    public static String accountKey(long accountId, String clientId) {
+        return fromClient(accountKey(accountId), clientId);
+    }
+
+    /**
+     * The typed name's failures from one client, beside {@link #accountKey(long, String)} for the
+     * same reason {@link #userKey(String)} sits beside {@link #accountKey(long)}: which counters an
+     * attempt meets must not depend on whether the account exists.
+     */
+    public static String userKey(String username, String clientId) {
+        return fromClient(userKey(username), clientId);
+    }
+
+    /**
+     * A counter narrowed to one client bucket, as a digest: the typed name is the caller's and has
+     * no length the column knows, and the bucket adds to it.
+     */
+    private static String fromClient(String key, String clientId) {
+        return "login:from-client:" + Digests.sha256Fields(key, ClientBuckets.of(clientId));
     }
 
     /** Wrong second-factor codes, per account — see {@link #MAX_SECOND_FACTOR_FAILURES}. */

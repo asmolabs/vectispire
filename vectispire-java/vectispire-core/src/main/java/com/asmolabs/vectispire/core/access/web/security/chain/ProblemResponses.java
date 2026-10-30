@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
+import com.asmolabs.vectispire.common.domain.errors.ProblemCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,6 +21,8 @@ import org.springframework.http.MediaType;
  * body limit a problem, the 401 nothing at all, and the 403 went through the container's error page
  * and came back as {@code {timestamp, status, error, path}}. A client reading {@code detail} — the
  * interface does — had four shapes to guess between for one kind of answer.
+ *
+ * <p>With the {@code code} member every problem carries ({@link ProblemCode}).
  *
  * <p><b>Serialised, never formatted.</b> The body limit built its problem with {@code
  * String.formatted}; a detail with a quote in it would have produced a document no client could
@@ -48,6 +51,9 @@ final class ProblemResponses {
         problem.put("status", status.value());
         problem.put("detail", detail);
         problem.put("instance", request.getRequestURI());
+        // By status: every refusal the chain writes is the one kind its status names — a 401 is a
+        // missing or refused credential, a 429 a limiter — and a caller may name a finer one.
+        problem.put(ProblemCode.MEMBER, ProblemCode.forStatus(status.value()));
         problem.putAll(properties);
 
         response.setStatus(status.value());

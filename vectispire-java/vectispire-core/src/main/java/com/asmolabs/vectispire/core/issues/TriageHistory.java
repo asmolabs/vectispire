@@ -92,6 +92,11 @@ public final class TriageHistory {
      *     again, null for an import
      * @param previousResolvedAt on a reopening only: when the resolution it ended began. Null on every
      *     other entry
+     * @param requestedStatus on an entry that queued a settling decision for a second person
+     *     ({@code toStatus} {@code pending_approval}): the status it asked for, which the approval grants
+     *     or refuses. Without it the trail showed a request and an approval and not what was asked —
+     *     the one fact that says whether the approver granted the request or a status of their own.
+     *     Last, so that the positional constructors and the CSV columns before it keep their place
      */
     public record Decision(
             String fromStatus,
@@ -111,7 +116,9 @@ public final class TriageHistory {
             @Schema(types = {"string", "null"}, description = "The project version that scan read. Null when it read none, and always on an issue's detail, which does not resolve it.")
                     String version,
             @Schema(types = {"string", "null"}, format = "date-time", description = "On a reopening only: when the resolution it ended began. Null on every other entry.")
-                    Instant previousResolvedAt) {}
+                    Instant previousResolvedAt,
+            @Schema(types = {"string", "null"}, description = "On an entry that queued a decision for approval (toStatus pending_approval): the status it asked for — not_affected, will_not_fix or fixed. Null on every other entry, and on a request queued before the request was recorded.")
+                    String requestedStatus) {}
 
     /** A whole dossier: one target, its scans, and what was decided. */
     public record Dossier(Repository repository, List<Scan> scans, Instant generatedAt) {}

@@ -31,10 +31,11 @@ one. Treat the export as evidence for the technical controls, filed alongside ev
 
 Each control is scored by its category — vulnerabilities, supply chain (the share of targets with
 an SBOM), secrets, secure coding, infrastructure as code, gate governance, audit trail — so its
-title names the requirement it relates to, not everything that requirement asks. `CRA-ART11-NOTIF`,
+title names the requirement it relates to, not everything that requirement asks. `CRA-ART14-NOTIF`,
 for instance, scores the open critical, CISA KEV-listed and overdue vulnerabilities an Article 14
-notification would start from; it neither makes nor tracks the notification. The CRA codes keep the numbering of the 2022 proposal; the titles cite Regulation (EU) 2024/2847 as
-adopted, whose Article 14 reporting obligation applies since 11 September 2026. The formulas are in
+notification would start from; it neither makes nor tracks the notification. The CRA codes name the provisions of Regulation (EU) 2024/2847 as adopted, whose Article 14 reporting
+obligation applies since 11 September 2026; until the release after 0.11.2 they followed the 2022
+proposal's numbering, and the upgrade rewrote stored declarations to the new codes. The formulas are in
 the [compliance reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/COMPLIANCE_AND_REGULATORY.md).
 The same posture yields the same verdict, so a result can be reproduced.
 
@@ -127,6 +128,16 @@ bundle carries: whoever alters a bundle replaces that file too. Fetch the key fr
 envelope signed over the specification's pre-authentication encoding, so `cosign verify-attestation`
 and in-toto verifiers check it as they would any other.
 
+**Pin the predicate type, and read the counts in findings.** A scan's statement — in the bundle's
+`04_attestations/`, or from `GET /api/v1/attestations/scans/{scanId}` — carries the predicate type
+`https://vectispire.dev/attestation/v2`. Its `findings` counts **findings**, one per place a tool
+reported: `critical` to `low` by severity, `kev` and `secrets` by kind, `total` every finding of the
+scan, so `total` is never below any of the others. The `v1` predicate, served up to 0.11, counted
+`total` in issues — one per fingerprint — beside severities counted in findings, and could read a
+total below the sum of its own severities. v1 is no longer served beside v2: a verifier that pins
+`…/attestation/v1` refuses the new statements, which is the point — change the type it pins and
+read `total` as findings.
+
 ## Supporting records
 
 Three other exports carry weight in the same conversation, all covered under
@@ -142,3 +153,18 @@ Three other exports carry weight in the same conversation, all covered under
 Compliance evidence is only as good as the log behind it. See
 [Audit log](../administration/audit-log.md) for the hash chain, and for the mirror that
 puts a second copy outside the database it watches.
+
+## OWASP Top 10, 2021 edition {#owasp-edition}
+
+The OWASP coverage page — the grid by rule, the weeks and the model's report, under
+[Risk analysis](risk-analysis.md#attack-surface-and-owasp) — answers the **OWASP Top 10, 2021
+edition**: `A01` to `A10` with the 2021 titles, in the interface, the API and the weekly record. 1.0
+keeps that edition ([decision 0046](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0046-compliance-codes-for-1-0.md) §2):
+the rule sets in use are tagged with it, and the audit questionnaires the page answers still ask about
+it. The 2025 edition renumbers and reshapes the list, so a category of the 2021 edition does not map one to
+one onto one of 2025; it will come in a later 1.x release **beside** the 2021 view, never in its place, so a
+pipeline or a report matching on a category of the 2021 edition keeps working.
+
+A rule tagged with the 2025 edition alone places no finding until then, and is not dropped in silence: the
+rule sets screen counts it among the untagged rules, with that reason
+([Semgrep rule sets](../administration/rule-sets.md#owasp-categories)).

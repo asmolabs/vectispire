@@ -1,9 +1,8 @@
 package com.asmolabs.vectispire.core.forges.internal;
 
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
+import com.asmolabs.vectispire.common.scanning.LocalHost;
 import jakarta.annotation.PreDestroy;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -47,7 +46,7 @@ public class DiscoveryWorker {
      * Host name and a unique suffix, for ScanWorker's reason: two instances on one host must not share a claim. The
      * name cut to what {@code claimed_by} holds with the suffix.
      */
-    private final String owner = abbreviated(hostName(), 80) + "/discovery-" + UUID.randomUUID().toString().substring(0, 8);
+    private final String owner = LocalHost.name(80) + "/discovery-" + UUID.randomUUID().toString().substring(0, 8);
 
     private final DiscoveryQueue queue;
     private final DiscoveryExecution execution;
@@ -153,17 +152,5 @@ public class DiscoveryWorker {
     @PreDestroy
     void stop() {
         pool.shutdownNow();
-    }
-
-    private static String abbreviated(String name, int length) {
-        return name.length() <= length ? name : name.substring(0, length);
-    }
-
-    private static String hostName() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException unknown) {
-            return "unknown-host";
-        }
     }
 }

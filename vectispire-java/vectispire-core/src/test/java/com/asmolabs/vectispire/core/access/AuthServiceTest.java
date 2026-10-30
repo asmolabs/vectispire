@@ -73,10 +73,13 @@ class AuthServiceTest {
                     .isEqualTo(NOW.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));
         });
         assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_SUCCESS);
-        // A success clears the account's and the name's counters: five mistypes then the right
-        // password is not an attack on them.
-        verify(attempts).deleteByCounterKey(LoginThrottle.accountKey(1L));
-        verify(attempts).deleteByCounterKey(LoginThrottle.userKey("alice"));
+        // A success clears the account's and the name's counters from this client: five mistypes
+        // then the right password is not an attack on them. The global ones keep what other
+        // clients may have tried.
+        verify(attempts).deleteByCounterKey(LoginThrottle.accountKey(1L, "10.0.0.1"));
+        verify(attempts).deleteByCounterKey(LoginThrottle.userKey("alice", "10.0.0.1"));
+        verify(attempts, never()).deleteByCounterKey(LoginThrottle.accountKey(1L));
+        verify(attempts, never()).deleteByCounterKey(LoginThrottle.userKey("alice"));
     }
 
     /**
@@ -118,12 +121,16 @@ class AuthServiceTest {
         service.login(request("alice", "wrong"));
         service.login(request("nobody", "wrong"));
 
-        // An account that exists is counted by its id and by the name typed; a name that opens
-        // nothing, by the name alone — the counter the two share is what makes them alike.
+        // An account that exists is counted by its id and by the name typed, each from this client
+        // and from everywhere; a name that opens nothing, by the name alone — the counters the two
+        // share are what makes them alike.
         assertThat(recorded).extracting(LoginAttemptEntity::getCounterKey)
                 .containsExactlyInAnyOrder(
-                        LoginThrottle.accountKey(1L), LoginThrottle.userKey("alice"), LoginThrottle.clientKey("10.0.0.1"),
-                        LoginThrottle.userKey("nobody"), LoginThrottle.clientKey("10.0.0.1"));
+                        LoginThrottle.accountKey(1L, "10.0.0.1"), LoginThrottle.accountKey(1L),
+                        LoginThrottle.userKey("alice", "10.0.0.1"), LoginThrottle.userKey("alice"),
+                        LoginThrottle.clientKey("10.0.0.1"),
+                        LoginThrottle.userKey("nobody", "10.0.0.1"), LoginThrottle.userKey("nobody"),
+                        LoginThrottle.clientKey("10.0.0.1"));
     }
 
     @Test
@@ -137,7 +144,7 @@ class AuthServiceTest {
         assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Invalid.class);
         verify(users, never()).findByUsername("ÀLICE");
 
-        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice")), any()))
+        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice", "10.0.0.1")), any()))
                 .thenReturn(fiveRecentAttempts());
         assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
     }
@@ -157,8 +164,8 @@ class AuthServiceTest {
                 .isInstanceOf(AuthService.Outcome.Invalid.class);
         verify(users, never()).findByUsername(typed);
         assertThat(recorded).extracting(LoginAttemptEntity::getCounterKey)
-                .doesNotContain(LoginThrottle.accountKey(1L))
-                .contains(LoginThrottle.userKey(typed));
+                .doesNotContain(LoginThrottle.accountKey(1L), LoginThrottle.accountKey(1L, "10.0.0.1"))
+                .contains(LoginThrottle.userKey(typed), LoginThrottle.userKey(typed, "10.0.0.1"));
     }
 
     @Test
@@ -168,7 +175,7 @@ class AuthServiceTest {
         // Five failures against "alice" used to leave "Àlice" its own budget when the account did
         // not exist and none when it did: the lockout answered what the uniform 401 refuses to.
         when(users.findByUsername("Àlice")).thenReturn(Optional.empty());
-        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice")), any()))
+        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice", "10.0.0.1")), any()))
                 .thenReturn(fiveRecentAttempts());
 
         assertThat(LoginThrottle.userKey("Àlice")).isEqualTo(LoginThrottle.userKey("alice"));
@@ -259,7 +266,7 @@ class AuthServiceTest {
     }
 
     private static String eqUserKey() {
-        return org.mockito.ArgumentMatchers.eq(LoginThrottle.accountKey(1L));
+        return org.mockito.ArgumentMatchers.eq(LoginThrottle.accountKey(1L, "10.0.0.1"));
     }
 
     private static List<LoginAttemptEntity> fiveRecentAttempts() {

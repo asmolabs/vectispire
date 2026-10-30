@@ -41,8 +41,13 @@
 - **Client Address Trust**: `X-Forwarded-For` is honoured only from addresses listed in
   `VECTISPIRE_TRUSTED_PROXIES`, which is empty by default. Trusting the header unconditionally lets
   a caller pick their own bucket, which is a rate limiter that rate-limits nobody.
-- **Persistent Brute-Force Protection (`t_login_attempt`)**: Tracks failed login attempts per
-  username and client ID in database via `LoginThrottle`.
+- **Persistent Brute-Force Protection (`t_login_attempt`)**: Tracks failed login attempts in the
+  database via `LoginThrottle`: per account (and per typed name) from one client — five a quarter
+  of an hour — per account from every client — fifty — and per client across accounts — twenty.
+  The low ceiling is the account's *from one client*: shared by every client, it let anyone who
+  knew a name keep that account locked, and the owner's right password was refused with the rest.
+  Locking an owner out now takes the global ceiling, from ten clients or more. The second-factor
+  budget stays per account: only someone holding the password can spend it.
 - **CI/CD Integration API Keys**: Stored strictly as Argon2id hashes (`vectispire_` prefix) with
   configurable permission scopes and expiration dates.
 
@@ -72,6 +77,16 @@ the target exists. `AuthorizationCoverageTest` catches a route that forgets.
   `PENDING_APPROVAL` event, not merely against the approver role. An account that requests an
   exemption cannot approve it, even after being granted the role — four eyes means two people, and a
   role gate alone lets one person hold both halves.
+- **What the roles do not separate: acting through an account one administers.** The governor and
+  every administrator administer accounts. With four-eyes off, one of them can create an account
+  holding a role that triages and settles — a CISO, a security champion — or reset the password of an
+  existing one, sign in as it with the temporary password, and act under its name; the governor's
+  "operates nothing" holds for its own account, not for the ones it can create. Four-eyes on narrows
+  this without closing it: the second identity an approval needs can be one the requester's
+  administrator made. What remains is detection, not prevention — each step is in the audit log
+  (`USER_CREATED`, `USER_UPDATED` for a role change or a password reset, then the triage under the
+  other name), and a reset account must change its password at its next sign-in. Read the account
+  administration entries beside the triage approvals when reviewing a dismissal.
 - **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256
   hash-chained audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
 - **USER / SECURITY_CHAMPION**: Posture dashboard inspection and vulnerability triage. A

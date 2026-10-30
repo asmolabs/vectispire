@@ -60,10 +60,18 @@ Moving a component to OnPush is a deliberate change: every state it renders must
 
 **The application is zoneless.** Eager change detection renders after a template event, a signal
 write or `markForCheck` — not after a `FileReader.onload`, a timer or a promise that only assigns a
-plain field. State written from a callback is a signal.
+plain field. State written from a callback is a signal. **Splitting a page moves that line**
+(2026-10-29): a plain field read by a component of its own is redrawn only when that component is,
+and a URL change or a call from code marks nothing — the issues filters kept showing the previous
+link's switches once they left the page's template, where the signals beside them had redrawn them.
+State a page service shares with its components is signals, and a dialog's open flag too.
 
 **Errors are read with `messageOf`.** The server answers RFC 7807: the explanation is in `detail`,
-and `err.error.message` is always empty, so fourteen screens showed the generic fallback.
+and `err.error.message` is always empty, so fourteen screens showed the generic fallback. The server
+writes `detail` in English; `messageOf` translates by the problem's `code` (`core/problem-codes.ts`,
+through the translator `I18nService` registers), so a screen cannot forget it — a new code gets its
+sentence in both bundles, quoting `detail` where it carries the fact. A gate violation's sentence is
+built from its `rule` and its fields (`shared/gate-reason.ts`), never parsed out of the English.
 
 **Every route has a `title` key** (`titles.*`), translated by `TranslatedTitleStrategy`; the
 i18n check reads `app.routes.ts` and refuses a sentence as a title. **The shell is guarded**
@@ -85,7 +93,9 @@ to the i18n check and ship a raw key when a new value appears; map a generated u
 and show a value the client does not know as sent. `check-i18n-keys.mjs` now **refuses** a built key
 (the one exception, the settings catalogue's optional `settings.keys.*`, is written in the script with
 its reason) and counts the literals a map holds — so a new map moves `EXPECTED_KEYS`, and a spec checks
-its values with `missingFromBundles` (`core/testing/bundles.ts`).
+its values with `missingFromBundles` (`core/testing/bundles.ts`). Two pull requests that each move
+`EXPECTED_KEYS` conflict on the line or, worse, merge cleanly with the wrong figure: the one merged
+second recomputes it on top of the other.
 
 **Three ways a screen speaks the wrong language, all shipped until the screenshots showed them**
 (2026-10-09). An enum value printed raw — `critical`, `PARTIAL`, `ISO_27001` — goes through the maps
@@ -130,7 +140,9 @@ disagreeing with it reads as a wrong figure.
 
 Standalone components, `inject()`, signals, `LatestRequest` for requests whose answers can overtake
 each other. Comments explain why, not what, in English — match the surrounding density. Keep the
-e2e selectors (`id`s, test ids) the Playwright specs use; grep `e2e/` before moving markup.
+e2e selectors (`id`s, test ids) the Playwright specs use; grep `e2e/` before moving markup. Grep
+`ci/` and `scripts/` too before moving code out of a file: `ci/check-cli-pin.sh` reads the CLI's pinned
+digest out of the repositories screen's source, and the split that moved it turned `docs-consistency` red.
 
 ## Testing
 
@@ -163,6 +175,14 @@ control plane's own variables (decision 0034). A negative assertion straight aft
 (`not.toHaveText('Ready')`) holds while the request is still in flight: wait for what the save's
 answer changes (its form closing) before the next click, or the answer lands on the next form — on
 SQLite this raced and won, on MySQL it lost every time.
+**Read what the server stored, not the browser's copy of its answer**: Chrome keeps a response body
+only until the page moves on, and a dialog that closes on the answer moves it on at once — the plugin
+case read `response.json()` after that and was `flaky` in 11 of 149 CI runs, hidden by `retries: 2`.
+Read the result back through `page.request`. **Wait for one of the screen's answers, not for a
+timeout to mean one**: the sign-in helper read 15 s without a URL change as a refused password and
+spent the next candidate on an account the server was signing in; it now races the route change
+against the error message, on events rather than `toPass` polling, which saw the route change up to a
+second late. A `flaky` line in the summary is a failure to read, not a pass.
 A `p-multiselect`'s `inputId` lands on a hidden input: Playwright times out clicking it — click the
 `p-multiselect` that has it (`page.locator('p-multiselect', { has: page.locator('#id') })`). The
 screenshot campaign (`screens-en`, `screens-fr` projects) regenerates `docs-site/assets/screens/`;

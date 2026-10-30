@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.sbom.BuildSbom;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentOrigin;
 import com.asmolabs.vectispire.common.domain.sbom.InventoryCompletion;
@@ -275,10 +276,15 @@ public class BuildSbomInventory {
         return purged;
     }
 
-    /** A repository's latest imports, each with the newest scan it completed. The caller has checked the repository. */
+    /**
+     * A repository's imports, newest first, each with the newest scan it completed: the latest {@link #HISTORY}, or
+     * the page asked for. The caller has checked the repository, and read the window from the request.
+     */
     @Transactional(readOnly = true)
-    public List<BuildSbomView> history(long repositoryId) {
-        List<BuildSbomEntity> rows = imports.findByRepoIdOrderByIdDesc(repositoryId, PageRequest.of(0, HISTORY));
+    public List<BuildSbomView> history(long repositoryId, Optional<ListWindow> window) {
+        PageRequest asked =
+                window.map(page -> PageRequest.of(page.page(), page.limit())).orElse(PageRequest.of(0, HISTORY));
+        List<BuildSbomEntity> rows = imports.findByRepoIdOrderByIdDesc(repositoryId, asked);
         Map<Long, Long> completed = new HashMap<>();
         if (!rows.isEmpty()) {
             for (Object[] row : components.newestScanCompletedBy(rows.stream().map(BuildSbomEntity::getId).toList())) {

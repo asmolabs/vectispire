@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.siem;
 
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
@@ -33,6 +34,12 @@ public sealed interface SiemEndpoint {
             "(?i)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\\.?");
 
     /**
+     * Digits and dots only: not a DNS name — no top-level label is numeric — so an IPv4 address or nothing.
+     * {@link #HOSTNAME} let {@code 999.999.999.999} through, and a collector that could never be reached was saved.
+     */
+    Pattern NUMERIC_HOST = Pattern.compile("[0-9.]+");
+
+    /**
      * Reads an endpoint for a protocol.
      *
      * @throws InvalidInputException worded for the person who typed it
@@ -62,6 +69,10 @@ public sealed interface SiemEndpoint {
         }
         if (uri.getHost() == null || uri.getHost().isBlank()) {
             throw new InvalidInputException("The webhook endpoint names no host.");
+        }
+        // `URI` reads any run of digits as a port: 99999 was saved, and every delivery failed for four hours.
+        if (uri.getPort() == 0 || uri.getPort() > 65_535) {
+            throw new InvalidInputException("The webhook endpoint's port must be a number between 1 and 65535.");
         }
         return new Webhook(value);
     }
@@ -96,11 +107,27 @@ public sealed interface SiemEndpoint {
             }
             host = value.substring(0, colon);
             port = value.substring(colon + 1);
-            if (host.isEmpty() || !HOSTNAME.matcher(host).matches()) {
+            if (host.isEmpty() || !HOSTNAME.matcher(host).matches()
+                    || NUMERIC_HOST.matcher(host).matches() && !isIpv4Literal(host)) {
                 throw new InvalidInputException("\"" + host + "\" is not a host name or an IPv4 address.");
             }
         }
         return new Syslog(protocol, host, portOf(port));
+    }
+
+    /**
+     * What the resolver reads as an address: the JDK's literal, its short forms included ({@code 10.1} is
+     * 10.0.0.1), with the one trailing dot a fully qualified name may carry. Exactly what was reachable before
+     * the numeric check existed, so no stored endpoint that worked is refused at its next delivery.
+     */
+    private static boolean isIpv4Literal(String text) {
+        String address = text.endsWith(".") ? text.substring(0, text.length() - 1) : text;
+        try {
+            Inet4Address.ofLiteral(address);
+            return true;
+        } catch (IllegalArgumentException notALiteral) {
+            return false;
+        }
     }
 
     private static boolean isIpv6Literal(String text) {
@@ -111,6 +138,10 @@ public sealed interface SiemEndpoint {
         }
     }
 
+    /**
+     * A port of one to five ASCII digits. Leading zeros are kept: {@code 00514} is 514 and nothing else, and a
+     * stored endpoint is read again at each delivery — refusing it now would stop an export that works.
+     */
     private static int portOf(String text) {
         if (text.isEmpty() || text.length() > 5 || !text.chars().allMatch(c -> c >= '0' && c <= '9')) {
             throw new InvalidInputException("The port must be a number between 1 and 65535.");

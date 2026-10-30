@@ -15,8 +15,6 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
 
     Optional<AgentEntity> findByApiKeyId(UUID apiKeyId);
 
-    Optional<AgentEntity> findByName(String name);
-
     List<AgentEntity> findAllByOrderByNameAsc();
 
     /**

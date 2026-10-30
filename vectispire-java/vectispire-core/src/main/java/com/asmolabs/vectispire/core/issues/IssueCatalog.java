@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.issues.persistence.IssueAggregateQueries;
@@ -287,8 +288,8 @@ public class IssueCatalog {
             java.util.function.Function<List<Long>, List<Object[]>> query) {
         List<Long> distinct = List.copyOf(new java.util.LinkedHashSet<>(repoIds));
         List<ScopeCount> counts = new ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += FLAG_BATCH) {
-            for (Object[] row : query.apply(distinct.subList(from, Math.min(from + FLAG_BATCH, distinct.size())))) {
+        for (List<Long> batch : Batches.of(distinct, FLAG_BATCH)) {
+            for (Object[] row : query.apply(batch)) {
                 counts.add(new ScopeCount(((Number) row[0]).longValue(), (String) row[1], (String) row[2],
                         ((Number) row[3]).longValue()));
             }
@@ -328,9 +329,9 @@ public class IssueCatalog {
             String state, Collection<Long> repoIds, Collection<String> settled, Class<R> shape) {
         List<Long> distinct = List.copyOf(new java.util.LinkedHashSet<>(repoIds));
         List<R> rows = new ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += FLAG_BATCH) {
+        for (List<Long> batch : Batches.of(distinct, FLAG_BATCH)) {
             rows.addAll(issues.findByStateAndRepoIdInAndTriageStatusNotIn(
-                    state, distinct.subList(from, Math.min(from + FLAG_BATCH, distinct.size())), settled, shape));
+                    state, batch, settled, shape));
         }
         return rows;
     }
@@ -414,8 +415,8 @@ public class IssueCatalog {
         Map<Boolean, List<Long>> byFlag = new LinkedHashMap<>();
         updates.forEach(update -> byFlag.computeIfAbsent(update.kev(), flag -> new ArrayList<>()).add(update.issueId()));
         byFlag.forEach((kev, ids) -> {
-            for (int from = 0; from < ids.size(); from += FLAG_BATCH) {
-                issues.setKev(ids.subList(from, Math.min(from + FLAG_BATCH, ids.size())), kev);
+            for (List<Long> batch : Batches.of(ids, FLAG_BATCH)) {
+                issues.setKev(batch, kev);
             }
         });
     }

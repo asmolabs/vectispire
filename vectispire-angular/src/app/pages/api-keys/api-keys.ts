@@ -167,6 +167,8 @@ export class ApiKeys {
     }
 
     submit(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.saving()) return;
         const [targetKind, targetId] = this.form.target ? this.form.target.split(':') : [undefined, undefined];
         this.saving.set(true);
         this.accountsApi

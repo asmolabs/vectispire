@@ -127,7 +127,10 @@ public class IssueEntity {
     // (UNKNOWN, null) and nothing reads them to weigh, rank or clear anything. The columns stay —
     // no migration — because a real analysis may come back through a plugin, and dropping a column
     // on three engines to re-add it later is two migrations for nothing. There is no setter:
-    // whatever writes here next should be a deliberate change, not a line that compiles.
+    // whatever writes here next should be a deliberate change, not a line that compiles. And no
+    // getter since 1.0: the API published them as deprecated `reachability` and `reachableSymbols`
+    // on every issue, always UNKNOWN and null, and they left the contract before 1.0 froze it
+    // (decision 0043 §6) — a getter here would have `EntityViewsTest` ask for them back.
     @Column(name = "reachability", length = 16, nullable = false)
     private String reachability = "UNKNOWN";
 
@@ -677,7 +680,7 @@ public class IssueEntity {
         this.ticketUrl = ticketUrl;
     }
 
-    /** The sweep's own state, never published: a reader learns nothing from which instance is asking (V93). */
+    /** The sweep's own state, never published: a reader learns nothing from which instance is asking (V95). */
     @JsonIgnore
     public String getTicketClaimedBy() {
         return ticketClaimedBy;
@@ -686,14 +689,6 @@ public class IssueEntity {
     @JsonIgnore
     public Instant getTicketClaimUntil() {
         return ticketClaimUntil;
-    }
-
-    public String getReachability() {
-        return reachability;
-    }
-
-    public String getReachableSymbols() {
-        return reachableSymbols;
     }
 
 }

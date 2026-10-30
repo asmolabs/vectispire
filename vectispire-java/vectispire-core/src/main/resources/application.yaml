@@ -63,7 +63,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,encryption
   endpoint:
     health:
       probes:
@@ -229,6 +229,11 @@ vectispire:
     # SCIM, which takes the subject from the provider. An account with a local second factor is never
     # linked on a claim, whatever this says.
     link-privileged-accounts: ${VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS:false}
+    # **Whether an account is linked on its first sign-on by its username at all.** On: a plain
+    # account (role USER) is linked to the identity that claims its name, under the rules above. Off:
+    # nothing is linked on a claim — accounts are bound to their subject by SCIM, and an identity SCIM
+    # did not bind is refused. Turn it off for a realm whose users can choose or edit their username.
+    link-by-claim: ${VECTISPIRE_OIDC_LINK_BY_CLAIM:true}
     # **A single sign-on skips the local TOTP: the provider owns the second factor.** Every
     # federated sign-in records what the provider stated (RFC 8176 `amr`, or an `acr` level named
     # below). With require-mfa, a sign-on stating none is refused — turn it on once the provider is

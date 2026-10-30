@@ -89,31 +89,32 @@ verdict.
 | **PCI-DSS** | `PCI-REQ-6.4` | Public Vulnerability Remediation | `VULNERABILITY_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-6.5` | Protection against Software Flaws & Secrets | `SECRETS_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-10.2` | Audit Log Implementation | `AUDIT_AND_LOGGING` |
-| **EU CRA** | `CRA-ART11-NOTIF` | Actively Exploited Vulnerabilities — Art. 14(1) (CISA KEV) | `VULNERABILITY_MANAGEMENT` |
-| **EU CRA** | `CRA-ART10-SBOM` | Machine-Readable SBOM — Annex I, Part II (1) | `SUPPLY_CHAIN` |
-| **EU CRA** | `CRA-ART10-LIFECYCLE` | Third-Party Components & Support Period — Art. 13(5), 13(8) | `SUPPLY_CHAIN` |
-| **EU CRA** | `CRA-ART10-VULN` | Vulnerability Handling & Security Updates — Annex I, Part II (2); Art. 13(8) | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ART14-NOTIF` | Actively Exploited Vulnerabilities — Art. 14(1) (CISA KEV) | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ANNEX1-SBOM` | Machine-Readable SBOM — Annex I, Part II (1) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART13-LIFECYCLE` | Third-Party Components & Support Period — Art. 13(5), 13(8) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ANNEX1-VULN` | Vulnerability Handling & Security Updates — Annex I, Part II (2); Art. 13(8) | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.8` | Preventing Unauthorized Changes & Malicious Code | `SECURE_CODING` |
 | **SOC 2** | `SOC2-CC7.1` | Vulnerability Assessment & Threat Detection | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.6` | Logical Access & Secrets Management | `SECRETS_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC7.2` | Security Incident Monitoring & Audit Logging | `AUDIT_AND_LOGGING` |
 
-**The CRA codes predate the adopted text.** `CRA-ART10-…` and `CRA-ART11-…` follow the article
-numbering of the 2022 proposal. Regulation (EU) 2024/2847 as adopted places the manufacturer's
-obligations in Article 13, vulnerability handling in Annex I Part II, and the reporting of actively
-exploited vulnerabilities in Article 14 — applicable since 11 September 2026, the rest of the
-Regulation from 11 December 2027. The codes are identifiers stored with every declaration and
-assessment, so they are kept; the titles cite the adopted text, and the titles are what counts.
+**The CRA codes follow the adopted text.** Each names the provision of Regulation (EU) 2024/2847 its
+title cites first: the reporting of actively exploited vulnerabilities in Article 14 — applicable since
+11 September 2026, the rest of the Regulation from 11 December 2027 — the manufacturer's obligations in
+Article 13, the SBOM and vulnerability handling in Annex I Part II. Until the release after 0.11.2 they
+followed the 2022 proposal's numbering — `CRA-ART11-NOTIF`, `CRA-ART10-SBOM`, `CRA-ART10-LIFECYCLE` and
+`CRA-ART10-VULN`, in the order of the table; the upgrade rewrites stored declarations to the new codes, and audit-log entries
+written before it keep the old ones ([decision 0046](../architecture/en/decisions/0046-compliance-codes-for-1-0.md)).
 
 **A control is scored by its category, and only by it.** The title says which requirement of the
 framework the control relates to; the score comes from the category's formula in §3, the same for
 every control of that category. Two consequences worth reading literally:
 
-- `CRA-ART11-NOTIF` is a vulnerability-management score — open critical, CISA KEV-listed, overdue
+- `CRA-ART14-NOTIF` is a vulnerability-management score — open critical, CISA KEV-listed, overdue
   and high-severity vulnerabilities. Those are what an Article 14 notification would start from;
   the notification itself is neither made nor tracked by Vectispire, and EPSS does not enter the
   score.
-- `CRA-ART10-LIFECYCLE`, like `CRA-ART10-SBOM`, `NIS2-ART21-SUPPLY` and `DORA-ART11-THIRD`, is the
+- `CRA-ART13-LIFECYCLE`, like `CRA-ANNEX1-SBOM`, `NIS2-ART21-SUPPLY` and `DORA-ART11-THIRD`, is the
   share of targets carrying an SBOM. End-of-life findings are reported elsewhere (the issue backlog)
   and do not enter this score.
 
@@ -257,7 +258,7 @@ the instance's key (§8):
   - `01_compliance_frameworks.json`: the evaluation of the 24 controls of the six frameworks (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2).
   - `02_immutable_audit_log.jsonl`: the audit trail, each entry chained to the previous one by an unkeyed SHA-256 hash. Tamper-evident rather than immutable, whatever the file name says (5.1); the name is kept because it is the archive's layout.
   - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
-  - `04_attestations/`: in-toto attestations and signed DSSE envelopes, for the twenty most recent completed scans the caller may see. The **subject is the scan's SBOM**, named by its SHA-256 — the only artefact a scan records by digest (it stores neither the commit nor the image digest, so `commitSha` is null). The **gate verdict** is the one the gate recorded for the target between that scan and the next, with its policy source, version and date; absent when no pipeline asked. KEV and secret counts are the scan's own. A scan that cannot be attested — not completed, or no SBOM — ships a `scan_<id>_not_attested.txt` saying why instead of a statement with the gap filled in.
+  - `04_attestations/`: in-toto attestations and signed DSSE envelopes, for the twenty most recent completed scans the caller may see. The **subject is the scan's SBOM**, named by its SHA-256 — the only artefact a scan records by digest (it stores neither the commit nor the image digest, so `commitSha` is null). The **gate verdict** is the one the gate recorded for the target between that scan and the next, with its policy source, version and date; absent when no pipeline asked. The predicate type is `https://vectispire.dev/attestation/v2`, and every count under `findings` is in findings, `total` included — v1, served up to 0.11 and no longer beside it, counted `total` in issues (decision 0043 §6). KEV and secret counts are the scan's own. A scan that cannot be attested — not completed, or no SBOM — ships a `scan_<id>_not_attested.txt` saying why instead of a statement with the gap filled in.
   - `05_openvex_advisory.json` & `.sig`: OpenVEX v0.2.0 document and detached signature.
   - `06_csaf_2_0_vex.json` & `.sig`: Standardized OASIS CSAF 2.0 security advisory and signature.
   - `07_license_compliance.json`: License inventory & copyleft governance.

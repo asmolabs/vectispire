@@ -47,12 +47,12 @@ class SocketProxyIntegrationTest {
 
     /** The composition's pin, the same digest. */
     private static final String PROXY =
-            "tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2";
+            "tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459";
 
     /** `docker-compose.yml`'s `docker-proxy` environment, line for line. */
     private static final List<String> FILTER = List.of(
             "PING=1", "VERSION=1", "INFO=1", "CONTAINERS=1", "IMAGES=1", "POST=1",
-            "EXEC=0", "AUTH=0", "SECRETS=0", "CONFIGS=0", "SWARM=0", "NODES=0", "SERVICES=0", "TASKS=0",
+            "EXEC=0", "EVENTS=0", "GRPC=0", "AUTH=0", "SECRETS=0", "CONFIGS=0", "SWARM=0", "NODES=0", "SERVICES=0", "TASKS=0",
             "VOLUMES=0", "NETWORKS=0", "PLUGINS=0", "SYSTEM=0", "DISTRIBUTION=0", "BUILD=0", "COMMIT=0", "SESSION=0");
 
     private static final DockerClient DOCKER = DockerClients.local();

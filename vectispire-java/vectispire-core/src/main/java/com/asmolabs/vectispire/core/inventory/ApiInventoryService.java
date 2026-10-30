@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.apis.ApiContract;
@@ -685,8 +686,8 @@ public class ApiInventoryService {
     private List<ApiEndpointEntity> endpointsOf(Collection<Long> repositoryIds) {
         List<Long> distinct = List.copyOf(new HashSet<>(repositoryIds));
         List<ApiEndpointEntity> found = new ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            found.addAll(apiEndpoints.findByRepositoryIdIn(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))));
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            found.addAll(apiEndpoints.findByRepositoryIdIn(batch));
         }
         return found;
     }
@@ -695,8 +696,8 @@ public class ApiInventoryService {
     private List<ApiContractEntity> contractsOf(Collection<Long> repositoryIds) {
         List<Long> distinct = List.copyOf(new HashSet<>(repositoryIds));
         List<ApiContractEntity> found = new ArrayList<>();
-        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
-            found.addAll(apiContracts.findByRepositoryIdIn(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))));
+        for (List<Long> batch : Batches.of(distinct, LOOKUP_BATCH)) {
+            found.addAll(apiContracts.findByRepositoryIdIn(batch));
         }
         return found;
     }

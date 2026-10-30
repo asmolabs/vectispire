@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.targets;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.access.TargetGrants;
@@ -94,8 +95,8 @@ public class TargetImports {
     public Map<String, List<Long>> presentByIdentity(Collection<String> identities) {
         List<String> wanted = identities.stream().distinct().toList();
         Map<String, List<Long>> present = new HashMap<>();
-        for (int from = 0; from < wanted.size(); from += LOOKUP_BATCH) {
-            for (Object[] row : rows.findIdsByUrlIdentityIn(wanted.subList(from, Math.min(from + LOOKUP_BATCH, wanted.size())))) {
+        for (List<String> batch : Batches.of(wanted, LOOKUP_BATCH)) {
+            for (Object[] row : rows.findIdsByUrlIdentityIn(batch)) {
                 present.computeIfAbsent((String) row[1], ignored -> new ArrayList<>()).add(((Number) row[0]).longValue());
             }
         }

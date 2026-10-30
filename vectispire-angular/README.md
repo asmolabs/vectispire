@@ -88,14 +88,22 @@ unchanged, in less time. Keep it at 20.8.9 or later: earlier versions carry publ
 advisories, one of them a VM escape.
 
 **`@vitest/coverage-v8`, at Vitest's own version.** `ng test` measures coverage on every run
-and fails below the floors in `angular.json` — statements 76 %, branches 69 %, functions 65 %,
-lines 78 %, set about three points under what the suite measured when they were introduced
-(79.5, 72.0, 68.2, 81.2). Close enough that a screen landing without its specs turns the
+and fails below the floors in `angular.json` — statements 80 %, branches 71 %, functions 69 %,
+lines 82 %, set about three points under what the suite measured when they were last raised, on
+2026-10-29 (83.4, 74.6, 72.5, 85.3; introduced on 2026-10-09 at 76, 69, 65 and 78). Close enough that a screen landing without its specs turns the
 build red, far enough that a rounding does not. On the `test` target rather than in a CI flag,
 because a threshold only one pipeline passes is a preference, not a gate. The provider refuses
 a Vitest of another version, so the two move together; raise a floor when the figure has
 risen, never lower one to make a change pass. The HTML report lands in
 `coverage/vectispire/index.html`. Dependencies MIT or BSD-3-Clause; development only.
+
+**The first download holds what the sign-in page needs, and the starting theme.** The shell
+(`AppLayout`: top bar, sidebar, configurator) is a lazy route like the screens, and the Lara and
+Nora presets are fetched the first time someone picks one; Aura stays, since the application boots
+in it. That took the initial bundle from 931.5 kB to 612.1 kB (162.7 kB to 133.4 kB transferred) on
+2026-10-29, and the `initial` budget in `angular.json` — 1 MB and 5 MB until then, which nothing
+would ever have reached — now warns at 650 kB and fails at 750 kB, so an eager import that pulls a
+screen or a preset back in turns the build red rather than going unnoticed.
 
 **`mysql2`, exact-pinned, for the browser suite alone.** The Playwright suite runs the control
 plane on MySQL (decision 0034), and two helpers in `e2e/support/fixture.ts` write to that

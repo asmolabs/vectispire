@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.function.Function;
 
 /**
@@ -57,22 +56,7 @@ public record Workspace(Path root, Path source, Path rules) {
         try {
             return body.apply(workspace);
         } finally {
-            deleteRecursively(root);
-        }
-    }
-
-    private static void deleteRecursively(Path root) {
-        try (var paths = Files.walk(root)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException ignored) {
-                    // One undeletable file must not stop the rest from going.
-                }
-            });
-        } catch (IOException ignored) {
-            // An absent directory is not an error, and throwing here would mask the original
-            // exception — the one that explains why the scan failed.
+            Directories.deleteRecursively(root);
         }
     }
 }

@@ -33,7 +33,7 @@ Send them.
 
 ```bash
 cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites
-cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL and MySQL — when the change touches persistence
+cd vectispire-java && ./gradlew integrationTestAll   # MySQL 9.x and 8.4 LTS — when the change touches persistence
 
 npm ci && npm run lint && npm run build && npm test  # the Angular interface, from the repository root
 ```
@@ -124,6 +124,21 @@ Vectispire is licensed under the [Apache License 2.0](LICENSE). By submitting a 
 agree that it is licensed under the same terms, as section 5 of the licence provides. There is no
 separate contributor agreement to sign.
 
+## Cutting a release
+
+The project has one maintainer, so the procedure is written here rather than kept in a head
+([decision 0043](docs/architecture/en/decisions/0043-what-1-0-promises.md) §5). Most of it is the `release` workflow.
+
+1. `develop` is green, and the last nightly on `main` is green: a release does not go out on a red night.
+2. The release notes (`docs-site/reference/release-notes{,.fr}.md`) have the version's section, in both
+   languages, with "Before you upgrade" first.
+3. `main` moves by fast-forward to that `develop` commit, and nothing else.
+4. Tag that commit `vX.Y.Z` and push the tag. The `release` workflow builds, signs with Sigstore keyless,
+   verifies its own signature, and publishes; a patch tag that changes the migrations is refused
+   ([decision 0047](docs/architecture/en/decisions/0047-patch-releases-carry-no-migration.md)).
+5. Check the published images with the same `cosign verify` a consumer runs, then update `SECURITY.md`'s
+   supported-versions table: the new line, and the previous line's end date.
+
 ## Conduct
 
 Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -165,7 +180,7 @@ n'ont besoin de rien de tout cela. Envoyez-les.
 
 ```bash
 cd vectispire-java && ./gradlew build                # compilation, suites unitaires, d'architecture et HTTP
-cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL et MySQL — quand le changement touche la persistance
+cd vectispire-java && ./gradlew integrationTestAll   # MySQL 9.x et 8.4 LTS — quand le changement touche la persistance
 
 npm ci && npm run lint && npm run build && npm test  # l'interface Angular, depuis la racine du dépôt
 ```
@@ -252,6 +267,21 @@ ce qui est corrigé, pas comment exploiter la version d'avant.
 Vectispire est distribué sous [licence Apache 2.0](LICENSE). En soumettant une contribution, vous
 acceptez qu'elle soit placée sous les mêmes conditions, comme le prévoit la section 5 de la licence.
 Il n'y a pas d'accord de contribution séparé à signer.
+
+## Publier une version
+
+Le projet a un seul mainteneur : la procédure est écrite ici plutôt que gardée en tête
+([décision 0043](docs/architecture/fr/decisions/0043-what-1-0-promises.md) §5). L'essentiel est le workflow `release`.
+
+1. `develop` est vert, et la dernière nightly sur `main` est verte : on ne publie pas sur une nuit rouge.
+2. Les notes de version (`docs-site/reference/release-notes{,.fr}.md`) ont la section de la version, dans
+   les deux langues, avec « Avant la mise à jour » en premier.
+3. `main` avance en avance rapide jusqu'à ce commit de `develop`, et rien d'autre.
+4. Taguer ce commit `vX.Y.Z` et pousser le tag. Le workflow `release` construit, signe avec Sigstore sans
+   clé, vérifie sa propre signature et publie ; un tag correctif qui change les migrations est refusé
+   ([décision 0047](docs/architecture/fr/decisions/0047-patch-releases-carry-no-migration.md)).
+5. Vérifier les images publiées avec le même `cosign verify` qu'un consommateur, puis mettre à jour le
+   tableau des versions maintenues de `SECURITY.md` : la nouvelle ligne, et la date de fin de la précédente.
 
 ## Conduite
 

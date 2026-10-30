@@ -19,14 +19,15 @@ image:
 
 imagePullSecrets: []
 
-# **One at go-live.** The code is written for several instances (decision 0038 §1), and none of its
-# mechanisms has been exercised by two running applications. Two need cookie affinity on the Ingress for
+# **One, and only one is supported in 1.0** (decision 0043 §4). The code is written for several instances
+# (decision 0038 §1), and none of its mechanisms — the maintenance tasks, the audit chain's lock, the
+# outbox — has been exercised by two running applications. Two would also need cookie affinity on the Ingress for
 # single sign-on (`ingress.stickySessions`) and a ReadWriteMany volume for the audit mirror, one file per
 # pod; the chart refuses two replicas with a ReadWriteOnce mirror.
 replicaCount: 1
 
-# The external database. Only MySQL is offered here, the engine the composition ships; PostgreSQL is
-# supported by the application and works with the same keys.
+# The external database. Only MySQL is offered here, at 8.4 LTS or 9.x (decision 0043 §3); PostgreSQL's
+# code is kept and takes the same keys, but nothing tests it and 1.0 does not promise it.
 database:
   # **Required.** One host, no `mysql+srv`: the application must know the database's address to keep
   # webhooks off it, and refuses to start otherwise. TLS through Connector/J's own properties, e.g.
@@ -318,9 +319,9 @@ agents:
     # `rootless.acknowledgeUnreadableWorkspaces: true`.
     variant: privileged
     privileged:
-      image: docker:29.8.2-dind@sha256:7dcdfc4a20246236f558175182ccace1eb15a41bd3eb119dd2284f393498b7c1
+      image: docker:29.9.2-dind@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977
     rootless:
-      image: docker:29.8.2-dind-rootless@sha256:3acba49741f1aedb28125ffb2307faaec8e870ebb9343de41c21ac549bd6abf0
+      image: docker:29.9.2-dind-rootless@sha256:ae083cc7de51e7a8e5a597f8fb774ca7914c408a95fc0f1477826a913479518a
       acknowledgeUnreadableWorkspaces: false
       # What the image needs on most clusters. Docker's own instructions run it privileged — as uid 1000,
       # so not root on the node — to lift seccomp, AppArmor and the masked /proc that rootlesskit needs. A

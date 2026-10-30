@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.audit;
 
+import com.asmolabs.vectispire.common.domain.paging.Batches;
+import com.asmolabs.vectispire.common.domain.text.Texts;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
@@ -68,8 +70,8 @@ public class AuditLogQueryService {
 
         String term = BoundedText.search(search, "search");
         Page<AuditLogEntity> page = entries.findFiltered(
-                blankToNull(operationType),
-                blankToNull(userId),
+                Texts.blankToNull(operationType),
+                Texts.blankToNull(userId),
                 term == null ? null : "%" + term.toLowerCase(Locale.ROOT) + "%",
                 PageRequest.of(from / Math.max(size, 1), size,
                         Sort.by(Sort.Order.desc("timestamp"), Sort.Order.desc("id"))));
@@ -100,8 +102,8 @@ public class AuditLogQueryService {
     public java.util.Set<String> resourcesNamed(String operationType, java.util.Collection<String> resourceIds) {
         List<String> distinct = List.copyOf(java.util.Set.copyOf(resourceIds));
         java.util.Set<String> named = new java.util.HashSet<>();
-        for (int from = 0; from < distinct.size(); from += 1_000) {
-            named.addAll(entries.findResourcesNamed(operationType, distinct.subList(from, Math.min(from + 1_000, distinct.size()))));
+        for (List<String> batch : Batches.of(distinct, 1_000)) {
+            named.addAll(entries.findResourcesNamed(operationType, batch));
         }
         return java.util.Set.copyOf(named);
     }
@@ -165,9 +167,5 @@ public class AuditLogQueryService {
                 mirror.missingFromTable(),
                 mirror.missingFromMirror(),
                 clock.instant());
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 }

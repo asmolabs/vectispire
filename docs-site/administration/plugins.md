@@ -24,6 +24,7 @@ records why they work the way they do.
 
 ```json
 {
+  "schema_version": "1.0",
   "id": "acme-lint",
   "name": "ACME house rules",
   "image": "registry.acme.internal/sec/acme-lint@sha256:4f2d…(64 hex)",
@@ -43,6 +44,7 @@ records why they work the way they do.
 
 | Field | What it means |
 |---|---|
+| `schema_version` | The manifest's format, `MAJOR.MINOR`. Optional: absent is `1.0` — see [The manifest's version](#the-manifests-version). |
 | `id` | 2 to 40 lowercase letters, digits and inner hyphens. **It is part of every issue the plugin opens**: it can never be renamed or reused. |
 | `name` | What the screens show. |
 | `image` | Pinned **by digest**: `repository@sha256:<64 hex>`. A tag — even beside the digest — is refused. |
@@ -54,7 +56,26 @@ records why they work the way they do.
 | `timeout_seconds` | 10 to 900. It can shorten the scanners' fifteen minutes, never extend them. |
 | `signature` | Optional: who must have signed the image — see [Signing the image](#signing-the-image). |
 
-### What the plugin runs under
+### The manifest's version
+
+`schema_version` says which format the manifest is written in, `MAJOR.MINOR`, on the same model as the
+report plugins' export: a minor adds an optional field and never changes or removes one; a major may
+change what a field means. This version of Vectispire reads **`1.0`**.
+
+- **Absent means `1.0`.** Every manifest written before the field existed is a `1.0` manifest, and keeps
+  working unchanged — registered, stored and run as it was, under the same digest. It stays `1.0` when a
+  major 2 comes: a manifest without the field was written for 1.
+- **Another major is refused**, at registration (400) and by the executor that would run it: the plugin
+  is absent from the scan, with the version in the reason, and its issues are left as they were. A
+  manifest of another major is never read field by field, since the same field may mean something else.
+- **A later minor than the control plane knows is refused at registration**, which would otherwise drop
+  the fields it does not know and store the manifest without them. An executor runs it: the fields a
+  minor adds are optional, and once set they are part of the digest, so an agent that does not know one
+  refuses the manifest rather than ignore it.
+- **The version is not part of the digest within major 1.** A `1.0` manifest hashes as it did before the
+  field existed, so an agent of the previous release, which ignores the field, still runs it.
+
+
 
 Exactly what every scanner Vectispire ships runs under — there is no option to loosen it:
 

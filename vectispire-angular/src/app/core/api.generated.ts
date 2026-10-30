@@ -571,7 +571,7 @@ export interface paths {
         put?: never;
         /**
          * Enable MFA
-         * @description Confirms TOTP setup by verifying the first code.
+         * @description Confirms TOTP setup by verifying the first code; requires the current password.
          */
         post: operations["enableMfa"];
         delete?: never;
@@ -2171,7 +2171,7 @@ export interface paths {
         };
         /**
          * OWASP Top 10:2021 coverage
-         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.
+         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope. unplacedCode counts the scope's open code findings no category holds: their rule declares no 2021 category, and no CWE the OWASP 2021 lists map to one.
          */
         get: operations["grid"];
         put?: never;
@@ -3437,7 +3437,7 @@ export interface paths {
         };
         /**
          * List repository's build SBOM imports
-         * @description The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see.
+         * @description The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["buildSbomHistory"];
         put?: never;
@@ -3461,7 +3461,7 @@ export interface paths {
         };
         /**
          * List repository's coverage imports
-         * @description The latest fifty. 404 for a repository the caller cannot see.
+         * @description The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["coverageHistory"];
         put?: never;
@@ -3485,7 +3485,7 @@ export interface paths {
         };
         /**
          * List repository's SARIF imports
-         * @description The latest fifty. 404 for a repository the caller cannot see.
+         * @description The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["history"];
         put?: never;
@@ -3509,7 +3509,7 @@ export interface paths {
         };
         /**
          * List repository's test-report imports
-         * @description The latest fifty, without their suites. 404 for a repository the caller cannot see.
+         * @description The latest fifty, without their suites. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["testReportHistory"];
         put?: never;
@@ -4484,6 +4484,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}/second-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["resetSecondFactor"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{id}/targets": {
         parameters: {
             query?: never;
@@ -4816,6 +4832,7 @@ export interface components {
         Assessment: {
             ecosystemsInEstate?: string[];
             languagesWithRules?: string[];
+            owasp?: components["schemas"]["OwaspTagging"];
             /** Format: int32 */
             ruleFiles: number;
             /** @enum {string} */
@@ -4972,16 +4989,6 @@ export interface components {
             packageVersion?: string | null;
             /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
             purl?: string | null;
-            /**
-             * @deprecated
-             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
-             */
-            reachability?: string;
-            /**
-             * @deprecated
-             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
-             */
-            reachableSymbols?: string | null;
             /**
              * Format: int64
              * @description The repository the issue was found on; null on a container image's issue.
@@ -5291,6 +5298,7 @@ export interface components {
         };
         /** @description A checklist-incomplete refusal: an RFC 9457 problem whose lines member names each line kept from the submission or the sign-off, with its problems. */
         ChecklistIncompleteProblem: {
+            code?: string;
             detail?: string;
             instance?: string;
             lines?: components["schemas"]["IncompleteLine"][];
@@ -5389,6 +5397,7 @@ export interface components {
         };
         /** @description A checklist-measurement-contradicted or checklist-measurement-changed refusal: an RFC 9457 problem whose lines member names each line with its answer, what the rule finds now and, for a sign-off, what it found at the submission. */
         ChecklistMeasurementProblem: {
+            code?: string;
             detail?: string;
             instance?: string;
             lines?: components["schemas"]["MeasuredLine"][];
@@ -5570,6 +5579,7 @@ export interface components {
         /** @description A checklist-template-unrenderable or checklist-version-unrenderable refusal: an RFC 9457 problem whose cells member names each cell a sign-off writes that carries a formula other cells depend on — cell, kind shared or array, range. */
         ChecklistUnrenderableProblem: {
             cells?: components["schemas"]["UnrenderableCell"][];
+            code?: string;
             detail?: string;
             instance?: string;
             /** Format: int32 */
@@ -5922,6 +5932,8 @@ export interface components {
              * @description On a reopening only: when the resolution it ended began. Null on every other entry.
              */
             previousResolvedAt?: string | null;
+            /** @description On an entry that queued a decision for approval (toStatus pending_approval): the status it asked for — not_affected, will_not_fix or fixed. Null on every other entry, and on a request queued before the request was recorded. */
+            requestedStatus?: string | null;
             /**
              * Format: int64
              * @description Null when the target had no scan, on a reopening an import caused, and once that scan is deleted.
@@ -5988,6 +6000,8 @@ export interface components {
             scope?: components["schemas"]["OwaspWeeklyScope"];
             /** Format: int32 */
             unmeasured: number;
+            /** Format: int64 */
+            unplacedCode: number;
             /** Format: int32 */
             withFindings: number;
         };
@@ -6815,16 +6829,6 @@ export interface components {
             /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
             purl?: string | null;
             /**
-             * @deprecated
-             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
-             */
-            reachability?: string;
-            /**
-             * @deprecated
-             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
-             */
-            reachableSymbols?: string | null;
-            /**
              * Format: int64
              * @description The repository the issue was found on; null on a container image's issue.
              */
@@ -6973,16 +6977,6 @@ export interface components {
             packageVersion?: string | null;
             /** @description Null on a finding that is not about a package, and when the scanner gave no purl. */
             purl?: string | null;
-            /**
-             * @deprecated
-             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
-             */
-            reachability?: string;
-            /**
-             * @deprecated
-             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
-             */
-            reachableSymbols?: string | null;
             /**
              * Format: int64
              * @description The repository the issue was found on; null on a container image's issue.
@@ -7195,6 +7189,7 @@ export interface components {
         };
         MfaEnableRequest: {
             code?: string;
+            password?: string;
             secret?: string;
         };
         MfaVerifyRequest: {
@@ -7341,6 +7336,21 @@ export interface components {
             /** Format: int32 */
             version?: number;
         };
+        OwaspTagging: {
+            /** Format: int32 */
+            byCwe: number;
+            /** Format: int32 */
+            ruleFiles: number;
+            /** Format: int32 */
+            tagged: number;
+            untagged?: components["schemas"]["OwaspUntaggedCount"][];
+        };
+        OwaspUntaggedCount: {
+            /** @enum {string} */
+            reason?: "ONLY_2025_EDITION" | "ONLY_2017_EDITION" | "NOT_DECLARED";
+            /** Format: int32 */
+            ruleFiles: number;
+        };
         OwaspWeek: {
             /** Format: date-time */
             capturedAt?: string;
@@ -7472,6 +7482,7 @@ export interface components {
             network: boolean;
             network_justification?: string;
             output?: string;
+            schema_version?: string;
             signature?: components["schemas"]["PluginSignature"];
             /** Format: int32 */
             timeout_seconds?: number;
@@ -8173,6 +8184,7 @@ export interface components {
         RuleSetLosesIssuesProblem: {
             /** Format: int64 */
             affectedIssues: number;
+            code?: string;
             detail?: string;
             instance?: string;
             losingIssues?: string[];
@@ -9228,6 +9240,7 @@ export interface components {
             /** Format: int64 */
             id?: number;
             isActive: boolean;
+            mfaEnabled: boolean;
             mustChangePassword: boolean;
             role?: string;
             username?: string;
@@ -9350,6 +9363,7 @@ export interface components {
         };
         /** @description A refused delivery: an RFC 9457 problem whose detail says why. */
         WebhookRefusal: {
+            code?: string;
             detail?: string;
             instance?: string;
             /** Format: int32 */
@@ -10386,7 +10400,12 @@ export interface operations {
     };
     listTemplates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11465,7 +11484,12 @@ export interface operations {
     };
     listForgeConnections: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11509,7 +11533,12 @@ export interface operations {
     };
     listForgeDiscoveries: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 discoveries are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 connectionId: string;
@@ -11950,7 +11979,12 @@ export interface operations {
     };
     list_13: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12345,7 +12379,12 @@ export interface operations {
     };
     list_12: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 issueId: number;
@@ -12651,7 +12690,12 @@ export interface operations {
     };
     list_11: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12769,7 +12813,12 @@ export interface operations {
     };
     projects: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -13035,7 +13084,12 @@ export interface operations {
     };
     list_10: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -13114,7 +13168,12 @@ export interface operations {
     };
     checklistContactCandidates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -13668,7 +13727,12 @@ export interface operations {
     };
     list_19: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -13734,7 +13798,12 @@ export interface operations {
     };
     list_18: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -14035,7 +14104,12 @@ export interface operations {
     };
     list_8: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -14252,7 +14326,12 @@ export interface operations {
     };
     duplicates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -14478,7 +14557,12 @@ export interface operations {
     };
     buildSbomHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14531,7 +14615,12 @@ export interface operations {
     };
     coverageHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14586,7 +14675,12 @@ export interface operations {
     };
     history: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14635,7 +14729,12 @@ export interface operations {
     };
     testReportHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14910,7 +15009,12 @@ export interface operations {
     };
     list_5: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -15856,7 +15960,12 @@ export interface operations {
     };
     list_3: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -16138,7 +16247,12 @@ export interface operations {
     };
     members: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: number;
@@ -16186,7 +16300,12 @@ export interface operations {
     };
     targets_1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: number;
@@ -16475,9 +16594,36 @@ export interface operations {
             };
         };
     };
-    targets: {
+    resetSecondFactor: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAdminSummary"];
+                };
+            };
+        };
+    };
+    targets: {
+        parameters: {
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: number;
@@ -16883,7 +17029,7 @@ export interface operations {
                     "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
-            /** @description Another user holds this userName: scimType uniqueness */
+            /** @description Another user holds this userName or this externalId: scimType uniqueness */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16970,6 +17116,15 @@ export interface operations {
             };
             /** @description No user has this id */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
+            /** @description Another user is bound to this externalId: scimType uniqueness */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

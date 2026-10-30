@@ -63,6 +63,26 @@ For a script: `POST /api/v1/rule-sets/catalogue` takes `includeGitleaksDuplicate
 absent), and the preview's `gitleaksDuplicates` is the count it concerns, both groups together. A set
 holding them is named `… with gitleaks duplicates`.
 
+## OWASP categories {#owasp-categories}
+
+A rule places its findings in the [OWASP grid](../guide/risk-analysis.md#attack-surface-and-owasp)
+through the category it declares in its own `metadata.owasp`, and only a category of the **2021
+edition** counts (`A03:2021 - Injection`) — the edition 1.0 keeps ([compliance](../guide/compliance.md#owasp-edition)).
+The editions share their letters and not their meanings (`A01:2017` is Injection, `A01:2021` Broken
+Access Control), so another edition is never converted.
+
+A rule declaring no category of the 2021 edition is placed by the CWE it declares in `metadata.cwe`, by
+the OWASP 2021 lists ([Risk analysis](../guide/risk-analysis.md#attack-surface-and-owasp)). A rule tagged
+**only** with another edition — `A01:2025` alone, or `A1:2017` alone — and with no such CWE still runs and
+its findings reach the backlog, but the grid places none of them. The rule sets screen says so: *N rule files
+declare only an OWASP Top 10 edition other than 2021*, with the count per edition. Add the category of the 2021 edition
+beside the other one in the rule's `metadata.owasp`.
+
+For a script, `GET /api/v1/rule-sets/coverage` carries the same count as `owasp`: `ruleFiles` read,
+`tagged` (declaring a category of the 2021 edition), `byCwe` (placed by their CWE instead), and `untagged`, one entry per reason — `ONLY_2025_EDITION`,
+`ONLY_2017_EDITION`, `NOT_DECLARED` — with its `ruleFiles`. The reasons are open: a client meets one it
+does not know by showing its name.
+
 ## Security and quality
 
 Semgrep findings arrive in two kinds:

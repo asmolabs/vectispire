@@ -91,6 +91,11 @@ class ApiExceptionHandlerTest {
 
         assertThatThrownBy(() -> new Named(Map.of("detail", "another sentence")))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("own field");
-        assertThat(handler.conflict(new ConflictException("Plain.")).getProperties()).isNullOrEmpty();
+        // The cause is the code as well; a conflict without one reads the generic code and nothing else.
+        assertThat(problem.getProperties()).containsEntry("code", "checklist-incomplete");
+        assertThat(handler.conflict(new ConflictException("Plain.")).getProperties())
+                .containsExactlyEntriesOf(Map.of("code", "conflict"));
+        assertThatThrownBy(() -> new Named(Map.of("code", "another-code")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("own field");
     }
 }

@@ -80,6 +80,8 @@
 #   scripts/composition-scan-check.sh                        # images vectispire:latest, vectispire-agent:latest
 #   MODE=agent scripts/composition-scan-check.sh             # the scans run on the `with-agent` profile's agent
 #   CONTROL_PLANE_IMAGE=vectispire:x AGENT_IMAGE=vectispire-agent:x scripts/composition-scan-check.sh
+#   AGENT_WORK_DIR_IMAGE=alpine@sha256:… MODE=agent AGENT_IMAGE=vs-rs-agent …  # an agent image with no shell
+#   MODE=agent AGENT_IMAGE=ghcr.io/…@sha256:… EXPECT_AGENT_VERSION=0.11.2 …  # the previous release's agent
 #   DAEMON_DIR=/somewhere scripts/composition-scan-check.sh  # the scans' directories, on the daemon's host
 #   KEEP=1 scripts/composition-scan-check.sh                 # leave it up to poke at
 set -euo pipefail
@@ -93,6 +95,19 @@ MODE="${MODE:-embedded}"
 PROJECT="${PROJECT:-vectispire-scan-check}"
 CONTROL_PLANE_IMAGE="${CONTROL_PLANE_IMAGE:-vectispire:latest}"
 AGENT_IMAGE="${AGENT_IMAGE:-vectispire-agent:latest}"
+# The image `agent-work-dir` prepares the agent's directory with: the agent's own by default, as the
+# composition has it. The Rust port's image is a lone static binary with no shell to run that `chmod`,
+# so its runs name another image here (any with `sh`, e.g. the fixture's base).
+AGENT_WORK_DIR_IMAGE="${AGENT_WORK_DIR_IMAGE:-$AGENT_IMAGE}"
+# Steps allowed to fail, by name and comma-separated — empty, so none, unless a run says which. For the
+# Rust port's agent, whose API discovery is not ported yet and which says so as a failed step.
+TOLERATED_STEPS="${TOLERATED_STEPS:-}"
+# In agent mode, the version the agent must report in its hello — the previous release's, for the
+# `previous-agent` job (decision 0043 §2): an agent of this commit standing in for it would pass every
+# step and prove nothing about the promise. Empty: whichever agent the image holds.
+EXPECT_AGENT_VERSION="${EXPECT_AGENT_VERSION:-}"
+# A directory to keep each scan's detail in (`scan-<id>.json`), to compare two agents' runs.
+DETAIL_DIR="${DETAIL_DIR:-}"
 # The fixture's servers: `git daemon`, since a repository URL is https, ssh or git — plain http is
 # refused, and a certificate for a throwaway host would be more fixture than check — and `sshd`.
 fixture_dir="$root/scripts/composition-scan-fixture"
@@ -175,6 +190,11 @@ EOF
 umask 022
 password="$(grep '^VECTISPIRE_BOOTSTRAP_PASSWORD=' "$work/.env" | cut -d= -f2-)"
 
+# The matcher this script runs itself, pulled with retries: a registry that times out once is not a
+# composition that cannot scan (pull request #56). The images the scans run are left to the product,
+# which pulls them through the socket proxy — that pull is part of what this check exercises.
+"$root/scripts/pull-pinned-image.sh" "$GRYPE_IMAGE"
+
 echo "── building the fixture's image, and the matcher's database"
 docker build -q -t "$FIXTURE_IMAGE" "$fixture_dir" >/dev/null
 mkdir -p "$work/matcher"
@@ -223,7 +243,7 @@ services:
     image: $AGENT_IMAGE
     container_name: !reset null
   agent-work-dir:
-    image: $AGENT_IMAGE
+    image: $AGENT_WORK_DIR_IMAGE
   agent-docker-proxy:
     container_name: !reset null
   # The image's own command: \`git daemon\`, as its unprivileged user.
@@ -404,6 +424,8 @@ scan() {
     [ "$(date +%s)" -lt "$deadline" ] || fail "scan $scan_id still $status after 900s"
     sleep 5
   done
+  [ -z "$DETAIL_DIR" ] || printf '%s' "$detail" > "$DETAIL_DIR/scan-$scan_id.json"
+  scanned="$scan_id"
   printf '%s' "$detail" | python3 -c '
 import collections, json, sys
 d = json.load(sys.stdin); s = d["scan"]
@@ -417,7 +439,8 @@ print("steps that failed:", s["error"] or "none")'
 # may fail. In agent mode the control plane's worker is off, so a completed scan is the agent's: a
 # finished scan names no claimant any more, and needs none here.
 scanned_the_tree() {
-  printf '%s' "$detail" | ADVISORY="$ADVISORY" PACKAGE="$PACKAGE" SAST_RULE="$SAST_RULE" python3 -c '
+  printf '%s' "$detail" | ADVISORY="$ADVISORY" PACKAGE="$PACKAGE" SAST_RULE="$SAST_RULE" \
+    TOLERATED_STEPS="$TOLERATED_STEPS" python3 -c '
 import json, os, sys
 d = json.load(sys.stdin); s = d["scan"]; findings = d["findings"]
 def found(kind, identifier=None):
@@ -425,8 +448,9 @@ def found(kind, identifier=None):
 problems = []
 if s["status"] != "completed":
     problems.append("the scan is " + s["status"] + ", not completed")
+tolerated = [name.strip() for name in os.environ["TOLERATED_STEPS"].split(",") if name.strip()]
 for step in (s["error"] or "").split(" | "):
-    if step:
+    if step and not any(step.startswith(name + ":") for name in tolerated):
         problems.append("a step failed: " + step)
 if not d["hasSbom"]:
     problems.append("no SBOM: the cataloguer did not read the tree")
@@ -443,10 +467,35 @@ if problems:
     print("\n".join("✗ " + p for p in problems), file=sys.stderr); sys.exit(1)'
 }
 
+# **In agent mode, the agent's own word that it ran the scan**: its log names the scan when it claims
+# it and again when it hands the result back. A completed scan already implies an executor, and the
+# control plane's worker is off here — but "implies" is how a check ends up green over a run in which
+# the agent claimed nothing (a worker switched back on, a scan the queue settled some other way), and
+# the `previous-agent` job exists to say that this agent, of that release, did the work. Then, once,
+# the agent's row: the contract it announced, and the version, when the run names the one expected.
+claimed_by_the_agent() {
+  [ "$MODE" = agent ] || return 0
+  local logs row
+  logs="$("${compose[@]}" logs --no-color agent 2>/dev/null)"
+  case "$logs" in *"Scan $scanned: "*) ;; *) fail "the agent's log never names scan $scanned: it did not claim it" ;; esac
+  case "$logs" in *"Scan $scanned submitted."*) ;; *) fail "the agent's log never says scan $scanned was submitted" ;; esac
+  row="$(bearer "$session" | curl -sf -K - "$base/api/v1/admin/agents" \
+    | AGENT_ID="$agent_id" python3 -c '
+import json, os, sys
+row = next((a for a in json.load(sys.stdin) if a["id"] == os.environ["AGENT_ID"]), None)
+print("" if row is None else (row["version"] or "?") + " " + (row["contractVersion"] or "?"))')"
+  [ -n "$row" ] || fail "agent $agent_id is not in the agents' list"
+  if [ -n "$EXPECT_AGENT_VERSION" ] && [ "${row%% *}" != "$EXPECT_AGENT_VERSION" ]; then
+    fail "the agent that ran scan $scanned reports version ${row%% *}, not $EXPECT_AGENT_VERSION"
+  fi
+  echo "✓ scan $scanned claimed and submitted by agent $agent_id: version ${row%% *}, contract ${row#* }"
+}
+
 # Assigned before use: a registration refused inside `scan "$(…)"` would not stop the script.
 plain_repo="$(register '{"url":"git://fixture/fixture.git","branch":"main","name":"scan-check"}')"
 scan "$plain_repo"
 scanned_the_tree
+claimed_by_the_agent
 echo "✓ the composition scans: the tree reached every scanner, and each read it"
 
 # ── Over SSH, with a managed key.
@@ -460,6 +509,7 @@ key_id="$({ bearer "$session"; body "$(python3 -c 'import json, sys; print(json.
 ssh_repo="$(register "{\"url\":\"ssh://git@sshfixture/srv/fixture.git\",\"branch\":\"main\",\"name\":\"scan-check-ssh\",\"sshKeyId\":\"$key_id\"}")"
 scan "$ssh_repo"
 scanned_the_tree
+claimed_by_the_agent
 # Read through a container: the directory is 0700 and the executor's user's, not this script's.
 recorded="$(docker run --rm --network none -u "$EXECUTOR_USER" --entrypoint cat -v "$executor_dir:/w:ro" "$BASE_IMAGE" \
   /w/home/.ssh/known_hosts 2>&1 || true)"

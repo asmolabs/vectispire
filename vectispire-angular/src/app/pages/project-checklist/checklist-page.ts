@@ -1,0 +1,526 @@
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { forkJoin, type Observable } from 'rxjs';
+import { messageOf } from '../../core/api-error';
+import { ChecklistsApi } from '../../core/api/checklists.api';
+import type {
+    ChecklistLine,
+    ChecklistLineHistory,
+    ChecklistLineProblem,
+    ChecklistMeasuredConflictLine,
+    ChecklistMeasurements,
+    ChecklistOfferedVersion,
+    ChecklistProjectContext,
+    ChecklistRevisionSummary,
+    ChecklistView,
+    MeasuredLine
+} from '../../core/api.models';
+import { saveDocument } from '../../core/download';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { LatestRequest } from '../../core/latest-request';
+import { SessionStore } from '../../core/session.store';
+import { describeUnrenderableCells, unrenderableCellsOf } from '../../shared/unrenderable-cells';
+import {
+    AnswerDraft,
+    AsMeasuredSummary,
+    CONFLICT_KEYS,
+    conflictOf,
+    EvidenceDraft,
+    groupsOf,
+    incompleteLinesOf,
+    Refusal,
+    todayUtc
+} from './checklist-model';
+import { measuredAnswer, measuredConflictLinesOf } from './measurements';
+
+/** A version offered in a choice list: disabled, and saying why, when no sign-off could fill it in. */
+export interface VersionOption {
+    value: string;
+    label: string;
+    disabled: boolean;
+}
+
+/**
+ * What the project checklist screen shows and the one way it writes, shared by the components the
+ * screen is made of. Provided by `ProjectChecklist`, so each visit starts from nothing.
+ *
+ * **Every write names the edition on screen, and adopts the checklist it gets back.** The edition
+ * moves on at every write, so the view each write returns replaces the one shown; a write from a
+ * stale screen is refused by the server (409), and the refusal is explained from the problem's
+ * `type` — a changed line, a changed checklist, the four-eyes rule — with a reload offered where
+ * reloading is the remedy. That is why the writes go through {@link write} here rather than through
+ * each component: one place adopts the view, clears the last refusal and reads the measurements again.
+ *
+ * The forms open on a line (`answering`, `proving`) and the return form live here too, not in the
+ * components that draw them: reading another revision closes every one of them, and opening one
+ * closes the other.
+ */
+@Injectable()
+export class ChecklistPage {
+    private readonly api = inject(ChecklistsApi);
+    private readonly i18n = inject(I18nService);
+    private readonly session = inject(SessionStore);
+    // The revision shown can be switched faster than the server answers; the older answer must not
+    // land over the newer one.
+    private readonly readRequest = new LatestRequest();
+    // The measurements are read again after every write; an older answer must not land over a newer one.
+    private readonly measureRequest = new LatestRequest();
+
+    /** The project, from the route; set by the page before the first read. */
+    readonly id = signal(0);
+
+    /** `@RequiresWriteAccount`: open, answer, prove, submit, return, reopen, move. */
+    readonly writes = this.session.canCauseEffects;
+    /** `canApproveTriage`: who may sign off at all. */
+    readonly approves = this.session.canApproveTriage;
+    readonly username = computed(() => this.session.user()?.username);
+
+    readonly context = signal<ChecklistProjectContext | null>(null);
+    readonly revisions = signal<ChecklistRevisionSummary[]>([]);
+    readonly view = signal<ChecklistView | null>(null);
+    /**
+     * The lines a `checklist-incomplete` refusal named, by item, with their problems as the server
+     * found them — which may not be what the view on screen says: a proof lapses without a write.
+     */
+    readonly incomplete = signal<Record<number, ChecklistLineProblem[]>>({});
+    readonly offered = signal<ChecklistOfferedVersion[]>([]);
+    readonly loading = signal(true);
+    readonly notFound = signal(false);
+    readonly error = signal<string | null>(null);
+    readonly notice = signal<string | null>(null);
+    readonly refusal = signal<Refusal | null>(null);
+    readonly busy = signal(false);
+
+    readonly answering = signal<AnswerDraft | null>(null);
+    readonly answerError = signal<string | null>(null);
+    readonly proving = signal<EvidenceDraft | null>(null);
+    readonly evidenceError = signal<string | null>(null);
+    readonly returning = signal(false);
+    /** The histories open, by line; `null` while one is being read. */
+    readonly histories = signal<Record<number, ChecklistLineHistory | null>>({});
+    /** The revision's measured lines; null until read, and while the revision has none bound. */
+    readonly measurements = signal<ChecklistMeasurements | null>(null);
+    readonly measurementsError = signal<string | null>(null);
+    /**
+     * The lines a measurement refusal named — `checklist-measurement-contradicted` at a submission,
+     * `checklist-measurement-changed` at a sign-off or an answer — by item, as the server found them.
+     */
+    readonly measuredConflicts = signal<Record<number, ChecklistMeasuredConflictLine>>({});
+    /** The last "every measured line" act's summary, or null. */
+    readonly asMeasured = signal<AsMeasuredSummary | null>(null);
+    /** The revision whose document is being fetched, if one. */
+    readonly downloading = signal<number | null>(null);
+
+    /** Named before any checklist exists, from the context; from the view only if the context is not read yet. */
+    readonly projectName = computed(() => this.context()?.projectName ?? this.view()?.projectName ?? null);
+    readonly summary = computed(() => this.view()?.checklist ?? null);
+    readonly latest = computed(() => this.revisions()[0] ?? null);
+    readonly isLatest = computed(() => {
+        const shown = this.summary();
+        return !!shown && shown.revision === this.latest()?.revision;
+    });
+    readonly status = computed(() => this.summary()?.status ?? null);
+    /** Lines are answered and proven on the newest revision while it is a draft, by those who write. */
+    readonly editable = computed(() => this.writes() && this.isLatest() && this.status() === 'draft');
+    readonly groups = computed(() => groupsOf(this.view()?.lines ?? []));
+    readonly unready = computed(() =>
+        (this.view()?.lines ?? []).filter((line) => line.problems.length > 0).map((line) => line.position)
+    );
+    readonly today = todayUtc();
+
+    /** Whether any line of the revision is bound to a rule: only then are the measurements read. */
+    readonly measured = computed(() => (this.view()?.lines ?? []).some((line) => !!line.rule));
+    readonly measuredLines = computed(
+        () => new Map((this.measurements()?.lines ?? []).map((line) => [line.itemId, line] as const))
+    );
+
+    // ------------------------------------------------------------------ reading
+
+    /** Everything read again, the newest revision shown — what a refusal for a stale screen asks for. */
+    reload(): void {
+        this.load(this.id());
+    }
+
+    /**
+     * The context and the revisions, read together. **The context decides whether there is a
+     * checklist to show**, not the list: it is the read whose edition an opening names, so the page
+     * that offers to open one is the page that saw none there — a checklist opened between the two
+     * reads is then refused by the server rather than moved onto, unseen.
+     */
+    load(projectId: number): void {
+        this.id.set(projectId);
+        this.loading.set(true);
+        this.error.set(null);
+        this.refusal.set(null);
+        this.incomplete.set({});
+        this.asMeasured.set(null);
+        this.closeForms();
+        const both = forkJoin({
+            context: this.api.projectChecklistContext(projectId),
+            revisions: this.api.projectChecklists(projectId)
+        });
+        this.readRequest.run(both, {
+            next: ({ context, revisions }) => {
+                this.context.set(context);
+                this.revisions.set(revisions);
+                this.notFound.set(false);
+                if (this.writes()) this.loadOffered(projectId);
+                if (context.latestRevision === null) {
+                    this.view.set(null);
+                    this.measurements.set(null);
+                    this.loading.set(false);
+                    return;
+                }
+                this.read(revisions[0]?.revision ?? context.latestRevision);
+            },
+            error: (failure) => this.failed(failure)
+        });
+    }
+
+    /** One revision, the newest or an earlier one, read-only unless it is the newest draft. */
+    read(revision: number): void {
+        this.loading.set(true);
+        this.incomplete.set({});
+        this.asMeasured.set(null);
+        this.closeForms();
+        this.readRequest.run(this.api.projectChecklist(this.id(), revision), {
+            next: (view) => {
+                this.view.set(view);
+                this.histories.set({});
+                this.loading.set(false);
+                this.measuredConflicts.set({});
+                this.readMeasurements();
+            },
+            error: (failure) => this.failed(failure)
+        });
+    }
+
+    /**
+     * The measurements of the revision shown, read beside it — and only when a line is bound, so that a
+     * checklist measured by no rule costs no request. A draft's and a submitted revision's are computed
+     * for this read; they move with every write and every scan, so every write reads them again.
+     */
+    readMeasurements(): void {
+        const shown = this.summary();
+        this.measurementsError.set(null);
+        if (!shown || !this.measured()) {
+            this.measurements.set(null);
+            return;
+        }
+        // The previous revision's, or the previous read's, must not stand for this one while it is read.
+        if (this.measurements()?.revision !== shown.revision) this.measurements.set(null);
+        this.measureRequest.run(this.api.checklistMeasurements(this.id(), shown.revision), {
+            next: (measurements) => this.measurements.set(measurements),
+            error: (failure) => {
+                this.measurements.set(null);
+                this.measurementsError.set(messageOf(failure, this.i18n.t('project_checklist.error_measurements')));
+            }
+        });
+    }
+
+    /** The line's measurement as the route answered, or null while it is read. */
+    measuredOf(line: ChecklistLine): MeasuredLine | null {
+        return this.measuredLines().get(line.itemId) ?? null;
+    }
+
+    private failed(failure: unknown): void {
+        this.loading.set(false);
+        // A project that does not exist and one not seen whole are the same 404 by design: the
+        // screen cannot tell them apart and must not pretend to.
+        if ((failure as { status?: number } | null)?.status === 404) {
+            this.notFound.set(true);
+            this.view.set(null);
+            this.revisions.set([]);
+            this.context.set(null);
+            return;
+        }
+        this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_load')));
+    }
+
+    private loadOffered(projectId: number): void {
+        this.api.offeredChecklistVersions(projectId).subscribe({
+            next: (offered) => this.offered.set(offered),
+            error: () => this.offered.set([])
+        });
+    }
+
+    /** The revisions listed again after a write opened one, without touching the view shown. */
+    refreshRevisions(): void {
+        this.api.projectChecklists(this.id()).subscribe({
+            next: (revisions) => this.revisions.set(revisions),
+            error: () => undefined
+        });
+    }
+
+    // ------------------------------------------------------------------ versions
+
+    /**
+     * A version no sign-off could fill in stays in the list, disabled and saying so: the server refuses it
+     * (`checklist-version-unrenderable`), and choosing it only to be told would cost the person a click and
+     * a reading for nothing.
+     */
+    versionOption(version: ChecklistOfferedVersion): VersionOption {
+        const label = this.versionLabel(version);
+        return {
+            value: `${version.templateSlug}:${version.ordinal}`,
+            label: version.unrenderable
+                ? `${label} — ${this.i18n.t('project_checklist.version_unrenderable_suffix')}`
+                : label,
+            disabled: !!version.unrenderable
+        };
+    }
+
+    private versionLabel(version: ChecklistOfferedVersion): string {
+        const ordinal = this.i18n.t('project_checklist.version_n', { ordinal: version.ordinal });
+        return `${version.templateName} — ${ordinal}${version.label ? ` (${version.label})` : ''}`;
+    }
+
+    /** One sentence per version no sign-off could fill in, its cells in the reader's language. */
+    unrenderableNotes(versions: readonly ChecklistOfferedVersion[]): { value: string; text: string }[] {
+        return versions.flatMap((version) => {
+            const unrenderable = version.unrenderable;
+            if (!unrenderable) return [];
+            const name = this.versionLabel(version);
+            // Refused for another reason than a formula: the server's words, rather than a sentence naming no cell.
+            const text =
+                unrenderable.cells.length > 0
+                    ? this.i18n.t('project_checklist.version_unrenderable_cells', {
+                          version: name,
+                          cells: describeUnrenderableCells(this.i18n, unrenderable.cells)
+                      })
+                    : this.i18n.t('project_checklist.version_unrenderable_other', {
+                          version: name,
+                          detail: unrenderable.detail
+                      });
+            return [{ value: `${version.templateSlug}:${version.ordinal}`, text }];
+        });
+    }
+
+    // ------------------------------------------------------------------ opening a line's answer
+
+    startAnswer(line: ChecklistLine): void {
+        this.proving.set(null);
+        this.answerError.set(null);
+        this.answering.set({
+            itemId: line.itemId,
+            value: line.answer?.value ?? null,
+            comment: line.answer?.comment ?? '',
+            restingOn: null
+        });
+    }
+
+    /**
+     * The one click a measured line offers (§6): the person's answer, resting on the measurement they
+     * read, named by its evidence digest. Met, it is a yes and is sent at once; not met, it is a no, and
+     * a no needs its comment — the form opens with the answer chosen and the measurement kept with it.
+     */
+    answerAsMeasured(line: ChecklistLine): void {
+        const measured = this.measuredOf(line);
+        const shown = this.summary();
+        const value = measuredAnswer(measured);
+        const found = measured?.measurement;
+        if (!shown || !value || !found) return;
+        const restingOn = { digest: found.evidenceDigest, value, computedAt: found.computedAt };
+        if (value === 'no') {
+            this.proving.set(null);
+            this.answerError.set(null);
+            this.answering.set({ itemId: line.itemId, value, comment: line.answer?.comment ?? '', restingOn });
+            return;
+        }
+        this.answering.set(null);
+        this.write(
+            this.api.answerChecklistLine(
+                this.id(),
+                shown.revision,
+                line.itemId,
+                value,
+                null,
+                shown.edition,
+                restingOn.digest
+            ),
+            line.itemId
+        );
+    }
+
+    // ------------------------------------------------------------------ the document
+
+    /** The name the server gives the zip, which the verification commands unpack. */
+    documentName(revision: number): string {
+        return `checklist-project-${this.id()}-revision-${revision}.zip`;
+    }
+
+    /**
+     * Saved as a download, never opened. A 404 is a project this account no longer sees whole, or a
+     * revision gone — the words of an absence, as everywhere on this page: the checklist is read again.
+     * The body of a blob request's refusal is a Blob, so its problem type is not read here; the status
+     * is all a 404 needs.
+     */
+    downloadDocument(revision: number): void {
+        this.downloading.set(revision);
+        this.api.checklistDocument(this.id(), revision).subscribe({
+            next: (response) => {
+                this.downloading.set(null);
+                saveDocument(response, this.documentName(revision));
+            },
+            error: (failure) => {
+                this.downloading.set(null);
+                if ((failure as { status?: number } | null)?.status === 404) {
+                    this.refusal.set({
+                        message: this.i18n.t('project_checklist.document_not_found', { revision }),
+                        reload: true,
+                        itemId: null
+                    });
+                    return;
+                }
+                this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_document')));
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------ writing
+
+    /**
+     * One write: the view it answers replaces the one shown — its edition is the one the next write
+     * names — and the revision's row in the list follows. A refusal is explained, never swallowed.
+     */
+    write(request: Observable<ChecklistView>, itemId: number | null, done?: (view: ChecklistView) => void): void {
+        this.send(request, (view) => view, itemId, done);
+    }
+
+    /** A write whose answer carries the view beside something else — the as-measured act's summary. */
+    send<T>(
+        request: Observable<T>,
+        viewOf: (result: T) => ChecklistView,
+        itemId: number | null,
+        done?: (result: T) => void
+    ): void {
+        this.busy.set(true);
+        this.refusal.set(null);
+        this.incomplete.set({});
+        this.measuredConflicts.set({});
+        this.error.set(null);
+        this.notice.set(null);
+        request.subscribe({
+            next: (result) => {
+                this.busy.set(false);
+                this.adopt(viewOf(result));
+                done?.(result);
+            },
+            error: (failure) => {
+                this.busy.set(false);
+                this.refusal.set(this.explain(failure, itemId));
+            }
+        });
+    }
+
+    private adopt(view: ChecklistView): void {
+        this.view.set(view);
+        this.histories.set({});
+        const summary = view.checklist;
+        this.revisions.update((revisions) =>
+            revisions.some((one) => one.revision === summary.revision)
+                ? revisions.map((one) => (one.revision === summary.revision ? summary : one))
+                : [summary, ...revisions]
+        );
+        // The newest revision's edition moved with the write: the context says so too.
+        this.context.update((context) =>
+            context && (context.latestRevision === null || summary.revision >= context.latestRevision)
+                ? { ...context, latestRevision: summary.revision, latestEdition: summary.edition }
+                : context
+        );
+        // An answer moves its line's reconciliation, a submission or a sign-off what is live or frozen.
+        this.readMeasurements();
+    }
+
+    /** A cause named by the problem's type gets its sentence; anything else, the server's own words. */
+    private explain(failure: unknown, itemId: number | null): Refusal {
+        const cause = conflictOf(failure);
+        if (!cause) {
+            return {
+                message: messageOf(failure, this.i18n.t('project_checklist.error_write')),
+                reload: false,
+                itemId
+            };
+        }
+        if (cause === 'measurement_contradicted' || cause === 'measurement_changed') {
+            return this.explainMeasured(cause, failure, itemId);
+        }
+        if (cause === 'version_unrenderable') {
+            return this.explainUnrenderable(failure, itemId);
+        }
+        // The lines the refusal names, as data, over the ones the view shows: the server's are the
+        // ones it refused for, and a proof that lapsed since the view was read is on no line here.
+        const named = cause === 'incomplete' ? incompleteLinesOf(failure) : null;
+        if (named) {
+            this.incomplete.set(Object.fromEntries(named.map((line) => [line.itemId, line.problems])));
+        }
+        const lines = named ? named.map((line) => line.position).sort((a, b) => a - b) : this.unready();
+        const message =
+            cause === 'incomplete' && lines.length === 0
+                ? this.i18n.t('project_checklist.conflict_incomplete_reload')
+                : this.i18n.t(CONFLICT_KEYS[cause], {
+                      lines: lines.join(', '),
+                      count: lines.length,
+                      authors: (this.view()?.authors ?? []).join(', ')
+                  });
+        // Four-eyes is the one cause reloading does not cure: the person is who they are.
+        return { message, reload: cause !== 'four_eyes', itemId };
+    }
+
+    /**
+     * A measurement refused the write: the lines it names are highlighted with what the rule finds now
+     * — and, at a sign-off, what it found at the submission — and the measurements are read again, since
+     * the ones on screen are, by the refusal's own account, not the server's any more.
+     *
+     * On an answer (a line named), `checklist-measurement-changed` means the evidence moved between the
+     * read and the click: the person reads the new measurement before answering again.
+     */
+    private explainMeasured(
+        cause: 'measurement_contradicted' | 'measurement_changed',
+        failure: unknown,
+        itemId: number | null
+    ): Refusal {
+        const named = measuredConflictLinesOf(failure) ?? [];
+        this.measuredConflicts.set(Object.fromEntries(named.map((line) => [line.itemId, line])));
+        this.readMeasurements();
+        if (cause === 'measurement_changed' && itemId !== null) {
+            return {
+                message: this.i18n.t('project_checklist.conflict_measurement_changed_answer'),
+                reload: false,
+                itemId
+            };
+        }
+        const lines = named.map((line) => line.position).sort((a, b) => a - b);
+        return {
+            message: this.i18n.t(CONFLICT_KEYS[cause], { lines: lines.join(', ') || '—', count: lines.length }),
+            reload: true,
+            itemId
+        };
+    }
+
+    /**
+     * The version chosen is one no sign-off could fill in — published before its publication tried — so
+     * nothing was opened or moved. The cells are named for whoever corrects the workbook; reloading cures
+     * nothing, since a published version's workbook never changes: a corrected version is the way.
+     */
+    private explainUnrenderable(failure: unknown, itemId: number | null): Refusal {
+        const cells = unrenderableCellsOf(failure);
+        return {
+            // Refused for another reason than a formula: the server's words, rather than a sentence naming no cell.
+            message: cells
+                ? this.i18n.t(CONFLICT_KEYS.version_unrenderable, {
+                      cells: describeUnrenderableCells(this.i18n, cells)
+                  })
+                : messageOf(failure, this.i18n.t('project_checklist.error_write')),
+            reload: false,
+            itemId
+        };
+    }
+
+    private closeForms(): void {
+        this.answering.set(null);
+        this.proving.set(null);
+        this.returning.set(false);
+        this.answerError.set(null);
+        this.evidenceError.set(null);
+    }
+}

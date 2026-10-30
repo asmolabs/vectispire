@@ -9,9 +9,9 @@ import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.asmolabs.vectispire.core.scanning.ScanPlugins;
 import com.asmolabs.vectispire.core.scanning.ScanRuleSets;
+import com.asmolabs.vectispire.core.scanning.ScanningProperties;
 import java.nio.file.Path;
 import java.time.Clock;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -62,49 +62,14 @@ public class ScanningConfiguration {
      * ScanRunner} takes one: this side reads an uploaded set from its own tables, an agent
      * fetches it over the protocol, and the scanning code may know neither.
      *
-     * @param bundledRulesOverride a directory to use instead of the rules packaged in the jar.
-     *     Empty by default and rarely wanted: the shipped tree is the one the tests cover, and
-     *     the previous behaviour — a relative {@code rules} path resolved against the process
-     *     working directory — pointed at nothing and failed every repository scan
-     * @param hostSsh whether a repository with no deployment key falls back to this machine's
-     *     own git access. <b>On by default, and to be turned off on a shared installation</b>:
-     *     with it on, every target anybody adds to Vectispire is cloned with whatever the host's key
-     *     can reach, so the per-repository scoping — a key attached to one target, encrypted at
-     *     rest — stops meaning anything, and adding a URL is enough to have Vectispire clone it with
-     *     an identity nobody attached to it. The default favours the single-team install, where
-     *     the operator's {@code ~/.ssh} is already the credential that reaches every target and
-     *     the alternative was re-declaring it once per repository. Set {@code VECTISPIRE_HOST_SSH}
-     *     to {@code false} where the people adding targets are not the people who own that key
-     * @param pluginRegistry the internal registry plugin images are pulled from — the registry host of
-     *     each image replaced, its path and digest kept, so the mirror serves but cannot substitute.
-     *     Blank pulls each from its own registry
-     * @param vulnerabilityDbDir the directory the matcher's database is downloaded to once and shared
-     *     from, read-only, by every scan of the built-in worker. Blank is a directory beside the
-     *     workspaces, in the temporary directory; set it to a disk that survives a restart, and the
-     *     first scan after one does not wait for a download
-     * @param pluginSignatureRequired run no plugin whose manifest declares no signer unless the
-     *     governor waived the requirement for it. On by default (decision 0017 §9.1): a declared signer
-     *     is always verified, and false — every unsigned plugin runs here — is this executor's
-     *     operator's explicit choice; the agent has the same setting, for its own host
+     * <p>What each setting means is on {@link ScanningProperties}.
      */
     @Bean
     ScanRunner scanRunner(
             ScanRuleSets ruleSets,
             ScanPlugins plugins,
             Clock clock,
-            @Value("${vectispire.scanning.plugin-registry:}") String pluginRegistry,
-            @Value("${vectispire.scanning.plugin-signature-required:true}") boolean pluginSignatureRequired,
-            @Value("${vectispire.scanning.bundled-rules:}") String bundledRulesOverride,
-            @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh,
-            @Value("${vectispire.scanning.vulnerability-db-dir:}") String vulnerabilityDbDir,
-            // Blank keeps the pinned digest — see ScannerImages.withOverrides. Named one by one
-            // rather than bound as a map so an unknown key is a startup failure instead of a
-            // scanner that silently keeps running the image the operator meant to replace.
-            @Value("${vectispire.scanning.images.syft:}") String syftImage,
-            @Value("${vectispire.scanning.images.grype:}") String grypeImage,
-            @Value("${vectispire.scanning.images.gitleaks:}") String gitleaksImage,
-            @Value("${vectispire.scanning.images.checkov:}") String checkovImage,
-            @Value("${vectispire.scanning.images.semgrep:}") String semgrepImage) {
+            ScanningProperties scanning) {
         RulePlacement.RuleSetProvider provider =
                 ruleSets::filesOf;
         // The manifest a task names, read from this side's own tables; the runner checks its
@@ -115,19 +80,20 @@ public class ScanningConfiguration {
 
         return new ScanRunner(
                 new ContainerRunner(),
-                ScannerImages.PINNED.withOverrides(
-                        syftImage, grypeImage, gitleaksImage, checkovImage, semgrepImage),
-                bundledRules(bundledRulesOverride),
+                // Blank keeps the pinned digest — see ScannerImages.withOverrides.
+                ScannerImages.PINNED.withOverrides(scanning.images().syft(), scanning.images().grype(),
+                        scanning.images().gitleaks(), scanning.images().checkov(), scanning.images().semgrep()),
+                bundledRules(scanning.bundledRules()),
                 provider,
                 manifests,
-                new PluginScanner.Settings(pluginRegistry, pluginSignatureRequired),
+                new PluginScanner.Settings(scanning.pluginRegistry(), scanning.pluginSignatureRequired()),
                 // Same policy as the agent: a changed host key blocks the scan rather than being
                 // accepted, which is the whole point of recording it in the first place.
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),
-                hostSsh ? GitClone.WithoutKey.HOST_SSH : GitClone.WithoutKey.NONE,
+                scanning.hostSsh() ? GitClone.WithoutKey.HOST_SSH : GitClone.WithoutKey.NONE,
                 clock,
-                vulnerabilityDbDir.isBlank()
+                scanning.vulnerabilityDbDir().isBlank()
                         ? com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase.defaultRoot()
-                        : Path.of(vulnerabilityDbDir.trim()));
+                        : Path.of(scanning.vulnerabilityDbDir().trim()));
     }
 }

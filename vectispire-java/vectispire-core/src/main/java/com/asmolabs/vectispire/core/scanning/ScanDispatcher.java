@@ -23,7 +23,6 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.scanning.internal.PlatformMetrics;
 import com.asmolabs.vectispire.core.scanning.internal.ScanQueue;
-import com.asmolabs.vectispire.core.scanning.internal.ScanningProperties;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.CloneCredentials;

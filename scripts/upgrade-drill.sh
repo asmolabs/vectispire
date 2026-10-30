@@ -18,7 +18,8 @@
 #      workflow before it is pulled) migrates an empty schema and serves.
 #   2. Through its API, rows that migrations will meet: the bootstrap account's password changed,
 #      a second account, a solution and a project, a repository target, settings, the webhook
-#      signing secret, an API key, and the audit trail all of that writes.
+#      signing secret, an API key, a control declared in the statement of applicability, and the
+#      audit trail all of that writes.
 #   3. The image built from this commit starts on that database and becomes healthy. That is the
 #      schema proof: Flyway applies what is new and validates the checksums of what is not, and
 #      Hibernate runs with `ddl-auto: validate` — any disagreement between the entities and the
@@ -37,8 +38,9 @@
 #
 # **What it does not establish.** Whether a scan survives the upgrade (no scanner runs here), nor
 # the agent of the previous release against the new control plane — that is decision 0043 §2's
-# test, a different one. And when no migration was added since the tag, step 3 applies nothing new:
-# the drill then proves the path and the data, not a migration. The output says which.
+# test, a different one (`ci.yml`'s `previous-agent`), which resolves and verifies its image with the
+# same `scripts/release-image.sh`. And when no migration was added since the tag, step 3 applies
+# nothing new: the drill then proves the path and the data, not a migration. The output says which.
 #
 # **It never touches a deployment.** Every container and network it creates carries the
 # `vs-up-` prefix; it mounts no volume and publishes no port.
@@ -59,14 +61,8 @@ PREFIX="vs-up"
 
 ENGINE="${ENGINE:-mysql}"
 TO_IMAGE="${TO_IMAGE:-vectispire:latest}"
-REGISTRY="${REGISTRY:-ghcr.io/asmolabs/vectispire}"
 # By the digest of its multi-architecture index, as `restore-drill.sh` names it.
-CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69}"
-# `ImageSignatureVerifier.COSIGN`: v3.1.3, the release workflow's version, by the digest of its
-# multi-architecture index — one pin for the verifier the product runs and the one the drill runs,
-# native on the runner and on arm64. Not overridable: a verifier the environment chooses verifies
-# whatever the environment wants.
-COSIGN_IMAGE="ghcr.io/sigstore/cosign/cosign@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8"
+CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93}"
 # Values a migration since the release rewrites on purpose, each with its reason (see the file).
 REWRITES="ci/upgrade/accepted-rewrites.txt"
 # Generous: on a developer's arm64 machine the release image (amd64 only) runs emulated, and a
@@ -99,7 +95,6 @@ DB="${PREFIX}-${ENGINE}-db"
 APP_FROM="${PREFIX}-${ENGINE}-from"
 APP_TO="${PREFIX}-${ENGINE}-to"
 CURL="${PREFIX}-${ENGINE}-curl"
-COSIGN="${PREFIX}-${ENGINE}-cosign"
 # Not secrets, and they must not look like any: the database lives and dies inside this script.
 DRILL_KEY="dXBncmFkZS1kcmlsbC1rZXktbm90LWEtc2VjcmV0LTI="  # gitleaks:allow — base64 of "upgrade-drill-key-not-a-secret-2", invented
 DB_PASSWORD="vectispire-upgrade-drill"
@@ -125,7 +120,7 @@ cleanup() {
     echo "KEEP=1 — leaving $APP_FROM $APP_TO $DB $CURL up"
     return
   fi
-  for c in "$COSIGN" "$CURL" "$APP_TO" "$APP_FROM" "$DB"; do
+  for c in "$CURL" "$APP_TO" "$APP_FROM" "$DB"; do
     docker rm -f "$c" >/dev/null 2>&1 || true
   done
   docker network rm "$NET" >/dev/null 2>&1 || true
@@ -256,6 +251,7 @@ snapshot() {
     printf ',"api_keys":'; get "$token" /api/v1/api-keys
     printf ',"users":'; get "$token" /api/v1/users
     printf ',"solutions":'; get "$token" /api/v1/solutions
+    printf ',"soa_eu_cra":'; get "$token" /api/v1/compliance/soa/EU_CRA
     printf '}'
   } > "$out"
 }
@@ -266,48 +262,13 @@ log "0. the two releases, and the drill's own hygiene"
 [ -f "$REWRITES" ] || fail "$REWRITES is missing — an empty one accepts no rewrite, a missing one is a broken checkout"
 docker image inspect "$TO_IMAGE" >/dev/null 2>&1 \
   || fail "$TO_IMAGE not present — build it from this commit (docker build -f Dockerfile -t $TO_IMAGE .)"
-if [ -z "${FROM_IMAGE:-}" ]; then
-  # Release candidates included, and `v0.11.0` after `v0.11.0-rc.3`: the newest thing an
-  # installation can be running. Only tags this commit descends from — a tag on another line is
-  # not where this commit's users come from.
-  FROM_TAG="${FROM_TAG:-$(git -c versionsort.suffix=-rc tag -l 'v*' --merged HEAD --sort=-v:refname | head -n 1)}"
-  [ -n "$FROM_TAG" ] || fail "no v* tag reachable from HEAD — the checkout needs its tags (fetch-depth: 0)"
-  # The digest is asked of the registry before anything is pulled, and everything after — the
-  # verification, the pull, both phases, the log — names those bytes whatever the tag does
-  # meanwhile. `json .Manifest` rather than `.Manifest.Digest`: Docker Desktop's buildx ignores
-  # that template on a single-platform manifest and prints the whole description instead.
-  FROM_DIGEST=$(docker buildx imagetools inspect "$REGISTRY:${FROM_TAG#v}" --format '{{json .Manifest}}' | json digest) \
-    || fail "$REGISTRY:${FROM_TAG#v} cannot be resolved — was $FROM_TAG published?"
-  case "$FROM_DIGEST" in
-    sha256:*) ;;
-    *) fail "$REGISTRY:${FROM_TAG#v} resolved to [$FROM_DIGEST], not a digest" ;;
-  esac
-  FROM_IMAGE="$REGISTRY@$FROM_DIGEST"
-else
-  # A given image is held to the resolved one's rule: by digest, and verified against the tag it
-  # stands for. An image its release workflow did not sign is not the previous release.
-  case "$FROM_IMAGE" in
-    *@sha256:*) ;;
-    *) fail "FROM_IMAGE must name a digest (…@sha256:…), not [$FROM_IMAGE]" ;;
-  esac
-  [ -n "${FROM_TAG:-}" ] || fail "FROM_IMAGE needs FROM_TAG: its signature is checked against that tag's release workflow"
-fi
-
-# **Verified before it is pulled, with the command a consumer runs.** The image started first is
-# handed the database's password and an encryption key; "the digest the registry serves" says which
-# bytes, not whose. The identity names the release workflow at that tag and the issuer GitHub's
-# OIDC — the pair `release.yml` signs with and then verifies itself. Anything but cosign's exit 0
-# stops the drill, and there is no switch to skip it: a drill that ran an unverified image and
-# passed would be green over the one thing it never looked at. Verifying needs no credential —
-# the image and its signature are public, the trust root is Sigstore's — only the network.
-FROM_IDENTITY="https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/$FROM_TAG"
-FROM_ISSUER="https://token.actions.githubusercontent.com"
-docker run --rm --name "$COSIGN" --cap-drop ALL --security-opt no-new-privileges "$COSIGN_IMAGE" verify \
-    "--certificate-identity=$FROM_IDENTITY" "--certificate-oidc-issuer=$FROM_ISSUER" \
-    "$FROM_IMAGE" > "$WORK/cosign.json" 2> "$WORK/cosign.err" \
-  || { sed 's/^/    /' "$WORK/cosign.err" >&2; fail "$FROM_IMAGE is not verified as signed by $FROM_IDENTITY — not run"; }
-sed -e '/^[[:space:]]*$/d' -e 's/^/  cosign: /' "$WORK/cosign.err"
-docker pull -q "$FROM_IMAGE" >/dev/null || fail "$FROM_IMAGE cannot be pulled"
+# The newest release reachable from this commit, by the digest the registry serves for it, its
+# signature verified with cosign against that tag's release workflow before it is pulled — the rules
+# and their reasons are `scripts/release-image.sh`'s, shared with the previous agent's check.
+release="$(TAG="${FROM_TAG:-}" IMAGE="${FROM_IMAGE:-}" scripts/release-image.sh vectispire)" \
+  || fail "the previous release's control plane could not be resolved and verified — not run"
+FROM_TAG="${release%% *}"
+FROM_IMAGE="${release#* }"
 echo "  from  $FROM_TAG  $FROM_IMAGE"
 echo "  to    $TO_IMAGE ($(docker image inspect -f '{{.Id}}' "$TO_IMAGE" | cut -c1-19))"
 echo "  on    $ENGINE ($DB_IMAGE)"
@@ -373,6 +334,16 @@ API_KEY=$(send POST "$TOKEN" /api/v1/api-keys \
 [ -n "$API_KEY" ] || fail "the API key was issued without its secret"
 get "$API_KEY" /api/v1/repositories >/dev/null
 echo "  an API key with the read scope, which authenticates"
+
+# The control is found by its name rather than named by its code: a code is what a migration may
+# rewrite (V92 renumbered the CRA's, decision 0046), and the drill has to declare it under the name
+# the previous release knows.
+SBOM_CONTROL=$(get "$TOKEN" /api/v1/compliance/soa/EU_CRA | python3 -c 'import json,sys
+print(next(l["control"]["id"] for l in json.load(sys.stdin)["lines"] if "SBOM" in l["control"]["name"]))')
+[ -n "$SBOM_CONTROL" ] || fail "the CRA has no SBOM control to declare"
+send PUT "$TOKEN" "/api/v1/compliance/soa/EU_CRA/$SBOM_CONTROL" \
+  '{"applicability":"APPLICABLE","implementation":"IMPLEMENTED","evidence_source":"VECTISPIRE","owner":"upgrade-drill","justification":"Declared by the previous release"}' >/dev/null
+echo "  a declaration of the CRA's $SBOM_CONTROL"
 
 AUDIT_BEFORE=$(get "$TOKEN" /api/v1/audit-log/verify)
 [ -z "$(printf '%s' "$AUDIT_BEFORE" | json broken)" ] || fail "the audit chain is broken before the upgrade: $AUDIT_BEFORE"
@@ -508,6 +479,20 @@ for section, (field, names) in OWNED.items():
             problems.append(f"{section}[{k}]: written by the previous release, absent after the upgrade"); continue
         compare(f"{section}[{k}]", i, a_items[k])
     print(f"  {section:<13} {len(b_items)} object(s) read back")
+
+# The declaration is the drill's by its owner, not by its control: the control's code is what a
+# migration may rewrite, and keying on it would turn a rewrite into a disappearance.
+def declared(doc):
+    return [l["declaration"] for l in doc.get("lines", [])
+            if l.get("declaration") and l["declaration"].get("owner") == "upgrade-drill"]
+b_decl, a_decl = declared(before["soa_eu_cra"]), declared(after["soa_eu_cra"])
+if len(b_decl) != 1:
+    problems.append(f"declarations: {len(b_decl)} of the drill's 1 in the first read — it would compare less than it wrote")
+elif len(a_decl) != 1:
+    problems.append(f"declarations[upgrade-drill]: written by the previous release, {len(a_decl)} read after the upgrade")
+else:
+    compare("declarations[upgrade-drill]", b_decl[0], a_decl[0])
+print(f"  {'declarations':<13} {len(b_decl)} object(s) read back")
 
 if compared == 0:
     problems.append("no field was compared")

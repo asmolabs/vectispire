@@ -84,12 +84,10 @@ public class ApiKeyAuthService {
         if (key.targetKind() == null || key.targetId() == null) {
             return Visibility.everything();
         }
-        return switch (key.targetKind()) {
-            case "repository" -> Visibility.only(List.of(new ScanTarget.Repository(key.targetId())));
-            case "container" -> Visibility.only(List.of(new ScanTarget.Container(key.targetId())));
-            // A kind nobody wrote is a key nobody understands: it sees nothing, never everything.
-            default -> Visibility.only(List.of());
-        };
+        return ScanTarget.of(key.targetKind(), key.targetId())
+                .map(target -> Visibility.only(List.of(target)))
+                // A kind nobody wrote is a key nobody understands: it sees nothing, never everything.
+                .orElseGet(() -> Visibility.only(List.of()));
     }
 
     /**

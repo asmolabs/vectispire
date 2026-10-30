@@ -7,11 +7,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.AuthenticationFlowService;
 import com.asmolabs.vectispire.core.access.ExternalIdentityService;
+import com.asmolabs.vectispire.core.access.ScimProvisioningService;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.access.web.security.chain.OidcConfiguration;
 import jakarta.servlet.http.Cookie;
@@ -37,7 +39,47 @@ class ScimUsersRoutesTest extends ApiTestBase {
     private UserRepository users;
 
     @Autowired
+    private com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository auditLogs;
+
+    @Autowired
     private AuthenticationFlowService flows;
+
+    @Test
+    @DisplayName("/scim takes the SCIM token and nothing else: an administrator's session is refused there")
+    void scimTakesOnlyTheToken() throws Exception {
+        // The controllers carried the administrator marker and nothing more: an administrator's
+        // session provisioned through /scim, outside the account screens' rules, SCIM enabled or
+        // not. The converse of ScimTokenScopeTest, which keeps the token on /scim.
+        String admin = asAdmin();
+        long before = users.count();
+        mvc.perform(authenticated(get("/scim/v2/Users"), admin)).andExpect(status().isForbidden());
+        mvc.perform(authenticated(post("/scim/v2/Users"), admin)
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-via-session"))))
+                .andExpect(status().isForbidden());
+        mvc.perform(authenticated(get("/scim/v2/Groups"), admin)).andExpect(status().isForbidden());
+        mvc.perform(get("/scim/v2/Users")).andExpect(status().isUnauthorized());
+        assertThat(users.count()).isEqualTo(before);
+        assertThat(users.findByUsername("scim-via-session")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the audit names the directory as the actor and the account as what was changed")
+    void theDirectoryIsTheActor() throws Exception {
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-audited"))))
+                .andExpect(status().isCreated());
+        long id = users.findByUsername("scim-audited").orElseThrow().getId();
+
+        assertThat(auditLogs.findAll())
+                .filteredOn(entry -> "SCIM provisioned account: scim-audited".equals(entry.getDescription()))
+                .singleElement()
+                .satisfies(entry -> {
+                    assertThat(entry.getUserId()).isEqualTo(ScimProvisioningService.ACTOR);
+                    assertThat(entry.getResourceId()).isEqualTo(String.valueOf(id));
+                });
+    }
 
     @Test
     @DisplayName("a PATCH setting active to false deactivates the account and closes its sessions")
@@ -48,7 +90,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/auth/me"), session))
                 .andExpect(status().isOk());
 
-        mvc.perform(authenticated(patch("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of(
                                 "schemas", List.of("urn:ietf:params:scim:api:messages:2.0:PatchOp"),
@@ -74,17 +116,17 @@ class ScimUsersRoutesTest extends ApiTestBase {
         tokenFor("scim-admin", Role.ADMIN, false);
         long id = users.findByUsername("scim-admin").orElseThrow().getId();
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-admin", "externalId", "attacker-subject"))))
                 .andExpect(status().isForbidden());
-        mvc.perform(authenticated(patch("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of(
                                 "schemas", List.of("urn:ietf:params:scim:api:messages:2.0:PatchOp"),
                                 "Operations", List.of(Map.of("op", "replace", "path", "active", "value", false))))))
                 .andExpect(status().isForbidden());
-        mvc.perform(authenticated(delete("/scim/v2/Users/" + id), asAdmin()))
+        mvc.perform(authenticated(delete("/scim/v2/Users/" + id), asScim()))
                 .andExpect(status().isForbidden());
 
         var after = users.findById(id).orElseThrow();
@@ -100,14 +142,14 @@ class ScimUsersRoutesTest extends ApiTestBase {
         // the body behind each declaration, a PATCH's 400 included, which no other case sends.
         tokenFor("scim-protected", Role.ADMIN, false);
         long admin = users.findByUsername("scim-protected").orElseThrow().getId();
-        mvc.perform(authenticated(delete("/scim/v2/Users/" + admin), asAdmin()))
+        mvc.perform(authenticated(delete("/scim/v2/Users/" + admin), asScim()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
                 .andExpect(jsonPath("$.status").value("403"));
 
         tokenFor("scim-patched", Role.USER, false);
         long id = users.findByUsername("scim-patched").orElseThrow().getId();
-        mvc.perform(authenticated(patch("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(patch("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of(
                                 "schemas", List.of("urn:ietf:params:scim:api:messages:2.0:PatchOp"),
@@ -126,11 +168,11 @@ class ScimUsersRoutesTest extends ApiTestBase {
         tokenFor("scim-plain", Role.USER, false);
         long id = users.findByUsername("scim-plain").orElseThrow().getId();
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-plain", "roles", List.of(Map.of("value", "SUPERUSER"))))))
                 .andExpect(status().isBadRequest());
-        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-new-admin", "roles", List.of(Map.of("value", "admin"))))))
                 .andExpect(status().isBadRequest());
@@ -146,7 +188,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
         // Only ADMIN and SUPERUSER were refused: the directory's token could make an account a CISO
         // or an auditor.
         String name = "scim-" + role.name().toLowerCase(java.util.Locale.ROOT) + "-" + System.nanoTime();
-        int status = mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+        int status = mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", name, "roles", List.of(Map.of("value", role.name()))))))
                 .andReturn().getResponse().getStatus();
@@ -163,11 +205,11 @@ class ScimUsersRoutesTest extends ApiTestBase {
         tokenFor("scim-auditor", Role.AUDITOR, false);
         long id = users.findByUsername("scim-auditor").orElseThrow().getId();
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-auditor", "roles", List.of(Map.of("value", "AUDITOR"))))))
                 .andExpect(status().isOk());
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-auditor", "roles", List.of(Map.of("value", "CISO"))))))
                 .andExpect(status().isBadRequest());
@@ -180,7 +222,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
         tokenFor("scim-ciso", Role.CISO, false);
         long id = users.findByUsername("scim-ciso").orElseThrow().getId();
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-ciso", "displayName", "Renamed"))))
                 .andExpect(status().isOk());
@@ -194,16 +236,57 @@ class ScimUsersRoutesTest extends ApiTestBase {
         tokenFor("scim-bound", Role.USER, false);
         long id = users.findByUsername("scim-bound").orElseThrow().getId();
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-bound", "externalId", "subject-1"))))
                 .andExpect(status().isOk());
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-bound", "externalId", "attacker-subject"))))
                 .andExpect(status().isBadRequest());
 
         assertThat(users.findById(id).orElseThrow().getKeycloakId()).isEqualTo("subject-1");
+    }
+
+    /**
+     * The subject is unique in {@code t_user}: a directory binding one another account holds reached
+     * the constraint and read a 500, where {@code uniqueness} is what tells it to link instead.
+     */
+    @Test
+    @DisplayName("an externalId another account is bound to is a 409 uniqueness, on creation and on a first binding")
+    void aTakenExternalIdIsUniqueness() throws Exception {
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-holder", "externalId", "subject-held"))))
+                .andExpect(status().isCreated());
+
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-second", "externalId", "subject-held"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                .andExpect(jsonPath("$.detail").value("An account with this externalId already exists."));
+        assertThat(users.findByUsername("scim-subject-second")).isEmpty();
+
+        tokenFor("scim-subject-unbound", Role.USER, false);
+        long id = users.findByUsername("scim-subject-unbound").orElseThrow().getId();
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-unbound", "externalId", "subject-held",
+                                "displayName", "Not Written"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                .andExpect(jsonPath("$.detail").value("An account with this externalId already exists."));
+        var unbound = users.findById(id).orElseThrow();
+        assertThat(unbound.getKeycloakId()).isNull();
+        assertThat(unbound.getDisplayName()).isNotEqualTo("Not Written");
+
+        // The holder's own subject, sent again, is no conflict.
+        long holder = users.findByUsername("scim-subject-holder").orElseThrow().getId();
+        mvc.perform(authenticated(put("/scim/v2/Users/" + holder), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-subject-holder", "externalId", "subject-held"))))
+                .andExpect(status().isOk());
     }
 
     /**
@@ -217,12 +300,51 @@ class ScimUsersRoutesTest extends ApiTestBase {
         tokenFor("scim-ciso-unbound", Role.CISO, false);
         long id = users.findByUsername("scim-ciso-unbound").orElseThrow().getId();
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-ciso-unbound", "externalId", "attacker-subject"))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                // It used to send the directory to "an administrator, in Vectispire", where no route binds a
+                // subject: the refusal names what does work.
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Provision a new account")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("link-privileged-accounts")));
 
         assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
+    }
+
+    /**
+     * The role was read at the binding, and the directory may lower one: a first request lowered the
+     * CISO to User, and the next bound it, now that it held nothing. Lowering stays allowed — taking a
+     * privilege away must not wait — and the binding remembers what the account held.
+     */
+    @Test
+    @DisplayName("an account the directory lowered out of a privileged role is not bound until an administrator sets its role")
+    void aLoweredAccountIsNotBound() throws Exception {
+        tokenFor("scim-ciso-lowered", Role.CISO, false);
+        long id = users.findByUsername("scim-ciso-lowered").orElseThrow().getId();
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "roles", List.of(Map.of("value", "USER"))))))
+                .andExpect(status().isOk());
+        assertThat(users.findById(id).orElseThrow().getRole()).isEqualTo(Role.USER.name());
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "externalId", "attacker-subject"))))
+                .andExpect(status().isBadRequest());
+        assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
+
+        // An administrator who sets the role has decided about the account; the directory binds it then.
+        mvc.perform(authenticated(patch("/api/v1/users/" + id), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("role", "USER"))))
+                .andExpect(status().isOk());
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-lowered", "externalId", "directory-subject"))))
+                .andExpect(status().isOk());
+        assertThat(users.findById(id).orElseThrow().getKeycloakId()).isEqualTo("directory-subject");
     }
 
     @Test
@@ -233,10 +355,11 @@ class ScimUsersRoutesTest extends ApiTestBase {
         account.setMfaEnabled(true);
         users.save(account);
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + account.getId()), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + account.getId()), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-totp-unbound", "externalId", "attacker-subject"))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("turns the second factor off")));
 
         assertThat(users.findById(account.getId()).orElseThrow().getKeycloakId()).isNull();
     }
@@ -245,7 +368,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("an account the directory creates is not held on the change-password screen")
     void aProvisionedAccountNeedsNoPasswordChange() throws Exception {
-        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-provisioned", "externalId", "subject-provisioned"))))
                 .andExpect(status().isCreated());
@@ -264,7 +387,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
     void aProvisionedAccountsFederatedSessionIsServed() throws Exception {
         String name = "scim-federated-" + System.nanoTime();
         String subject = "subject-" + name;
-        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", name, "externalId", subject))))
                 .andExpect(status().isCreated());
@@ -293,7 +416,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
         String session = tokenFor("scim-promoted", Role.USER, false);
         long id = users.findByUsername("scim-promoted").orElseThrow().getId();
 
-        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-promoted", "roles", List.of(Map.of("value", "SECURITY_CHAMPION"))))))
                 .andExpect(status().isOk());
@@ -322,7 +445,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
                         .content(write(Map.of(
                                 "schemas", List.of("urn:ietf:params:scim:api:messages:2.0:PatchOp"),
                                 "Operations", List.of(Map.of("op", "replace", "path", "active", "value", false))))))) {
-            mvc.perform(authenticated(request, asAdmin()))
+            mvc.perform(authenticated(request, asScim()))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
                     .andExpect(jsonPath("$.status").value("404"))
@@ -330,7 +453,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
         }
 
         tokenFor("scim-taken", Role.USER, false);
-        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-taken"))))
                 .andExpect(status().isConflict())
@@ -355,7 +478,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
     void anUnsupportedFilterIsRefused(String filter) throws Exception {
         tokenFor("scim-filtered", Role.USER, false);
 
-        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", filter), asAdmin()))
+        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", filter), asScim()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
                 .andExpect(jsonPath("$.status").value("400"))
@@ -368,22 +491,22 @@ class ScimUsersRoutesTest extends ApiTestBase {
     void theSupportedFiltersStillAnswer() throws Exception {
         tokenFor("scim-filtered", Role.USER, false);
         tokenFor("scim-other", Role.USER, false);
-        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+        mvc.perform(authenticated(post("/scim/v2/Users"), asScim())
                         .contentType(MediaType.parseMediaType("application/scim+json"))
                         .content(write(Map.of("userName", "scim-bound-filter", "externalId", "subject \"quoted\""))))
                 .andExpect(status().isCreated());
 
         for (String filter : List.of("userName eq \"scim-filtered\"", "USERNAME EQ \"Scim-Filtered\"")) {
-            mvc.perform(authenticated(get("/scim/v2/Users").param("filter", filter), asAdmin()))
+            mvc.perform(authenticated(get("/scim/v2/Users").param("filter", filter), asScim()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.totalResults").value(1))
                     .andExpect(jsonPath("$.Resources[0].userName").value("scim-filtered"));
         }
-        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", "externalId eq \"subject \\\"quoted\\\"\""), asAdmin()))
+        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", "externalId eq \"subject \\\"quoted\\\"\""), asScim()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalResults").value(1))
                 .andExpect(jsonPath("$.Resources[0].userName").value("scim-bound-filter"));
-        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", "userName eq \"nobody-here\""), asAdmin()))
+        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", "userName eq \"nobody-here\""), asScim()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalResults").value(0));
     }
@@ -393,7 +516,7 @@ class ScimUsersRoutesTest extends ApiTestBase {
     void noFilterListsEveryAccount() throws Exception {
         tokenFor("scim-filtered", Role.USER, false);
         tokenFor("scim-other", Role.USER, false);
-        String admin = asAdmin();
+        String admin = asScim();
         long accounts = users.count();
 
         mvc.perform(authenticated(get("/scim/v2/Users"), admin))

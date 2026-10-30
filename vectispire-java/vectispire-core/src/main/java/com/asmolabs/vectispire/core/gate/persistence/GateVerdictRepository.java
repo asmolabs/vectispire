@@ -112,15 +112,6 @@ public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, 
     /** One target's verdicts, newest first — what a repository's own page shows. */
     List<GateVerdictEntity> findByRepoIdOrderByDecidedAtDesc(Long repoId, Limit limit);
 
-    List<GateVerdictEntity> findByContainerIdOrderByDecidedAtDesc(Long containerId, Limit limit);
-
-    /** How many refusals and how many passes, for the indicator rather than the list. */
-    @Query(
-            """
-            select v.passed, count(v.id) from GateVerdictEntity v
-             where v.decidedAt >= :since
-             group by v.passed""")
-    List<Object[]> countByOutcomeSince(@Param("since") Instant since);
 
     /**
      * Drops what is older than the window an operator keeps.

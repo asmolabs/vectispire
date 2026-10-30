@@ -118,13 +118,16 @@ public class OwaspCoverageController {
      * @param lines the grid in the standard's order, each row with its declaration if it has one
      * @param scope the project or solution the grid was computed over, as the weekly route states it;
      *     null for the reader's estate. The declarations are the category's, whatever the scope
+     * @param unplacedCode open code findings of the scope that no category holds — their rule declares no
+     *     2021 category and no CWE the standard's lists hold. Counted beside the grid, never in a line
      */
     public record DeclaredGrid(
             List<DeclaredCoverageLine> lines,
             int covered,
             int withFindings,
             int unmeasured,
-            OwaspWeeklyHistoryService.OwaspWeeklyScope scope) {}
+            OwaspWeeklyHistoryService.OwaspWeeklyScope scope,
+            long unplacedCode) {}
 
     /**
      * The grid, over the reader's estate or one project or solution of it. The scope's rules, the
@@ -138,7 +141,8 @@ public class OwaspCoverageController {
             + "whether anything was scanned, the code findings by category — to the scope's targets the caller sees; "
             + "both answer 400. A project or a solution that does not exist and one the caller sees nothing of both "
             + "answer 404; one seen in part is computed over its visible targets and says partial. The declarations "
-            + "are per category and do not depend on the scope.")
+            + "are per category and do not depend on the scope. unplacedCode counts the scope's open code findings no category "
+            + "holds: their rule declares no 2021 category, and no CWE the OWASP 2021 lists map to one.")
     @ApiResponse(responseCode = "200", description = "Grid returned")
     @GetMapping
     public DeclaredGrid grid(
@@ -158,7 +162,8 @@ public class OwaspCoverageController {
                 grid.covered(),
                 grid.withFindings(),
                 grid.unmeasured(),
-                scoped.scope());
+                scoped.scope(),
+                scoped.unplacedCode());
     }
 
     /**

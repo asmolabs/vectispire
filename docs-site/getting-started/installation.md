@@ -9,7 +9,7 @@ install needs neither the agent nor any agent configuration.
 | Requirement | Why |
 |---|---|
 | **Docker**, running and reachable | Every scanner runs as an ephemeral container that Vectispire asks a Docker daemon to start — through a socket proxy in the composition, see below. This is not optional: there is one scan backend and it is Docker. |
-| **MySQL 8** (default) or **PostgreSQL** | Both are supported and exercised by the integration campaign; MySQL is the default and the engine the composition ships. The engine is read from the JDBC URL; there is no separate dialect setting. |
+| **MySQL 8.4 LTS or 9.x** | The supported engine, at the two versions the integration campaign runs — 8.4, the line the composition ships, and 9.x. Another MySQL version may start; nothing checks it. The engine is read from the JDBC URL; there is no separate dialect setting. PostgreSQL still starts, but is no longer tested and will not be part of 1.0 ([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md) §3). |
 | **Git** | Vectispire clones what it scans. |
 | **Node 24 (LTS)**, **JDK 25** | Only if you build from source rather than running the published images. Node is pinned by `.nvmrc`; Angular 22 refuses Node 25. |
 
@@ -135,8 +135,8 @@ VECTISPIRE_DB_USER=vectispire
 VECTISPIRE_DB_PASSWORD=…
 ```
 
-That URL is also the default. For PostgreSQL, point the same variable at it —
-`jdbc:postgresql://localhost:5432/vectispire` — and change nothing else. One MySQL server setting matters if you use [report plugins](../administration/report-plugins.md)
+That URL is also the default. PostgreSQL is no longer tested; an existing installation on it points the
+same variable at it — `jdbc:postgresql://localhost:5432/vectispire` — and plans its move to MySQL before 1.0. One MySQL server setting matters if you use [report plugins](../administration/report-plugins.md)
 on large projects: at the default `max_allowed_packet` (64 MiB) a report's export is kept up to about
 32 MiB, and `--max-allowed-packet=160M` restores the whole 64 MiB bound.
 
@@ -206,6 +206,25 @@ counts the proxy's address rather than the caller's and stops protecting anyone.
 
 Both are recorded with their reasoning in the project's threat model.
 
+### One control-plane instance {#one-instance}
+
+**Run one control plane.** A second instance against the same database — a second replica on
+Kubernetes, a second container on the same composition — is not supported in 1.0
+([decision 0043](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0043-what-1-0-promises.md) §4).
+The code is written for several, and three mechanisms are what two instances would lean on:
+
+- **the maintenance tasks**, which every instance runs: each is written to tolerate running twice,
+  and the ones that must run once — scheduling scans — elect a leader by a lease in the database;
+- **the audit chain's lock**: every entry is written under a lock on the chain's head, so that two
+  writers never fork the chain;
+- **the outbox**: the relay claims each notification before delivering it, so that two instances do
+  not send it twice.
+
+Each is tested against MySQL by two sessions or two threads; **none by two running applications**. A
+guarantee no check executes is not one we promise, so high availability is a 1.x goal, with a decision
+of its own once two instances run together in a test. Until then a second instance is at your own risk,
+and a defect only it shows is not treated as one.
+
 ## Kubernetes {#kubernetes}
 
 A Helm chart ships in [`deploy/helm/vectispire/`](https://github.com/asmolabs/vectispire/tree/main/deploy/helm/vectispire).
@@ -242,7 +261,7 @@ Installed and backed up separately. The chart points at it:
   server evaluates in the session's time zone. Do not set `TZ` on the pod.
 - **Back up before every upgrade.** Migrations run at startup and have no way back. Rolling back
   means restoring the backup and the previous image digest. The step from the previous release is
-  executed every night on MySQL and PostgreSQL over a database holding data, which then reads
+  executed every night on MySQL over a database holding data, which then reads
   back unchanged; a release is not cut on a night that failed.
 
 ### Installing
@@ -343,7 +362,8 @@ the load balancer:
   when the load balancer is the controller's sole way in: otherwise a client writes the header the
   controller passes on, and is believed.
 
-**Two replicas** are possible but not the default. They need:
+**Two replicas are not supported in 1.0** — see [One control-plane instance](#one-instance). Besides
+what that section names, a second replica would need:
 
 - cookie affinity (`ingress.stickySessions`): single sign-on keeps its state in the session of the
   pod that sent the person to the provider;
@@ -381,10 +401,11 @@ services:
     restart: unless-stopped
     networks: [outside, docker]
   agent-docker-proxy:
-    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
-    # What ContainerRunner calls, and nothing else; every other section stays at its default, 0.
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    # What ContainerRunner calls, and nothing else; every other section stays at its default, 0,
+    # except EVENTS, which the image opens and which is closed here.
     # docker-compose.yml lists them all, each with its reason.
-    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0}
+    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0, EVENTS: 0}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
@@ -507,7 +528,9 @@ the agent and excluded for every scan pod.
 **The agent proves the isolation before it scans.** At start it runs two probe pods, offline and online,
 that try to reach the API server; if either can — a CNI that ignores NetworkPolicy, or the policies
 missing — the agent does not start, and says why in its log. A probe that cannot run stops the start
-too. Only where `agents.networkPolicy.enabled` is false, with its acknowledgement, does the chart tell the
+too. A CNI may apply the policies to a new pod a moment after it starts, so each probe tries until it is
+refused, for at most 30 seconds, and **every scan pod checks the same before its scanner starts**: one still
+reaching the API server after that fails its step. Only where `agents.networkPolicy.enabled` is false, with its acknowledgement, does the chart tell the
 agent not to check.
 
 The vulnerability database, some 3 GB, is kept for scan pods on a claim in the scans' namespace,

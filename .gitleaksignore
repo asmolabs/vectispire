@@ -108,14 +108,60 @@ a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:c
 # UUID that only shows as an identifier on the sources page. No credential; the line now carries
 # `gitleaks:allow`, and this pins the commit that introduced it.
 487bd9f8347b31e20772b1d2ecb55ee110d07e9d:vectispire-angular/e2e/screens.spec.ts:generic-api-key:644
-# Read by the secrets job on develop from the Rust port's branches (pushed 2026-10-21/22): gitleaks reads every
-# branch the checkout fetches, and these are pinned there too. Each read and judged not a secret:
-# a throwaway encryption key in the built-in worker test (the base64 of "reference-scanning-key-32-bytes!"),
-804e8cbd44540da590805d4dcde7603588abdb13:vectispire-rust/crates/cp-scanning/tests/worker_offload.rs:generic-api-key:233
-# the truncated PEM headers the target rules' reference set feeds the key validator (no key material follows them),
+
+# The Rust port's accounts test signs in on the real control plane with an account it creates there: an invented
+# passphrase, in a container removed after the test. The line now names a constant marked `gitleaks:allow`; this
+# pins the commit that wrote it inline.
+584a1cc62e162bb6afb31d79a66d9092b09002b9:vectispire-rust/crates/cp-access/tests/against_java.rs:generic-api-key:185
+# The targets' rules reference set (task 2.6 of the Rust port) asks Java's SSH-key form which texts open with a
+# private key's header: header lines alone, "-----BEGIN RSA PRIVATE KEY-----" and its variants, no key material —
+# the rule matches from one case's header to the next case's. Read and judged not a secret.
 deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/targets/TargetRulesReferenceSetTest.java:private-key:419
 deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/targets/TargetRulesReferenceSetTest.java:private-key:420
 deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules.json:private-key:3574
 deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules.json:private-key:3580
-# and an invented passphrase an accounts test signs in with against the Java oracle.
-584a1cc62e162bb6afb31d79a66d9092b09002b9:vectispire-rust/crates/cp-access/tests/against_java.rs:generic-api-key:185
+# A throwaway encryption key in the built-in worker test: the base64 of "reference-scanning-key-32-bytes!".
+# Read and judged not a secret.
+804e8cbd44540da590805d4dcde7603588abdb13:vectispire-rust/crates/cp-scanning/tests/worker_offload.rs:generic-api-key:233
+# The SIEM module's reference set (task 4.2 of the Rust port, second stage) queues an API_KEY_CREATED event
+# whose CEF line carries a fixed test UUID as externalId (0b7e5f0e-…), which the rule reads as a key beside
+# the words "API key". A UUID chosen by the test, no credential. Read and judged not a secret.
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:216
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:238
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:258
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:285
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:311
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:337
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:363
+3dd9f1905ba8a80de727e7997d44736601b11d33:vectispire-rust/reference/siem/module.json:generic-api-key:382
+
+# reference/sign-in/ (access port, stage 1): RFC 6238's published test seed, GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ — the
+# Base32 of "12345678901234567890", Appendix B — under a field then named `secret`. A test vector every TOTP
+# implementation checks against, not a credential; the field is `seed` from the next commit on. Read and judged
+# not a secret.
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:44
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:48
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:52
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:56
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:60
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:64
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:68
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:72
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:76
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:80
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:84
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:243
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/inputs.json:generic-api-key:249
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:113
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:117
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:121
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:125
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:129
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:133
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:137
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:141
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:145
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:149
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:153
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:298
+32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:303

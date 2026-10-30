@@ -55,8 +55,9 @@ export class AuthApi {
         return this.http.post<MfaSetupResponse>('/api/v1/auth/mfa/setup', {});
     }
 
-    enableMfa(secret: string, code: string): Observable<MfaEnableResponse> {
-        return this.http.post<MfaEnableResponse>('/api/v1/auth/mfa/enable', { secret, code });
+    /** `password` is the account's current one: the server refuses an enrolment without it. */
+    enableMfa(password: string, secret: string, code: string): Observable<MfaEnableResponse> {
+        return this.http.post<MfaEnableResponse>('/api/v1/auth/mfa/enable', { password, secret, code });
     }
 
     disableMfa(code: string): Observable<{ mfaEnabled: boolean }> {

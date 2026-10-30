@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.checklists.web;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
@@ -11,6 +12,8 @@ import com.asmolabs.vectispire.core.checklists.ChecklistContactService;
 import com.asmolabs.vectispire.core.checklists.ChecklistContactsView;
 import com.asmolabs.vectispire.core.checklists.ProjectChecklistService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -68,8 +72,14 @@ public class ChecklistContactsController {
     @GetMapping("/candidates")
     @RequiresWriteAccount
     public List<ChecklistContactCandidate> checklistContactCandidates(
-            @PathVariable long projectId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return contacts.candidates(projectId, allowanceOf(principal));
+            @PathVariable long projectId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return contacts.candidates(projectId, allowanceOf(principal), limit, offset);
     }
 
     @Operation(summary = "Link checklist contact", description = "Links the profile — its key or the column's "

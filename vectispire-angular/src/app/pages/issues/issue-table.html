@@ -1,0 +1,267 @@
+<!--
+    The bulk action sits above the table and not in a row menu: it acts on the ticks, and a
+    control whose scope is invisible from where it is pressed is how somebody dismisses more
+    than they meant to. It is absent, not disabled, while nothing is ticked — there is no
+    batch to explain.
+-->
+<!--
+    **The button says what is actually going to happen.** An account without approval rights can
+    triage — its decision goes into a queue instead of settling — and the screen announced
+    "Triage" to both, so such an account discovered the queue afterwards, on seeing the tag turn
+    to "Pending approval". The information did arrive; it arrived after the decision.
+-->
+@if (page.selected().length > 0 && page.canTriage()) {
+    <div class="flex items-center gap-3 mb-3">
+        <p-button
+            [label]="page.triageActionLabel() + ' (' + page.selected().length + ')'"
+            size="small"
+            (onClick)="bulkTriage.emit()"
+        />
+        <span class="text-muted-color text-sm">
+            @if (page.canApprove()) {
+                {{ 'issues.bulk_hint_decide' | translate }}
+            } @else {
+                {{ 'issues.bulk_hint_request' | translate }}
+            }
+        </span>
+    </div>
+}
+<!--
+    Absent rather than disabled for a read-only account: a greyed-out button invites the reader
+    to work out why, an absence accompanied by its reason explains itself.
+-->
+@if (page.selected().length > 0 && !page.canTriage()) {
+    <div class="flex items-center gap-3 mb-3 text-muted-color text-sm">
+        {{ 'issues.reads_only' | translate }}
+    </div>
+}
+
+<!--
+    `dataKey` is what makes a tick follow its row rather than its position: without it the
+    table matches selected rows by identity, and a reload of the same page would leave the
+    header checkbox lit over objects that no longer exist.
+-->
+<!--
+    **The table scrolls in its own container, and the page never does.** Without it, a long file
+    path widens the column past the card and it is the severity column, at the far end, that
+    leaves the screen: the datum one sorts by mentally is the one that gets lost, and nothing
+    indicates that anything is missing on the right.
+-->
+<div class="overflow-x-auto">
+    <p-table
+        [value]="page.issues()"
+        [tableStyle]="{ 'min-width': '60rem' }"
+        [loading]="page.loading()"
+        dataKey="id"
+        selectionMode="multiple"
+        [selection]="page.selected()"
+        (selectionChange)="page.selected.set($event)"
+    >
+        <ng-template #header>
+            <tr>
+                <th style="width: 3rem">
+                    <!-- Selects the rows on screen, which is the page the server returned:
+                     a "select all 228" would tick rows nobody has read. -->
+                    <p-tableHeaderCheckbox [ariaLabel]="'issues.aria_select_page' | translate" />
+                </th>
+                <th>{{ 'issues.col_issue' | translate }}</th>
+                <th>{{ 'issues.col_type' | translate }}</th>
+                <th>{{ 'issues.col_target' | translate }}</th>
+                <th>{{ 'issues.filter_severity' | translate }}</th>
+                <th>{{ 'issues.component' | translate }}</th>
+                <th>{{ 'issues.col_history' | translate }}</th>
+                <th>{{ 'issues.col_deadline' | translate }}</th>
+                <th>{{ 'issues.col_triage' | translate }}</th>
+                <th></th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-issue>
+            <tr>
+                <td>
+                    <p-tableCheckbox
+                        [value]="issue"
+                        [ariaLabel]="
+                            'issues.aria_select'
+                                | translate: { name: issue.identifier ?? ('issues.this_issue' | translate) }
+                        "
+                    />
+                </td>
+                <td>
+                    <!-- The identifier is the handle: it is what somebody reads the row
+                      for, so it is what opens the detail. -->
+                    <a class="font-medium" [routerLink]="['/issues', issue.id]">
+                        {{ issue.identifier ?? '—' }}
+                    </a>
+                    @if (issue.isKev) {
+                        <p-tag severity="danger" value="KEV" styleClass="ml-2" />
+                    }
+                    <div class="text-muted-color text-sm" style="max-width: 32rem; overflow-wrap: anywhere">
+                        {{ issue.filePath ?? '—' }}
+                    </div>
+                </td>
+                <td>
+                    <p-tag
+                        [value]="views()[issue.id].typeText"
+                        [severity]="issue.type === 'imported' ? 'warn' : issue.type === 'plugin' ? 'info' : 'secondary'"
+                    />
+                    <!--
+                        Provenance on the row, not only on the detail: an auditor scanning the
+                        backlog tells what Vectispire analysed from what a CI declared here.
+                    -->
+                    @if (issue.type === 'imported') {
+                        <div class="text-xs text-muted-color mt-1" data-testid="issue-provenance">
+                            {{
+                                'issues.provenance_imported_short'
+                                    | translate: { source: issue.importSource ?? '—', tool: issue.toolName ?? '—' }
+                            }}
+                        </div>
+                    } @else if (issue.type === 'plugin') {
+                        <div class="text-xs text-muted-color mt-1" data-testid="issue-provenance">
+                            {{ 'issues.provenance_plugin_short' | translate: { tool: issue.toolName ?? '—' } }}
+                        </div>
+                    }
+                </td>
+                <td>
+                    <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
+                    <div class="text-xs text-muted-color">
+                        {{
+                            issue.targetKind === 'container'
+                                ? ('issues.kind_image' | translate)
+                                : ('issues.kind_repository' | translate)
+                        }}
+                    </div>
+                </td>
+                <td>
+                    <p-tag
+                        [severity]="views()[issue.id].severityTone"
+                        [value]="issue.severity ?? 'unknown' | severityLabel"
+                    />
+                </td>
+                <td>
+                    <span>{{ issue.packageName ?? '—' }}</span>
+                    @if (issue.packageVersion) {
+                        <span class="text-muted-color"> {{ issue.packageVersion }}</span>
+                    }
+                </td>
+                <td class="text-muted-color">{{ 'issues.seen_times' | translate: { count: issue.timesSeen } }}</td>
+                <td>
+                    <!--
+                    Absent rather than "—" when no window applies: a severity with no deadline,
+                    or an issue triage has settled, has nothing to be late for, and an empty
+                    dash invites the reader to wonder which of the two it is.
+                -->
+                    @if (views()[issue.id].sla; as sla) {
+                        <p-tag [severity]="sla.tone" [value]="sla.label" />
+                    }
+                </td>
+                <td>
+                    <p-tag [severity]="views()[issue.id].triageTone" [value]="views()[issue.id].triageText" />
+                    <!--
+                    What a request awaiting approval asks for: "pending approval" alone left a queued
+                    acceptance, a queued clearance and a queued fix looking alike (decision 0041).
+                -->
+                    @if (issue.triageStatus === 'pending_approval' && issue.triageRequestedStatus) {
+                        <div class="text-sm mt-1" data-testid="issue-requested-status">
+                            {{ 'issues.requested_status' | translate: { status: views()[issue.id].requestedText } }}
+                        </div>
+                    }
+                    @if (issue.triagedBy) {
+                        <div class="text-muted-color text-sm">
+                            {{ 'issues.triaged_by' | translate: { name: issue.triagedBy } }}
+                        </div>
+                    }
+                    <!--
+                    The review date, which could be set and was displayed nowhere. An
+                    acceptance nobody can see the end of is an acceptance nobody revisits —
+                    and the date is what turns "dismissed" into "dismissed until".
+                -->
+                    @if (issue.triageExpiresAt) {
+                        <div class="text-sm mt-1" [class.text-orange-500]="views()[issue.id].reviewSoon">
+                            {{
+                                'issues.review_on'
+                                    | translate: { date: (issue.triageExpiresAt | date: 'dd/MM/yyyy') ?? '' }
+                            }}
+                        </div>
+                    }
+                    <!--
+                    The ticket is shown here because without it, an opened ticket
+                    would be invisible from Vectispire: somebody would raise the same
+                    one by hand, and nobody would know the work is already
+                    planned.
+                -->
+                    @if (issue.ticketRef) {
+                        <div class="text-sm mt-1">
+                            @if (issue.ticketUrl) {
+                                <a [href]="issue.ticketUrl" target="_blank" rel="noopener noreferrer">{{
+                                    issue.ticketRef
+                                }}</a>
+                            } @else {
+                                <span class="text-muted-color">{{ issue.ticketRef }}</span>
+                            }
+                        </div>
+                    }
+                </td>
+                <td class="text-right">
+                    <div class="flex items-center justify-end gap-1">
+                        <!--
+                        Offered only if a model is configured: an absent option must be absent,
+                        not present and refusing.
+                    -->
+                        @if (page.aiEnabled()) {
+                            <p-button
+                                icon="pi pi-sparkles"
+                                size="small"
+                                [text]="true"
+                                severity="help"
+                                [title]="'issues.ai_explain' | translate"
+                                [ariaLabel]="'issues.ai_explain' | translate"
+                                (onClick)="advise.emit(issue)"
+                            />
+                        }
+                        <!--
+                        **Guarded like the bulk button, and it was not.** The per-row control had
+                        been forgotten when triage became role-aware: an auditor saw it, opened
+                        the dialog, filled it in, and collected a 403 on save — precisely the
+                        broken screen the route guards had just removed elsewhere.
+                    -->
+                        @if (page.canTriage()) {
+                            <p-button
+                                [label]="page.triageActionLabel()"
+                                size="small"
+                                [text]="true"
+                                (onClick)="triage.emit(issue)"
+                            />
+                        }
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="10" class="text-center text-muted-color py-6">
+                    {{ 'issues.empty_filtered' | translate }}
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+</div>
+
+<div class="flex items-center justify-between mt-4">
+    <span class="text-muted-color">{{ page.pageLabel() }}</span>
+    <div class="flex gap-2">
+        <p-button
+            [label]="'common.previous' | translate"
+            size="small"
+            [outlined]="true"
+            [disabled]="page.offset() === 0"
+            (onClick)="page.reload(page.offset() - page.limit)"
+        />
+        <p-button
+            [label]="'common.next' | translate"
+            size="small"
+            [outlined]="true"
+            [disabled]="page.offset() + page.limit >= page.total()"
+            (onClick)="page.reload(page.offset() + page.limit)"
+        />
+    </div>
+</div>

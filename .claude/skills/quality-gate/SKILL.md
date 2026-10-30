@@ -85,7 +85,9 @@ Migrations, any `core/<module>/persistence/`, `core/config/`, `src/integrationTe
 cd vectispire-java && ./gradlew integrationTestAll
 ```
 
-MySQL and PostgreSQL (Testcontainers, needs Docker). A migration is written once under
+MySQL (Testcontainers, needs Docker) — the one supported engine, at its newest and its oldest supported version
+(9.x and 8.4 LTS, `integrationTestMysql` and `integrationTestMysqlOldest`; decision 0043 §3); PostgreSQL's code is
+kept and run by nothing. A migration is written once under
 `db/migration/common` with the type placeholders when only the types differ, or twice, one per
 dialect, when the structure does (decisions 0027, 0034); `MigrationLayoutTest` in `./gradlew build`
 refuses anything in between.
@@ -97,7 +99,7 @@ also run the way an installation meets it: on a database the last release has wr
 docker build -f Dockerfile -t vectispire:latest . && ENGINE=mysql scripts/upgrade-drill.sh
 ```
 
-(`ENGINE=postgresql` too; the nightly's `upgrade` job runs both.) A field it reads back changed on
+(The nightly's `upgrade` job runs MySQL; `ENGINE=postgresql` still works and nothing runs it.) A field it reads back changed on
 purpose goes into `ci/upgrade/accepted-rewrites.txt` with the migration and the reason, in the
 migration's commit, or the nightly stays red until the next tag. On an arm64
 machine the release image runs emulated: about a minute and a half per engine. The drill verifies
@@ -162,7 +164,7 @@ is *not* this checkout. The template ran `ci/vectispire-gate.sh` from the consum
 every refusal. Every one of those read correctly. `docs-consistency` runs `ci/gitlab/check-gate-pin.sh`,
 `ci/check-cli-pin.sh` and ShellCheck on them; editing `ci/vectispire-gate.sh` means updating the digest
 the template pins, and editing `scripts/vectispire-cli.sh` the `CLI_SCRIPT_SHA256` the interface's
-CI/CD snippets pin (`repositories.ts`) — both are release assets, run by consumers only at that digest.
+CI/CD snippets pin (`repositories/repository-model.ts`) — both are release assets, run by consumers only at that digest.
 
 **Running the shipped composition to test a change** (a healthcheck, a service's command): a project
 name does **not** isolate it. `docker-compose.yml` gives its volumes and networks fixed `name:`s, so
@@ -183,6 +185,13 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
 
 ## 8. Commit and push
 
+- **Before each commit, read `git diff --cached --stat` against what the change is meant to touch.** A file
+  outside the change's scope is a stop, not a detail. On 2026-10-30 seven refactoring commits (#158,
+  #160–#164) were made from a working tree older than their branch's base: each carried, beside its own
+  change, 22 files of three already-merged PRs as they were before them, and merging them silently undid a
+  memoisation, a lazy-loading change and a security fix (#142, #143, #144; restored in #166). CI stayed green,
+  because the tests guarding those changes went with them. A deleted test file or a file of another page
+  in the stat is the sign; `git diff --cached <base> -- <file>` on it says whether the change is yours.
 - One commit per logical change, message in the repository's style (`fix(area): …`, body saying what
   was wrong, what changed and how it was verified), ending with the attribution line the session
   requires.
@@ -198,6 +207,9 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
   the fixed commit instead.
 - The nightly (`nightly.yml`, from `main`) is the only place every suite runs unconditionally. Do not
   cut a release on a nightly that has not been green.
+- **A patch release carries no migration** (decision 0047): a fix that needs a schema change goes into the
+  next minor. `release.yml` refuses a `vX.Y.Z` tag with Z > 0 whose `db/migration/` differs from `vX.Y.0`'s,
+  before building anything — check before tagging rather than after.
 - **A green check is only worth what it read.** The `secrets` job scanned 0 commits for six weeks:
   in its container git refused the checkout ("dubious ownership"), gitleaks logged it, said
   `no leaks found` and exited 0. When you add or change a CI job that runs a scanner in a

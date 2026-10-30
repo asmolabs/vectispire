@@ -81,6 +81,21 @@ describe('the forge connections screen', () => {
         fixture.detectChanges();
     }, 20_000);
 
+    it('is a form requiring the name and the token, and sends once however often it is submitted', async () => {
+        list();
+        fixture.componentInstance.openCreate();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#forge-name')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#forge-token')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#forge-address')!.required).toBe(false);
+        Object.assign(fixture.componentInstance.form, { name: 'acme', token: 'glpat-x' });
+        await fixture.whenStable();
+        const form = document.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match({ method: 'POST', url: '/api/v1/forge-connections' }).length).toBe(1);
+    });
+
     it('spells every word of its vocabularies in both languages', () => {
         const maps = [
             DISCOVERY_STATE_KEYS,
