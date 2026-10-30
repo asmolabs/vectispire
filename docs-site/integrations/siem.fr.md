@@ -109,8 +109,10 @@ réseau que l'export peut atteindre.
 
 Les quatre transports sont des intégrations que le gouverneur de la plateforme active et désactive —
 `siem.webhook`, `siem.syslog_udp`, `siem.syslog_tcp`, `siem.syslog_tls`, toutes activées au départ —
-par l'API, `PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": false}`. Aucun écran ne le fait
-dans cette version ; *Administration → Intégrations* viendra dans une suivante ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+dans [*Administration → Intégrations*](../administration/integrations.fr.md), ou par l'API,
+`PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": false}` ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+La liste des protocoles de la carte SIEM ne propose que les transports activés ; celui qui est enregistré y
+reste, marqué *suspendu*, et la carte dit que ses événements attendent dans l'outbox.
 Un export activé ne s'enregistre pas sur un transport désactivé, et un transport désactivé ne se teste
 pas : les deux répondent 409 `integration-disabled`. Désactiver l'export s'enregistre toujours, quel
 que soit son protocole.

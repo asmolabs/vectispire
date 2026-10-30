@@ -129,8 +129,9 @@ nothing. The server log keeps its line at `WARN`. `GET /api/v1/settings/ticket-t
 ## When the tracker's integration is disabled {#tracker-suspended}
 
 Each tracker is an integration the platform governor switches on and off — `tracker.gitlab`,
-`tracker.github`, `tracker.jira`, `tracker.servicenow`, all enabled to begin with — through
-`PUT /api/v1/integrations/{key}/enabled`; there is no screen for it in this release
+`tracker.github`, `tracker.jira`, `tracker.servicenow`, all enabled to begin with — on
+[*Administration → Integrations*](../administration/integrations.md), or through
+`PUT /api/v1/integrations/{key}/enabled`
 ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
 Switching off the tracker this installation is configured for **suspends** it, and deletes nothing:
 
@@ -139,7 +140,8 @@ Switching off the tracker this installation is configured for **suspends** it, a
   asking the tracker about it. The sweep says so once in the server log, when the suspension begins,
   and once when it ends — not every hour.
 - **It is not chosen either.** Saving `ticket_provider` naming a tracker whose integration is disabled
-  is refused 409 `integration-disabled` — the settings screen shows the refusal's sentence — and
+  is refused 409 `integration-disabled` — the settings screen offers only the enabled trackers in its
+  provider list, keeps the configured one there marked *suspended*, and shows the refusal's sentence — and
   nothing of that save is written. `none` is always saved. The tracker already configured, suspended,
   is saved again unchanged, so that the project, the labels or the CA beside it can still be saved:
   it is suspended on purpose, and refusing its own value would lock the rest of the section.

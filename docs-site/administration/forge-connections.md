@@ -209,8 +209,10 @@ that meets it fails with `token_rejected`, on the list.
 ## When the forge's integration is disabled
 
 The platform governor decides which forges this installation talks to, `forge.gitlab` and
-`forge.github`, on the integrations' registry ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
-Switching one off **suspends** the connections of that kind; it deletes nothing.
+`forge.github`, on [*Administration → Integrations*](integrations.md) ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+Switching one off **suspends** the connections of that kind; it deletes nothing. The list reads *Suspended
+— integration disabled* on each of them, says what that means and links to that screen; the form of a new
+connection offers the enabled forges only, and with both off says so and creates nothing.
 
 - **The connection is kept as it was**: its row, its encrypted token, its snapshot, the provenance of
   what it imported and its change-review readings. It reads `"state": "suspended"`, beside

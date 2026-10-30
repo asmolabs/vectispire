@@ -136,7 +136,8 @@ serveur garde sa ligne au niveau `WARN`. `GET /api/v1/settings/ticket-token` ré
 
 Chaque tracker est une intégration que le gouverneur de la plateforme active et désactive —
 `tracker.gitlab`, `tracker.github`, `tracker.jira`, `tracker.servicenow`, toutes activées au départ —
-par `PUT /api/v1/integrations/{key}/enabled` ; aucun écran ne le fait dans cette version
+dans [*Administration → Intégrations*](../administration/integrations.fr.md), ou par
+`PUT /api/v1/integrations/{key}/enabled`
 ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
 Désactiver le tracker pour lequel l'installation est configurée le **suspend**, et ne supprime rien :
 
@@ -145,8 +146,9 @@ Désactiver le tracker pour lequel l'installation est configurée le **suspend**
   stocke sans interroger le tracker à son sujet. Le balayage le dit une fois dans le journal du
   serveur, quand la suspension commence, et une fois quand elle finit — pas toutes les heures.
 - **Il n'est pas choisi non plus.** Enregistrer `ticket_provider` en nommant un tracker dont
-  l'intégration est désactivée est refusé 409 `integration-disabled` — l'écran des réglages affiche la
-  phrase du refus — et rien de cet enregistrement n'est écrit. `none` s'enregistre toujours. Le tracker
+  l'intégration est désactivée est refusé 409 `integration-disabled` — l'écran des réglages ne propose
+  que les trackers activés dans sa liste de fournisseurs, y garde celui qui est configuré marqué
+  *suspendu*, et affiche la phrase du refus — et rien de cet enregistrement n'est écrit. `none` s'enregistre toujours. Le tracker
   déjà configuré, suspendu, s'enregistre de nouveau inchangé, pour que le projet, les libellés ou la CA
   à côté puissent toujours être enregistrés : il est suspendu à dessein, et refuser sa propre valeur
   bloquerait le reste de la section.

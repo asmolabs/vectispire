@@ -31,7 +31,8 @@ residual risk. Several of those fixes refuse something 0.11.2 accepted, so read 
 full: an installation with SCIM enabled and a short token does not start until the token is replaced.
 It also carries the first lots of
 [decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md):
-the platform governor switches the forges, the SIEM transports and the trackers on or off.
+the platform governor switches the forges, the SIEM transports and the trackers on or off, on a screen of
+its own, *Administration → Integrations*, and the forms stop offering what is switched off.
 What follows is against 0.11.2.
 
 ### Before you upgrade {#before-you-upgrade-100-rc1}
@@ -241,8 +242,9 @@ What follows is against 0.11.2.
   export sends over; and `urn:vectispire:problem:integration-not-switchable` on the governor's switch, for
   an AI provider or a notification channel, which nothing suspends yet ([409 causes](errors.md#409-causes)). The `integration-disabled` detail, and the
   reason a checklist line fed by a suspended forge connection carries, name the route that enables the
-  integration, `PUT /api/v1/integrations/{key}/enabled`, rather than a screen this release does not have;
-  the type and the member are what a client reads, and they are as stated.
+  integration, `PUT /api/v1/integrations/{key}/enabled`, for a client of the API; the interface shows a
+  sentence of its own for each of the three causes, in its language, naming the key and the screen. The
+  type and the member are what a client reads, and they are as stated.
 - **A forge connection carries `state`** — `active`, or `suspended` while its forge's integration is
   disabled — **and `integration`**, `forge.gitlab` or `forge.github`, the key that resumes it.
 - **The tracker token's state carries `state` and `integration`.** `GET` and
@@ -293,13 +295,22 @@ What follows is against 0.11.2.
   `siem.syslog_tcp`, `siem.syslog_tls`), the AI providers (`ai.ollama`, `ai.openai`), the notification
   channels (`notification.webhook`, `.teams`, `.slack`, `.discord`, `.mail`) and the trackers
   (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Every one of them starts enabled; one added
-  later — Bitbucket first — arrives disabled. The switch is through the API for now; there is no screen
-  yet. **The forges, the SIEM transports and the trackers act on it in this release**; the AI providers
+  later — Bitbucket first — arrives disabled. The switch is on *Administration → Integrations* (below), or
+  through the API. **The forges, the SIEM transports and the trackers act on it in this release**; the AI providers
   and the notification channels do not yet, so **the registry refuses to switch them off**:
   `enabled: false` on an `ai.*` or `notification.*` key answers 409 `integration-not-switchable`, the key
   in the member `integration`, with nothing changed and nothing audited. A switch that stopped nothing
   would read as a guarantee it is not. Meanwhile, turn the AI review off in the settings, and empty a
   channel's URL in the notification settings.
+- ***Administration → Integrations*, the registry's screen.** Every account reads it, by family, with each
+  integration's state and its last change — when, and by whom for a governance role; the platform governor
+  alone is offered a switch. Switching off asks first and says what is suspended and that nothing is
+  deleted; switching on resumes without asking. A refusal is shown on the row it names, by its cause —
+  `integration-in-use`, `integration-not-switchable`, or one a newer server adds, in its words. The forms
+  follow it: the forge connection form, the SIEM protocol, the tracker — now a list rather than a text
+  field — the AI provider and the notification channels' addresses offer no disabled integration for a new
+  choice, and a configuration already on one reads *suspended* with a link to the screen
+  ([integrations](../administration/integrations.md)).
 - **A forge whose integration is disabled suspends its connections, never deletes them.** Each keeps its
   row, its encrypted token, its snapshot, its import links and its change-review readings, and reads
   *Suspended — integration disabled* on the forge connections screen. Nothing goes to that forge:

@@ -34,7 +34,8 @@ installation dont SCIM est actif avec un jeton court ne démarre pas tant que le
 Elle apporte aussi les premiers lots de la
 [décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md) :
 le gouverneur de la plateforme active ou désactive les forges, les transports SIEM et les gestionnaires
-de tickets.
+de tickets, sur un écran à lui, *Administration → Intégrations*, et les formulaires cessent de proposer ce
+qui est désactivé.
 Ce qui suit est par rapport à la 0.11.2.
 
 ### Avant la mise à jour {#avant-la-mise-a-jour-100-rc1}
@@ -264,8 +265,9 @@ Ce qui suit est par rapport à la 0.11.2.
   ([causes d'un 409](errors.fr.md#causes-dun-409)). Le `detail` de
   `integration-disabled`, et la raison que porte une ligne de checklist alimentée par une connexion de
   forge suspendue, nomment la route qui active l'intégration, `PUT /api/v1/integrations/{key}/enabled`,
-  plutôt qu'un écran que cette version n'a pas ; le type et le membre sont ce que lit un client, et ils
-  sont tels qu'indiqués.
+  pour un client de l'API ; l'interface affiche une phrase à elle pour chacune des trois causes, dans sa
+  langue, qui nomme la clé et l'écran. Le type et le membre sont ce que lit un client, et ils sont tels
+  qu'indiqués.
 - **Une connexion de forge porte `state`** — `active`, ou `suspended` tant que l'intégration de sa forge
   est désactivée — **et `integration`**, `forge.gitlab` ou `forge.github`, la clé qui la reprend.
 - **L'état du jeton du tracker porte `state` et `integration`.** `GET` et
@@ -323,13 +325,23 @@ Ce qui suit est par rapport à la 0.11.2.
   `ai.openai`), les canaux de notification (`notification.webhook`, `.teams`, `.slack`, `.discord`,
   `.mail`) et les gestionnaires de tickets (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Toutes
   commencent activées ; une intégration ajoutée plus tard — Bitbucket d'abord — arrive désactivée. La
-  bascule passe par l'API pour l'instant ; il n'y a pas encore d'écran. **Les forges, les transports
+  bascule se fait dans *Administration → Intégrations* (ci-dessous), ou par l'API. **Les forges, les transports
   SIEM et les gestionnaires de tickets en tiennent compte dans cette version** ; les fournisseurs d'IA
   et les canaux de notification pas encore, aussi **le registre refuse-t-il de les désactiver** :
   `enabled: false` sur une clé `ai.*` ou `notification.*` répond 409 `integration-not-switchable`, la clé
   dans le membre `integration`, sans rien changer ni rien auditer. Une bascule qui n'arrêterait rien se
   lirait comme une garantie qu'elle n'est pas. En attendant, désactivez la revue par IA dans les réglages,
   et videz l'URL d'un canal dans les réglages de notification.
+- ***Administration → Intégrations*, l'écran du registre.** Tous les comptes le lisent, par famille, avec
+  l'état de chaque intégration et sa dernière modification — quand, et par qui pour un rôle de
+  gouvernance ; seul le gouverneur de la plateforme se voit proposer une bascule. Désactiver demande
+  d'abord et dit ce qui est suspendu et que rien n'est supprimé ; activer reprend sans rien demander. Un
+  refus s'affiche sur la ligne qu'il nomme, selon sa cause — `integration-in-use`,
+  `integration-not-switchable`, ou une qu'un serveur plus récent ajoute, dans ses mots. Les formulaires
+  suivent : le formulaire de connexion de forge, le protocole SIEM, le tracker — désormais une liste plutôt
+  qu'un champ de texte —, le fournisseur d'IA et les adresses des canaux de notification ne proposent
+  aucune intégration désactivée pour un nouveau choix, et une configuration qui en utilise déjà une se lit
+  *suspendue*, avec un lien vers l'écran ([intégrations](../administration/integrations.fr.md)).
 - **Une forge dont l'intégration est désactivée suspend ses connexions, sans jamais les supprimer.**
   Chacune garde sa ligne, son jeton chiffré, son instantané, ses liens d'import et ses lectures de revues
   des changements, et se lit *Suspendue — intégration désactivée* sur l'écran des connexions de forge.
