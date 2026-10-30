@@ -26,6 +26,7 @@ import { gradeSeverity } from '../../shared/scorecard';
 import { DATED_MARKER } from '../../shared/dated-marker';
 import { LatestRequest } from '../../core/latest-request';
 import { SEVERITY_TONES } from '../../shared/severity';
+import { gateReason } from '../../shared/gate-reason';
 import { messageOf } from '../../core/api-error';
 
 /** The severities in descending order, with their colour from the one scale every screen uses. A
@@ -382,6 +383,15 @@ export class Dashboard {
      *  stops serving its purpose, which is spotting what to handle. */
     firstViolations(violations: DashboardOverview['failing'][number]['violations']) {
         return violations.slice(0, 3);
+    }
+
+    /**
+     * Why the gate refused, in the reader's language ({@link gateReason}). The row knows no observation, so
+     * an `observation` violation reads the general sentence; the server's own is the line's tooltip.
+     */
+    reasonOf(violation: GateViolation): string {
+        this.i18n.translations();
+        return gateReason(this.i18n, violation);
     }
 
     /** A rule this version does not know shows as the server spells it rather than as another rule. */

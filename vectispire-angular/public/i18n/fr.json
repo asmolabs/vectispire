@@ -4298,5 +4298,41 @@
       "audit_link": "Ouvrir le journal d'audit",
       "continue": "Choisir d'autres dépôts"
     }
+  },
+  "gate_reason": {
+    "kev": "Vulnérabilité activement exploitée (catalogue KEV de la CISA).",
+    "severity": "Sévérité {{severity}}, au seuil de la politique ou au-delà.",
+    "coverage": "Aucune règle installée ne couvre les écosystèmes de cette cible — son code n'a pas été examiné.",
+    "observation": "Aucune analyse de cette cible n'est allée à son terme — son backlog n'est pas une observation du code tel qu'il est.",
+    "never_scanned": "Aucune analyse de cette cible n'a abouti — elle n'a jamais été examinée, et un backlog vide n'est pas un backlog propre.",
+    "last_scan_failed": "La dernière analyse de cette cible a échoué — son backlog n'est pas une observation du code tel qu'il est.",
+    "in_progress": "Aucune analyse de cette cible n'est encore terminée."
+  },
+  "problem": {
+    "invalid_request": "Requête refusée — le serveur précise : {{detail}}",
+    "authentication_required": "Identification requise : aucun identifiant, ou un identifiant qui n'est pas valide. Reconnectez-vous, ou vérifiez la clé.",
+    "forbidden": "Votre compte n'a pas le droit de faire ceci.",
+    "credential_not_accepted": "Cette route n'accepte pas une clé d'API ni un identifiant d'agent.",
+    "password_change_required": "Changez d'abord votre mot de passe.",
+    "import_refused": "Import refusé — le serveur précise : {{detail}}",
+    "not_found": "Introuvable — ou hors de ce que vous pouvez voir.",
+    "no_such_route": "Rien n'est servi à cette adresse.",
+    "method_not_allowed": "Cette route n'accepte pas cette méthode.",
+    "not_acceptable": "Cette route ne peut pas répondre dans le format demandé.",
+    "unsupported_media_type": "Cette route ne lit pas un corps dans ce format.",
+    "conflict": "L'état actuel refuse cette action — le serveur précise : {{detail}}",
+    "already_queued": "Une analyse de cette cible est déjà en file d'attente.",
+    "not_attestable": "Cette analyse n'a rien à attester — le serveur précise : {{detail}}",
+    "solution_not_empty": "Cette solution contient encore des projets.",
+    "plugin_conflict": "L'état du plugin refuse cette action — le serveur précise : {{detail}}",
+    "precondition_failed": "Une condition préalable n'est pas remplie — le serveur précise : {{detail}}",
+    "encryption_key_missing": "La clé de chiffrement n'est pas configurée sur ce déploiement : un opérateur doit la définir.",
+    "credential_withheld": "Un identifiant ne peut pas être transmis à l'agent — le serveur précise : {{detail}}",
+    "content_too_large": "Contenu trop volumineux pour cette route — le serveur précise : {{detail}}",
+    "unsafe_url": "Destination refusée par la politique des appels sortants — le serveur précise : {{detail}}",
+    "unprocessable": "Requête impossible à traiter — le serveur précise : {{detail}}",
+    "rate_limited": "Trop de tentatives. Réessayez dans {{retryAfterSeconds}} secondes.",
+    "unexpected_failure": "Échec inattendu. Référence à transmettre à votre administrateur : {{correlationId}}",
+    "unavailable": "Service momentanément indisponible : réessayez dans quelques minutes."
   }
 }

@@ -13,6 +13,7 @@ import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { messageOf } from '@/app/core/api-error';
 import { PolicySourcePipe } from '@/app/shared/policy-source';
+import { gateReason } from '@/app/shared/gate-reason';
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
@@ -83,6 +84,15 @@ export class Security {
 
     private readonly locale = inject(LOCALE_ID);
     private readonly i18n = inject(I18nService);
+
+    /**
+     * The first violation's reason in the reader's language ({@link gateReason}), naming which examination
+     * is missing from the target's own observation; the server's sentence is its tooltip.
+     */
+    reasonOf(target: TargetPosture): string {
+        this.i18n.translations();
+        return gateReason(this.i18n, target.verdict.violations[0], target.observation);
+    }
 
     observationLabel(target: TargetPosture): string {
         if (target.observation === 'never_scanned') return this.i18n.t('security.never_scanned_badge');

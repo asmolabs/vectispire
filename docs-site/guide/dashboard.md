@@ -36,6 +36,11 @@ whose **last scan failed**. Both carry an empty or stale backlog, which would pa
 both fail their verdict with an `observation` violation — the one `POST /api/v1/gate` answers — and
 the badge beside it says which.
 
+A violation's reason is written in the interface's language from its `rule` and its values — the
+severity, which examination is missing. The API's `reason` is the English sentence a pipeline log
+quotes; it names the policy's threshold and the uncovered ecosystems as well, and the screens show it
+when you hover the line.
+
 ![The security overview: a verdict per target, and the banner naming the targets no scan has yet observed.](../assets/screens/en/security-overview.png)
 
 ## Backlog over time

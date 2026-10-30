@@ -63,6 +63,10 @@ vers la 1.0 (décision 0043 §6) ; `status`, `title`, `detail` et `type` sont re
 Les codes sont ouverts, comme les valeurs d'énumération : un client qui en rencontre un qu'il ne connaît
 pas se rabat sur `status`. Un statut que ce tableau ne nomme pas se lit `http-<statut>`.
 
+L'interface affiche un refus dans sa propre langue à partir de `code`, et le `detail` anglais tel quel
+pour un code qu'elle ne connaît pas. Là où `detail` porte le fait qui compte — la valeur qu'un
+`invalid-request` a refusée, le plafond d'un `content-too-large` — la phrase traduite le cite.
+
 ## Ce que signifie chaque statut
 
 | Statut | Quand |

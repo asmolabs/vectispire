@@ -39,6 +39,11 @@ dont le **dernier scan a échoué**. Toutes deux portent un backlog vide ou pér
 toutes les politiques ; elles échouent donc à leur verdict avec une violation `observation` — celle que
 répond `POST /api/v1/gate` — et le badge à côté dit laquelle.
 
+La raison d'une violation est écrite dans la langue de l'interface à partir de sa `rule` et de ses
+valeurs — la sévérité, l'examen qui manque. Le `reason` de l'API est la phrase anglaise que cite le
+journal d'un pipeline ; il nomme aussi le seuil de la politique et les écosystèmes non couverts, et les
+écrans l'affichent au survol de la ligne.
+
 ![La vue d'ensemble Sécurité : un verdict par cible, et le bandeau qui nomme les cibles qu'aucun scan n'a encore observées.](../assets/screens/fr/security-overview.png)
 
 ## Backlog dans le temps

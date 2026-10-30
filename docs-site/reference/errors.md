@@ -61,6 +61,10 @@ to 1.0 (decision 0043 §6); `status`, `title`, `detail` and `type` are as they w
 Codes are open, as enum values are: a client meeting one it does not know falls back on `status`. A
 status this table does not name reads `http-<status>`.
 
+The interface shows a refusal in its own language from `code`, and the English `detail` as it is for a
+code it does not know. Where `detail` carries the fact that matters — the value an `invalid-request`
+refused, the ceiling of a `content-too-large` — the translated sentence quotes it.
+
 ## What each status means
 
 | Status | When |
