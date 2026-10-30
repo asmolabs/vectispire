@@ -13443,6 +13443,28 @@
       "get" : {
         "description" : "Every template, with its versions and without their items.",
         "operationId" : "listTemplates",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -14907,6 +14929,28 @@
       "get" : {
         "description" : "Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it.",
         "operationId" : "listForgeConnections",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -14964,6 +15008,27 @@
           "schema" : {
             "format" : "uuid",
             "type" : "string"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 discoveries are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -15654,6 +15719,28 @@
     "/api/v1/git-tokens" : {
       "get" : {
         "operationId" : "list_13",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -16269,6 +16356,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -16730,6 +16838,28 @@
       "get" : {
         "description" : "Every registered plugin, with the manifest it runs.",
         "operationId" : "list_11",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -16887,6 +17017,27 @@
           "required" : true,
           "schema" : {
             "type" : "string"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -17243,6 +17394,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -17349,6 +17521,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -18325,6 +18518,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -18418,6 +18632,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -18877,6 +19112,28 @@
       "get" : {
         "description" : "Every registered report plugin, with the manifest history of each: status, approval, withdrawal.",
         "operationId" : "list_8",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -19181,6 +19438,28 @@
       "get" : {
         "description" : "The repositories filed more than once on the same branch and sub-path, grouped, each group oldest first. Filed before duplicates were refused; merged by hand.",
         "operationId" : "duplicates",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -19463,7 +19742,7 @@
     },
     "/api/v1/repositories/{repositoryId}/build-sbom-imports" : {
       "get" : {
-        "description" : "The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "buildSbomHistory",
         "parameters" : [ {
           "in" : "path",
@@ -19471,6 +19750,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -19559,7 +19859,7 @@
     },
     "/api/v1/repositories/{repositoryId}/coverage-imports" : {
       "get" : {
-        "description" : "The latest fifty. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "coverageHistory",
         "parameters" : [ {
           "in" : "path",
@@ -19567,6 +19867,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -19668,7 +19989,7 @@
     },
     "/api/v1/repositories/{repositoryId}/sarif-imports" : {
       "get" : {
-        "description" : "The latest fifty. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "history",
         "parameters" : [ {
           "in" : "path",
@@ -19676,6 +19997,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -19744,7 +20086,7 @@
     },
     "/api/v1/repositories/{repositoryId}/test-report-imports" : {
       "get" : {
-        "description" : "The latest fifty, without their suites. 404 for a repository the caller cannot see.",
+        "description" : "The latest fifty, without their suites. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.",
         "operationId" : "testReportHistory",
         "parameters" : [ {
           "in" : "path",
@@ -19752,6 +20094,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -20083,6 +20446,28 @@
     "/api/v1/sarif-sources" : {
       "get" : {
         "operationId" : "list_5",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -21260,6 +21645,28 @@
     "/api/v1/ssh-keys" : {
       "get" : {
         "operationId" : "list_3",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -21658,6 +22065,27 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -21730,6 +22158,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -22149,6 +22598,27 @@
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],

@@ -20,6 +20,7 @@ import com.asmolabs.vectispire.common.domain.checklists.VersionPairing;
 import com.asmolabs.vectispire.common.domain.checklists.Workbook;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -35,8 +36,8 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateRepo
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionSummary;
-import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -160,8 +161,16 @@ public class ChecklistTemplateService {
 
     // ------------------------------------------------------------------ reads
 
-    public List<ChecklistTemplateView> list() {
-        return templates.findAllByOrderBySlugAsc().stream().map(this::view).toList();
+    /**
+     * The templates by slug, all of them or one page.
+     *
+     * @param limit rows per page, or null for every template ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ChecklistTemplateView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
+        List<ChecklistTemplateEntity> every = templates.findAllByOrderBySlugAsc();
+        return window.map(page -> page.of(every)).orElse(every).stream().map(this::view).toList();
     }
 
     public ChecklistTemplateView template(String slug) {

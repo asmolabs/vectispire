@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -19,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -74,8 +76,21 @@ public class SshKeyAdministrationService implements SealedStore {
             long usedByRepositories) {}
 
     public List<KeyView> list() {
+        return list(null, null);
+    }
+
+    /**
+     * The keys, newest first and by id among those created in the same instant, so that the pages are the list
+     * cut — all of them or one page, the page's rows alone decrypted to say their state.
+     *
+     * @param limit rows per page, or null for every key ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<KeyView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         Map<UUID, Long> usage = usageByKey();
-        return keys.findAllByOrderByCreatedAtDesc().stream()
+        List<SshKeyEntity> every = keys.findAllByOrderByCreatedAtDescIdDesc();
+        return window.map(page -> page.of(every)).orElse(every).stream()
                 .map(key -> new KeyView(
                         key.getId(),
                         key.getName(),
@@ -177,7 +192,7 @@ public class SshKeyAdministrationService implements SealedStore {
     public List<StoreCensus> census() {
         StoreCensus.Counter counter = new StoreCensus.Counter("SSH deploy keys",
                 "add the key again, move the repositories to it, and delete the old row");
-        keys.findAllByOrderByCreatedAtDesc().forEach(key -> counter.add(
+        keys.findAllByOrderByCreatedAtDescIdDesc().forEach(key -> counter.add(
                 encryption.sealOf(key.getPrivateKey(), SecretCipher.privateKeyContext(key.getId().toString()))));
         return List.of(counter.done());
     }

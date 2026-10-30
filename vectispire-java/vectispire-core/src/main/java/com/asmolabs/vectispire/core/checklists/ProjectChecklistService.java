@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.common.domain.checklists.VersionPairing;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -43,10 +44,10 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateEnti
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionRepository;
+import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
-import com.asmolabs.vectispire.core.settings.RequestBodyLimits;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
@@ -270,14 +271,22 @@ public class ProjectChecklistService {
 
     // ------------------------------------------------------------------ reads
 
-    /** The project's revisions, newest first. */
-    public List<ChecklistRevisionSummary> list(long projectId, VisibilityService.Allowance allowance) {
+    /**
+     * The project's revisions, newest first, all of them or one page. A page still reads the revisions' numbers
+     * from every row, since a summary names the revision another one stems from. The project's 404 comes first.
+     *
+     * @param limit rows per page, or null for every revision ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ChecklistRevisionSummary> list(
+            long projectId, VisibilityService.Allowance allowance, Integer limit, Integer offset) {
         VisibleProject project = requireProject(projectId, allowance);
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         List<ChecklistEntity> rows = checklists.findByProjectIdOrderByRevisionDesc(project.projectId());
         Map<Long, Integer> revisionOf = rows.stream()
                 .collect(Collectors.toMap(ChecklistEntity::getId, ChecklistEntity::getRevision));
         Map<Long, VersionRef> refs = new HashMap<>();
-        return rows.stream()
+        return window.map(page -> page.of(rows)).orElse(rows).stream()
                 .map(row -> summary(row, refs.computeIfAbsent(row.getTemplateVersionId(), this::versionRef), revisionOf))
                 .toList();
     }

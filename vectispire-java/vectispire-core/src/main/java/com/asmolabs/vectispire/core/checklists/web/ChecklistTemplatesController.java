@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.checklists.web;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
@@ -13,6 +14,7 @@ import com.asmolabs.vectispire.core.checklists.ChecklistTemplateService;
 import com.asmolabs.vectispire.core.checklists.ChecklistTemplateView;
 import com.asmolabs.vectispire.core.checklists.ChecklistVersionView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -93,8 +95,13 @@ public class ChecklistTemplatesController {
             + "their items.")
     @GetMapping
     @RequiresGovernanceRead
-    public List<ChecklistTemplateView> listTemplates() {
-        return templates.list();
+    public List<ChecklistTemplateView> listTemplates(
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return templates.list(limit, offset);
     }
 
     @Operation(summary = "Read checklist template", description = "404 for a slug no template has.")

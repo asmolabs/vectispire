@@ -156,10 +156,19 @@ public class ForgeDiscoveryService {
         return view(saved);
     }
 
-    /** The connection's discoveries, newest first. */
-    public List<ForgeDiscoveryView> list(UUID connectionId) {
+    /**
+     * The connection's discoveries, newest first: the latest {@link #LISTED} unless a page is asked for — and a page
+     * reaches past them, as the report runs' list does. The connection's 404 comes first.
+     *
+     * @param limit rows per page, or null for the latest {@link #LISTED} ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<ForgeDiscoveryView> list(UUID connectionId, Integer limit, Integer offset) {
         requireConnection(connectionId);
-        return discoveries.findByConnectionIdOrderByRequestedAtDescIdDesc(connectionId, PageRequest.of(0, LISTED))
+        PageRequest asked = ListWindow.requested(limit, offset)
+                .map(window -> PageRequest.of(window.page(), window.limit()))
+                .orElse(PageRequest.of(0, LISTED));
+        return discoveries.findByConnectionIdOrderByRequestedAtDescIdDesc(connectionId, asked)
                 .stream().map(ForgeDiscoveryService::view).toList();
     }
 

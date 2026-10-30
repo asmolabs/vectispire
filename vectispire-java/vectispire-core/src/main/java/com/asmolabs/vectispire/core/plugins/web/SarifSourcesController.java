@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.plugins.web;
 
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresPlatformGovernor;
@@ -9,6 +10,8 @@ import com.asmolabs.vectispire.core.plugins.SarifSourceService;
 import com.asmolabs.vectispire.core.plugins.SarifSourceView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -64,8 +68,13 @@ public class SarifSourcesController {
     @Operation(summary = "List SARIF sources")
     @GetMapping
     @RequiresGovernanceRead
-    public List<SarifSourceView> list() {
-        return sources.list();
+    public List<SarifSourceView> list(
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return sources.list(limit, offset);
     }
 
     @Operation(summary = "Declare SARIF source", description = "Platform governor only. Binds an integration key to one "

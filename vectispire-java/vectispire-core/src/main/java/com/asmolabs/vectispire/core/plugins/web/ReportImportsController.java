@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.plugins.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
@@ -13,6 +14,8 @@ import com.asmolabs.vectispire.core.plugins.CoverageImportView;
 import com.asmolabs.vectispire.core.plugins.ReportImportService;
 import com.asmolabs.vectispire.core.plugins.TestReportImportView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -45,6 +48,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/repositories/{repositoryId}")
 public class ReportImportsController {
+
+    /**
+     * The {@code limit} of the import histories, which answered their latest fifty before they paged and still do
+     * when asked nothing.
+     */
+    static final String LATEST_FIFTY = "Rows per page, 1 to " + ListWindow.MAX_LIMIT + "; 400 beyond. Absent, with "
+            + "no offset, the latest 50 imports are answered, as before paging existed.";
 
     private final ReportImportService imports;
     private final VisibilityService visibility;
@@ -123,33 +133,54 @@ public class ReportImportsController {
     }
 
     @Operation(summary = "List repository's build SBOM imports", description = "The latest fifty, without their "
-            + "components, each with the newest scan it completed. 404 for a repository the caller cannot see.")
+            + "components, each with the newest scan it completed. 404 for a repository the caller cannot see. "
+            + "With limit, one page of every import, older ones included; a page shorter than limit is the last.")
     @GetMapping("/build-sbom-imports")
     @RequiresAccount
     @AcceptsApiKey(ApiKeyScope.READ)
     public List<BuildSbomView> buildSbomHistory(
-            @PathVariable long repositoryId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return imports.buildSbomHistory(repositoryId, allowed(principal));
+            @PathVariable long repositoryId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = LATEST_FIFTY,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return imports.buildSbomHistory(repositoryId, allowed(principal), limit, offset);
     }
 
     @Operation(summary = "List repository's coverage imports", description = "The latest fifty. 404 for a repository "
-            + "the caller cannot see.")
+            + "the caller cannot see. "
+            + "With limit, one page of every import, older ones included; a page shorter than limit is the last.")
     @GetMapping("/coverage-imports")
     @RequiresAccount
     @AcceptsApiKey(ApiKeyScope.READ)
     public List<CoverageImportView> coverageHistory(
-            @PathVariable long repositoryId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return imports.coverageHistory(repositoryId, allowed(principal));
+            @PathVariable long repositoryId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = LATEST_FIFTY,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return imports.coverageHistory(repositoryId, allowed(principal), limit, offset);
     }
 
     @Operation(summary = "List repository's test-report imports", description = "The latest fifty, without their "
-            + "suites. 404 for a repository the caller cannot see.")
+            + "suites. 404 for a repository the caller cannot see. "
+            + "With limit, one page of every import, older ones included; a page shorter than limit is the last.")
     @GetMapping("/test-report-imports")
     @RequiresAccount
     @AcceptsApiKey(ApiKeyScope.READ)
     public List<TestReportImportView> testReportHistory(
-            @PathVariable long repositoryId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return imports.testReportHistory(repositoryId, allowed(principal));
+            @PathVariable long repositoryId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = LATEST_FIFTY,
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return imports.testReportHistory(repositoryId, allowed(principal), limit, offset);
     }
 
     private static Optional<ReportImportService.Uploader> uploader(

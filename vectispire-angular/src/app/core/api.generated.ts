@@ -3397,7 +3397,7 @@ export interface paths {
         };
         /**
          * List repository's build SBOM imports
-         * @description The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see.
+         * @description The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["buildSbomHistory"];
         put?: never;
@@ -3421,7 +3421,7 @@ export interface paths {
         };
         /**
          * List repository's coverage imports
-         * @description The latest fifty. 404 for a repository the caller cannot see.
+         * @description The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["coverageHistory"];
         put?: never;
@@ -3445,7 +3445,7 @@ export interface paths {
         };
         /**
          * List repository's SARIF imports
-         * @description The latest fifty. 404 for a repository the caller cannot see.
+         * @description The latest fifty. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["history"];
         put?: never;
@@ -3469,7 +3469,7 @@ export interface paths {
         };
         /**
          * List repository's test-report imports
-         * @description The latest fifty, without their suites. 404 for a repository the caller cannot see.
+         * @description The latest fifty, without their suites. 404 for a repository the caller cannot see. With limit, one page of every import, older ones included; a page shorter than limit is the last.
          */
         get: operations["testReportHistory"];
         put?: never;
@@ -10335,7 +10335,12 @@ export interface operations {
     };
     listTemplates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11414,7 +11419,12 @@ export interface operations {
     };
     listForgeConnections: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11458,7 +11468,12 @@ export interface operations {
     };
     listForgeDiscoveries: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 discoveries are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 connectionId: string;
@@ -11899,7 +11914,12 @@ export interface operations {
     };
     list_13: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12248,7 +12268,12 @@ export interface operations {
     };
     list_12: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 issueId: number;
@@ -12554,7 +12579,12 @@ export interface operations {
     };
     list_11: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12672,7 +12702,12 @@ export interface operations {
     };
     projects: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -12938,7 +12973,12 @@ export interface operations {
     };
     list_10: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -13017,7 +13057,12 @@ export interface operations {
     };
     checklistContactCandidates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -13571,7 +13616,12 @@ export interface operations {
     };
     list_19: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -13637,7 +13687,12 @@ export interface operations {
     };
     list_18: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 projectId: number;
@@ -13938,7 +13993,12 @@ export interface operations {
     };
     list_8: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -14155,7 +14215,12 @@ export interface operations {
     };
     duplicates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -14381,7 +14446,12 @@ export interface operations {
     };
     buildSbomHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14434,7 +14504,12 @@ export interface operations {
     };
     coverageHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14489,7 +14564,12 @@ export interface operations {
     };
     history: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14538,7 +14618,12 @@ export interface operations {
     };
     testReportHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the latest 50 imports are answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 repositoryId: number;
@@ -14813,7 +14898,12 @@ export interface operations {
     };
     list_5: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -15759,7 +15849,12 @@ export interface operations {
     };
     list_3: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -16041,7 +16136,12 @@ export interface operations {
     };
     members: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: number;
@@ -16089,7 +16189,12 @@ export interface operations {
     };
     targets_1: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: number;
@@ -16402,7 +16507,12 @@ export interface operations {
     };
     targets: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
             header?: never;
             path: {
                 id: number;
