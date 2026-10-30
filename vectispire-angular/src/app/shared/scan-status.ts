@@ -1,5 +1,6 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { I18nService } from '../core/i18n/i18n.service';
+import { LanguageMemo } from '../core/i18n/language-memo';
 import { keyFor } from '../core/i18n/literal-keys';
 
 /**
@@ -46,9 +47,10 @@ export function issueStateLabel(i18n: Pick<I18nService, 't'>, state: string): st
 })
 export class ScanStatusPipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
+    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(status: string): string {
-        return scanStatusLabel(this.i18n, status);
+        return this.memo.get([status], () => scanStatusLabel(this.i18n, status));
     }
 }
 
@@ -58,8 +60,9 @@ export class ScanStatusPipe implements PipeTransform {
 })
 export class IssueStatePipe implements PipeTransform {
     private readonly i18n = inject(I18nService);
+    private readonly memo = new LanguageMemo<string>(this.i18n);
 
     transform(state: string): string {
-        return issueStateLabel(this.i18n, state);
+        return this.memo.get([state], () => issueStateLabel(this.i18n, state));
     }
 }
