@@ -13,10 +13,10 @@
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
-source="$root/vectispire-angular/src/app/pages/repositories/repositories.ts"
+source="$root/vectispire-angular/src/app/pages/repositories/repository-model.ts"
 script="$root/scripts/vectispire-cli.sh"
 
-pinned=$(sed -n "s/^const CLI_SCRIPT_SHA256 = '\([0-9a-f]\{64\}\)';.*/\1/p" "$source")
+pinned=$(sed -n "s/^\(export \)\{0,1\}const CLI_SCRIPT_SHA256 = '\([0-9a-f]\{64\}\)';.*/\2/p" "$source")
 if command -v sha256sum >/dev/null 2>&1; then
     actual=$(sha256sum "$script" | cut -d' ' -f1)
 else
@@ -31,7 +31,7 @@ if [ "$pinned" != "$actual" ]; then
     echo "check-cli-pin: the interface's CI/CD snippets pin a CLI that is not scripts/vectispire-cli.sh." >&2
     echo "  pinned: $pinned" >&2
     echo "  actual: $actual" >&2
-    echo "Set CLI_SCRIPT_SHA256 in vectispire-angular/src/app/pages/repositories/repositories.ts to the actual digest." >&2
+    echo "Set CLI_SCRIPT_SHA256 in vectispire-angular/src/app/pages/repositories/repository-model.ts to the actual digest." >&2
     exit 1
 fi
 echo "check-cli-pin: the interface's CI/CD snippets pin scripts/vectispire-cli.sh ($actual)."

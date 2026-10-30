@@ -164,7 +164,7 @@ is *not* this checkout. The template ran `ci/vectispire-gate.sh` from the consum
 every refusal. Every one of those read correctly. `docs-consistency` runs `ci/gitlab/check-gate-pin.sh`,
 `ci/check-cli-pin.sh` and ShellCheck on them; editing `ci/vectispire-gate.sh` means updating the digest
 the template pins, and editing `scripts/vectispire-cli.sh` the `CLI_SCRIPT_SHA256` the interface's
-CI/CD snippets pin (`repositories.ts`) — both are release assets, run by consumers only at that digest.
+CI/CD snippets pin (`repositories/repository-model.ts`) — both are release assets, run by consumers only at that digest.
 
 **Running the shipped composition to test a change** (a healthcheck, a service's command): a project
 name does **not** isolate it. `docker-compose.yml` gives its volumes and networks fixed `name:`s, so
