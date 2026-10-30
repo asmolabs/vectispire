@@ -276,16 +276,18 @@ signés avec la clé de l'instance (§8) :
    - `12_control_coverage.json` : les langages que les règles installées atteignent, et la fenêtre de fraîcheur appliquée à `01` — ce que signifie, et ne signifie pas, un compte de constats à zéro.
    - `13_statement_of_applicability.json` : la déclaration d'applicabilité par référentiel, chaque contrôle confronté à son statut mesuré.
    - `14_compliance_progression.json` : le verdict de chaque référentiel mois par mois, avec le parc qui l'a produit.
+   - `15_owasp_top10_coverage.json` : la grille OWASP Top 10:2021 par règle au moment de l'export — l'état de chaque catégorie, ses constats ouverts, pourquoi elle se lit ainsi (`because`, `reason`) et la déclaration de l'organisation à son sujet — le même document que `GET /api/v1/owasp/coverage` sur le parc de l'appelant, sans périmètre.
 
    Les sections `01` à `08` décrivent ce que contient le parc ; `09` à `13` sont la preuve de
-   processus — que les contrôles ont fonctionné sur la période — et `14` dit si ce fonctionnement
-   s'est amélioré.
+   processus — que les contrôles ont fonctionné sur la période —, `14` dit si ce fonctionnement
+   s'est amélioré, et `15` ce que les règles ont pu mesurer de l'OWASP Top 10 à côté de ce qui a été
+   déclaré du reste.
 
    **Une clé d'intégration restreinte à certaines cibles reçoit un paquet plus étroit.** Chaque
    section est construite dans le périmètre de l'appelant ; pour une telle clé, la synthèse des
-   licences (`07`) ne couvre que ses cibles, et les deux sections qui décrivent tout le parc et ne
+   licences (`07`) et la grille OWASP (`15`) ne couvrent que ses cibles, et les deux sections qui décrivent tout le parc et ne
    peuvent pas être restreintes — la piste d'audit (`02`) et la progression de conformité (`14`) —
-   sont omises. Le manifeste (version 1.4) les liste sous `withheld`, chacune avec sa raison, et
+   sont omises. Le manifeste (version 1.5) les liste sous `withheld`, chacune avec sa raison, et
    `totalAuditLogEntries` vaut alors `null` plutôt qu'un nombre d'entrées que l'archive ne contient
    pas. Une session ou une clé d'export non restreinte reçoit le paquet entier.
 

@@ -1633,6 +1633,8 @@
     "declare_failed": "La déclaration n'a pas été enregistrée.",
     "load_failed": "La grille de couverture n'a pas pu être chargée.",
     "back_to_estate": "Afficher tout le parc",
+    "export_csv": "Exporter en CSV",
+    "export_failed": "La grille n'a pas pu être exportée.",
     "open_issues_one": "{{count}} issue ouverte en {{category}}",
     "open_issues_other": "{{count}} issues ouvertes en {{category}}",
     "evidence_source": {

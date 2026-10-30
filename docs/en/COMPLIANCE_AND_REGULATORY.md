@@ -269,14 +269,16 @@ the instance's key (§8):
   - `12_control_coverage.json`: which languages the installed rules reach, and the freshness window applied to `01` — what a zero finding count does and does not mean.
   - `13_statement_of_applicability.json`: the declaration of applicability per framework, each control reconciled against its measured status.
   - `14_compliance_progression.json`: each framework's verdict month by month, with the estate that produced it.
+  - `15_owasp_top10_coverage.json`: the OWASP Top 10:2021 grid by rule at the time of export — each category's state, its open findings, why it reads what it reads (`because`, `reason`), and the organisation's declaration about it — the same document as `GET /api/v1/owasp/coverage` over the caller's estate, with no scope.
 
   Sections `01`–`08` describe what the estate contains; `09`–`13` are the process evidence — that
-  the controls operated over the period — and `14` whether that operation improved.
+  the controls operated over the period — `14` whether that operation improved, and `15` what the
+  rules were able to measure of the OWASP Top 10 beside what was declared about the rest.
 
   **An integration key restricted to some targets receives a narrower bundle.** Every section is
-  built within the caller's allowance; for such a key the licence summary (`07`) covers its targets
-  only, and the two sections that describe the whole estate and cannot be narrowed — the audit trail
-  (`02`) and the compliance progression (`14`) — are left out. The manifest (version 1.4) lists them
+  built within the caller's allowance; for such a key the licence summary (`07`) and the OWASP
+  grid (`15`) cover its targets only, and the two sections that describe the whole estate and cannot
+  be narrowed — the audit trail (`02`) and the compliance progression (`14`) — are left out. The manifest (version 1.5) lists them
   under `withheld`, each with its reason, and `totalAuditLogEntries` is then `null` rather than a
   count of entries the archive does not carry. A session or an unrestricted export key receives the
   whole bundle.

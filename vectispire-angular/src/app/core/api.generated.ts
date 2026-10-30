@@ -2182,6 +2182,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/owasp/coverage/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * OWASP Top 10:2021 coverage as CSV
+         * @description The grid of GET /api/v1/owasp/coverage as a CSV attachment, one row per category in the standard's order, CRLF-terminated, every cell quoted and neutralized against spreadsheet formulas. Columns: category, title, state, findings, reason_code, reason (in language: en, the default, or fr; any other answers 400), the category's declaration (applicability, justification, implementation, evidence source, external evidence, owner, decided by and at, review due), and the scope (kind: project, solution or estate; id, name, partial) on every row. project_id and solution_id narrow it as they narrow the grid, with the same refusals: both answer 400, and a project or a solution that does not exist and one the caller sees nothing of both answer 404.
+         */
+        get: operations["exportOwaspCoverageCsv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/owasp/coverage/weekly": {
         parameters: {
             query?: never;
@@ -12633,6 +12653,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DeclaredGrid"];
+                };
+            };
+        };
+    };
+    exportOwaspCoverageCsv: {
+        parameters: {
+            query?: {
+                project_id?: number;
+                solution_id?: number;
+                language?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
                 };
             };
         };
