@@ -7,9 +7,19 @@ import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +48,15 @@ import org.springframework.stereotype.Service;
  * decrypt — {@code ENCRYPTION_KEY} lost, or rotated without keeping the old one — it throws too, and
  * never generates a replacement: a new key would overwrite the one every verifier has learned, and
  * make the documents already handed out unverifiable without a word.
+ *
+ * <p><b>Rotation keeps the past verifiable.</b> A key is replaced by configuring another one and
+ * restarting ({@code docs/en/KEY_ROTATION.md}). Every public half this deployment has signed with is
+ * kept in a second internal row, {@value #KNOWN_KEYS}, and published beside the active one: a
+ * document signed before the rotation still verifies, here and against the key a consumer fetches by
+ * its id. Before that row, replacing the key meant one of two things — the old documents stopped
+ * verifying, or the old key had to be kept signing. A key listed in {@code
+ * vectispire.signing.revoked-keys} stays published, marked revoked, and nothing signed with it
+ * verifies: a compromised key's documents must not keep answering "valid".
  */
 @Service
 public class SigningKeyService implements SealedStore {
@@ -47,13 +66,60 @@ public class SigningKeyService implements SealedStore {
     /** The internal row. Named with a dot so it can never collide with a catalog key. */
     static final String STORED_KEY = "internal.document_signing_key";
 
+    /**
+     * Every public half signed with, one line per key: {@code keyId;activeFrom;retiredAt;base64 DER},
+     * {@code -} for a time not known. Public keys only, so in the clear: nothing here needs {@code
+     * ENCRYPTION_KEY}, and a rotation of that key leaves the row alone.
+     */
+    static final String KNOWN_KEYS = "internal.document_signing_keys";
+
     private static final String CONTEXT = "internal:document_signing_key";
 
     private final String configuredKey;
+    private final Set<String> revokedKeyIds;
     private final SettingsService settings;
     private final EncryptionService encryption;
+    private final Clock clock;
 
     private volatile KeyMaterial material;
+    /** Whether this instance has recorded its key as the active one; nothing is signed before it has. */
+    private volatile boolean registered;
+
+    /** Where a known key stands: the one signing now, one that signed before, or one not to trust. */
+    public enum KeyStatus { ACTIVE, RETIRED, REVOKED }
+
+    /**
+     * A public half this deployment has signed with.
+     *
+     * @param activeFrom when this deployment first signed with it; null for a key recorded only as
+     *     the stored key a configured one replaced, whose first use predates the record
+     * @param retiredAt when another key replaced it; null while it is the active one
+     */
+    public record PublishedKey(
+            String keyId, KeyStatus status, String publicKeyPem, Instant activeFrom, Instant retiredAt) {}
+
+    private record Known(String keyId, Instant activeFrom, Instant retiredAt, String der) {
+        static Known parse(String line) {
+            String[] f = line.split(";", -1);
+            if (f.length != 4) {
+                throw new IllegalStateException("Unreadable line in " + KNOWN_KEYS + ": " + line);
+            }
+            return new Known(f[0], time(f[1]), time(f[2]), f[3]);
+        }
+
+        static Known of(PublicKey key, Instant activeFrom, Instant retiredAt) {
+            return new Known(CosignSigner.computeKeyId(key), activeFrom, retiredAt,
+                    Base64.getEncoder().encodeToString(key.getEncoded()));
+        }
+
+        String line() {
+            return keyId + ";" + (activeFrom == null ? "-" : activeFrom) + ";" + (retiredAt == null ? "-" : retiredAt) + ";" + der;
+        }
+
+        private static Instant time(String field) {
+            return "-".equals(field) ? null : Instant.parse(field);
+        }
+    }
 
     private record KeyMaterial(PrivateKey privateKey, PublicKey publicKey, String publicKeyPem, String keyId) {
         static KeyMaterial of(PrivateKey privateKey) {
@@ -62,15 +128,28 @@ public class SigningKeyService implements SealedStore {
         }
     }
 
+    @Autowired
     public SigningKeyService(
-            @Value("${vectispire.signing.key:}") String configuredKey, SettingsService settings, EncryptionService encryption) {
+            @Value("${vectispire.signing.key:}") String configuredKey,
+            @Value("${vectispire.signing.revoked-keys:}") String revokedKeyIds,
+            SettingsService settings,
+            EncryptionService encryption) {
+        this(configuredKey, revokedKeyIds, settings, encryption, Clock.systemUTC());
+    }
+
+    SigningKeyService(String configuredKey, String revokedKeyIds, SettingsService settings, EncryptionService encryption,
+            Clock clock) {
         this.configuredKey = configuredKey == null ? "" : configuredKey.trim();
+        this.revokedKeyIds = revokedKeyIds == null ? Set.of() : Arrays.stream(revokedKeyIds.split(","))
+                .map(String::trim).filter(id -> !id.isEmpty()).map(String::toLowerCase)
+                .collect(Collectors.toUnmodifiableSet());
         this.settings = settings;
         this.encryption = encryption;
+        this.clock = clock;
         // A configured key is checked at start: a malformed or non-P-256 key is a deployment error,
         // and discovering it on the first evidence export is discovering it too late.
         if (!this.configuredKey.isEmpty()) {
-            this.material = KeyMaterial.of(CosignSigner.parsePrivateKey(this.configuredKey));
+            this.material = refuseRevoked(KeyMaterial.of(CosignSigner.parsePrivateKey(this.configuredKey)));
         }
     }
 
@@ -95,16 +174,41 @@ public class SigningKeyService implements SealedStore {
         return CosignSigner.wrapAndSignDsse(payloadType, payload, key.privateKey(), key.keyId());
     }
 
-    /** Whether {@code base64Signature} is Vectispire's signature over {@code payload}. */
+    /**
+     * Whether {@code base64Signature} is Vectispire's signature over {@code payload}, by the active key
+     * or one it replaced; never by a revoked one.
+     */
     public boolean verify(byte[] payload, String base64Signature) {
-        return CosignSigner.verify(payload, base64Signature, material().publicKey());
+        return verify(payload, base64Signature, null).valid();
     }
 
     /**
      * @param keyId the key the signature was checked against — the caller's, when one was supplied
-     * @param vectispireKey whether that key is Vectispire's signing key
+     * @param vectispireKey whether that key is one of Vectispire's signing keys, active or not
+     * @param keyStatus where that key stands, when it is one of Vectispire's; null otherwise
      */
-    public record Verification(boolean valid, String keyId, boolean vectispireKey, String message) {}
+    public record Verification(boolean valid, String keyId, boolean vectispireKey, KeyStatus keyStatus, String message) {}
+
+    /** The active key first, then the ones it replaced, most recent first. */
+    public List<PublishedKey> publishedKeys() {
+        KeyMaterial active = material();
+        List<Known> known = new ArrayList<>(known());
+        // The key that signs is always published, whatever the row says: it is written before the
+        // first signature, but a restore of an older dump can take it away under a running instance.
+        if (known.stream().noneMatch(k -> k.keyId().equals(active.keyId()))) {
+            known.add(Known.of(active.publicKey(), null, null));
+        }
+        return known.stream()
+                .map(k -> new PublishedKey(k.keyId(), statusOf(k.keyId(), active),
+                        CosignSigner.toPem(CosignSigner.parsePublicKey(k.der())), k.activeFrom(), k.retiredAt()))
+                .sorted(Comparator.comparing((PublishedKey k) -> k.status() != KeyStatus.ACTIVE)
+                        .thenComparing(PublishedKey::retiredAt, Comparator.nullsFirst(Comparator.reverseOrder())))
+                .toList();
+    }
+
+    public Optional<PublishedKey> publishedKey(String keyId) {
+        return publishedKeys().stream().filter(k -> k.keyId().equalsIgnoreCase(keyId)).findFirst();
+    }
 
     /**
      * Checks a signature, against Vectispire's key or against one the caller supplies.
@@ -118,37 +222,169 @@ public class SigningKeyService implements SealedStore {
     public Verification verify(byte[] payload, String base64Signature, String suppliedPublicKey) {
         KeyMaterial ours = material();
         if (suppliedPublicKey == null || suppliedPublicKey.isBlank()) {
-            boolean valid = CosignSigner.verify(payload, base64Signature, ours.publicKey());
-            return new Verification(valid, ours.keyId(), true, valid
-                    ? "Signature valid: signed with Vectispire's signing key."
-                    : "Signature does not match Vectispire's signing key for this payload.");
+            if (CosignSigner.verify(payload, base64Signature, ours.publicKey())) {
+                return new Verification(true, ours.keyId(), true, KeyStatus.ACTIVE,
+                        "Signature valid: signed with Vectispire's signing key.");
+            }
+            // **The keys it replaced, after the active one.** A document signed before a rotation was
+            // reported as not matching "Vectispire's signing key", which an auditor reads as forged.
+            for (PublishedKey previous : publishedKeys()) {
+                if (previous.status() != KeyStatus.ACTIVE
+                        && CosignSigner.verify(payload, base64Signature, CosignSigner.parsePublicKey(previous.publicKeyPem()))) {
+                    return answer(true, previous.keyId(), previous.status(), previous.retiredAt());
+                }
+            }
+            return new Verification(false, ours.keyId(), true, KeyStatus.ACTIVE,
+                    "Signature does not match any of Vectispire's signing keys for this payload.");
         }
         PublicKey supplied = CosignSigner.parsePublicKey(suppliedPublicKey);
         String suppliedId = CosignSigner.computeKeyId(supplied);
-        boolean isOurs = suppliedId.equals(ours.keyId());
         boolean valid = CosignSigner.verify(payload, base64Signature, supplied);
-        String message;
+        Optional<PublishedKey> known = publishedKey(suppliedId);
         if (!valid) {
-            message = "Signature does not match the supplied key for this payload.";
-        } else if (isOurs) {
-            message = "Signature valid: signed with Vectispire's signing key.";
-        } else {
-            message = "Signature valid for the key you supplied, which is not Vectispire's signing key: this does "
-                    + "not show that Vectispire signed the document.";
+            return new Verification(false, suppliedId, known.isPresent(), known.map(PublishedKey::status).orElse(null),
+                    "Signature does not match the supplied key for this payload.");
         }
-        return new Verification(valid, suppliedId, isOurs, message);
+        if (known.isEmpty()) {
+            return new Verification(true, suppliedId, false, null,
+                    "Signature valid for the key you supplied, which is not Vectispire's signing key nor one it signed "
+                            + "with before: this does not show that Vectispire signed the document.");
+        }
+        return answer(true, suppliedId, known.get().status(), known.get().retiredAt());
+    }
+
+    /** A signature that matches one of Vectispire's keys, said for the key's status. */
+    private static Verification answer(boolean matches, String keyId, KeyStatus status, Instant retiredAt) {
+        return switch (status) {
+            case ACTIVE -> new Verification(matches, keyId, true, status, "Signature valid: signed with Vectispire's signing key.");
+            case RETIRED -> new Verification(matches, keyId, true, status,
+                    "Signature valid: signed with a previous Vectispire signing key, replaced on " + retiredAt
+                            + ". Documents signed before that date remain authentic.");
+            // Not valid, though the arithmetic matches: whoever holds a revoked key can sign anything
+            // with it, so a match proves nothing about Vectispire.
+            case REVOKED -> new Verification(false, keyId, true, status,
+                    "The signature matches a Vectispire signing key that has been revoked: do not trust this document.");
+        };
     }
 
     private KeyMaterial material() {
         KeyMaterial current = material;
-        if (current != null) {
+        if (current != null && registered) {
             return current;
         }
         synchronized (this) {
             if (material == null) {
-                material = loadOrCreate();
+                material = refuseRevoked(loadOrCreate());
+            }
+            if (!registered) {
+                register(material);
+                registered = true;
             }
             return material;
+        }
+    }
+
+    private KeyMaterial refuseRevoked(KeyMaterial key) {
+        if (revokedKeyIds.contains(key.keyId())) {
+            throw new IllegalStateException("The document signing key " + key.keyId() + " is listed in "
+                    + "vectispire.signing.revoked-keys and cannot sign. Configure a new key in vectispire.signing.key.");
+        }
+        return key;
+    }
+
+    private KeyStatus statusOf(String keyId, KeyMaterial active) {
+        if (revokedKeyIds.contains(keyId)) {
+            return KeyStatus.REVOKED;
+        }
+        return keyId.equals(active.keyId()) ? KeyStatus.ACTIVE : KeyStatus.RETIRED;
+    }
+
+    private List<Known> known() {
+        String row = settings.internalValue(KNOWN_KEYS).orElse("").trim();
+        return row.isEmpty() ? List.of() : row.lines().filter(l -> !l.isBlank()).map(Known::parse).toList();
+    }
+
+    /**
+     * Records the key this instance signs with as the active one, before it signs anything.
+     *
+     * <p>The key it replaces is marked retired, not removed: a document signed before the rotation is
+     * verified against it. With a configured key in front of a stored one — the first rotation of an
+     * installation that let Vectispire generate its key — the stored key's public half is recorded too,
+     * since it is the one every document so far was signed with and nothing else would ever say so.
+     *
+     * <p>Conditional on what was read, so two instances starting together each re-read and agree. Two
+     * instances started on two different keys — a rolling restart through a rotation — each record
+     * theirs as active in turn; the one that starts last is the one published as active, and the other's
+     * signatures still verify as a previous key's until it restarts.
+     */
+    private void register(KeyMaterial active) {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            Optional<String> read = settings.internalValue(KNOWN_KEYS);
+            List<Known> before = read.map(String::trim).filter(r -> !r.isEmpty())
+                    .map(r -> r.lines().filter(l -> !l.isBlank()).map(Known::parse).toList()).orElse(List.of());
+            List<Known> after = reconcile(before, active);
+            if (after.equals(before)) {
+                return;
+            }
+            String value = after.stream().map(Known::line).collect(Collectors.joining("\n"));
+            boolean written = read.isEmpty()
+                    ? settings.storeInternalIfAbsent(KNOWN_KEYS, value)
+                    // In a transaction of its own, like the re-seal: the first signature may be made
+                    // inside a read-only transaction.
+                    : settings.resealInternal(KNOWN_KEYS, read.get(), value);
+            if (written) {
+                Known retired = before.stream().filter(k -> k.retiredAt() == null && !k.keyId().equals(active.keyId()))
+                        .findFirst().orElse(null);
+                if (retired != null) {
+                    log.info("The document signing key is now {}; {} is retired and stays published for verification.",
+                            active.keyId(), retired.keyId());
+                }
+                return;
+            }
+        }
+        throw new IllegalStateException("Could not record the document signing key " + active.keyId()
+                + " among the published keys: the row kept changing under five attempts.");
+    }
+
+    private List<Known> reconcile(List<Known> before, KeyMaterial active) {
+        Instant now = clock.instant();
+        List<Known> after = new ArrayList<>();
+        boolean present = false;
+        for (Known k : before) {
+            if (k.keyId().equals(active.keyId())) {
+                present = true;
+                // A key brought back — a rotation rolled back — is active again from now.
+                after.add(k.retiredAt() == null ? k : new Known(k.keyId(), now, null, k.der()));
+            } else {
+                after.add(k.retiredAt() == null ? new Known(k.keyId(), k.activeFrom(), now, k.der()) : k);
+            }
+        }
+        if (!present) {
+            after.add(Known.of(active.publicKey(), now, null));
+        }
+        if (!configuredKey.isEmpty()) {
+            storedPublicKey().filter(stored -> after.stream().noneMatch(k -> k.keyId().equals(CosignSigner.computeKeyId(stored))))
+                    .ifPresent(stored -> after.add(Known.of(stored, null, now)));
+        }
+        return after;
+    }
+
+    /**
+     * The public half of the generated key a configured key replaced, when there is one and it can be
+     * read. Unreadable is not fatal here: the configured key signs either way, and the warning says
+     * what will not verify.
+     */
+    private Optional<PublicKey> storedPublicKey() {
+        String stored = settings.internalValue(STORED_KEY).orElse("").trim();
+        if (stored.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(CosignSigner.derivePublicKey(CosignSigner.parsePrivateKey(decrypt(stored))));
+        } catch (RuntimeException unreadable) {
+            log.warn("The stored document signing key cannot be read ({}): documents it signed will not be verifiable "
+                    + "against the published keys.", unreadable.getMessage());
+            return Optional.empty();
         }
     }
 

@@ -288,8 +288,9 @@ below.
 Vectispire holds; a cluster rebuilt without it holds secrets nobody can read.
 
 Also set a **signing key** (`secrets.signingKey`, a P-256 PKCS#8 PEM): on 0.10.0, an installation
-without one answers 500 on its first evidence bundle (fixed in 0.11.0). Keep it: replacing
-it makes every document already signed unverifiable.
+without one answers 500 on its first evidence bundle (fixed in 0.11.0). Keep it: to replace it, follow
+[Rotating the document signing key](../administration/maintenance.md#rotating-the-document-signing-key),
+which keeps the documents signed before verifiable.
 
 The chart refuses to render without its required values, and says which is missing. The full list is
 in the chart's [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md).

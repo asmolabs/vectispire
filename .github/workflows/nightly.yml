@@ -264,3 +264,18 @@ jobs:
           for c in drill-app-origin drill-app-restored drill-app-blind drill-db-origin drill-db-restored; do
             echo "═══ $c"; docker logs --tail 80 "$c" 2>&1 || echo "  (absent)"
           done
+
+  # **The signing key's rotation, executed** (`docs/en/KEY_ROTATION.md`, "Rotating the document signing
+  # key"). The image started three times on one database: with no key, so it generates one; with a new
+  # key configured; with the first one revoked. An evidence bundle from before the rotation must verify
+  # with openssl against the key published under its id and not against the new one, the reverse for one
+  # signed after it, `/crypto/verify` must call the old key retired and then revoked, and an instance
+  # told to sign with a revoked key must refuse to start. `SigningKeyServiceTest` builds the service
+  # twice on one database; only the image shows the variable is read and the routes are open.
+  signing-rotation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -f Dockerfile -t vectispire:latest .
+      - run: ./scripts/signing-key-rotation-drill.sh

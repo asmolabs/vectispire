@@ -198,9 +198,19 @@ What follows is against 0.11.2.
   at the SIEM, forge connection and tracker CA fields. A bundle already stored is read as it was
   accepted, so a working connection does not stop.
 - **The agent's `hello` refusal** names the served contract range and which side to upgrade.
+- **`GET /api/v1/crypto/public-keys` and `GET /api/v1/crypto/public-keys/{keyId}.pub`**, open to anybody
+  like `public-key.pub`: every key the instance has signed with. `POST /api/v1/crypto/verify` answers
+  `keyStatus` (`ACTIVE`, `RETIRED`, `REVOKED`), and accepts a signature by a retired key — it used to say
+  that a document signed before a key change did not match (additive).
 
 ### New {#new-unreleased}
 
+- **The document signing key can be rotated** without making what it signed unverifiable: configure a new
+  key and restart; the previous one stays published as retired, and a compromised one can be revoked
+  (`VECTISPIRE_SIGNING_REVOKED_KEYS`). The procedure is in [Rotation and
+  purge](../administration/maintenance.md#rotating-the-document-signing-key), and a nightly drill executes
+  it against the image. The record of published keys starts on the first start of this release: start
+  once before rotating.
 - **`/actuator/encryption`**, the sealed stores' census, and the second-factor reset — both above.
 - **The agent of the previous release is tested on every change**: CI runs the newest release's signed
   agent image against the control plane being built, and fails unless it claims and finishes scans.

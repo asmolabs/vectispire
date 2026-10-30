@@ -7825,6 +7825,28 @@
         },
         "type" : "object"
       },
+      "PublishedKeyResponse" : {
+        "properties" : {
+          "activeFrom" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "keyId" : {
+            "type" : "string"
+          },
+          "publicKey" : {
+            "type" : "string"
+          },
+          "retiredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Publisher" : {
         "properties" : {
           "category" : {
@@ -12004,6 +12026,9 @@
           "keyId" : {
             "type" : "string"
           },
+          "keyStatus" : {
+            "type" : "string"
+          },
           "message" : {
             "type" : "string"
           },
@@ -14549,6 +14574,53 @@
     "/api/v1/crypto/public-key.pub" : {
       "get" : {
         "operationId" : "getPublicKey",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/x-pem-file" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crypto-controller" ]
+      }
+    },
+    "/api/v1/crypto/public-keys" : {
+      "get" : {
+        "operationId" : "listPublicKeys",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PublishedKeyResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "crypto-controller" ]
+      }
+    },
+    "/api/v1/crypto/public-keys/{keyId}.pub" : {
+      "get" : {
+        "operationId" : "getPublicKeyById",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "keyId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {

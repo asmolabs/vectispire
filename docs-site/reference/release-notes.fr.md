@@ -215,9 +215,19 @@ Ce qui suit est par rapport à la 0.11.2.
   certificat était épinglé — aux champs du SIEM, des connexions aux forges et de la CA du tracker. Un
   paquet déjà enregistré est lu comme il a été accepté : une connexion qui fonctionne ne s'arrête pas.
 - **Le refus du `hello` d'un agent** nomme la plage de contrats servie et le côté à mettre à jour.
+- **`GET /api/v1/crypto/public-keys` et `GET /api/v1/crypto/public-keys/{keyId}.pub`**, ouvertes à tous
+  comme `public-key.pub` : chaque clé avec laquelle l'instance a signé. `POST /api/v1/crypto/verify`
+  renvoie `keyStatus` (`ACTIVE`, `RETIRED`, `REVOKED`) et accepte la signature d'une clé retirée — il
+  disait qu'un document signé avant un changement de clé ne correspondait pas (ajout).
 
 ### Nouveautés {#nouveautes-non-publie}
 
+- **La clé de signature des documents peut tourner** sans rendre invérifiable ce qu'elle a signé :
+  configurez une nouvelle clé et redémarrez ; la précédente reste publiée comme retirée, et une clé
+  compromise peut être révoquée (`VECTISPIRE_SIGNING_REVOKED_KEYS`). La procédure est dans [Rotation et
+  purge](../administration/maintenance.fr.md#faire-tourner-la-cle-de-signature-des-documents), et un
+  exercice nocturne l'exécute contre l'image. L'enregistrement des clés publiées commence au premier
+  démarrage de cette version : démarrez une fois avant toute rotation.
 - **`/actuator/encryption`**, le recensement des magasins scellés, et la réinitialisation du second
   facteur — tous deux plus haut.
 - **L'agent de la version précédente est testé à chaque changement** : la CI fait tourner l'image signée
