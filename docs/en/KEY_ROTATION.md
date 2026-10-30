@@ -149,6 +149,15 @@ otherwise `vectispire.signing.key`, or a file of that name in the directory
 one. With several instances, restart them all: until the last has restarted, the old ones still
 sign with the old key, and those signatures verify as a retired key's.
 
+**While instances restart one by one**, every instance publishes the same list: the statuses are the
+record's, written by the first instance to sign with the new key. From then on `public-key.pub`
+serves the new key from every instance, while an instance not yet restarted goes on signing with
+the old one — so a document signed in that window names the old key, verifies against
+`public-keys/<keyId>.pub` as a retired key's, and its `retiredAt` can precede its signature. A
+retired key is not a revoked one: what it signed remains authentic, whenever. An instance not yet
+restarted never takes the record back, even when it signs for the first time after the rotation.
+Finish the restarts before telling the consumers (step 5).
+
 **4. Check.** The same request now lists the new key `ACTIVE` and the previous one `RETIRED`, with
 the date it was replaced. When the previous key was the generated one, it is listed as well: it is
 the key every document so far was signed with.

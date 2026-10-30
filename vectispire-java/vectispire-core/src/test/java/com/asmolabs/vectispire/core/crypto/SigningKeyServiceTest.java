@@ -321,6 +321,79 @@ class SigningKeyServiceTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("through a rolling restart every instance publishes the record's list, and the old one never takes it back")
+    void aRollingRestartPublishesOneList() {
+        java.time.Instant monday = java.time.Instant.parse("2026-10-26T09:00:00Z");
+        java.time.Instant tuesday = java.time.Instant.parse("2026-10-27T09:00:00Z");
+        java.time.Instant friday = java.time.Instant.parse("2026-10-30T09:00:00Z");
+        KeyPair old = CosignSigner.generateKeyPair();
+        KeyPair next = CosignSigner.generateKeyPair();
+        String oldId = CosignSigner.computeKeyId(old.getPublic());
+        String nextId = CosignSigner.computeKeyId(next.getPublic());
+        new SigningKeyService(CosignSigner.toPem(old.getPrivate()), "", settingsService, encryption,
+                java.time.Clock.fixed(monday, java.time.ZoneOffset.UTC)).sign(PAYLOAD);
+        // Started on Tuesday with the old key, and has signed nothing yet when the rotation comes.
+        SigningKeyService notYetRestarted = new SigningKeyService(CosignSigner.toPem(old.getPrivate()), "", settingsService,
+                encryption, java.time.Clock.fixed(tuesday, java.time.ZoneOffset.UTC));
+        SigningKeyService restarted = new SigningKeyService(CosignSigner.toPem(next.getPrivate()), "", settingsService,
+                encryption, java.time.Clock.fixed(friday, java.time.ZoneOffset.UTC));
+        restarted.sign(PAYLOAD);
+
+        String signedInTheWindow = notYetRestarted.sign(PAYLOAD);
+
+        // The old instance called its own key active and the new one retired: two lists behind one
+        // load balancer, and the answer depended on which instance took the request.
+        var expected = java.util.List.of(
+                org.assertj.core.groups.Tuple.tuple(nextId, SigningKeyService.KeyStatus.ACTIVE),
+                org.assertj.core.groups.Tuple.tuple(oldId, SigningKeyService.KeyStatus.RETIRED));
+        for (SigningKeyService instance : java.util.List.of(notYetRestarted, restarted,
+                new SigningKeyService(CosignSigner.toPem(next.getPrivate()), "", settingsService, encryption))) {
+            assertThat(instance.publishedKeys())
+                    .extracting(SigningKeyService.PublishedKey::keyId, SigningKeyService.PublishedKey::status)
+                    .containsExactlyElementsOf(expected);
+            assertThat(instance.activePublicKeyPem()).isEqualTo(CosignSigner.toPem(next.getPublic()));
+        }
+        // What the old instance signed in the window is a retired key's, and still authentic: the
+        // answer makes no claim that it was signed before the key was replaced.
+        assertThat(restarted.verify(PAYLOAD, signedInTheWindow, null))
+                .returns(true, SigningKeyService.Verification::valid)
+                .returns(oldId, SigningKeyService.Verification::keyId)
+                .returns(SigningKeyService.KeyStatus.RETIRED, SigningKeyService.Verification::keyStatus)
+                .extracting(SigningKeyService.Verification::message).asString()
+                .contains("retired, not revoked").doesNotContain("before that date");
+        assertThat(notYetRestarted.verify(PAYLOAD, signedInTheWindow, null).keyStatus())
+                .isEqualTo(SigningKeyService.KeyStatus.RETIRED);
+    }
+
+    @Test
+    @DisplayName("publishes the recorded keys, revocations included, when its own key cannot be loaded")
+    void publishesWithoutItsOwnKey() {
+        // ENCRYPTION_KEY lost: the generated key cannot be read, and signing is refused. The routes
+        // that publish the keys answered 500 with it — the revocation list unreadable when it counts.
+        KeyPair recorded = CosignSigner.generateKeyPair();
+        KeyPair compromised = CosignSigner.generateKeyPair();
+        String recordedId = CosignSigner.computeKeyId(recorded.getPublic());
+        String compromisedId = CosignSigner.computeKeyId(compromised.getPublic());
+        settingsService.storeInternalIfAbsent(SigningKeyService.KNOWN_KEYS, String.join("\n",
+                recordedId + ";2026-10-01T00:00:00Z;-;"
+                        + java.util.Base64.getEncoder().encodeToString(recorded.getPublic().getEncoded()),
+                compromisedId + ";2026-09-01T00:00:00Z;2026-10-01T00:00:00Z;"
+                        + java.util.Base64.getEncoder().encodeToString(compromised.getPublic().getEncoded())));
+        settingsService.storeInternalIfAbsent(SigningKeyService.STORED_KEY, "v2:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+
+        SigningKeyService service = new SigningKeyService("", compromisedId, settingsService, encryption);
+
+        assertThat(service.publishedKeys())
+                .extracting(SigningKeyService.PublishedKey::keyId, SigningKeyService.PublishedKey::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(recordedId, SigningKeyService.KeyStatus.ACTIVE),
+                        org.assertj.core.groups.Tuple.tuple(compromisedId, SigningKeyService.KeyStatus.REVOKED));
+        assertThat(service.activePublicKeyPem()).isEqualTo(CosignSigner.toPem(recorded.getPublic()));
+        assertThat(service.verify(PAYLOAD, CosignSigner.sign(PAYLOAD, recorded.getPrivate()))).isTrue();
+        assertThatThrownBy(() -> service.sign(PAYLOAD)).hasMessageContaining("cannot be decrypted");
+    }
+
+    @Test
     @DisplayName("a rotation rolled back makes the first key active again, and the second one retired")
     void aRotationRolledBack() {
         SigningKeyService generated = new SigningKeyService("", "", settingsService, encryption);

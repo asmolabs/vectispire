@@ -38,7 +38,7 @@ public class CryptoController {
     public ResponseEntity<String> getPublicKey() {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-signing-key.pub\"")
-                .body(signingKeyService.getPublicKeyPem());
+                .body(signingKeyService.activePublicKeyPem());
     }
 
     /**

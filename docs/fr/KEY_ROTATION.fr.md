@@ -157,6 +157,16 @@ stockée. Avec plusieurs instances, redémarrez-les toutes : jusqu'à ce que la 
 redémarré, les anciennes signent encore avec l'ancienne clé, et ces signatures se vérifient comme
 celles d'une clé retirée.
 
+**Pendant que les instances redémarrent l'une après l'autre**, toutes publient la même liste : les
+statuts sont ceux de l'enregistrement, écrit par la première instance qui signe avec la nouvelle
+clé. Dès lors `public-key.pub` sert la nouvelle clé depuis chaque instance, tandis qu'une instance
+pas encore redémarrée continue de signer avec l'ancienne — un document signé dans cette fenêtre
+nomme donc l'ancienne clé, se vérifie contre `public-keys/<keyId>.pub` comme celui d'une clé
+retirée, et son `retiredAt` peut précéder sa signature. Une clé retirée n'est pas une clé révoquée :
+ce qu'elle a signé reste authentique, quelle qu'en soit la date. Une instance pas encore redémarrée
+ne reprend jamais l'enregistrement, même quand elle signe pour la première fois après la rotation.
+Terminez les redémarrages avant de prévenir les destinataires (étape 5).
+
 **4. Vérifiez.** La même requête liste maintenant la nouvelle clé `ACTIVE` et la précédente
 `RETIRED`, avec la date de son remplacement. Quand la précédente était la clé générée, elle est
 listée aussi : c'est celle qui a signé tous les documents jusqu'ici.

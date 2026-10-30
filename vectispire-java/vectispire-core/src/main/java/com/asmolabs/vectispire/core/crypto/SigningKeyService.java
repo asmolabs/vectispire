@@ -82,8 +82,12 @@ public class SigningKeyService implements SealedStore {
     private final SettingsService settings;
     private final EncryptionService encryption;
     private final Clock clock;
+    /** When this instance started: a key retired after it was retired under this instance, not before it. */
+    private final Instant startedAt;
 
     private volatile KeyMaterial material;
+    /** Set once the published list has said why it is published without this instance's key. */
+    private volatile boolean warnedUnavailable;
     /** The refused lines already warned about, so that an anonymous caller cannot fill the log with them. */
     private final Set<String> warnedLines = ConcurrentHashMap.newKeySet();
     /** Whether this instance has recorded its key as the active one; nothing is signed before it has. */
@@ -164,6 +168,7 @@ public class SigningKeyService implements SealedStore {
         this.settings = settings;
         this.encryption = encryption;
         this.clock = clock;
+        this.startedAt = clock.instant();
         // A configured key is checked at start: a malformed or non-P-256 key is a deployment error,
         // and discovering it on the first evidence export is discovering it too late.
         if (!this.configuredKey.isEmpty()) {
@@ -232,21 +237,43 @@ public class SigningKeyService implements SealedStore {
      */
     public record Verification(boolean valid, String keyId, boolean vectispireKey, KeyStatus keyStatus, String message) {}
 
-    /** The active key first, then the ones it replaced, most recent first. */
+    /**
+     * The active key first, then the ones it replaced, most recent first.
+     *
+     * <p><b>The status is the record's, not this instance's.</b> It was decided by comparing each key
+     * with the one this instance signs with, so through a rolling restart the instances behind one
+     * load balancer published contradictory lists — the old ones calling the new key retired — and
+     * which one a consumer read depended on the request. The record is shared: every instance
+     * answers the same.
+     *
+     * <p><b>Readable without the signing key.</b> The list is public halves only, and the revocation
+     * list is in it; an instance whose own key cannot be loaded — {@code ENCRYPTION_KEY} lost, say —
+     * still publishes what it recorded, where it used to answer 500 on every one of these routes.
+     */
     public List<PublishedKey> publishedKeys() {
-        KeyMaterial active = material();
+        // Before the read: loading the key records it, and the list must show what was recorded.
+        Optional<KeyMaterial> active = signingIfAvailable();
         List<Known> known = new ArrayList<>(known());
         // The key that signs is always published, whatever the row says: it is written before the
         // first signature, but a restore of an older dump can take it away under a running instance.
-        if (known.stream().noneMatch(k -> k.keyId().equals(active.keyId()))) {
-            known.add(Known.of(active.publicKey(), null, null));
-        }
+        active.filter(key -> known.stream().noneMatch(k -> k.keyId().equals(key.keyId())))
+                .ifPresent(key -> known.add(Known.of(key.publicKey(), null, null)));
         return known.stream()
-                .map(k -> new PublishedKey(k.keyId(), statusOf(k.keyId(), active),
+                .map(k -> new PublishedKey(k.keyId(), statusOf(k),
                         CosignSigner.toPem(CosignSigner.parsePublicKey(k.der())), k.activeFrom(), k.retiredAt()))
                 .sorted(Comparator.comparing((PublishedKey k) -> k.status() != KeyStatus.ACTIVE)
                         .thenComparing(PublishedKey::retiredAt, Comparator.nullsFirst(Comparator.reverseOrder())))
                 .toList();
+    }
+
+    /**
+     * The PEM {@code public-key.pub} serves: the key the list calls active, so that it agrees with the
+     * list on every instance. Only when the record names none — nothing signed yet — is it this
+     * instance's key, loaded (or generated) as for a signature.
+     */
+    public String activePublicKeyPem() {
+        return publishedKeys().stream().filter(k -> k.status() == KeyStatus.ACTIVE).findFirst()
+                .map(PublishedKey::publicKeyPem).orElseGet(() -> material().publicKeyPem());
     }
 
     public Optional<PublishedKey> publishedKey(String keyId) {
@@ -263,21 +290,17 @@ public class SigningKeyService implements SealedStore {
      * reviewer check a third party's signature, but the result says whose key it is.
      */
     public Verification verify(byte[] payload, String base64Signature, String suppliedPublicKey) {
-        KeyMaterial ours = material();
         if (suppliedPublicKey == null || suppliedPublicKey.isBlank()) {
-            if (CosignSigner.verify(payload, base64Signature, ours.publicKey())) {
-                return new Verification(true, ours.keyId(), true, KeyStatus.ACTIVE,
-                        "Signature valid: signed with Vectispire's signing key.");
-            }
-            // **The keys it replaced, after the active one.** A document signed before a rotation was
+            // **Every published key, the active one first.** A document signed before a rotation was
             // reported as not matching "Vectispire's signing key", which an auditor reads as forged.
-            for (PublishedKey previous : publishedKeys()) {
-                if (previous.status() != KeyStatus.ACTIVE
-                        && CosignSigner.verify(payload, base64Signature, CosignSigner.parsePublicKey(previous.publicKeyPem()))) {
-                    return answer(true, previous.keyId(), previous.status(), previous.retiredAt());
+            // Each key answers with the status the list gives it — never "active" because it happens
+            // to be the key of the instance that took the request.
+            for (PublishedKey key : publishedKeys()) {
+                if (CosignSigner.verify(payload, base64Signature, CosignSigner.parsePublicKey(key.publicKeyPem()))) {
+                    return answer(true, key.keyId(), key.status(), key.retiredAt());
                 }
             }
-            return new Verification(false, ours.keyId(), true, KeyStatus.ACTIVE,
+            return new Verification(false, material().keyId(), true, KeyStatus.ACTIVE,
                     "Signature does not match any of Vectispire's signing keys for this payload.");
         }
         PublicKey supplied = CosignSigner.parsePublicKey(suppliedPublicKey);
@@ -300,9 +323,12 @@ public class SigningKeyService implements SealedStore {
     private static Verification answer(boolean matches, String keyId, KeyStatus status, Instant retiredAt) {
         return switch (status) {
             case ACTIVE -> new Verification(matches, keyId, true, status, "Signature valid: signed with Vectispire's signing key.");
+            // No claim on when the document was signed: through a rolling restart an instance not yet
+            // restarted signs with the key after the record has retired it. Retired is not revoked —
+            // what the key signed, whenever, is Vectispire's.
             case RETIRED -> new Verification(matches, keyId, true, status,
                     "Signature valid: signed with a previous Vectispire signing key, replaced on " + retiredAt
-                            + ". Documents signed before that date remain authentic.");
+                            + ". The key was retired, not revoked: what it signed remains authentic.");
             // Not valid, though the arithmetic matches: whoever holds a revoked key can sign anything
             // with it, so a match proves nothing about Vectispire.
             case REVOKED -> new Verification(false, keyId, true, status,
@@ -335,11 +361,28 @@ public class SigningKeyService implements SealedStore {
         return key;
     }
 
-    private KeyStatus statusOf(String keyId, KeyMaterial active) {
-        if (revokedKeyIds.contains(keyId)) {
+    private KeyStatus statusOf(Known key) {
+        if (revokedKeyIds.contains(key.keyId())) {
             return KeyStatus.REVOKED;
         }
-        return keyId.equals(active.keyId()) ? KeyStatus.ACTIVE : KeyStatus.RETIRED;
+        return key.retiredAt() == null ? KeyStatus.ACTIVE : KeyStatus.RETIRED;
+    }
+
+    /**
+     * This instance's key, when it can be loaded. A key that cannot be is still refused to every
+     * signature, with its reason; the published list goes on without it, and says why once.
+     */
+    private Optional<KeyMaterial> signingIfAvailable() {
+        try {
+            return Optional.of(material());
+        } catch (RuntimeException unavailable) {
+            if (!warnedUnavailable) {
+                warnedUnavailable = true;
+                log.warn("The document signing key cannot be loaded ({}); the published keys are served from the record "
+                        + "alone.", unavailable.getMessage());
+            }
+            return Optional.empty();
+        }
     }
 
     private List<Known> known() {
@@ -388,9 +431,11 @@ public class SigningKeyService implements SealedStore {
      * since it is the one every document so far was signed with and nothing else would ever say so.
      *
      * <p>Conditional on what was read, so two instances starting together each re-read and agree. Two
-     * instances started on two different keys — a rolling restart through a rotation — each record
-     * theirs as active in turn; the one that starts last is the one published as active, and the other's
-     * signatures still verify as a previous key's until it restarts.
+     * instances on two different keys — a rolling restart through a rotation — do not take the record
+     * from each other: the restarted one records its key as active, and one started before that keeps
+     * signing with the key the record now calls retired, whose signatures verify as a previous key's
+     * until it restarts. Each used to record its own in turn, the last to sign first winning — the old
+     * key, published active after the restart was over.
      */
     private void register(KeyMaterial active) {
         for (int attempt = 0; attempt < 5; attempt++) {
@@ -429,6 +474,17 @@ public class SigningKeyService implements SealedStore {
         for (Known k : before) {
             if (k.keyId().equals(active.keyId())) {
                 present = true;
+                if (k.retiredAt() != null && k.retiredAt().isAfter(startedAt)) {
+                    // **Retired under this instance, not before it**: a rolling restart, and this is an
+                    // instance not yet restarted signing for the first time. Taking the record back
+                    // would publish the old key as active once the restart is over, and nothing would
+                    // put the new one back before its own next start. It signs, as a retired key. The two
+                    // instants come from two hosts' clocks: a rollback started within their skew of the
+                    // rotation it undoes is read as this case, and takes one more restart.
+                    log.warn("The document signing key {} was replaced on {}, after this instance started; it signs "
+                            + "with it until it restarts, and the record keeps it retired.", k.keyId(), k.retiredAt());
+                    return before;
+                }
                 // A key brought back — a rotation rolled back — is active again from now.
                 after.add(k.retiredAt() == null ? k : new Known(k.keyId(), now, null, k.der()));
             } else {
