@@ -30,7 +30,6 @@ import type { OwaspWeek, OwaspWeekCategory, OwaspWeeklyCoverage } from '@/app/co
 import { OwaspScope } from '@/app/shared/owasp-scope';
 import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
 import {
-    CategoryOrTotal,
     HeatCell,
     WINDOW_SIZES,
     WeeklyView,
@@ -78,7 +77,15 @@ const PALETTE: Record<string, string> = {
 interface HeatRow {
     category: string;
     title: string;
-    cells: { week: OwaspWeek; line: OwaspWeekCategory; cell: HeatCell }[];
+    /** Each square with its class, its words and its link worked out once — not per square on every pass. */
+    cells: {
+        week: OwaspWeek;
+        line: OwaspWeekCategory;
+        cell: HeatCell;
+        className: string;
+        text: string;
+        link: Params;
+    }[];
 }
 
 /**
@@ -251,28 +258,75 @@ export class OwaspWeekly {
         return first.map((line, index) => ({
             category: line.category,
             title: line.title,
-            cells: weeks.map((week) => ({
-                week,
-                line: week.categories[index],
-                cell: cellOf(week, week.categories[index], max)
-            }))
+            cells: weeks.map((week) => {
+                const cell = cellOf(week, week.categories[index], max);
+                return {
+                    week,
+                    line: week.categories[index],
+                    cell,
+                    className: cellClass(cell),
+                    text: this.cellText(line.category, week, cell),
+                    link: openLink(week, line.category, this.scope())
+                };
+            })
         }));
     });
 
     readonly indicators = computed(() => indicatorsOf(this.weeks(), this.view().week));
     readonly selected = computed(() => this.indicators()?.week ?? null);
+    /** The week picked, by its start: what the heatmap's columns compare themselves to. */
+    readonly selectedStart = computed(() => this.selected()?.weekStart ?? null);
 
-    isSelected(week: OwaspWeek): boolean {
-        return this.selected()?.weekStart === week.weekStart;
-    }
-
-    classOf(cell: HeatCell): string {
-        return cellClass(cell);
-    }
+    /**
+     * The picked week's figures with what the grid below shows of them: each count's link, each
+     * category's state in words and links, each difference with its sign — computed once per week,
+     * scope or language. The links used to be built by a method per binding on every pass, a new
+     * object each time for the router to read again.
+     */
+    readonly figures = computed(() => {
+        const indicators = this.indicators();
+        if (!indicators) return null;
+        const week = indicators.week;
+        const scope = this.scope();
+        return {
+            ...indicators,
+            links: {
+                total: totalOpenLink(week, scope),
+                opened: openedLink(week, null, scope),
+                resolved: resolvedLink(week, null, scope),
+                reopened: reopenedLink(week, null, scope)
+            },
+            lines: Object.fromEntries(
+                week.categories.map((line) => [
+                    line.category,
+                    {
+                        state: stateLabel(this.i18n, line.state, week.reconstructed),
+                        open: openLink(week, line.category, scope),
+                        opened: openedLink(week, line.category, scope),
+                        resolved: resolvedLink(week, line.category, scope),
+                        reopened: reopenedLink(week, line.category, scope)
+                    }
+                ])
+            ),
+            deltas: {
+                categoriesMeasured: signed(indicators.delta.categoriesMeasured),
+                open: signed(indicators.delta.open),
+                settled: signed(indicators.delta.settled),
+                opened: signed(indicators.delta.opened),
+                resolved: signed(indicators.delta.resolved),
+                reopened: signed(indicators.delta.reopened)
+            },
+            sunday: sundayOf(week.weekStart)
+        };
+    });
+    /** The window's last Sunday, for the heading. */
+    readonly lastSunday = computed(() => {
+        const weeks = this.weeks();
+        return weeks.length > 0 ? sundayOf(weeks[weeks.length - 1].weekStart) : null;
+    });
 
     /** The square in words — the tooltip, and the accessible name of the link it carries. */
-    cellText(category: string, week: OwaspWeek, cell: HeatCell): string {
-        this.i18n.translations();
+    private cellText(category: string, week: OwaspWeek, cell: HeatCell): string {
         const parts = [
             this.i18n.t('owasp_weekly.cell_heading', { category, week: this.day(week.weekStart) }),
             cellLabel(this.i18n, cell.kind)
@@ -285,39 +339,8 @@ export class OwaspWeekly {
         return parts.join(' · ');
     }
 
-    stateOf(week: OwaspWeek, line: OwaspWeekCategory): string {
-        this.i18n.translations();
-        return stateLabel(this.i18n, line.state, week.reconstructed);
-    }
-
     private scope() {
         return this.view().scope;
-    }
-
-    openParams(week: OwaspWeek, category: string): Params {
-        return openLink(week, category, this.scope());
-    }
-
-    /** `null` where the week's total is not a list's length — see `totalOpenLink`. */
-    totalOpenParams(week: OwaspWeek): Params | null {
-        return totalOpenLink(week, this.scope());
-    }
-
-    openedParams(week: OwaspWeek, category: CategoryOrTotal): Params {
-        return openedLink(week, category, this.scope());
-    }
-
-    resolvedParams(week: OwaspWeek, category: CategoryOrTotal): Params {
-        return resolvedLink(week, category, this.scope());
-    }
-
-    /** `null` on a week before reopenings were recorded, whose figure is unknown. */
-    reopenedParams(week: OwaspWeek, category: CategoryOrTotal): Params | null {
-        return reopenedLink(week, category, this.scope());
-    }
-
-    sunday(week: OwaspWeek): string {
-        return sundayOf(week.weekStart);
     }
 
     /**
@@ -489,9 +512,9 @@ export class OwaspWeekly {
         const week = element ? this.weeks()[element.index] : undefined;
         if (!element || !week) return;
         const params = [
-            () => this.openedParams(week, category),
-            () => this.resolvedParams(week, category),
-            () => this.reopenedParams(week, category)
+            () => openedLink(week, category, this.scope()),
+            () => resolvedLink(week, category, this.scope()),
+            () => reopenedLink(week, category, this.scope())
         ][element.datasetIndex]?.();
         if (params) void this.router.navigate(['/issues'], { queryParams: params });
     }
@@ -515,9 +538,10 @@ export class OwaspWeekly {
     print(): void {
         window.print();
     }
+}
 
-    delta(value: number | null): string {
-        if (value === null) return '—';
-        return value > 0 ? `+${value}` : String(value);
-    }
+/** A difference with its sign, or a dash for one there is nothing to compare with. */
+function signed(value: number | null): string {
+    if (value === null) return '—';
+    return value > 0 ? `+${value}` : String(value);
 }

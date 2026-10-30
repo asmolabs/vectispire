@@ -72,7 +72,7 @@
                     | translate
                         : {
                               from: (coverage.from | date: 'dd/MM/yyyy') ?? coverage.from,
-                              to: (sunday(weeks()[weeks().length - 1]) | date: 'dd/MM/yyyy') ?? ''
+                              to: (lastSunday() | date: 'dd/MM/yyyy') ?? ''
                           }
             }}
             @if (coverage.scope; as scope) {
@@ -104,8 +104,8 @@
                                 <button
                                     type="button"
                                     class="zs-week-button"
-                                    [class.zs-week-selected]="isSelected(week)"
-                                    [attr.aria-pressed]="isSelected(week)"
+                                    [class.zs-week-selected]="week.weekStart === selectedStart()"
+                                    [attr.aria-pressed]="week.weekStart === selectedStart()"
                                     [attr.aria-label]="
                                         'owasp_weekly.select_week'
                                             | translate
@@ -129,10 +129,10 @@
                             @for (entry of row.cells; track entry.week.weekStart) {
                                 <td
                                     class="zs-heat-cell"
-                                    [class]="classOf(entry.cell)"
+                                    [class]="entry.className"
                                     [class.zs-hatched]="entry.cell.reconstructed"
-                                    [class.zs-heat-selected]="isSelected(entry.week)"
-                                    [attr.title]="cellText(row.category, entry.week, entry.cell)"
+                                    [class.zs-heat-selected]="entry.week.weekStart === selectedStart()"
+                                    [attr.title]="entry.text"
                                     [attr.data-kind]="entry.cell.kind"
                                     [attr.data-level]="entry.cell.level"
                                 >
@@ -140,15 +140,13 @@
                                         <a
                                             class="zs-heat-link"
                                             [routerLink]="['/issues']"
-                                            [queryParams]="openParams(entry.week, row.category)"
-                                            [attr.aria-label]="cellText(row.category, entry.week, entry.cell)"
+                                            [queryParams]="entry.link"
+                                            [attr.aria-label]="entry.text"
                                             data-testid="heat-open"
                                             >{{ entry.cell.open }}</a
                                         >
                                     } @else {
-                                        <span class="sr-only">{{
-                                            cellText(row.category, entry.week, entry.cell)
-                                        }}</span>
+                                        <span class="sr-only">{{ entry.text }}</span>
                                     }
                                     @if (entry.cell.settled) {
                                         <span class="zs-settled" aria-hidden="true">({{ entry.cell.settled }})</span>
@@ -193,7 +191,7 @@
             </li>
         </ul>
 
-        @if (indicators(); as figures) {
+        @if (figures(); as figures) {
             <section
                 class="mb-6"
                 data-testid="week-indicators"
@@ -205,7 +203,7 @@
                             | translate
                                 : {
                                       from: (figures.week.weekStart | date: 'dd/MM/yyyy') ?? figures.week.weekStart,
-                                      to: (sunday(figures.week) | date: 'dd/MM/yyyy') ?? ''
+                                      to: (figures.sunday | date: 'dd/MM/yyyy') ?? ''
                                   }
                     }}
                 </div>
@@ -224,11 +222,11 @@
                     <div class="pl-3 border-l-4 border-surface-300">
                         <div class="text-2xl font-medium">{{ figures.week.categoriesMeasured ?? '—' }}</div>
                         <div class="text-muted-color text-sm">{{ 'owasp_weekly.figure.measured' | translate }}</div>
-                        <div class="text-xs text-muted-color">{{ delta(figures.delta.categoriesMeasured) }}</div>
+                        <div class="text-xs text-muted-color">{{ figures.deltas.categoriesMeasured }}</div>
                     </div>
                     <div class="pl-3 border-l-4 border-red-300">
                         <div class="text-2xl font-medium" data-testid="figure-open">
-                            @if (figures.week.open > 0 && totalOpenParams(figures.week); as params) {
+                            @if (figures.week.open > 0 && figures.links.total; as params) {
                                 <a [routerLink]="['/issues']" [queryParams]="params" data-testid="figure-open-link">{{
                                     figures.week.open
                                 }}</a>
@@ -237,19 +235,19 @@
                             }
                         </div>
                         <div class="text-muted-color text-sm">{{ 'owasp_weekly.figure.open' | translate }}</div>
-                        <div class="text-xs text-muted-color">{{ delta(figures.delta.open) }}</div>
+                        <div class="text-xs text-muted-color">{{ figures.deltas.open }}</div>
                     </div>
                     <div class="pl-3 border-l-4 border-surface-300">
                         <div class="text-2xl font-medium text-muted-color">{{ figures.week.settled ?? '—' }}</div>
                         <div class="text-muted-color text-sm">{{ 'owasp_weekly.figure.settled' | translate }}</div>
-                        <div class="text-xs text-muted-color">{{ delta(figures.delta.settled) }}</div>
+                        <div class="text-xs text-muted-color">{{ figures.deltas.settled }}</div>
                     </div>
                     <div class="pl-3 border-l-4 border-orange-300">
                         <div class="text-2xl font-medium" data-testid="figure-opened">
                             @if (figures.week.opened > 0) {
                                 <a
                                     [routerLink]="['/issues']"
-                                    [queryParams]="openedParams(figures.week, null)"
+                                    [queryParams]="figures.links.opened"
                                     data-testid="figure-opened-link"
                                     >{{ figures.week.opened }}</a
                                 >
@@ -258,14 +256,14 @@
                             }
                         </div>
                         <div class="text-muted-color text-sm">{{ 'owasp_weekly.figure.opened' | translate }}</div>
-                        <div class="text-xs text-muted-color">{{ delta(figures.delta.opened) }}</div>
+                        <div class="text-xs text-muted-color">{{ figures.deltas.opened }}</div>
                     </div>
                     <div class="pl-3 border-l-4 border-emerald-300">
                         <div class="text-2xl font-medium" data-testid="figure-resolved">
                             @if (figures.week.resolved > 0) {
                                 <a
                                     [routerLink]="['/issues']"
-                                    [queryParams]="resolvedParams(figures.week, null)"
+                                    [queryParams]="figures.links.resolved"
                                     data-testid="figure-resolved-link"
                                     >{{ figures.week.resolved }}</a
                                 >
@@ -274,7 +272,7 @@
                             }
                         </div>
                         <div class="text-muted-color text-sm">{{ 'owasp_weekly.figure.resolved' | translate }}</div>
-                        <div class="text-xs text-muted-color">{{ delta(figures.delta.resolved) }}</div>
+                        <div class="text-xs text-muted-color">{{ figures.deltas.resolved }}</div>
                     </div>
                     <div class="pl-3 border-l-4 border-purple-300">
                         <div class="text-2xl font-medium" data-testid="figure-reopened">
@@ -285,10 +283,7 @@
                                     [attr.aria-label]="'owasp_weekly.reopened_unknown' | translate"
                                     >—</span
                                 >
-                            } @else if (
-                                (figures.week.reopened ?? 0) > 0 && reopenedParams(figures.week, null);
-                                as params
-                            ) {
+                            } @else if ((figures.week.reopened ?? 0) > 0 && figures.links.reopened; as params) {
                                 <a
                                     [routerLink]="['/issues']"
                                     [queryParams]="params"
@@ -300,7 +295,7 @@
                             }
                         </div>
                         <div class="text-muted-color text-sm">{{ 'owasp_weekly.figure.reopened' | translate }}</div>
-                        <div class="text-xs text-muted-color">{{ delta(figures.delta.reopened) }}</div>
+                        <div class="text-xs text-muted-color">{{ figures.deltas.reopened }}</div>
                     </div>
                 </div>
                 @if (figures.previous && figures.previous.reconstructed !== figures.week.reconstructed) {
@@ -331,12 +326,12 @@
                                     <span class="font-mono text-xs font-medium">{{ line.category }}</span>
                                     <span class="ml-2">{{ line.title }}</span>
                                 </td>
-                                <td class="py-2 pr-4 whitespace-nowrap">{{ stateOf(figures.week, line) }}</td>
+                                <td class="py-2 pr-4 whitespace-nowrap">{{ figures.lines[line.category].state }}</td>
                                 <td class="py-2 pr-4">
                                     @if (line.open > 0) {
                                         <a
                                             [routerLink]="['/issues']"
-                                            [queryParams]="openParams(figures.week, line.category)"
+                                            [queryParams]="figures.lines[line.category].open"
                                             data-testid="grid-open"
                                             >{{ line.open }}</a
                                         >
@@ -349,7 +344,7 @@
                                     @if (line.opened > 0) {
                                         <a
                                             [routerLink]="['/issues']"
-                                            [queryParams]="openedParams(figures.week, line.category)"
+                                            [queryParams]="figures.lines[line.category].opened"
                                             data-testid="grid-opened"
                                             >{{ line.opened }}</a
                                         >
@@ -361,7 +356,7 @@
                                     @if (line.resolved > 0) {
                                         <a
                                             [routerLink]="['/issues']"
-                                            [queryParams]="resolvedParams(figures.week, line.category)"
+                                            [queryParams]="figures.lines[line.category].resolved"
                                             data-testid="grid-resolved"
                                             >{{ line.resolved }}</a
                                         >
@@ -373,7 +368,7 @@
                                     @if (line.reopened === null) {
                                         <span class="text-muted-color">—</span>
                                     } @else if (
-                                        (line.reopened ?? 0) > 0 && reopenedParams(figures.week, line.category);
+                                        (line.reopened ?? 0) > 0 && figures.lines[line.category].reopened;
                                         as params
                                     ) {
                                         <a
@@ -392,7 +387,7 @@
                             <td class="py-2 pr-4">{{ 'owasp_weekly.total' | translate }}</td>
                             <td class="py-2 pr-4"></td>
                             <td class="py-2 pr-4">
-                                @if (figures.week.open > 0 && totalOpenParams(figures.week); as params) {
+                                @if (figures.week.open > 0 && figures.links.total; as params) {
                                     <a [routerLink]="['/issues']" [queryParams]="params" data-testid="total-open">{{
                                         figures.week.open
                                     }}</a>
@@ -405,7 +400,7 @@
                                 @if (figures.week.opened > 0) {
                                     <a
                                         [routerLink]="['/issues']"
-                                        [queryParams]="openedParams(figures.week, null)"
+                                        [queryParams]="figures.links.opened"
                                         data-testid="total-opened"
                                         >{{ figures.week.opened }}</a
                                     >
@@ -417,7 +412,7 @@
                                 @if (figures.week.resolved > 0) {
                                     <a
                                         [routerLink]="['/issues']"
-                                        [queryParams]="resolvedParams(figures.week, null)"
+                                        [queryParams]="figures.links.resolved"
                                         data-testid="total-resolved"
                                         >{{ figures.week.resolved }}</a
                                     >
@@ -428,10 +423,7 @@
                             <td class="py-2">
                                 @if (figures.week.reopened === null) {
                                     <span class="text-muted-color">—</span>
-                                } @else if (
-                                    (figures.week.reopened ?? 0) > 0 && reopenedParams(figures.week, null);
-                                    as params
-                                ) {
+                                } @else if ((figures.week.reopened ?? 0) > 0 && figures.links.reopened; as params) {
                                     <a [routerLink]="['/issues']" [queryParams]="params" data-testid="total-reopened">{{
                                         figures.week.reopened
                                     }}</a>
