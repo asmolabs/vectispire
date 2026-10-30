@@ -112,7 +112,9 @@ bundle() {
   bearer "$(sign_in)" | api -f "http://localhost:3180/api/v1/compliance/evidence-bundle.zip" > "$WORK/$1/bundle.zip" \
     || fail "the evidence bundle was refused"
   (cd "$WORK/$1" && python3 -c 'import zipfile,sys; zipfile.ZipFile("bundle.zip").extractall(".")')
-  [ -s "$WORK/$1/manifest.json" ] && [ -s "$WORK/$1/manifest.json.sig" ] || fail "the bundle has no signed manifest: $(ls "$WORK/$1")"
+  if [ ! -s "$WORK/$1/manifest.json" ] || [ ! -s "$WORK/$1/manifest.json.sig" ]; then
+    fail "the bundle has no signed manifest: $(ls "$WORK/$1")"
+  fi
 }
 
 # The key id of a PEM public key: the SHA-256 of its DER encoding, as the documents name it.
@@ -176,16 +178,18 @@ verifies before "$WORK/old-again.pub" || fail "the bundle from before the rotati
 ! verifies before "$WORK/active.pub" || fail "the old bundle verifies against the new key — the check proves nothing"
 ! verifies after "$WORK/old-again.pub" || fail "the new bundle verifies against the old key — the check proves nothing"
 reply="$(verify_route before)"
-[ "$(printf '%s' "$reply" | json valid)" = True ] && [ "$(printf '%s' "$reply" | json keyStatus)" = RETIRED ] \
-  || fail "/crypto/verify does not accept the old bundle as a retired key's: $reply"
+if [ "$(printf '%s' "$reply" | json valid)" != True ] || [ "$(printf '%s' "$reply" | json keyStatus)" != RETIRED ]; then
+  fail "/crypto/verify does not accept the old bundle as a retired key's: $reply"
+fi
 echo "  $NEW_ID active, $OLD_ID retired; both bundles verify with openssl, each against its own key only"
 
 log "3. the first key revoked: still listed, and nothing it signed is valid"
 VECTISPIRE_SIGNING_KEY="$(cat "$WORK/new.pem")" VECTISPIRE_SIGNING_REVOKED_KEYS="$OLD_ID" start_app || fail "the start with a revocation failed"
 [ "$(published | status_of "$OLD_ID")" = REVOKED ] || fail "the revoked key is not listed as revoked"
 reply="$(verify_route before)"
-[ "$(printf '%s' "$reply" | json valid)" = False ] && [ "$(printf '%s' "$reply" | json keyStatus)" = REVOKED ] \
-  || fail "/crypto/verify still accepts a revoked key's signature: $reply"
+if [ "$(printf '%s' "$reply" | json valid)" != False ] || [ "$(printf '%s' "$reply" | json keyStatus)" != REVOKED ]; then
+  fail "/crypto/verify still accepts a revoked key's signature: $reply"
+fi
 reply="$(verify_route after)"
 [ "$(printf '%s' "$reply" | json valid)" = True ] || fail "the active key's bundle stopped verifying: $reply"
 echo "  $OLD_ID revoked: listed, and its signature refused"
