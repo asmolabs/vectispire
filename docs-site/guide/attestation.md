@@ -31,7 +31,7 @@ Two numbers sit beside it and must not be confused:
 
 ## What the bundle contains
 
-One click exports the signed evidence bundle. The nine sections are described rather than listed:
+One click exports the signed evidence bundle. Its sections are described rather than listed or counted:
 the file names are the server's, and copying them here would create a second list that drifts at
 the first rename with nothing reporting it. Naming what they contain stays true longer than naming
 what they are called.

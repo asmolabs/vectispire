@@ -32,7 +32,7 @@ Deux nombres l'accompagnent, à ne pas confondre :
 
 ## Ce que contient le bundle
 
-Un clic exporte le bundle de preuves signé. Les neuf sections sont décrites plutôt que listées : les
+Un clic exporte le bundle de preuves signé. Ses sections sont décrites plutôt que listées ou comptées : les
 noms de fichiers appartiennent au serveur, et les recopier ici créerait une seconde liste qui
 divergerait au premier renommage sans que rien ne le signale. Nommer ce qu'elles contiennent reste
 vrai plus longtemps que nommer comment elles s'appellent.
