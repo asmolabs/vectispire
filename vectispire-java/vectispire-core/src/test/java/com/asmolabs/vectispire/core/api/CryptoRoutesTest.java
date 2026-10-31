@@ -55,6 +55,7 @@ class CryptoRoutesTest extends ApiTestBase {
                         .content(requestJson), token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.keyStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.algorithm").value("SHA256withECDSA"));
 
         String tamperedRequest = String.format("""
@@ -68,7 +69,10 @@ class CryptoRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(tamperedRequest), token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.valid").value(false));
+                .andExpect(jsonPath("$.valid").value(false))
+                // It answered with the active key's id and "ACTIVE": read alone, a key that signed it.
+                .andExpect(jsonPath("$.keyStatus").doesNotExist())
+                .andExpect(jsonPath("$.keyId").doesNotExist());
     }
 
     @Test
@@ -124,5 +128,27 @@ class CryptoRoutesTest extends ApiTestBase {
                         org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")))
                 .andExpect(jsonPath("$.commands.cosignVerifyCycloneDx",
                         org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")));
+    }
+
+    @Test
+    @DisplayName("publishes every signing key to an anonymous caller, and each one by its id as a PEM file")
+    void publishesTheKeysByTheirIds() throws Exception {
+        String keyId = signingKeyService.getKeyId();
+
+        mvc.perform(get("/api/v1/crypto/public-keys"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].keyId").value(keyId))
+                .andExpect(jsonPath("$[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$[0].publicKey").value(signingKeyService.getPublicKeyPem()));
+
+        String pem = mvc.perform(get("/api/v1/crypto/public-keys/" + keyId + ".pub"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"vectispire-signing-key-" + keyId.substring(0, 12) + ".pub\""))
+                .andReturn().getResponse().getContentAsString();
+        byte[] payload = "{\"status\": \"passed\"}".getBytes(StandardCharsets.UTF_8);
+        assertThat(CosignSigner.verify(payload, signingKeyService.sign(payload), CosignSigner.parsePublicKey(pem))).isTrue();
+
+        mvc.perform(get("/api/v1/crypto/public-keys/" + "0".repeat(64) + ".pub")).andExpect(status().isNotFound());
     }
 }

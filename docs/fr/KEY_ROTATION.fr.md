@@ -94,3 +94,127 @@ qu'ailleurs : un déploiement sans clé continue de tout lire et ne refuse que l
   séparés, et gardez l'ancienne clé aussi longtemps qu'une sauvegarde que vous restaureriez encore
   a été écrite sous elle. [Sauvegarde et restauration](BACKUP_AND_RESTORE.fr.md) dit comment les
   deux se prennent, se gardent et se restaurent ensemble.
+
+# Faire tourner la clé de signature des documents
+
+La **clé de signature des documents** est une autre clé, et faire tourner `ENCRYPTION_KEY` ne la
+touche pas. Elle signe ce que Vectispire remet à des personnes extérieures — paquets de preuves,
+exports VEX, CSAF et CycloneDX, approbations de checklist, exports de projet et provenance des
+documents de rapport — et ces destinataires les vérifient contre la moitié publique que Vectispire
+publie. La faire tourner change ce qu'ils doivent croire : la procédure les concerne surtout eux.
+
+Elle vient de l'un de deux endroits : `vectispire.signing.key` (un PEM PKCS#8 P-256 :
+`VECTISPIRE_SIGNING_KEY` dans le `.env` de la composition, `secrets.signingKey` dans le chart) ou,
+quand il est vide, une clé que Vectispire a générée au premier usage et garde dans `t_setting`,
+scellée sous `ENCRYPTION_KEY`.
+
+## Ce que deviennent les documents signés avant
+
+**Ils restent vérifiables.** Chaque clé publique avec laquelle ce déploiement a signé est
+enregistrée — les moitiés publiques seulement, en clair, dans `t_setting`
+(`internal.document_signing_keys`) — et publiée :
+
+| Route (sans compte) | Répond |
+|---|---|
+| `GET /api/v1/crypto/public-key.pub` | la clé **active**, comme avant |
+| `GET /api/v1/crypto/public-keys` | toutes les clés : `keyId`, `status` (`ACTIVE`, `RETIRED`, `REVOKED`), `publicKey` (PEM), `activeFrom`, `retiredAt` |
+| `GET /api/v1/crypto/public-keys/<keyId>.pub` | l'une d'elles, dans le PEM que lit `cosign verify-blob --key` |
+
+L'identifiant d'une clé est le SHA-256 de son encodage DER, en hexadécimal. Un document nomme la clé
+qui l'a signé : le `keyid` d'une enveloppe DSSE, la clé jointe à un paquet de preuves (par commodité
+seulement — calculez son identifiant, puis demandez cet identifiant à l'instance), le
+`signing_key_id` qu'enregistrent un document de checklist et une exécution de rapport.
+`POST /api/v1/crypto/verify` essaie la clé active, puis les clés retirées, et dit laquelle
+correspond (`keyId`, `keyStatus`).
+
+**L'enregistrement commence au premier démarrage d'une version qui l'a (1.0.0).** Une clé remplacée
+avant n'y figure pas. Démarrez une fois en 1.0.0 avec la clé que vous avez, vérifiez qu'elle est
+listée `ACTIVE`, et seulement ensuite faites la rotation.
+
+## La rotation
+
+Exécutée chaque nuit, telle qu'écrite ici, par `scripts/signing-key-rotation-drill.sh` contre l'image
+livrée : un dossier de preuves signé avant la rotation est vérifié avec openssl contre la clé publiée
+sous son identifiant, et un dossier signé après contre la clé active.
+
+**1. Générez la nouvelle clé**, là où elle sera gardée :
+
+```bash
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out vectispire-signing-key.pem
+```
+
+**2. Notez la clé en usage**, pour la reconnaître ensuite :
+
+```bash
+curl -s https://vectispire.example.com/api/v1/crypto/public-keys
+```
+
+**3. Configurez la nouvelle clé et redémarrez.** Avec la composition, mettez le PEM dans `.env` en
+`VECTISPIRE_SIGNING_KEY` (il arrive dans le conteneur comme un fichier) ; avec le chart,
+`secrets.signingKey` ; sinon `vectispire.signing.key`, ou un fichier de ce nom dans le répertoire
+que lit `SPRING_CONFIG_IMPORT=configtree:`. Une clé configurée l'emporte toujours sur la clé
+stockée. Avec plusieurs instances, redémarrez-les toutes : jusqu'à ce que la dernière ait
+redémarré, les anciennes signent encore avec l'ancienne clé, et ces signatures se vérifient comme
+celles d'une clé retirée.
+
+**Pendant que les instances redémarrent l'une après l'autre**, toutes publient la même liste : les
+statuts sont ceux de l'enregistrement, écrit par la première instance qui signe avec la nouvelle
+clé. Dès lors `public-key.pub` sert la nouvelle clé depuis chaque instance, tandis qu'une instance
+pas encore redémarrée continue de signer avec l'ancienne — un document signé dans cette fenêtre
+nomme donc l'ancienne clé, se vérifie contre `public-keys/<keyId>.pub` comme celui d'une clé
+retirée, et son `retiredAt` peut précéder sa signature. Une clé retirée n'est pas une clé révoquée :
+ce qu'elle a signé reste authentique, quelle qu'en soit la date. Une instance pas encore redémarrée
+ne reprend jamais l'enregistrement, même quand elle signe pour la première fois après la rotation.
+Terminez les redémarrages avant de prévenir les destinataires (étape 5).
+
+**4. Vérifiez.** La même requête liste maintenant la nouvelle clé `ACTIVE` et la précédente
+`RETIRED`, avec la date de son remplacement. Quand la précédente était la clé générée, elle est
+listée aussi : c'est celle qui a signé tous les documents jusqu'ici.
+
+**5. Prévenez les destinataires.** Quiconque a épinglé `public-key.pub` doit la récupérer à
+nouveau ; quiconque vérifie un document plus ancien récupère la clé qu'il nomme sur
+`public-keys/<keyId>.pub`. La liste sert mieux les destinataires qu'une clé unique : c'est elle qui
+leur permet de vérifier un document d'avant une rotation sans vous demander de quelle clé il
+s'agissait.
+
+**6. L'ancienne clé privée.** La vérification n'a besoin que de la moitié publique, que Vectispire
+garde. Le fichier d'une clé configurée peut être détruit dès que vous ne reviendrez plus en
+arrière ; retirer à nouveau `vectispire.signing.key` rend active la clé stockée — ou une clé
+nouvellement générée s'il n'y en avait pas — et la clé qu'elle remplace est retirée à son tour. Une
+clé générée reste scellée dans `t_setting` et continue d'apparaître dans `/actuator/encryption` ;
+elle ne signe rien tant qu'une clé est configurée.
+
+## Quand la clé est compromise
+
+Faites la rotation comme ci-dessus, et listez l'identifiant de la clé compromise dans
+`vectispire.signing.revoked-keys` (`VECTISPIRE_SIGNING_REVOKED_KEYS`, séparés par des virgules) sur
+chaque instance :
+
+- elle reste publiée, `status: REVOKED`, pour qu'un destinataire apprenne pourquoi un document ne se
+  vérifie plus ;
+- `POST /api/v1/crypto/verify` répond `valid: false` pour une signature qu'elle a faite, même si
+  elle correspond : qui la détient peut tout signer ;
+- une instance dont la clé de signature est révoquée refuse de démarrer, et dit pourquoi : une clé
+  configurée, ou la clé générée quand aucune n'est configurée. Une clé générée illisible
+  (`ENCRYPTION_KEY` perdue) ne signe rien de toute façon, et elle est refusée à la première
+  signature, pour cette raison.
+
+Réémettez ensuite les documents qui comptent encore — exportez-les à nouveau — et dites à leurs
+destinataires lesquels remplacent lesquels. Une révocation ne vaut que par les destinataires qui
+consultent la liste : raison de plus pour les y renvoyer plutôt qu'à un fichier unique.
+
+## Avec `ENCRYPTION_KEY`
+
+Les deux rotations sont indépendantes ; faites-les l'une après l'autre, pour que le rapport de
+chacune dise de quoi il parle.
+
+- **Faire tourner `ENCRYPTION_KEY`** rescelle la clé de signature générée au démarrage suivant, et
+  `/actuator/encryption` la compte comme *Document signing key*. La clé de signature elle-même ne
+  change pas, et aucun destinataire ne le remarque.
+- **Perdre `ENCRYPTION_KEY`** rend illisible une clé de signature générée : la signature est
+  refusée plutôt qu'une nouvelle clé improvisée. Configurez une nouvelle clé de signature : c'est
+  une rotation. Les clés publiées ne sont pas scellées, donc les documents signés avant restent
+  vérifiables bien que la clé qui les a signés soit perdue.
+- **L'enregistrement des clés publiques n'est pas un secret** et n'est pas dans
+  `/actuator/encryption`. Il est dans la base, donc dans chaque sauvegarde : une restauration
+  ramène les clés publiées au moment où elle a été prise.

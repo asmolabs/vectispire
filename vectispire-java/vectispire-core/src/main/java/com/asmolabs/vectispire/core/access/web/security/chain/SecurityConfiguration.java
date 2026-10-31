@@ -329,6 +329,11 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         .requestMatchers(request -> !anonymousApiDocs && isApiDocumentation(request.getRequestURI()))
                         .authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/crypto/public-key.pub").permitAll()
+                        // Every key this deployment has signed with, as public as the active one: a
+                        // consumer verifying a document signed before a rotation needs the key it was
+                        // signed with, and has no account to ask with.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/crypto/public-keys", "/api/v1/crypto/public-keys/*")
+                        .permitAll()
                         // **A badge somebody published, named by a token and not by an id.** The
                         // route this replaces took the repository's sequential id, so walking
                         // 1..N returned every repository's security grade to an anonymous caller

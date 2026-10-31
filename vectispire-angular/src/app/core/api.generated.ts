@@ -1248,6 +1248,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crypto/public-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPublicKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crypto/public-keys/{keyId}.pub": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPublicKeyById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crypto/verify": {
         parameters: {
             query?: never;
@@ -7749,6 +7781,15 @@ export interface components {
             lastItemRow?: number;
             sheet?: string;
         };
+        PublishedKeyResponse: {
+            /** Format: date-time */
+            activeFrom?: string;
+            keyId?: string;
+            publicKey?: string;
+            /** Format: date-time */
+            retiredAt?: string;
+            status?: string;
+        };
         Publisher: {
             category?: string;
             name?: string;
@@ -9338,6 +9379,7 @@ export interface components {
         VerifyResponse: {
             algorithm?: string;
             keyId?: string;
+            keyStatus?: string;
             message?: string;
             valid: boolean;
             vectispireKey: boolean;
@@ -11173,6 +11215,48 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-pem-file": string;
+                };
+            };
+        };
+    };
+    listPublicKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PublishedKeyResponse"][];
+                };
+            };
+        };
+    };
+    getPublicKeyById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                keyId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;

@@ -303,7 +303,9 @@ personne ne peut lire.
 
 Fixez aussi une **clé de signature** (`secrets.signingKey`, PEM PKCS#8 P-256) : en 0.10.0, une
 installation qui n'en a pas répond 500 à son premier dossier de preuves (corrigé dans la
-0.11.0). Gardez-la : la remplacer rend invérifiable chaque document déjà signé.
+0.11.0). Gardez-la : pour la remplacer, suivez
+[Faire tourner la clé de signature des documents](../administration/maintenance.fr.md#faire-tourner-la-cle-de-signature-des-documents),
+qui garde vérifiables les documents signés avant.
 
 La chart refuse de se rendre sans ses valeurs obligatoires, et dit laquelle manque. La liste complète
 est dans le [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md)

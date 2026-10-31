@@ -36,6 +36,31 @@ permanence a changé quelle clé est écrite, et rien d'autre.
     illisible. Ce défaut a été retiré et **sa moitié privée est publique**. Remplacez la paire
     de clés chez votre hébergeur Git plutôt que d'essayer de la récupérer.
 
+## Faire tourner la clé de signature des documents
+
+La clé qui signe les dossiers de preuves, les exports VEX, CSAF et CycloneDX, les approbations de
+checklist et la provenance des rapports n'est pas `ENCRYPTION_KEY`, et la rotation ci-dessus ne la
+change pas.
+
+**1. Générez la nouvelle clé :** `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out vectispire-signing-key.pem`.
+
+**2. Configurez-la et redémarrez chaque instance :** `VECTISPIRE_SIGNING_KEY` dans le `.env` de la
+composition, `secrets.signingKey` dans le chart, `vectispire.signing.key` sinon. Une clé configurée
+l'emporte sur celle que Vectispire a générée.
+
+**3. Vérifiez** `GET /api/v1/crypto/public-keys` (sans compte) : la nouvelle clé `ACTIVE`, la
+précédente `RETIRED` avec la date de son remplacement.
+
+**4. Prévenez ceux qui vérifient vos documents.** Les documents signés avant la rotation se
+vérifient toujours : chacun nomme sa clé, et `GET /api/v1/crypto/public-keys/<keyId>.pub` la sert.
+`public-key.pub` sert désormais la nouvelle clé.
+
+L'enregistrement des clés publiées commence au premier démarrage de la 1.0.0 : démarrez une fois
+dessus avant la rotation. Une clé **compromise** va aussi dans `VECTISPIRE_SIGNING_REVOKED_KEYS`
+(son identifiant) : elle reste publiée comme `REVOKED`, et rien de ce qu'elle a signé ne se vérifie.
+La procédure complète, et sa rencontre avec une rotation d'`ENCRYPTION_KEY`, est dans
+[`docs/fr/KEY_ROTATION.fr.md`](https://github.com/asmolabs/vectispire/blob/main/docs/fr/KEY_ROTATION.fr.md#faire-tourner-la-cle-de-signature-des-documents).
+
 ## Le fichier plutôt que l'environnement
 
 `ENCRYPTION_KEY_FILE` plutôt qu'`ENCRYPTION_KEY`, en production, toujours. Cela garde la valeur

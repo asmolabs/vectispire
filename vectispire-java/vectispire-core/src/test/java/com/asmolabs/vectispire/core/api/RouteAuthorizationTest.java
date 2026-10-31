@@ -107,6 +107,9 @@ class RouteAuthorizationTest extends ApiTestBase {
         //                      an existence oracle on top of it. A token names one repository
         //                      somebody deliberately published — see `BadgeRoutesTest`.
         //   public-key.pub   — a public key. Publishing it is the point.
+        //   public-keys      — every public key the deployment has signed with, and each by its id:
+        //                      a document signed before a rotation is verified by somebody with no
+        //                      account here, against the key it names (docs/en/KEY_ROTATION.md).
         //   tickets/webhook  — called by Jira, GitLab and ServiceNow, which hold a shared
         //                      secret rather than a session; the handler verifies it.
         //
@@ -122,6 +125,8 @@ class RouteAuthorizationTest extends ApiTestBase {
                 "[/api/v1/auth/mfa/verify]",
                 "[/api/v1/scorecards/badges/{token}.svg]",
                 "[/api/v1/crypto/public-key.pub]",
+                "[/api/v1/crypto/public-keys]",
+                "[/api/v1/crypto/public-keys/{keyId}.pub]",
                 "[/api/v1/tickets/webhook/{provider}]");
     }
 
