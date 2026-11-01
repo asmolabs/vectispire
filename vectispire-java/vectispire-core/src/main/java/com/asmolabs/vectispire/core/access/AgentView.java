@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -11,6 +12,9 @@ import java.util.UUID;
  * {@code scanning} reads it, and {@code agents} sits above {@code scanning}. The row itself is
  * {@code agents}' (decision 0029), which builds this record from it ({@code AgentViews}) and answers
  * {@link AgentDirectory}; a service that writes the agent's row reads the row itself, by {@link #id}.
+ *
+ * @param executors what its executors can run, as it last said; null when it never said — an agent older than
+ *     the announcement — which the claim reads as "unknown" and serves as before
  */
 public record AgentView(
         UUID id,
@@ -32,4 +36,6 @@ public record AgentView(
         Long sealingKeyGeneration,
         String signingPublicKey,
         Instant lastSeenAt,
-        Instant createdAt) {}
+        Instant createdAt,
+        WorkerExecutors executors,
+        Instant executorsReportedAt) {}

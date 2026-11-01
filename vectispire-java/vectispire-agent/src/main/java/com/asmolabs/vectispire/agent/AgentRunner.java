@@ -117,13 +117,17 @@ public class AgentRunner implements ApplicationRunner {
                     + "Pin one from the agents administration screen to change that.");
         }
 
+        // What the executor can run, in the hello and again whenever it changes: the control plane hands this
+        // agent nothing its executor cannot run, and the agents screen says why.
+        ExecutorWatch executors = new ExecutorWatch(properties.executor().kind(), containers, clock);
         AgentProtocol.Identity identity = announce(protocol, new AgentProtocol.Description(
                 LocalHost.name(),
                 System.getProperty("os.name") + " " + System.getProperty("os.version"),
                 version,
                 // What the operator reads on the agents screen: the Kubernetes executor says so, whatever
                 // `scanner-engine` was left at.
-                "kubernetes".equals(properties.executor().kind()) ? "kubernetes" : properties.scannerEngine()));
+                "kubernetes".equals(properties.executor().kind()) ? "kubernetes" : properties.scannerEngine(),
+                executors.announced()));
 
         // **The rule provider, wired to the protocol.** Without it, an agent handed a task naming
         // an uploaded set would fail its SAST step — loudly and correctly, but with no way ever
@@ -159,7 +163,7 @@ public class AgentRunner implements ApplicationRunner {
                 clock,
                 matcherDatabase);
 
-        AgentLoop loop = new AgentLoop(protocol, runner::run, properties, identity.maxConcurrent());
+        AgentLoop loop = new AgentLoop(protocol, runner::run, properties, identity.maxConcurrent(), executors);
         log.info("Up to {} scan(s) at once, as set on this agent's row.", AgentConcurrency.effective(identity.maxConcurrent()));
         current = loop;
         if (stopping.get()) {

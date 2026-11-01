@@ -223,6 +223,12 @@ Ce qui suit est par rapport à la 0.11.2.
   comme « déjà provisionné ». C'était un 500. Un membre de `PATCH` de groupe dont la `value` est un objet
   ou un tableau ne nomme personne et est ignoré, comme un membre inconnu, au lieu d'un 500.
 - **`GET /api/v1/users` renvoie `mfaEnabled`** sur chaque compte (ajout).
+- **Agents : ce que les exécuteurs de chaque worker peuvent lancer** (ajout). Le `hello` accepte une liste
+  `executors` facultative, et `PUT /api/v1/agent/executors` déclare un changement ; un agent qui n'envoie ni
+  l'un ni l'autre prend comme avant. `GET /api/v1/admin/agents` renvoie `executors` et
+  `executorsReportedAt` sur chaque agent (absents : jamais déclarés), `/activity` renvoie
+  `executorAvailable` sur chaque analyse en attente, et `GET /api/v1/admin/agents/built-in-worker` renvoie
+  le worker intégré de cette instance.
 - **Une mise à jour de statut du tracker qui ne trie rien est auditée sous `<PROVIDER>_webhook`**, comme un
   tri par le webhook ; le nom que le tracker revendique est gardé dans la description, borné à 200
   caractères.
@@ -323,6 +329,15 @@ Ce qui suit est par rapport à la 0.11.2.
   démarrage de cette version : démarrez une fois avant toute rotation.
 - **`/actuator/encryption`**, le recensement des magasins scellés, et la réinitialisation du second
   facteur — tous deux plus haut.
+- **Une analyse n'est prise que par un worker capable de la lancer maintenant.** Un agent dit dans son
+  `hello`, puis à chaque changement, quels exécuteurs il a et si chacun peut lancer quelque chose — un démon
+  Docker qui répond à un ping, une API Kubernetes qui liste l'espace de noms des analyses et laisse son Role
+  créer un pod — et ne reçoit que les types de cible qu'un exécuteur disponible lance : rien tant que son
+  démon est arrêté, aucune analyse d'image sur Kubernetes. Le worker intégré interroge son démon avant chaque
+  tour. L'analyse attend, sans tentative consommée, et la page des agents dit pourquoi : une colonne
+  **Exécuteurs**, **Aucun exécuteur** sur une analyse en attente qu'aucun ne peut lancer, et un avis pour un
+  worker intégré dont le démon ne répond pas. **Un agent de la version précédente n'annonce rien et prend
+  comme il l'a toujours fait** ([agents](../administration/agents.fr.md#executor-availability)).
 - **L'agent de la version précédente est testé à chaque changement** : la CI fait tourner l'image signée
   de l'agent de la dernière version contre le plan de contrôle en construction, et échoue s'il ne prend
   pas et ne termine pas des scans.

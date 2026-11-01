@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.agents;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
@@ -69,6 +70,9 @@ public class AgentProtocolService {
     /**
      * What a {@code hello} says. It carries no sealing key any more: the one an agent still sends
      * there, for a control plane older than decision 0031, is unsigned and read by nothing here.
+     *
+     * @param executors what the agent's executors can run; null from an agent older than the field, which is
+     *     recorded as "unknown" and claims as before
      */
     public record Announcement(
             String contractVersion,
@@ -76,7 +80,19 @@ public class AgentProtocolService {
             String platform,
             String version,
             String scannerEngine,
-            String capabilities) {}
+            String capabilities,
+            WorkerExecutors executors) {
+
+        public Announcement(
+                String contractVersion,
+                String hostname,
+                String platform,
+                String version,
+                String scannerEngine,
+                String capabilities) {
+            this(contractVersion, hostname, platform, version, scannerEngine, capabilities, null);
+        }
+    }
 
     public sealed interface Hello {
         /** @param announced the version the agent claimed, empty when it claimed none */
@@ -196,9 +212,13 @@ public class AgentProtocolService {
         // being given work, over a display field. Past the column the database used to refuse the
         // update instead, with the same outcome and a 500 in the agent's log. The value that decides
         // something, the contract version, is checked above and never clipped.
+        // Bounded like the display fields — clipped, never refused — but not a display field: what the claim
+        // hands this agent follows it. Absent is written as absent, so an older agent claims as one.
+        WorkerExecutors executors = announcement.executors() == null ? null : announcement.executors().bounded();
+        Instant at = clock.instant();
         agents.recordHeartbeat(
                 agent.id(),
-                clock.instant(),
+                at,
                 BoundedText.clip(text(announcement.hostname()), 255),
                 BoundedText.clip(text(announcement.platform()), 255),
                 BoundedText.clip(text(announcement.version()), 50),
@@ -206,9 +226,21 @@ public class AgentProtocolService {
                 BoundedText.clip(text(announcement.capabilities()), BoundedText.TEXT_MAX),
                 // Trimmed, as the compatibility check read it: padding it accepted would otherwise
                 // overflow a column sized for the version itself.
-                announced.trim());
+                announced.trim(),
+                executors == null ? null : executors.write(),
+                executors == null ? null : at);
 
         return new Hello.Accepted(AgentConcurrency.effective(agent.maxConcurrent()), announced.trim());
+    }
+
+    /**
+     * What the agent's executors can run now, said after its hello because the answer changed: a daemon that
+     * stopped answering, an API that came back. The next claim is decided by it.
+     *
+     * <p>Counted as a sign of life too: the agent said something, on its key.
+     */
+    public void reportExecutors(AgentView agent, WorkerExecutors executors) {
+        agents.recordExecutors(agent.id(), executors.bounded().write(), clock.instant());
     }
 
     /**

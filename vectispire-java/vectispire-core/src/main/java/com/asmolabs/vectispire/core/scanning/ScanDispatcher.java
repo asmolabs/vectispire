@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.scanning;
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
@@ -30,6 +31,7 @@ import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import jakarta.annotation.PreDestroy;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -118,6 +120,15 @@ public class ScanDispatcher {
     /** Told of every repository's completed scan, in its transaction — see {@link RepositoryScanned}. */
     private final List<RepositoryScanned> scanned;
 
+    private final Clock clock;
+
+    /**
+     * What the built-in worker's executor said at its last round, for the agents screen; null before the first
+     * round, and on a control plane with no runner. This instance's own: every instance runs its own worker, and
+     * each one's daemon answers for itself.
+     */
+    private volatile ExecutorCheck builtIn;
+
     public ScanDispatcher(
             ScanQueue queue,
             TargetCatalog targets,
@@ -134,7 +145,8 @@ public class ScanDispatcher {
             PlatformMetrics metrics,
             TransactionTemplate transactions,
             GitHostAllowlist allowedHosts,
-            List<RepositoryScanned> scanned) {
+            List<RepositoryScanned> scanned,
+            Clock clock) {
         this.queue = queue;
         this.targets = targets;
         this.credentials = credentials;
@@ -151,6 +163,7 @@ public class ScanDispatcher {
         this.transactions = transactions;
         this.allowedHosts = allowedHosts;
         this.scanned = List.copyOf(scanned);
+        this.clock = clock;
     }
 
     /** @param claimed how many scans this round took, of which {@code completed + failed} ran */
@@ -177,6 +190,9 @@ public class ScanDispatcher {
      */
     public record AgentFailure(boolean retried, int attempt, int maxAttempts, boolean permanent, Instant notBefore) {}
 
+    /** What a worker's executors said, and when they were asked. */
+    public record ExecutorCheck(WorkerExecutors executors, Instant checkedAt) {}
+
     /**
      * One dispatch round: reclaims lost leases, then claims and executes.
      *
@@ -188,6 +204,19 @@ public class ScanDispatcher {
         reclaimLostLeases();
 
         if (runner.isEmpty()) {
+            return Dispatched.NOTHING;
+        }
+
+        // **Asked before the claim, as an agent's executor is.** A daemon that stopped answering used to have its
+        // round claim as usual and fail every scan it took, an attempt each; it now claims nothing, and the agents
+        // screen shows the daemon's own answer. Docker runs every kind of target, so it is all or nothing here.
+        ExecutorCheck check = new ExecutorCheck(probe(runner.get()), clock.instant());
+        ExecutorCheck previous = builtIn;
+        builtIn = check;
+        if (check.executors().claimable().isEmpty()) {
+            if (previous == null || !previous.executors().equals(check.executors())) {
+                log.warn("The built-in worker claims nothing: {}", check.executors().executors().getFirst().detail());
+            }
             return Dispatched.NOTHING;
         }
 
@@ -255,6 +284,13 @@ public class ScanDispatcher {
     public Optional<AgentTask> claimForAgent(AgentView agent) {
         List<String> labels = AgentLabels.parse(agent.labels());
         int limit = AgentConcurrency.effective(agent.maxConcurrent());
+        // **Only what its executors can run now** — every kind for an agent that never said, which is how an
+        // agent older than the announcement keeps claiming as it did (decision 0043 §2). None claims nothing, and
+        // no 412: the agent's executor is down, not its key, and the agents screen says which.
+        Set<WorkerExecutors.Target> runnable = WorkerExecutors.claimable(agent.executors());
+        if (runnable.isEmpty()) {
+            return Optional.empty();
+        }
         // Asked only of an agent that cannot be handed a credential: every other poll — a verified
         // agent's, a local one's — costs what it cost before, and the pages the queue walks, each
         // asking which of its repositories carry a credential, are the misconfiguration's price alone.
@@ -267,7 +303,7 @@ public class ScanDispatcher {
         // never read the setting, would each believe they had room. The count is the one both
         // cannot get wrong, and a lowered limit therefore applies to the next claim while the
         // scans already running finish.
-        ScanQueue.AgentClaim claim = queue.claimWithin(agent.id(), limit, labels, exclusion);
+        ScanQueue.AgentClaim claim = queue.claimWithin(agent.id(), limit, labels, exclusion, runnable);
         Optional<ScanEntity> claimed = claim.scan();
         if (claimed.isEmpty()) {
             // Not when the agent is full: it would have been handed nothing anyway, and the answer
@@ -352,6 +388,29 @@ public class ScanDispatcher {
      */
     public boolean runsScansHere() {
         return runner.isPresent();
+    }
+
+    /**
+     * What the built-in worker's executor said at its last round — empty before the first, and on a control plane
+     * with no runner, whose worker has no executor to ask.
+     */
+    public Optional<ExecutorCheck> builtInExecutors() {
+        return runner.isEmpty() ? Optional.empty() : Optional.ofNullable(builtIn);
+    }
+
+    /** The built-in worker's one executor, the Docker daemon its runner reaches. */
+    private static WorkerExecutors probe(ScanRunner runner) {
+        Optional<String> why;
+        try {
+            why = runner.executorUnavailable();
+        } catch (RuntimeException failed) {
+            why = Optional.of(failed.getMessage() == null ? failed.toString() : failed.getMessage());
+        }
+        List<String> targets = runner.executorExportsImages()
+                ? List.of(WorkerExecutors.Target.REPOSITORY.wireName(), WorkerExecutors.Target.CONTAINER.wireName())
+                : List.of(WorkerExecutors.Target.REPOSITORY.wireName());
+        return new WorkerExecutors(List.of(new WorkerExecutors.Executor(
+                "docker", why.isEmpty(), targets, why.orElse(null)))).bounded();
     }
 
     /**

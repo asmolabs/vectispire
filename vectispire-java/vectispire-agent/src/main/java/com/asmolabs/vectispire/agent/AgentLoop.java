@@ -54,16 +54,32 @@ public class AgentLoop {
     private final Slots slots;
     private final AtomicBoolean stopping = new AtomicBoolean();
 
+    /**
+     * Probed before each claim, so that what the control plane hands this agent follows what its executor can
+     * run; null in a loop that reports nothing, which the control plane serves as it serves an older agent.
+     */
+    private final ExecutorWatch executors;
+
     /** @param maxConcurrent the limit the hello announced; each claim's answer may change it */
     public AgentLoop(
             AgentProtocol protocol,
             Function<ScanTask, ScanArtifacts> execute,
             AgentProperties properties,
             int maxConcurrent) {
+        this(protocol, execute, properties, maxConcurrent, null);
+    }
+
+    AgentLoop(
+            AgentProtocol protocol,
+            Function<ScanTask, ScanArtifacts> execute,
+            AgentProperties properties,
+            int maxConcurrent,
+            ExecutorWatch executors) {
         this.protocol = protocol;
         this.execute = execute;
         this.properties = properties;
         this.slots = new Slots(maxConcurrent);
+        this.executors = executors;
     }
 
     public AgentLoop(AgentProtocol protocol, Function<ScanTask, ScanArtifacts> execute, AgentProperties properties) {
@@ -168,6 +184,9 @@ public class AgentLoop {
     private Optional<AgentProtocol.AssignedTask> claim() {
         AgentProtocol.Claim claim;
         try {
+            if (executors != null) {
+                executors.beforeClaim(protocol);
+            }
             claim = protocol.claim(properties.claimWait());
         } catch (AgentProtocol.UnauthorizedException | AgentProtocol.ContractMismatchException fatal) {
             throw fatal;

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it } from 'vitest';
-import { agentActivity, agentSummary, runningScan } from '@/app/core/testing/agents.fixtures';
+import { agentActivity, agentSummary, executorState, runningScan } from '@/app/core/testing/agents.fixtures';
 import { AgentTable } from './agent-table';
 import { mountOnAgents } from './agents-page.testing';
 
@@ -42,5 +42,41 @@ describe('the agent table', () => {
         fixture.detectChanges();
         const disable = dom().querySelector<HTMLButtonElement>(`button[aria-label="Disable ${BUSY.name}"]`);
         expect(disable?.disabled).toBe(true);
+    });
+
+    it('shows each executor, whether it can run anything, what it scans and why not', () => {
+        const { dom } = mountOnAgents(AgentTable, {
+            agents: [
+                agentSummary({ executors: null }),
+                agentSummary({
+                    id: '00000000-0000-0000-0000-0000000000dd',
+                    name: 'down',
+                    executors: [
+                        executorState({
+                            available: false,
+                            detail: 'The Docker daemon did not answer a ping: connection refused'
+                        })
+                    ]
+                }),
+                agentSummary({
+                    id: '00000000-0000-0000-0000-0000000000ee',
+                    name: 'cluster',
+                    executors: [executorState({ kind: 'kubernetes', targets: ['repository'] })]
+                }),
+                agentSummary({ id: '00000000-0000-0000-0000-0000000000ff', name: 'bare', executors: [] })
+            ]
+        });
+        const cells = [...dom().querySelectorAll('[data-testid="executors"]')].map((cell) =>
+            cell.textContent.replace(/\s+/g, ' ').trim()
+        );
+        // Never said: an older agent, which claims as before — not a fault to show in red.
+        expect(cells[0]).toBe('Not reported');
+        expect(cells[1]).toContain('docker');
+        expect(cells[1]).toContain('Unavailable');
+        expect(cells[1]).toContain('did not answer a ping');
+        expect(cells[2]).toContain('kubernetes');
+        expect(cells[2]).toContain('Available · repositories');
+        expect(cells[2]).not.toContain('images');
+        expect(cells[3]).toBe('No executor');
     });
 });

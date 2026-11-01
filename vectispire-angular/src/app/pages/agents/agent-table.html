@@ -11,6 +11,7 @@
             <tr>
                 <th>{{ 'agents.agent' | translate }}</th>
                 <th>{{ 'agents.state' | translate }}</th>
+                <th>{{ 'agents.executors.title' | translate }}</th>
                 <th>{{ 'agents.machine' | translate }}</th>
                 <th>{{ 'agents.labels' | translate }}</th>
                 <th>{{ 'agents.credentials' | translate }}</th>
@@ -57,6 +58,49 @@
                         </div>
                     } @else {
                         <div class="text-xs text-muted-color mt-1">{{ 'agents.never_announced' | translate }}</div>
+                    }
+                </td>
+                <!-- What its executors can run now: a scan of a kind none of them runs waits for another
+                     worker, and this column is where the operator reads why. -->
+                <td data-testid="executors">
+                    @if (!row.agent.executors) {
+                        <span class="text-xs text-muted-color" [title]="'agents.executors.unknown_hint' | translate">{{
+                            'agents.executors.unknown' | translate
+                        }}</span>
+                    } @else if (row.agent.executors.length === 0) {
+                        <p-tag [value]="'agents.executors.none' | translate" severity="danger" />
+                    } @else {
+                        @for (executor of row.agent.executors; track $index) {
+                            <div class="mb-1">
+                                <p-tag
+                                    [value]="executor.kind"
+                                    [severity]="executor.available ? 'success' : 'danger'"
+                                    [icon]="executor.available ? 'pi pi-check' : 'pi pi-times'"
+                                />
+                                <div class="text-xs text-muted-color">
+                                    {{
+                                        (executor.available
+                                            ? 'agents.executors.available'
+                                            : 'agents.executors.unavailable'
+                                        ) | translate
+                                    }}
+                                    @for (target of executor.targets; track target) {
+                                        ·
+                                        {{
+                                            (target === 'container'
+                                                ? 'agents.executors.target_container'
+                                                : 'agents.executors.target_repository'
+                                            ) | translate
+                                        }}
+                                    }
+                                </div>
+                                @if (!executor.available && executor.detail) {
+                                    <div class="text-xs text-red-700 dark:text-red-400 max-w-xs break-words">
+                                        {{ executor.detail }}
+                                    </div>
+                                }
+                            </div>
+                        }
                     }
                 </td>
                 <td>
@@ -172,7 +216,7 @@
         </ng-template>
         <ng-template #emptymessage>
             <tr>
-                <td colspan="7" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td>
+                <td colspan="8" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td>
             </tr>
         </ng-template>
     </p-table>

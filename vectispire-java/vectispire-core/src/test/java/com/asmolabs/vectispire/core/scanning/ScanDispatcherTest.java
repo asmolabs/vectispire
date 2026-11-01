@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
@@ -64,6 +65,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @DisplayName("handing a scan to a worker")
 class ScanDispatcherTest {
+
+    /** What an agent that never announced its executors may claim: every kind, as before the announcement. */
+    private static final Set<WorkerExecutors.Target> EVERY_TARGET = java.util.EnumSet.allOf(WorkerExecutors.Target.class);
+
 
     /** Scans pinned to one platform; every other scanning setting as shipped. */
     private static final ScanningProperties AMD64 = new org.springframework.boot.context.properties.bind.Binder(
@@ -124,7 +129,7 @@ class ScanDispatcherTest {
                 mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
-                List.of());
+                List.of(), java.time.Clock.systemUTC());
     }
 
     @Test
@@ -198,7 +203,7 @@ class ScanDispatcherTest {
 
         // Left out of the selection: the queue was asked for nothing of repository 1, so nothing
         // was taken, no attempt counted, and there is nothing to put back.
-        verify(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()));
+        verify(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()), any());
         verify(queue, never()).requeue(anyLong(), anyString());
         verify(queue, never()).requeueRefunded(anyLong(), anyString());
         verify(sshKeys, never()).findById(any());
@@ -224,7 +229,7 @@ class ScanDispatcherTest {
         queueWaitsForRepositoryOne();
         when(containers.findById(4L)).thenReturn(Optional.of(container()));
         org.mockito.Mockito.doReturn(new ScanQueue.AgentClaim(Optional.of(imageScan()), true))
-                .when(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()));
+                .when(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()), any());
 
         ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)).orElseThrow().task();
 
@@ -249,7 +254,7 @@ class ScanDispatcherTest {
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()))).isPresent();
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null))).isPresent();
 
-        verify(queue, org.mockito.Mockito.times(2)).claimWithin(any(), anyInt(), any(), eq(ScanQueue.Exclusion.NONE));
+        verify(queue, org.mockito.Mockito.times(2)).claimWithin(any(), anyInt(), any(), eq(ScanQueue.Exclusion.NONE), any());
         verify(repositories, never()).findAllById(any());
     }
 
@@ -271,7 +276,7 @@ class ScanDispatcherTest {
 
         // The selection read no key on repository 1, so it kept the agent from nothing.
         verify(queue).claimWithin(any(), anyInt(), any(),
-                argThat(exclusion -> !exclusion.excludesNothing() && exclusion.among(Set.of(1L)).isEmpty()));
+                argThat(exclusion -> !exclusion.excludesNothing() && exclusion.among(Set.of(1L)).isEmpty()), any());
         verify(queue).requeueRefunded(eq(7L), anyString());
         verify(queue, never()).requeue(anyLong(), anyString());
         verify(audit, never()).record(any());
@@ -353,17 +358,17 @@ class ScanDispatcherTest {
 
         agent.setMaxConcurrent(4);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 4, List.of(), ScanQueue.Exclusion.NONE);
+        verify(queue).claimWithin(agent.getId(), 4, List.of(), ScanQueue.Exclusion.NONE, EVERY_TARGET);
 
         // A row from before the bound: 50 is applied as 16, and nothing — null or zero — as a
         // paused agent.
         agent.setMaxConcurrent(50);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 16, List.of(), ScanQueue.Exclusion.NONE);
+        verify(queue).claimWithin(agent.getId(), 16, List.of(), ScanQueue.Exclusion.NONE, EVERY_TARGET);
 
         agent.setMaxConcurrent(0);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 1, List.of(), ScanQueue.Exclusion.NONE);
+        verify(queue).claimWithin(agent.getId(), 1, List.of(), ScanQueue.Exclusion.NONE, EVERY_TARGET);
     }
 
     @Test
@@ -393,6 +398,88 @@ class ScanDispatcherTest {
      * scans on remote agents left the built-in worker with no room at all on a machine doing nothing.
      */
     @Test
+    @DisplayName("an agent whose executors cannot run anything claims nothing, and the queue is not even read")
+    void noAvailableExecutorClaimsNothing() {
+        queueHolds(imageScan());
+        AgentEntity agent = agentRow(CredentialsMode.LOCAL, null);
+        agent.setExecutors(new WorkerExecutors(List.of(new WorkerExecutors.Executor(
+                "docker", false, List.of("repository", "container"), "The Docker daemon did not answer a ping."))).write());
+
+        assertThat(dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent))).isEmpty();
+        verify(queue, never()).claimWithin(any(), anyInt(), any(), any(), any());
+        verify(queue, never()).claimWithin(any(), anyInt(), any(), any());
+    }
+
+    @Test
+    @DisplayName("an agent with an available executor claims, among the kinds of target that executor runs")
+    void anAvailableExecutorClaimsItsKinds() {
+        queueHolds(imageScan());
+        when(containers.findById(4L)).thenReturn(Optional.of(container()));
+        AgentEntity docker = agentRow(CredentialsMode.LOCAL, null);
+        docker.setExecutors(new WorkerExecutors(List.of(new WorkerExecutors.Executor(
+                "docker", true, List.of("repository", "container"), null))).write());
+
+        assertThat(dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(docker))).isPresent();
+        verify(queue).claimWithin(docker.getId(), 1, List.of(), ScanQueue.Exclusion.NONE, EVERY_TARGET);
+
+        AgentEntity kubernetes = agentRow(CredentialsMode.LOCAL, null);
+        kubernetes.setExecutors(new WorkerExecutors(List.of(new WorkerExecutors.Executor(
+                "kubernetes", true, List.of("repository"), null))).write());
+        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(kubernetes));
+        verify(queue).claimWithin(kubernetes.getId(), 1, List.of(), ScanQueue.Exclusion.NONE,
+                java.util.EnumSet.of(WorkerExecutors.Target.REPOSITORY));
+    }
+
+    @Test
+    @DisplayName("an agent that announced no executors — one older than the announcement — claims every kind, as before")
+    void anOldAgentClaimsAsBefore() {
+        queueHolds(imageScan());
+        when(containers.findById(4L)).thenReturn(Optional.of(container()));
+        AgentEntity old = agentRow(CredentialsMode.LOCAL, null);
+
+        assertThat(old.getExecutors()).isNull();
+        assertThat(dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(old))).isPresent();
+        verify(queue).claimWithin(old.getId(), 1, List.of(), ScanQueue.Exclusion.NONE, EVERY_TARGET);
+    }
+
+    @Test
+    @DisplayName("the built-in worker claims nothing while its daemon does not answer, and says why")
+    void theBuiltInWorkerAsksItsExecutorFirst() {
+        when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
+        ScanRunner runner = mock(ScanRunner.class);
+        when(runner.executorUnavailable()).thenReturn(Optional.of("The Docker daemon did not answer a ping: refused"));
+        when(runner.executorExportsImages()).thenReturn(true);
+        ScanDispatcher local = new ScanDispatcher(
+                queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys),
+                mock(ScanIngestor.class),
+                new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
+                settings, ruleSets, plugins, envelopes,
+                AMD64,
+                Optional.of(runner),
+                mock(AuditLogService.class),
+                mock(PlatformMetrics.class),
+                new TransactionTemplate(mock(PlatformTransactionManager.class)),
+                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
+                List.of(), java.time.Clock.systemUTC());
+
+        assertThat(local.builtInExecutors()).as("nothing asked before the first round").isEmpty();
+        assertThat(local.dispatch("worker-1", 3, List.of())).isEqualTo(ScanDispatcher.Dispatched.NOTHING);
+        verify(queue, never()).claim(anyInt(), anyString(), any());
+        WorkerExecutors.Executor said = local.builtInExecutors().orElseThrow().executors().executors().getFirst();
+        assertThat(said.kind()).isEqualTo("docker");
+        assertThat(said.available()).isFalse();
+        assertThat(said.detail()).contains("did not answer a ping");
+
+        // Back: the next round claims again.
+        when(runner.executorUnavailable()).thenReturn(Optional.empty());
+        when(queue.claim(anyInt(), anyString(), any())).thenReturn(List.of());
+        local.dispatch("worker-1", 3, List.of());
+        verify(queue).claim(3, "worker-1", List.of());
+        assertThat(local.builtInExecutors().orElseThrow().executors().claimable())
+                .containsExactlyInAnyOrder(WorkerExecutors.Target.REPOSITORY, WorkerExecutors.Target.CONTAINER);
+    }
+
+    @Test
     @DisplayName("the built-in worker's room is its limit less its own scans, whatever the agents run")
     void theWorkersRoomIgnoresTheAgentsScans() {
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
@@ -411,7 +498,7 @@ class ScanDispatcherTest {
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(mock(PlatformTransactionManager.class)),
                         com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
-                        List.of())
+                        List.of(), java.time.Clock.systemUTC())
                 .dispatch("worker-1", 3, List.of());
 
         verify(queue).claim(2, "worker-1", List.of());
@@ -475,7 +562,7 @@ class ScanDispatcherTest {
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(mock(PlatformTransactionManager.class)),
                         com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
-                        List.of())
+                        List.of(), java.time.Clock.systemUTC())
                 .dispatch("worker-1", 2, List.of());
 
         verify(runner, never()).run(any());
@@ -513,7 +600,7 @@ class ScanDispatcherTest {
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(manager),
                         com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
-                        List.of())
+                        List.of(), java.time.Clock.systemUTC())
                 .dispatch("worker-1", 1, List.of());
 
         InOrder order = inOrder(ingestor, manager);
@@ -565,7 +652,7 @@ class ScanDispatcherTest {
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(manager),
                         com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
-                        List.of())
+                        List.of(), java.time.Clock.systemUTC())
                 .dispatch("worker-1", 2, List.of());
     }
 
@@ -576,7 +663,7 @@ class ScanDispatcherTest {
      */
     private void queueWaitsForRepositoryOne() {
         when(repositories.findAllById(any())).thenAnswer(call -> List.of(repositories.findById(1L).orElseThrow()));
-        when(queue.claimWithin(any(), anyInt(), any(), any())).thenAnswer(call ->
+        when(queue.claimWithin(any(), anyInt(), any(), any(), any())).thenAnswer(call ->
                 call.<ScanQueue.Exclusion>getArgument(3).among(Set.of(1L)).contains(1L)
                         ? new ScanQueue.AgentClaim(Optional.empty(), true)
                         : new ScanQueue.AgentClaim(Optional.of(repositoryScan()), false));
@@ -589,7 +676,7 @@ class ScanDispatcherTest {
 
     private void queueHolds(ScanEntity scan) {
         when(queue.claim(anyInt(), anyString(), any())).thenReturn(List.of(scan));
-        when(queue.claimWithin(any(), anyInt(), any(), any())).thenReturn(new ScanQueue.AgentClaim(Optional.of(scan), false));
+        when(queue.claimWithin(any(), anyInt(), any(), any(), any())).thenReturn(new ScanQueue.AgentClaim(Optional.of(scan), false));
     }
 
     private static ScanTask.Target.Repository repositoryTarget(ScanTask task) {
@@ -672,7 +759,7 @@ class ScanDispatcherTest {
 
         assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
                 .isInstanceOf(CredentialWithheldException.class);
-        verify(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()));
+        verify(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()), any());
         verify(gitTokens, never()).findById(any());
     }
 
@@ -690,7 +777,7 @@ class ScanDispatcherTest {
                 settings, ruleSets, plugins, envelopes, AMD64,
                 Optional.empty(), mock(AuditLogService.class), mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
-                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"), List.of());
+                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"), List.of(), java.time.Clock.systemUTC());
 
         assertThat(restricted.claimForAgent(agent(CredentialsMode.LOCAL, null))).isEmpty();
         assertThat(abandonedAs(7L, FailureKind.PERMANENT)).contains("is not allowed");

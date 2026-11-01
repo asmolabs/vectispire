@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * What a scan needs to run its scanners: one {@link ContainerRun} at a time, in the closed shape it
@@ -36,12 +37,30 @@ public interface ContainerExecutor {
     /**
      * Can it run anything at all?
      *
-     * <p><b>Not asked before a claim.</b> A worker whose executor cannot run anything still claims the
-     * scan, and the steps that needed it fail on the scan with the executor's own reason. Gating the
-     * claim on this would turn that into a scan left pending with nothing on any screen saying why,
-     * until a worker's state is shown somewhere — which is work for after 1.0.
+     * <p><b>Asked before a claim.</b> A worker whose executor cannot run anything used to claim the scan all
+     * the same, and the steps that needed it failed on the scan with the executor's own reason — an attempt
+     * spent per claim, for a fault that was the worker's. The worker now says what this answers, the claim
+     * hands it nothing its available executors cannot run, and the agents screen shows the reason — see
+     * {@code WorkerExecutors}.
      */
-    boolean isAvailable();
+    default boolean isAvailable() {
+        return whyUnavailable().isEmpty();
+    }
+
+    /**
+     * Why it cannot run anything now, in its own words, or empty when it can. Asked as often as a worker
+     * polls, so as cheap as the backend allows: a ping, a listing.
+     */
+    Optional<String> whyUnavailable();
+
+    /**
+     * Whether {@link #exportImage} works on this backend, and so whether a worker using it can scan a container
+     * image at all. A backend that cannot says so here rather than only failing the export: the claim reads
+     * this, so a scan it would fail is never handed to it.
+     */
+    default boolean exportsImages() {
+        return true;
+    }
 
     /**
      * Writes {@code reference}, for {@code platform}, to {@code destination} as an archive the cataloguer

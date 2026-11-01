@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.agent;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
@@ -118,8 +119,30 @@ public class AgentProtocol {
         }
     }
 
-    /** What the agent says about itself. Purely informational, except the contract. */
-    public record Description(String hostname, String platform, String version, String scannerEngine) {}
+    /**
+     * What the agent says about itself. Purely informational, except the contract — and the executors, which
+     * decide what the control plane hands it.
+     *
+     * @param executors what it can run scans with as it last probed them; null to say nothing, which a control
+     *     plane reads as "unknown" and serves as it serves an agent older than the field
+     */
+    public record Description(
+            String hostname, String platform, String version, String scannerEngine, WorkerExecutors executors) {
+
+        public Description(String hostname, String platform, String version, String scannerEngine) {
+            this(hostname, platform, version, scannerEngine, null);
+        }
+    }
+
+    /** What became of a report of this agent's executors. */
+    public enum ExecutorReport {
+        /** Recorded: the next claim is decided by it. */
+        ACCEPTED,
+        /** The control plane predates the report (404): it claims for this agent as it always did. */
+        NOT_SUPPORTED,
+        /** Anything else: not recorded, and worth sending again. */
+        FAILED
+    }
 
     /**
      * What became of this process's sealing key announcement (decision 0031).
@@ -258,6 +281,10 @@ public class AgentProtocol {
         if (description.version() != null) {
             body.put("version", description.version());
         }
+        // Only when probed: absent is what an older agent sends, and the control plane reads it as "unknown".
+        if (description.executors() != null) {
+            body.put("executors", description.executors().executors());
+        }
         AgentHttp.Response response = http.call("/api/v1/agent/hello", "POST", body, Duration.ofSeconds(30));
 
         if (response.status() == 409) {
@@ -314,6 +341,29 @@ public class AgentProtocol {
             }
         };
         return sealing;
+    }
+
+    /**
+     * Says what this agent's executors can run now, when that changed since the hello or the last report.
+     *
+     * <p><b>A route of its own and not a field of the claim</b>, for the sealing key's reason: a control plane
+     * older than it answers 404, which reads as "not supported" and costs nothing — it hands this agent work as
+     * it always did. Never an exception for an answer but a refused key: the claim that follows works either
+     * way, and a report that did not arrive is sent again.
+     *
+     * @throws UnauthorizedException when the API key itself is refused
+     */
+    public ExecutorReport reportExecutors(WorkerExecutors executors) {
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/executors", "PUT", Map.of("executors", executors.executors()), Duration.ofSeconds(30));
+        return switch (response.status()) {
+            case 200, 204 -> ExecutorReport.ACCEPTED;
+            case 404 -> ExecutorReport.NOT_SUPPORTED;
+            default -> {
+                refuseIfUnauthorized(response);
+                yield ExecutorReport.FAILED;
+            }
+        };
     }
 
     /**

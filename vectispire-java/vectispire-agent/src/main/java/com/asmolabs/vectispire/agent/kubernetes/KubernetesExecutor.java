@@ -161,15 +161,57 @@ public final class KubernetesExecutor implements ContainerExecutor {
         return settings.limits().timeout();
     }
 
-    /** Can this agent's service account reach its namespace? Asked before a scan is claimed. */
+    /**
+     * Can this agent's service account reach its namespace, and start a pod there? Asked before a scan is claimed,
+     * as often as the agent polls.
+     *
+     * <p><b>Two calls, because the Role has two verbs that matter.</b> The listing proves the API server answers
+     * and the token reads the namespace; it says nothing about {@code create}, and a Role that lost it fails every
+     * scan at its first pod. The dry run asks for it without storing anything. <b>Only RBAC's own refusal counts
+     * against it</b>: a pod an admission policy or Pod Security turns away was still a request the Role allowed,
+     * and reading that answer as "unavailable" would keep a working agent from every scan over the probe's shape.
+     */
     @Override
-    public boolean isAvailable() {
+    public Optional<String> whyUnavailable() {
         try {
             api.pods(settings.namespace(), ScanPods.LABEL_AGENT + "=" + settings.agent());
-            return true;
         } catch (RuntimeException unreachable) {
-            return false;
+            return Optional.of("The Kubernetes API did not list pods in " + settings.namespace() + ": "
+                    + unreachable.getMessage());
         }
+        com.fasterxml.jackson.databind.node.ObjectNode pod = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+        pod.put("apiVersion", "v1").put("kind", "Pod");
+        pod.putObject("metadata").put("name", "vs-availability-probe");
+        com.fasterxml.jackson.databind.node.ObjectNode spec = pod.putObject("spec");
+        settings.placement().properties().forEach(field -> spec.set(field.getKey(), field.getValue().deepCopy()));
+        spec.put("automountServiceAccountToken", false);
+        spec.putArray("containers").addObject().put("name", "probe").put("image", settings.helperImage());
+        try {
+            api.createPodDryRun(settings.namespace(), pod);
+        } catch (KubernetesException refused) {
+            if (refused.status() == 0 || forbiddenByRole(refused)) {
+                return Optional.of("The Kubernetes API refused to create a pod in " + settings.namespace() + ": "
+                        + refused.getMessage());
+            }
+        } catch (RuntimeException unreachable) {
+            return Optional.of("The Kubernetes API did not answer a pod's dry run in " + settings.namespace() + ": "
+                    + unreachable.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * RBAC's refusal, as the API server words it — "cannot create resource" — and not an admission's, which is a
+     * 403 too.
+     */
+    static boolean forbiddenByRole(KubernetesException refused) {
+        return refused.status() == 403 && String.valueOf(refused.getMessage()).contains("cannot create resource");
+    }
+
+    /** Image targets need the copy step of decision 0045 §8, which is not built: see {@link #exportImage}. */
+    @Override
+    public boolean exportsImages() {
+        return false;
     }
 
     /** Deletes every pod this agent left: a crash between a pod's creation and its deletion. */

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import {
     AgentSummary,
     AgentActivitySummary,
+    BuiltInWorkerState,
     NewAgent,
     UnroutableLabel,
     PinnedSigningKey,
@@ -51,6 +52,15 @@ export class AgentsApi {
      */
     credentialedBacklog(): Observable<UnservedCredentialedScans> {
         return this.http.get<UnservedCredentialedScans>('/api/v1/admin/agents/credentialed-backlog');
+    }
+
+    /**
+     * The built-in worker's state — whether it runs, and what its Docker daemon answered at its last round.
+     * A worker whose daemon does not answer claims nothing, so its scans wait; this is where the screen
+     * says why.
+     */
+    builtInWorker(): Observable<BuiltInWorkerState> {
+        return this.http.get<BuiltInWorkerState>('/api/v1/admin/agents/built-in-worker');
     }
 
     createAgent(agent: NewAgent): Observable<{ id: string; name: string; secret: string }> {

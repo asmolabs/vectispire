@@ -105,6 +105,19 @@ public final class ScanRunner {
         this.clock = clock;
     }
 
+    /**
+     * What the executor says when asked whether it can run anything now: empty when it can — see {@link
+     * ContainerExecutor#whyUnavailable}. The built-in worker asks before each round's claim.
+     */
+    public Optional<String> executorUnavailable() {
+        return containers.whyUnavailable();
+    }
+
+    /** Whether the executor can scan a container image at all — see {@link ContainerExecutor#exportsImages}. */
+    public boolean executorExportsImages() {
+        return containers.exportsImages();
+    }
+
     public ScanArtifacts run(ScanTask task) {
         Instant started = clock.instant();
 

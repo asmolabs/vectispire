@@ -56,4 +56,48 @@ class ExecutorChoiceTest {
         assertThatThrownBy(() -> ExecutorChoice.choose(kubernetes("scans", "{\"hostNetwork\": true}"), json, NO_CLUSTER, java.nio.file.Path.of("db")))
                 .hasMessageContaining("hostNetwork");
     }
+
+    private static AgentProperties.Kubernetes probing(String target) {
+        return new AgentProperties.Kubernetes("scans", "agent", "", "1000:1000", Duration.ofMinutes(5), "",
+                true, target, 2000, 2048, "", "");
+    }
+
+    @Test
+    void theApiServersAddressIsCheckedBeforeTheProbeUsesIt() {
+        // The environment's address goes through the cluster check: a refusal there stops the start, and the
+        // probe never runs against an address that is not the API server's.
+        java.util.Map<String, String> overridden = java.util.Map.of(
+                "KUBERNETES_SERVICE_HOST", "10.0.0.99", "KUBERNETES_SERVICE_PORT", "443");
+        java.util.function.Supplier<java.net.URI> checked = () -> com.asmolabs.vectispire.agent.kubernetes.ClusterApiAddress.of(
+                overridden::get, host -> new java.net.InetAddress[] {java.net.InetAddress.getByName(
+                        host.equals(com.asmolabs.vectispire.agent.kubernetes.ClusterApiAddress.SERVICE_NAME) ? "10.43.0.1" : host)});
+        assertThatThrownBy(() -> ExecutorChoice.probeTarget(probing(""), checked))
+                .hasMessageContaining("KUBERNETES_SERVICE_HOST");
+
+        java.util.Map<String, String> badPort = java.util.Map.of(
+                "KUBERNETES_SERVICE_HOST", "10.43.0.1", "KUBERNETES_SERVICE_PORT", "443; rm");
+        assertThatThrownBy(() -> ExecutorChoice.probeTarget(probing(""), () -> com.asmolabs.vectispire.agent.kubernetes.ClusterApiAddress.of(
+                        badPort::get, host -> new java.net.InetAddress[] {java.net.InetAddress.getByName("10.43.0.1")})))
+                .hasMessageContaining("KUBERNETES_SERVICE_PORT");
+
+        assertThat(ExecutorChoice.probeTarget(probing(""), () -> java.net.URI.create("https://10.43.0.1:443")))
+                .isEqualTo("10.43.0.1:443");
+        assertThat(ExecutorChoice.probeTarget(probing(""), () -> java.net.URI.create("https://[fd00::1]:6443")))
+                .isEqualTo("[fd00::1]:6443");
+    }
+
+    @Test
+    void aConfiguredProbeTargetIsAnAddressAndAPort() {
+        java.util.function.Supplier<java.net.URI> never = () -> {
+            throw new AssertionError("the environment was read although a target is configured");
+        };
+        assertThat(ExecutorChoice.probeTarget(probing("10.43.0.1:443"), never)).isEqualTo("10.43.0.1:443");
+        assertThat(ExecutorChoice.probeTarget(probing("[fd00::1]:443"), never)).isEqualTo("[fd00::1]:443");
+        for (String refused : new String[] {"10.43.0.1", "api.example:443", "10.43.0.1:0", "10.43.0.1:70000",
+                "10.43.0.1:https", "fd00::1:443", "[fd00::1]", ":443", "10.43.0.1:443/x"}) {
+            assertThatThrownBy(() -> ExecutorChoice.probeTarget(probing(refused), never))
+                    .as(refused)
+                    .hasMessageContaining("probe-target");
+        }
+    }
 }
