@@ -108,7 +108,10 @@ somebody is guessing your password: make it a long one, and enrol a second facto
 
 "Address" is the address the server resolves through the trusted proxies, its /64 in IPv6 — so somebody
 behind the same office egress as you shares your exemption, and meets that address's own ceilings
-instead.
+instead. An account that has never signed in — or not in thirty days, or whose owner's address changed —
+has no usual place, and without a second factor waits like anyone else while the budget is spent. A
+known address stays known after a password change or reset until its thirty days run out; it is still
+held to its own five.
 
 ## Related
 

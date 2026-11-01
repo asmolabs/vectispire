@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -326,6 +327,7 @@ public class AuthService {
      */
     public LoginResult login(LoginRequest request, Optional<SecondFactor> secondFactor) {
         Instant now = clock.instant();
+        long started = System.nanoTime();
         // Looked up before the throttle, which costs a query and no hashing. The account is
         // what the counter protects, and the username the caller typed is not the account: the
         // lookup follows the database's collation, which on MySQL ignores case and accents, so
@@ -400,8 +402,11 @@ public class AuthService {
                             .signalling(SecurityEventType.SIGN_IN_THROTTLED));
         }
 
+        // Asked for an unknown name too, of a key no account holds: the question is a query, and asked
+        // only when the account exists it would time the answer to "does it exist", repeatable at no
+        // cost since the refusal below takes every row back.
         boolean overBudget = !throttle.budgetRetryAfter().isZero()
-                && user.map(found -> !isKnownClient(found.getId(), ipAddress)).orElse(true);
+                && !isKnownClient(user.map(UserEntity::getId), request.username(), ipAddress);
         if (overBudget && secondFactor.isEmpty()) {
             release(throttle);
             return accountThrottled(request, user, throttle.budgetRetryAfter());
@@ -422,9 +427,17 @@ public class AuthService {
         // Past the budget, a right password is not enough and is answered as a wrong one is — the rows
         // stay, nothing is cleared — or the refusal would say which passwords were right. Only the code
         // the owner sent with it, verified now that the password is known to be theirs, opens the way.
+        //
+        // **And it is answered at a deadline, not as soon as it is known.** The answer is the same
+        // refusal whatever was wrong, but not the work behind it: a right password goes on to reserve,
+        // check and audit the code — database round trips a wrong one never makes — and a guesser
+        // timing the refusal from address after address would learn which candidate was right
+        // (security review of this change). Every refusal on this path waits out the same deadline
+        // from the start of the attempt, well past what the derivation and the code take together.
         if (overBudget && !(authenticated
                 && user.orElseThrow().getMfaEnabled()
                 && secondFactor.orElseThrow().verifies(user.orElseThrow()))) {
+            awaitDeadline(started, PAST_BUDGET_DEADLINE);
             return accountThrottled(request, user, throttle.budgetRetryAfter());
         }
 
@@ -515,12 +528,41 @@ public class AuthService {
 
     /** Whether this client has signed in to the account within the retention — see {@link #login}. */
     private boolean isKnownClient(long accountId, String ipAddress) {
+        return isKnownClient(Optional.of(accountId), null, ipAddress);
+    }
+
+    /** The same, asked of a key nobody holds when no account answers to the name — see {@link #login}. */
+    private boolean isKnownClient(Optional<Long> accountId, String username, String ipAddress) {
         if (ipAddress == null) {
             return false;
         }
-        return separately.execute(status -> knownClients.existsByClientKeyAndLastSignedInAtAfter(
-                LoginThrottle.knownClientKey(accountId, ipAddress),
-                clock.instant().minus(limits.knownClientRetention())));
+        String key = accountId
+                .map(id -> LoginThrottle.knownClientKey(id, ipAddress))
+                .orElseGet(() -> Digests.sha256Fields("login:no-account", String.valueOf(username), ipAddress));
+        boolean known = Boolean.TRUE.equals(separately.execute(status -> knownClients.existsByClientKeyAndLastSignedInAtAfter(
+                key, clock.instant().minus(limits.knownClientRetention()))));
+        return accountId.isPresent() && known;
+    }
+
+    /**
+     * How long a refusal past the account's budget, with a code sent, takes — see {@link #login}. A
+     * second: an Argon2id derivation at the shipped cost and the code's few queries take a fraction of
+     * it, and the attempt is one a guesser had to pay an address's ceilings for.
+     */
+    static final Duration PAST_BUDGET_DEADLINE = Duration.ofSeconds(1);
+
+    private static void awaitDeadline(long startedNanos, Duration deadline) {
+        long remaining = deadline.toNanos() - (System.nanoTime() - startedNanos);
+        if (remaining <= 0) {
+            log.warn("A refusal past an account's sign-in budget took longer than its {} ms deadline: raise it, or its timing "
+                    + "may tell a right password from a wrong one.", deadline.toMillis());
+            return;
+        }
+        try {
+            java.util.concurrent.TimeUnit.NANOSECONDS.sleep(remaining);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**

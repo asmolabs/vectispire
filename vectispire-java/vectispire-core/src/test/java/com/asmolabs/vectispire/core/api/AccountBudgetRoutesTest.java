@@ -51,12 +51,21 @@ class AccountBudgetRoutesTest extends ApiTestBase {
 
         // A wrong code is the same refusal, as a wrong password with a right code is: past the budget
         // the answer says nothing about which of the two was wrong.
+        // And at the same moment: a right password goes on to reserve, check and audit the code, which a
+        // wrong one never does, so both wait out one deadline rather than answer as soon as they know.
+        long rightPassword = System.nanoTime();
         mvc.perform(signIn(username, PASSWORD, "000000"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("account-throttled"));
+        long wrongPassword = System.nanoTime();
         mvc.perform(signIn(username, "not the password", Totp.generateCode(secret, clock.instant().plusSeconds(30))))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("account-throttled"));
+        long done = System.nanoTime();
+        org.assertj.core.api.Assertions.assertThat(java.time.Duration.ofNanos(wrongPassword - rightPassword))
+                .isGreaterThanOrEqualTo(com.asmolabs.vectispire.core.access.AuthServiceDeadline.value());
+        org.assertj.core.api.Assertions.assertThat(java.time.Duration.ofNanos(done - wrongPassword))
+                .isGreaterThanOrEqualTo(com.asmolabs.vectispire.core.access.AuthServiceDeadline.value());
 
         // The next code, since enrolment used the current one and a code opens once.
         mvc.perform(signIn(username, PASSWORD, Totp.generateCode(secret, clock.instant().plusSeconds(30))))

@@ -115,7 +115,11 @@ facteur.
 
 « Adresse » est l'adresse que le serveur résout à travers les proxys de confiance, son /64 en IPv6 —
 quelqu'un derrière la même sortie réseau que vous, au bureau, partage donc votre exemption, et
-rencontre à la place les plafonds propres à cette adresse.
+rencontre à la place les plafonds propres à cette adresse. Un compte qui ne s'est jamais connecté — ou
+pas depuis trente jours, ou dont l'adresse du titulaire a changé — n'a pas d'endroit habituel, et sans
+second facteur attend comme tout le monde tant que le budget est épuisé. Une adresse connue le reste
+après un changement ou une réinitialisation du mot de passe jusqu'au terme de ses trente jours ; elle
+reste tenue à ses propres cinq échecs.
 
 ## À lire aussi
 
