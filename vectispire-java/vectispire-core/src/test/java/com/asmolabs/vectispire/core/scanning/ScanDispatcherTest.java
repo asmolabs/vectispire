@@ -92,6 +92,7 @@ class ScanDispatcherTest {
     private ScanPlugins plugins;
     private ScanDispatcher dispatcher;
     private AuditLogService audit;
+    private PlatformMetrics metrics;
 
     @BeforeEach
     void wire() {
@@ -104,6 +105,7 @@ class ScanDispatcherTest {
         ruleSets = mock(ScanRuleSets.class);
         plugins = mock(ScanPlugins.class);
         audit = mock(AuditLogService.class);
+        metrics = mock(PlatformMetrics.class);
 
         when(ruleSets.activeHash()).thenReturn(Optional.empty());
         when(settings.isEnabled(any())).thenReturn(false);
@@ -126,7 +128,7 @@ class ScanDispatcherTest {
                 AMD64,
                 Optional.empty(),
                 audit,
-                mock(PlatformMetrics.class),
+                metrics,
                 new TransactionTemplate(transactions),
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
                 List.of(), java.time.Clock.systemUTC());
@@ -369,6 +371,24 @@ class ScanDispatcherTest {
         agent.setMaxConcurrent(0);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
         verify(queue).claimWithin(agent.getId(), 1, List.of(), ScanQueue.Exclusion.NONE, EVERY_TARGET);
+    }
+
+    @Test
+    @DisplayName("an agent's failure is counted final when the scan will not be retried, and not when it waits")
+    void anAgentsFailureIsCountedByTheScansFate() {
+        ScanEntity scan = repositoryScan();
+        when(queue.byId(7L)).thenReturn(Optional.of(scan));
+        AgentView agent = agent(CredentialsMode.LOCAL, null);
+
+        when(queue.abandon(eq(7L), anyString(), anyInt(), any(), any())).thenReturn(Optional.of(new ScanQueue.Abandoned(
+                new com.asmolabs.vectispire.common.domain.scans.ScanQueue.Next.Fail(true), 1, 3)));
+        dispatcher.reportAgentFailure(7L, agent, 1, FailureKind.PERMANENT, "refused");
+        verify(metrics).scanFailed(scan, PlatformMetrics.Executor.AGENT, true);
+
+        when(queue.abandon(eq(7L), anyString(), anyInt(), any(), any())).thenReturn(Optional.of(new ScanQueue.Abandoned(
+                new com.asmolabs.vectispire.common.domain.scans.ScanQueue.Next.Retry(java.time.Instant.now()), 2, 3)));
+        dispatcher.reportAgentFailure(7L, agent, 2, FailureKind.TRANSIENT, "timed out");
+        verify(metrics).scanFailed(scan, PlatformMetrics.Executor.AGENT, false);
     }
 
     @Test

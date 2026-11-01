@@ -290,6 +290,9 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         .requestMatchers("/api/v1/agent/**").permitAll()
                         .requestMatchers("/api/v1/tickets/webhook/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
+                        // The Prometheus page: an administrator's session, or the scrape token the
+                        // filter recognises on this path alone. Before the line below, which it narrows.
+                        .requestMatchers(ActuatorAccess.PROMETHEUS).access(ActuatorAccess.administratorSessionOrScraper())
                         // The rest of Actuator: an administrator's session, and no other credential
                         // — the MVC confinement does not reach these endpoints. See ActuatorAccess.
                         .requestMatchers("/actuator/**").access(ActuatorAccess.administratorSession())

@@ -14,7 +14,9 @@ import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.access.internal.SessionCleanupTask;
+import com.asmolabs.vectispire.core.agents.AgentMetrics;
 import com.asmolabs.vectispire.core.agents.CredentialedBacklog;
+import com.asmolabs.vectispire.core.agents.internal.AgentMetricsTask;
 import com.asmolabs.vectispire.core.agents.internal.CredentialedBacklogTask;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
 import com.asmolabs.vectispire.core.compliance.OwaspWeeklyCoverageService;
@@ -50,6 +52,8 @@ import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepo
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.scanning.RetentionService;
 import com.asmolabs.vectispire.core.scanning.SchedulerService;
+import com.asmolabs.vectispire.core.scanning.internal.PlatformMetrics;
+import com.asmolabs.vectispire.core.scanning.internal.ScanMetricsTask;
 import com.asmolabs.vectispire.core.scanning.internal.ScanRetentionTask;
 import com.asmolabs.vectispire.core.scanning.internal.SchedulingTickTask;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -109,6 +113,8 @@ class MaintenanceJobsTest {
             SchedulingTickTask.class,
             CredentialedBacklogTask.class,
             ReportRunSweepTask.class,
+            ScanMetricsTask.class,
+            AgentMetricsTask.class,
             ScanRetentionTask.class,
             SentMessagesTask.class,
             TicketSweepTask.class,
@@ -160,6 +166,8 @@ class MaintenanceJobsTest {
     private ForgeReviewService forgeReviews;
     private ForgeTokenWatch forgeTokens;
     private BuildSbomInventory buildSboms;
+    private PlatformMetrics scanMetrics;
+    private AgentMetrics agentMetrics;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -191,6 +199,8 @@ class MaintenanceJobsTest {
         forgeReviews = mock(ForgeReviewService.class);
         forgeTokens = mock(ForgeTokenWatch.class);
         buildSboms = mock(BuildSbomInventory.class);
+        scanMetrics = mock(PlatformMetrics.class);
+        agentMetrics = mock(AgentMetrics.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
@@ -206,6 +216,8 @@ class MaintenanceJobsTest {
                 new SchedulingTickTask(scheduler),
                 new CredentialedBacklogTask(backlog, clock),
                 new ReportRunSweepTask(reportQueue),
+                new ScanMetricsTask(scanMetrics),
+                new AgentMetricsTask(agentMetrics),
                 new ScanRetentionTask(retention),
                 new SentMessagesTask(outbox),
                 new TicketSweepTask(tickets),
@@ -324,6 +336,8 @@ class MaintenanceJobsTest {
         verify(scheduler, never()).runOnce();
         verify(backlog, never()).unserved();
         verify(reportQueue, never()).failUnclaimed();
+        verify(scanMetrics, never()).refresh();
+        verify(agentMetrics, never()).refresh();
     }
 
     @Test
@@ -379,6 +393,10 @@ class MaintenanceJobsTest {
         // control plane restarted with its built-in worker off kept them pending and running for ever.
         verify(reportQueue).failLapsed();
         verify(reportQueue).failUnclaimed();
+        // The only readers of the gauges' figures: a scrape reads what these last found and never
+        // queries, so without them every database gauge would read NaN for as long as the process ran.
+        verify(scanMetrics).refresh();
+        verify(agentMetrics).refresh();
         verify(retention, never()).prune();
     }
 

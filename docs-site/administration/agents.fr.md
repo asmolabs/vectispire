@@ -271,7 +271,7 @@ Donc, pour chaque agent `delegated` :
    sa demande reçoit un **412** qui nomme l'étape manquante, et son journal le dit à chaque nouvel
    essai ; rien n'est envoyé. Si aucun autre exécuteur ne peut les prendre, elles attendent que cet
    agent soit corrigé. Le plan de contrôle le dit aussi : la jauge
-   `vectispire.scans.credential.unserved` (sous `/actuator/metrics`) compte les analyses en attente
+   `vectispire.scans.credential.unserved` (sous `/actuator/metrics`, et `vectispire_scans_credential_unserved` sur `/actuator/prometheus` — voir [Supervision](monitoring.md)) compte les analyses en attente
    de dépôts portant un identifiant qu'aucun exécuteur capable de le recevoir ne sert — un agent
    `local` activé, un agent `delegated` à la clé vérifiée, ou le worker intégré quand il tourne — et
    son journal avertit, au plus toutes les quinze minutes et de nouveau quand le nombre augmente, en

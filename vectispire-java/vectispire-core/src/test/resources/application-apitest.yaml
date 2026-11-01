@@ -44,6 +44,9 @@ vectispire:
   scim:
     enabled: true
     token: apitest-scim-token-0123456789abcdef
+  # `/actuator/prometheus` accepts the scrape token beside an administrator's session (`PrometheusScrapeTest`).
+  metrics:
+    scrape-token: apitest-scrape-token-0123456789abcdef
 
 springdoc:
   swagger-ui:

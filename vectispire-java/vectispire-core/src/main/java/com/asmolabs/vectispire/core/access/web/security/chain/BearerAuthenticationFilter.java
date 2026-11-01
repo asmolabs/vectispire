@@ -25,7 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * Turns one {@code Authorization: Bearer …} header into whoever is behind it.
  *
  * <p>Supports user session tokens, agent API keys, integration API keys (decision 0024, also in
- * {@code X-API-Key}) and SCIM 2.0 provisioning tokens.
+ * {@code X-API-Key}), SCIM 2.0 provisioning tokens and the metrics scrape token.
  */
 @Component
 public class BearerAuthenticationFilter extends OncePerRequestFilter {
@@ -37,16 +37,19 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyAuthService apiKeys;
     private final VisibilityService visibility;
     private final Optional<ScimProperties> scimProperties;
+    private final Optional<ScrapeTokenProperties> scrapeToken;
 
     public BearerAuthenticationFilter(
             AuthService auth,
             ApiKeyAuthService apiKeys,
             VisibilityService visibility,
-            Optional<ScimProperties> scimProperties) {
+            Optional<ScimProperties> scimProperties,
+            Optional<ScrapeTokenProperties> scrapeToken) {
         this.auth = auth;
         this.apiKeys = apiKeys;
         this.visibility = visibility;
         this.scimProperties = scimProperties;
+        this.scrapeToken = scrapeToken;
     }
 
     @Override
@@ -98,6 +101,16 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
             if (props.enabled() && props.token().isPresent()
                     && SecretCipher.secretEquals(token.get(), props.token().get())) {
                 return Optional.of(VectispirePrincipal.ofScimClient());
+            }
+        }
+
+        // **The scrape token is the SCIM token's twin**: a static secret held by a third system — the
+        // monitoring — recognised on `/actuator/prometheus` alone and granting that page alone
+        // (ActuatorAccess). Anywhere else it is an unknown bearer, refused and counted by the ceiling.
+        if (scrapeToken.isPresent() && ActuatorAccess.PROMETHEUS.equals(path)) {
+            Optional<String> expected = scrapeToken.get().token();
+            if (expected.isPresent() && SecretCipher.secretEquals(token.get(), expected.get())) {
+                return Optional.of(VectispirePrincipal.ofMetricsScraper());
             }
         }
 

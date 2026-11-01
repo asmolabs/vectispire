@@ -56,14 +56,13 @@ server:
 # password change, none of which the application's route confinement reaches here (ActuatorAccess). A metrics endpoint names internal structure and volumes, which is not something to publish
 # to whoever can reach the port.
 #
-# Shipping these somewhere is one dependency away — add `io.micrometer:micrometer-registry-prometheus`
-# and refresh the lockfile, and `prometheus` joins the list below. Without it the meters still
-# exist and `/actuator/metrics` serves them.
+# `prometheus` also accepts the scrape token, `vectispire.metrics.scrape-token` below, since a
+# Prometheus server holds no session; the token opens that page and nothing else.
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,encryption
+        include: health,info,metrics,prometheus,encryption
   endpoint:
     health:
       probes:
@@ -76,6 +75,13 @@ management:
       application: ${spring.application.name}
 
 vectispire:
+  # **The token a Prometheus server scrapes `/actuator/prometheus` with**, as a bearer: at least 32
+  # characters (`openssl rand -base64 32`), or a file holding it — Docker's and Kubernetes' secrets.
+  # Unset, the page answers an administrator's session only.
+  metrics:
+    scrape-token: ${VECTISPIRE_METRICS_SCRAPE_TOKEN:}
+    scrape-token-file: ${VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE:}
+
   scanning:
     # Empty lets the daemon pick, which means the host's architecture — an arm64 development
     # machine would then audit a variant nobody deploys.
