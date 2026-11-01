@@ -166,6 +166,14 @@ body {
     :where(html:not(.app-dark)) .text-primary-600 {
         color: var(--p-primary-700);
     }
+    /* Shade 500 is worse — green 500 on white is 2.2:1 — and most of these are only drawn when the
+       data says so (an overdue count, a freshness rate): axe on one estate's data passed what CI's
+       data failed. Every hue the templates write at 500 is held at 700, whatever turns it on. */
+    @each $hue in 'green', 'emerald', 'amber', 'yellow', 'orange', 'red', 'rose', 'blue', 'purple', 'indigo' {
+        :where(html:not(.app-dark)) .text-#{$hue}-500 {
+            color: var(--p-#{$hue}-700);
+        }
+    }
     :where(html.app-dark) .text-red-700:not([class*='dark:text-']) {
         color: var(--p-red-400);
     }
