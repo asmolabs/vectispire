@@ -25,21 +25,21 @@ import java.util.stream.Collectors;
  * <p><b>Not named {@code KubernetesApi…}</b>: the coverage floor of {@code kubernetesTest} takes that name pattern,
  * and this class is held by the plain unit suite, which can reach every branch of it.
  */
-final class ClusterApiAddress {
+public final class ClusterApiAddress {
 
     /** The API server's service, as the cluster's DNS names it inside the pod's search path. */
-    static final String SERVICE_NAME = "kubernetes.default.svc";
+    public static final String SERVICE_NAME = "kubernetes.default.svc";
 
     /** The name lookup, injectable so that the decision is tested without a cluster's DNS. */
     @FunctionalInterface
-    interface Resolver {
+    public interface Resolver {
         InetAddress[] resolve(String host) throws UnknownHostException;
     }
 
     private ClusterApiAddress() {}
 
     /** From this process's environment and the system's resolver. */
-    static URI fromEnvironment() {
+    public static URI fromEnvironment() {
         return of(System::getenv, InetAddress::getAllByName);
     }
 
@@ -48,7 +48,7 @@ final class ClusterApiAddress {
      * @param resolver the name lookup; an IP literal is answered without one
      * @throws IllegalStateException when the address is missing, malformed, or not the API server's service
      */
-    static URI of(UnaryOperator<String> environment, Resolver resolver) {
+    public static URI of(UnaryOperator<String> environment, Resolver resolver) {
         String host = environment.apply("KUBERNETES_SERVICE_HOST");
         String port = environment.apply("KUBERNETES_SERVICE_PORT");
         if (host == null || host.isBlank() || port == null || port.isBlank()) {

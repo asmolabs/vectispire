@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.agents.web;
 
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.AgentView;
@@ -64,6 +65,10 @@ public class AgentsAdminController {
      * @param online seen recently, not "enabled". An enabled agent that has been silent for an
      *     hour is the case that matters: the queue fills, nobody drains it, and nothing else on
      *     the screen would say so
+     * @param executors what the agent's executors can run, as it last said — <b>null when it never said</b>,
+     *     an agent older than the announcement, which claims as it always did. An empty list is an agent with no
+     *     executor. It is handed only scans whose kind of target an available executor runs
+     * @param executorsReportedAt when it last said; null with {@code executors}
      */
     public record AgentSummary(
             UUID id,
@@ -82,7 +87,37 @@ public class AgentsAdminController {
             String contractVersion,
             Instant lastSeenAt,
             boolean online,
-            long runningScans) {}
+            long runningScans,
+            List<ExecutorState> executors,
+            Instant executorsReportedAt) {}
+
+    /**
+     * One executor of a worker.
+     *
+     * @param kind {@code docker} or {@code kubernetes}; a later agent's own name is shown as it gave it
+     * @param available whether it could run a scanner when last asked
+     * @param targets the kinds of target it scans: {@code repository}, {@code container}
+     * @param detail why it is unavailable, in its own words; null when available
+     */
+    public record ExecutorState(String kind, boolean available, List<String> targets, String detail) {
+
+        static List<ExecutorState> of(List<WorkerExecutors.Executor> executors) {
+            return executors.stream()
+                    .map(e -> new ExecutorState(e.kind(), e.available(), e.targets(), e.detail()))
+                    .toList();
+        }
+    }
+
+    /**
+     * The built-in worker's state: it is not a row of the agents table, and its executor is this instance's Docker
+     * daemon — another instance of the control plane answers for its own.
+     *
+     * @param runsScans switched on and with a runner: the one case in which it claims anything
+     * @param executors what its executor answered at its last round; empty before the first, or with no runner
+     * @param checkedAt when that was; null with no answer yet
+     */
+    public record BuiltInWorkerState(
+            boolean enabled, boolean runsScans, List<ExecutorState> executors, Instant checkedAt) {}
 
     public record AgentCreateRequest(
             String name,
@@ -129,7 +164,8 @@ public class AgentsAdminController {
             Instant queuedAt,
             long waitDurationSeconds,
             boolean isRoutable,
-            int positionInQueue) {}
+            int positionInQueue,
+            boolean executorAvailable) {}
 
     public record QueueStats(
             int totalAgents,
@@ -175,7 +211,8 @@ public class AgentsAdminController {
                                 scan.queuedAt(),
                                 scan.waitDurationSeconds(),
                                 scan.routable(),
-                                scan.positionInQueue()))
+                                scan.positionInQueue(),
+                                scan.executorAvailable()))
                         .toList(),
                 new QueueStats(
                         figures.totalAgents(),
@@ -215,9 +252,24 @@ public class AgentsAdminController {
                             agent.contractVersion(),
                             agent.lastSeenAt(),
                             view.online(),
-                            view.runningScans());
+                            view.runningScans(),
+                            agent.executors() == null ? null : ExecutorState.of(agent.executors().executors()),
+                            agent.executors() == null ? null : agent.executorsReportedAt());
                 })
                 .toList();
+    }
+
+    /**
+     * The built-in worker's state — whether it runs, and what its executor answered at its last round.
+     *
+     * <p><b>So a scan waiting on it says why.</b> A worker whose daemon stopped answering claims nothing, by
+     * design; without this its scans would sit as {@code pending} with the cause in a log line only.
+     */
+    @GetMapping("/built-in-worker")
+    public BuiltInWorkerState builtInWorker() {
+        AgentAdministrationService.BuiltInWorkerState state = administration.builtInWorker();
+        return new BuiltInWorkerState(
+                state.enabled(), state.runsScans(), ExecutorState.of(state.executors()), state.checkedAt());
     }
 
     /** Declares an agent and issues its key — see {@link AgentAdministrationService#declare}. */

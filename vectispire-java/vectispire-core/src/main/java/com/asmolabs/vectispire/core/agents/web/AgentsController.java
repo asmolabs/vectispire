@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
@@ -26,6 +27,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -73,6 +75,9 @@ public class AgentsController {
      * @param sealingPublicKey still sent by every agent, for a control plane older than decision
      *     0031 that seals for it. <b>Read by nothing here</b>: it is unsigned, and a key the channel
      *     can rewrite is not one to seal for. The signed announcement is {@code POST /sealing-key}
+     * @param executors what the agent's executors can run, as it probed them before announcing itself.
+     *     <b>Optional</b>: an agent older than the field sends none, and claims exactly as before — absent
+     *     is "unknown", never "nothing available"
      */
     public record HelloRequest(
             @JsonProperty("contract_version") String contractVersion,
@@ -81,7 +86,11 @@ public class AgentsController {
             String platform,
             String version,
             @JsonProperty("scanner_engine") String scannerEngine,
-            String capabilities) {}
+            String capabilities,
+            List<WorkerExecutors.Executor> executors) {}
+
+    /** @param executors every executor the agent has, each with whether it can run anything now */
+    public record ExecutorsReport(List<WorkerExecutors.Executor> executors) {}
 
     /**
      * @param contractVersion the contract this control plane speaks to this agent, which is the
@@ -169,7 +178,8 @@ public class AgentsController {
                 body.platform(),
                 body.version(),
                 body.scannerEngine(),
-                body.capabilities()));
+                body.capabilities(),
+                body.executors() == null ? null : new WorkerExecutors(body.executors())));
 
         return switch (answer) {
             // 409 and not 400: the request is well formed, the two sides simply disagree about
@@ -186,6 +196,25 @@ public class AgentsController {
                     maxConcurrent,
                     agent.credentialsMode());
         };
+    }
+
+    /**
+     * What the agent's executors can run now, when that changed since its hello — a Docker daemon that stopped
+     * answering, a Kubernetes API that came back. The next claim is decided by it: an agent is handed only scans
+     * whose kind of target one of its available executors runs, and none when none is available.
+     *
+     * <p><b>A route of its own</b>, so that a newer agent meeting an older control plane gets a 404, reads it as
+     * "not supported" and carries on. 400 for a report that names no list: an agent that has no executor says so
+     * with an empty one.
+     */
+    @PutMapping("/executors")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reportExecutors(@RequestBody ExecutorsReport body, @AuthenticationPrincipal VectispirePrincipal principal) {
+        AgentView agent = authenticate(principal);
+        if (body == null || body.executors() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "An executors report needs an \"executors\" list.");
+        }
+        protocol.reportExecutors(agent, new WorkerExecutors(body.executors()));
     }
 
     /**

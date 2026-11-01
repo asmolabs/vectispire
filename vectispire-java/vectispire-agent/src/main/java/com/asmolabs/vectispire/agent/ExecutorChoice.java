@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.agent;
 
+import com.asmolabs.vectispire.agent.kubernetes.ClusterApiAddress;
 import com.asmolabs.vectispire.agent.kubernetes.KubernetesApi;
 import com.asmolabs.vectispire.agent.kubernetes.KubernetesExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Supplier;
@@ -69,7 +71,7 @@ final class ExecutorChoice {
                         settings.matcherCacheClaim(), matcherDatabase.resolve(VulnerabilityDatabase.GENERATIONS),
                         settings.nodeName()));
         // After the settings: a placement they refuse stops the start whatever the cluster's address.
-        String target = settings.requireIsolation() ? probeTarget(settings) : null;
+        String target = settings.requireIsolation() ? probeTarget(settings, ClusterApiAddress::fromEnvironment) : null;
         if (target != null) {
             checked = checked.cutOffFrom(target);
         }
@@ -137,17 +139,46 @@ final class ExecutorChoice {
         log.info("The scans' namespace {} refuses a privileged pod: Pod Security restricted is enforced.", namespace);
     }
 
-    private static String probeTarget(AgentProperties.Kubernetes settings) {
-        if (!settings.probeTarget().isEmpty()) {
-            return settings.probeTarget();
+    /**
+     * The {@code address:port} the isolation probe tries: the one configured, or the API server's as this pod is
+     * told it.
+     *
+     * <p><b>Checked before it is used, both of them.</b> {@code KUBERNETES_SERVICE_HOST} and {@code _PORT} were
+     * read here as they came and glued together: no token travels to the probe's target, but a variable of that
+     * name in the pod's spec replaces the kubelet's, and the probe would then prove the scan pods cut off from an
+     * address that is not the API server's — a refusal that proves nothing, read as isolation. So the variables go
+     * through the same check the API client applies before it sends its token ({@link ClusterApiAddress}): the
+     * cluster's own service, a port number. A configured target is the operator's, and is held to its shape — an
+     * address, not a name, and a port — so a typo stops the start naming the property rather than surfacing as a
+     * parse error, or as a probe of a name that does not resolve and reads as "blocked".
+     *
+     * @param cluster the API server's address from the environment, checked — asked only when none is configured
+     */
+    static String probeTarget(AgentProperties.Kubernetes settings, Supplier<URI> cluster) {
+        if (settings.probeTarget().isEmpty()) {
+            URI api = cluster.get();
+            // `getHost` keeps an IPv6 literal's brackets, which is the form `requireIsolation` reads.
+            return api.getHost() + ":" + api.getPort();
         }
-        String host = System.getenv("KUBERNETES_SERVICE_HOST");
-        String port = System.getenv("KUBERNETES_SERVICE_PORT");
-        if (host == null || port == null) {
-            throw new IllegalStateException("The isolation probe has no target: KUBERNETES_SERVICE_HOST is not set and "
-                    + "vectispire.agent.executor.kubernetes.probe-target is blank.");
+        String configured = settings.probeTarget();
+        int colon = configured.lastIndexOf(':');
+        String host = colon < 0 ? "" : configured.substring(0, colon);
+        String bare = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+        boolean literal = bare.contains(":") ? host.startsWith("[") && bare.matches("[0-9A-Fa-f:.]+")
+                : bare.matches("[0-9]{1,3}(\\.[0-9]{1,3}){3}");
+        if (!literal || !port(configured.substring(colon + 1))) {
+            throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.probe-target is \"" + configured
+                    + "\": an IP address and a port, as 10.43.0.1:443 or [fd00::1]:443. The agent does not start.");
         }
-        return (host.contains(":") ? "[" + host + "]" : host) + ":" + port;
+        return configured;
+    }
+
+    private static boolean port(String text) {
+        if (!text.matches("[0-9]{1,5}")) {
+            return false;
+        }
+        int number = Integer.parseInt(text);
+        return number >= 1 && number <= 65535;
     }
 
     private static ObjectNode placement(String text, ObjectMapper json) {
