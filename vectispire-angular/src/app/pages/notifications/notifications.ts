@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, computed, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
 import { IntegrationsApi } from '../../core/api/integrations.api';
@@ -48,6 +48,15 @@ export class Notifications implements OnInit {
     /** Which channels the platform governor has switched off (decision 0040): a configured one reads suspended. */
     readonly registry = new IntegrationRegistry();
 
+    /** Each channel with its icon and its suspension worked out once per list or registry, not per binding. */
+    readonly cards = computed(() =>
+        this.channels().map((channel) => ({
+            channel,
+            icon: this.getChannelIcon(channel.type),
+            suspended: this.suspendedIntegration(channel.type)
+        }))
+    );
+
     ngOnInit(): void {
         this.loadChannels();
     }
@@ -96,12 +105,12 @@ export class Notifications implements OnInit {
     }
 
     /** The channel's integration key when the governor has switched it off, null otherwise. */
-    suspendedIntegration(type: string): string | null {
+    private suspendedIntegration(type: string): string | null {
         const key = NOTIFICATION_CHANNEL_INTEGRATIONS[type];
         return key && this.registry.isDisabled(key) ? key : null;
     }
 
-    getChannelIcon(type: string): string {
+    private getChannelIcon(type: string): string {
         switch (type) {
             case 'scan_delta_slack':
                 return 'pi pi-slack text-purple-500';

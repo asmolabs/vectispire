@@ -1,201 +1,196 @@
-@for (section of state.sections(); track section.name) {
-    @if (isSectionVisible(section)) {
-        <p-card styleClass="mb-4">
-            <ng-template #title>{{ getSectionTitle(section) }}</ng-template>
+@for (card of cards(); track card.name) {
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ card.title }}</ng-template>
 
-            @if (isModelReview(section)) {
-                <app-settings-model-review />
-            }
+        @if (card.modelReview) {
+            <app-settings-model-review />
+        }
 
-            <div class="flex flex-col gap-5">
-                @for (setting of visibleSettings(section); track setting.key) {
-                    <div class="flex flex-col gap-2">
-                        <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
-                            <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{
-                                getSettingLabel(setting)
-                            }}</label>
+        <div class="flex flex-col gap-5">
+            @for (row of card.rows; track row.setting.key) {
+                <div class="flex flex-col gap-2">
+                    <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                        <label [for]="row.setting.key" class="font-medium min-w-0 flex-1">{{ row.label }}</label>
 
-                            <div class="shrink-0 w-full sm:w-auto">
-                                @switch (setting.type) {
-                                    @case ('boolean') {
-                                        <!-- The acknowledgement switch goes through a confirmation
+                        <div class="shrink-0 w-full sm:w-auto">
+                            @switch (row.setting.type) {
+                                @case ('boolean') {
+                                    <!-- The acknowledgement switch goes through a confirmation
                                              and a server-side stamp; every other boolean is saved
                                              as typed. -->
-                                        @if (setting.key === 'ai_review_allow_remote_url') {
-                                            <p-toggleswitch
-                                                [disabled]="isReadOnlyHere(setting)"
-                                                [inputId]="setting.key"
-                                                [ngModel]="state.values()[setting.key] === 'true'"
-                                                (ngModelChange)="setAllowRemote($event)"
-                                            />
-                                        } @else {
-                                            <p-toggleswitch
-                                                [disabled]="isReadOnlyHere(setting) || isUnavailable(setting)"
-                                                [inputId]="setting.key"
-                                                [ngModel]="state.values()[setting.key] === 'true'"
-                                                (ngModelChange)="state.set(setting.key, $event ? 'true' : 'false')"
-                                            />
-                                        }
-                                    }
-                                    @case ('integer') {
-                                        <p-inputnumber
-                                            [disabled]="isReadOnlyHere(setting)"
-                                            [inputId]="setting.key"
-                                            [min]="0"
-                                            [ngModel]="asNumber(state.values()[setting.key])"
-                                            (ngModelChange)="state.set(setting.key, numberToText($event))"
-                                            styleClass="w-32"
-                                            inputStyleClass="w-full"
+                                    @if (row.setting.key === 'ai_review_allow_remote_url') {
+                                        <p-toggleswitch
+                                            [disabled]="row.readOnly"
+                                            [inputId]="row.setting.key"
+                                            [ngModel]="state.values()[row.setting.key] === 'true'"
+                                            (ngModelChange)="setAllowRemote($event)"
                                         />
-                                    }
-                                    @case ('severity') {
-                                        <p-select
-                                            [disabled]="isReadOnlyHere(setting)"
-                                            [inputId]="setting.key"
-                                            [options]="severities()"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            [ngModel]="state.values()[setting.key]"
-                                            (ngModelChange)="state.set(setting.key, $event)"
-                                            [fluid]="true"
-                                            styleClass="w-full sm:w-48"
+                                    } @else {
+                                        <p-toggleswitch
+                                            [disabled]="row.readOnly || row.unavailable"
+                                            [inputId]="row.setting.key"
+                                            [ngModel]="state.values()[row.setting.key] === 'true'"
+                                            (ngModelChange)="state.set(row.setting.key, $event ? 'true' : 'false')"
                                         />
-                                    }
-                                    @default {
-                                        <!-- The provider is a choice, not free text: the two values
-                                             it accepts differ in whether the code leaves the estate,
-                                             and a typo reads as "ollama" by design. -->
-                                        @if (setting.key === 'ai_review_provider') {
-                                            <p-select
-                                                [disabled]="isReadOnlyHere(setting)"
-                                                [inputId]="setting.key"
-                                                [options]="aiProviders()"
-                                                optionLabel="label"
-                                                optionValue="value"
-                                                [ngModel]="state.values()[setting.key]"
-                                                (ngModelChange)="state.set(setting.key, $event)"
-                                                [fluid]="true"
-                                                styleClass="w-full sm:w-96"
-                                            />
-                                        } @else if (setting.key === 'ticket_provider') {
-                                            <!-- A choice, like the AI provider: the trackers the platform
-                                                 governor has not switched off, and the one configured. -->
-                                            <p-select
-                                                [disabled]="isReadOnlyHere(setting)"
-                                                [inputId]="setting.key"
-                                                [options]="trackers()"
-                                                optionLabel="label"
-                                                optionValue="value"
-                                                [ngModel]="state.values()[setting.key]"
-                                                (ngModelChange)="state.set(setting.key, $event)"
-                                                [fluid]="true"
-                                                styleClass="w-full sm:w-96"
-                                            />
-                                        } @else if (setting.key === 'ticket_token_expires_on') {
-                                            <input
-                                                pInputText
-                                                type="date"
-                                                [disabled]="isReadOnlyHere(setting)"
-                                                [id]="setting.key"
-                                                class="w-full sm:w-48 max-w-full"
-                                                [ngModel]="state.values()[setting.key]"
-                                                (ngModelChange)="state.set(setting.key, $event ?? '')"
-                                            />
-                                        } @else if (setting.key === 'ticket_ca_pem') {
-                                            <!-- A PEM bundle is several lines: a one-line input would
-                                                 join them and the server would refuse the paste. -->
-                                            <textarea
-                                                [disabled]="isReadOnlyHere(setting)"
-                                                [id]="setting.key"
-                                                rows="6"
-                                                spellcheck="false"
-                                                class="w-full sm:w-96 max-w-full p-2 border rounded-md font-mono text-xs bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
-                                                [placeholder]="'settings.ticket_ca_placeholder' | translate"
-                                                [ngModel]="state.values()[setting.key]"
-                                                (ngModelChange)="state.set(setting.key, $event)"
-                                            ></textarea>
-                                        } @else {
-                                            <input
-                                                pInputText
-                                                [disabled]="isReadOnlyHere(setting) || isUnavailable(setting)"
-                                                [id]="setting.key"
-                                                class="w-full sm:w-96 max-w-full"
-                                                [ngModel]="state.values()[setting.key]"
-                                                (ngModelChange)="state.set(setting.key, $event)"
-                                            />
-                                        }
                                     }
                                 }
-                            </div>
+                                @case ('integer') {
+                                    <p-inputnumber
+                                        [disabled]="row.readOnly"
+                                        [inputId]="row.setting.key"
+                                        [min]="0"
+                                        [ngModel]="numbers()[row.setting.key] ?? 0"
+                                        (ngModelChange)="state.set(row.setting.key, numberToText($event))"
+                                        styleClass="w-32"
+                                        inputStyleClass="w-full"
+                                    />
+                                }
+                                @case ('severity') {
+                                    <p-select
+                                        [disabled]="row.readOnly"
+                                        [inputId]="row.setting.key"
+                                        [options]="severities()"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        [ngModel]="state.values()[row.setting.key]"
+                                        (ngModelChange)="state.set(row.setting.key, $event)"
+                                        [fluid]="true"
+                                        styleClass="w-full sm:w-48"
+                                    />
+                                }
+                                @default {
+                                    <!-- The provider is a choice, not free text: the two values
+                                             it accepts differ in whether the code leaves the estate,
+                                             and a typo reads as "ollama" by design. -->
+                                    @if (row.setting.key === 'ai_review_provider') {
+                                        <p-select
+                                            [disabled]="row.readOnly"
+                                            [inputId]="row.setting.key"
+                                            [options]="aiProviders()"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            [ngModel]="state.values()[row.setting.key]"
+                                            (ngModelChange)="state.set(row.setting.key, $event)"
+                                            [fluid]="true"
+                                            styleClass="w-full sm:w-96"
+                                        />
+                                    } @else if (row.setting.key === 'ticket_provider') {
+                                        <!-- A choice, like the AI provider: the trackers the platform
+                                                 governor has not switched off, and the one configured. -->
+                                        <p-select
+                                            [disabled]="row.readOnly"
+                                            [inputId]="row.setting.key"
+                                            [options]="trackers()"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            [ngModel]="state.values()[row.setting.key]"
+                                            (ngModelChange)="state.set(row.setting.key, $event)"
+                                            [fluid]="true"
+                                            styleClass="w-full sm:w-96"
+                                        />
+                                    } @else if (row.setting.key === 'ticket_token_expires_on') {
+                                        <input
+                                            pInputText
+                                            type="date"
+                                            [disabled]="row.readOnly"
+                                            [id]="row.setting.key"
+                                            class="w-full sm:w-48 max-w-full"
+                                            [ngModel]="state.values()[row.setting.key]"
+                                            (ngModelChange)="state.set(row.setting.key, $event ?? '')"
+                                        />
+                                    } @else if (row.setting.key === 'ticket_ca_pem') {
+                                        <!-- A PEM bundle is several lines: a one-line input would
+                                                 join them and the server would refuse the paste. -->
+                                        <textarea
+                                            [disabled]="row.readOnly"
+                                            [id]="row.setting.key"
+                                            rows="6"
+                                            spellcheck="false"
+                                            class="w-full sm:w-96 max-w-full p-2 border rounded-md font-mono text-xs bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                                            [placeholder]="'settings.ticket_ca_placeholder' | translate"
+                                            [ngModel]="state.values()[row.setting.key]"
+                                            (ngModelChange)="state.set(row.setting.key, $event)"
+                                        ></textarea>
+                                    } @else {
+                                        <input
+                                            pInputText
+                                            [disabled]="row.readOnly || row.unavailable"
+                                            [id]="row.setting.key"
+                                            class="w-full sm:w-96 max-w-full"
+                                            [ngModel]="state.values()[row.setting.key]"
+                                            (ngModelChange)="state.set(row.setting.key, $event)"
+                                        />
+                                    }
+                                }
+                            }
                         </div>
+                    </div>
 
-                        @if (isReadOnlyHere(setting)) {
-                            <!-- **Greyed out with its reason.** An inert and silent control reads
+                    @if (row.readOnly) {
+                        <!-- **Greyed out with its reason.** An inert and silent control reads
                                  as a broken screen; this is a rule, and the refusal is deliberate. -->
-                            <small class="text-muted-color flex items-center gap-1">
-                                <i class="pi pi-lock text-xs"></i>{{ 'settings.governor_only' | translate }}
+                        <small class="text-muted-color flex items-center gap-1">
+                            <i class="pi pi-lock text-xs"></i>{{ 'settings.governor_only' | translate }}
+                        </small>
+                    }
+
+                    @if (row.integration; as switched) {
+                        <!-- The integration this setting configures is switched off (decision 0040): kept and
+                                 suspended when configured, not offered when it is not. -->
+                        @if (switched.state === 'suspended') {
+                            <small
+                                class="text-orange-600 dark:text-orange-400 flex flex-wrap items-center gap-1"
+                                [attr.data-testid]="'integration-suspended-' + row.setting.key"
+                            >
+                                <i class="pi pi-pause-circle text-xs"></i
+                                >{{
+                                    'settings.integration_suspended' | translate: { integration: switched.integration }
+                                }}
+                                <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
+                            </small>
+                        } @else if (row.unavailable) {
+                            <small
+                                class="text-muted-color flex flex-wrap items-center gap-1"
+                                [attr.data-testid]="'integration-unavailable-' + row.setting.key"
+                            >
+                                <i class="pi pi-power-off text-xs"></i
+                                >{{
+                                    'settings.integration_unavailable'
+                                        | translate: { integration: switched.integration }
+                                }}
+                                <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
                             </small>
                         }
+                    }
 
-                        @if (integrationState(setting); as switched) {
-                            <!-- The integration this setting configures is switched off (decision 0040): kept and
-                                 suspended when configured, not offered when it is not. -->
-                            @if (switched.state === 'suspended') {
-                                <small
-                                    class="text-orange-600 dark:text-orange-400 flex flex-wrap items-center gap-1"
-                                    [attr.data-testid]="'integration-suspended-' + setting.key"
-                                >
-                                    <i class="pi pi-pause-circle text-xs"></i
-                                    >{{
-                                        'settings.integration_suspended'
-                                            | translate: { integration: switched.integration }
-                                    }}
-                                    <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
-                                </small>
-                            } @else if (isUnavailable(setting)) {
-                                <small
-                                    class="text-muted-color flex flex-wrap items-center gap-1"
-                                    [attr.data-testid]="'integration-unavailable-' + setting.key"
-                                >
-                                    <i class="pi pi-power-off text-xs"></i
-                                    >{{
-                                        'settings.integration_unavailable'
-                                            | translate: { integration: switched.integration }
-                                    }}
-                                    <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
-                                </small>
-                            }
-                        }
-
-                        @if (setting.key === 'ticket_ca_pem' && ticketCa()?.pinned) {
-                            @if (ticketCa()?.subject; as subject) {
-                                <small class="text-green-600" data-testid="ticket-ca-pinned">{{
-                                    'settings.ticket_ca_pinned'
-                                        | translate
-                                            : {
-                                                  subject: subject,
-                                                  date: (ticketCa()?.notAfter | date: 'dd/MM/yyyy' : 'UTC') ?? ''
-                                              }
-                                }}</small>
-                            } @else {
-                                <small class="text-red-600" data-testid="ticket-ca-unreadable">{{
-                                    'settings.ticket_ca_unreadable' | translate
-                                }}</small>
-                            }
-                        }
-
-                        <small class="text-muted-color max-w-3xl">{{ getSettingHelp(setting) }}</small>
-
-                        @if (!setting.configured) {
-                            <small class="text-muted-color italic">{{
-                                'settings.default_value_never_set' | translate
+                    @if (row.setting.key === 'ticket_ca_pem' && ticketCa()?.pinned) {
+                        @if (ticketCa()?.subject; as subject) {
+                            <small class="text-green-600" data-testid="ticket-ca-pinned">{{
+                                'settings.ticket_ca_pinned'
+                                    | translate
+                                        : {
+                                              subject: subject,
+                                              date: (ticketCa()?.notAfter | date: 'dd/MM/yyyy' : 'UTC') ?? ''
+                                          }
+                            }}</small>
+                        } @else {
+                            <small class="text-red-600" data-testid="ticket-ca-unreadable">{{
+                                'settings.ticket_ca_unreadable' | translate
                             }}</small>
                         }
-                    </div>
-                }
-            </div>
-        </p-card>
-    }
+                    }
+
+                    <small class="text-muted-color max-w-3xl">{{ row.help }}</small>
+
+                    @if (!row.setting.configured) {
+                        <small class="text-muted-color italic">{{
+                            'settings.default_value_never_set' | translate
+                        }}</small>
+                    }
+                </div>
+            }
+        </div>
+    </p-card>
 }
 
 <!-- **Shown when opening the public endpoint, never when closing it.** The switch is not flipped

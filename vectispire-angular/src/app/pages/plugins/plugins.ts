@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -129,6 +129,10 @@ export class Plugins {
     readonly languageOptions = PLUGIN_LANGUAGES.map((language) => ({ label: language, value: language }));
 
     readonly plugins = signal<Plugin[]>([]);
+    /** Each plugin with its digest shortened once per list, rather than per row on every pass. */
+    readonly rows = computed(() =>
+        this.plugins().map((plugin) => ({ ...plugin, shortDigest: shortDigest(plugin.manifestDigest) }))
+    );
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
     readonly notice = signal<string | null>(null);
@@ -138,6 +142,10 @@ export class Plugins {
     readonly selected = signal<Plugin | null>(null);
     readonly selectedError = signal<string | null>(null);
     readonly projects = signal<PluginActivation[] | null>(null);
+    /** The selected plugin's projects with their names worked out once per answer. */
+    readonly projectRows = computed(
+        () => this.projects()?.map((activation) => ({ ...activation, place: projectName(activation) })) ?? null
+    );
 
     /** The plugin whose signature requirement is being waived, while the dialog is open. */
     readonly waiverFor = signal<Plugin | null>(null);
@@ -215,16 +223,6 @@ export class Plugins {
      * load the whole solution tree for these two words. The names are null only when the project was
      * deleted between the activation's read and its naming; the id is then still the right answer.
      */
-    projectName(activation: PluginActivation): string {
-        return activation.projectName && activation.solutionName
-            ? `${activation.solutionName} / ${activation.projectName}`
-            : `#${activation.projectId}`;
-    }
-
-    shortDigest(digest: string | null | undefined): string {
-        return digest ? digest.slice(0, 12) : '—';
-    }
-
     // --- Register, edit --------------------------------------------------------------------------
 
     openRegister(): void {
@@ -247,11 +245,6 @@ export class Plugins {
 
     removeArgument(index: number): void {
         this.draft.arguments = this.draft.arguments.filter((_, at) => at !== index);
-    }
-
-    /** `trackBy` for the argument inputs: by position, so typing does not re-create the field. */
-    trackIndex(index: number): number {
-        return index;
     }
 
     /** The form's submit: what the save button is disabled without, a submit must not get past either. */
@@ -282,7 +275,7 @@ export class Plugins {
                 this.notice.set(
                     this.i18n.t(editing ? 'plugins.updated_notice' : 'plugins.registered_notice', {
                         id: plugin.id,
-                        digest: this.shortDigest(plugin.manifestDigest)
+                        digest: shortDigest(plugin.manifestDigest)
                     })
                 );
                 this.reload();
@@ -452,4 +445,15 @@ function signatureOf(draft: Draft): PluginSignature | null {
     const issuer = draft.signerIssuer.trim() || null;
     const publicKey = draft.signerKey.trim() || null;
     return identity || issuer || publicKey ? { identity, issuer, public_key: publicKey } : null;
+}
+
+/** A project by its place in the tree, or by its id where the reader cannot see the names. */
+function projectName(activation: PluginActivation): string {
+    return activation.projectName && activation.solutionName
+        ? `${activation.solutionName} / ${activation.projectName}`
+        : `#${activation.projectId}`;
+}
+
+function shortDigest(digest: string | null | undefined): string {
+    return digest ? digest.slice(0, 12) : '—';
 }

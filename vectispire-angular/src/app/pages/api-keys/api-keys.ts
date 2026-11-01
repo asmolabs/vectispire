@@ -94,6 +94,16 @@ export class ApiKeys {
 
     /** The agent scope is listed so an agent's key reads right, but not offered: an agent's key is
      *  created with the agent, and the server refuses to issue one here. */
+    /**
+     * Each scope's name by its value, for the tags of the list. A record without a prototype, so a
+     * scope this client does not know reads as sent rather than as an inherited member.
+     */
+    readonly scopeLabels = computed(() => {
+        const labels: Record<string, string | undefined> = Object.create(null) as Record<string, string | undefined>;
+        for (const scope of this.scopes()) labels[scope.value] ??= scope.label;
+        return labels;
+    });
+
     readonly issuableScopes = computed(() => this.scopes().filter((scope) => scope.value !== 'agent'));
 
     readonly keys = signal<ApiKeySummary[]>([]);
@@ -150,10 +160,6 @@ export class ApiKeys {
                 this.loading.set(false);
             }
         });
-    }
-
-    scopeLabel(scope: string): string {
-        return this.scopes().find((entry) => entry.value === scope)?.label ?? scope;
     }
 
     toggleScope(scope: string, checked: boolean): void {

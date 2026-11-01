@@ -80,6 +80,11 @@ describe('the plugin registry', () => {
 
         expect(dom().textContent).toContain('acme-lint');
         expect(dom().textContent).toContain('ACME house rules');
+        // The digest shortened to twelve characters, the row's own: enough to compare, not to crush it.
+        const digest = dom()
+            .querySelector('[data-testid="plugin-acme-lint"] td.font-mono.text-sm')
+            ?.textContent?.trim();
+        expect(digest).toBe(PLUGIN.manifestDigest.slice(0, 12));
         expect(dom().querySelector('#register-plugin')).toBeNull();
         expect(dom().querySelector('[aria-label="Edit the manifest of acme-lint"]')).toBeNull();
     });

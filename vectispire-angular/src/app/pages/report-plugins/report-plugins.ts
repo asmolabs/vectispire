@@ -73,7 +73,6 @@ export class ReportPlugins {
     readonly approves = this.session.isSecurityLead;
     readonly withdrawalMin = WITHDRAWAL_MIN;
     readonly withdrawalMax = WITHDRAWAL_MAX;
-    readonly shortDigest = shortDigest;
 
     readonly plugins = signal<ReportPlugin[]>([]);
     readonly loading = signal(true);
@@ -82,6 +81,31 @@ export class ReportPlugins {
     readonly busy = signal<string | null>(null);
     readonly openId = signal<string | null>(null);
     readonly opened = computed(() => this.plugins().find((plugin) => plugin.id === this.openId()) ?? null);
+
+    /** The table's rows, each digest shortened once per list rather than per binding on every pass. */
+    readonly rows = computed(() =>
+        this.plugins().map((plugin) => ({
+            plugin,
+            approved: plugin.approvedDigest ? shortDigest(plugin.approvedDigest) : null,
+            pending: plugin.pendingDigest ? shortDigest(plugin.pendingDigest) : null
+        }))
+    );
+
+    /**
+     * The open plugin's manifests, each with its status in words and colour, its output's extension, its
+     * text and whether the person on screen may approve it — worked out once per plugin, account or language.
+     */
+    readonly manifests = computed(() => {
+        this.i18n.translations();
+        return (this.opened()?.manifests ?? []).map((manifest) => ({
+            manifest,
+            statusLabel: this.statusLabel(manifest.status),
+            statusSeverity: this.statusSeverity(manifest.status),
+            extension: this.extension(manifest.manifest.media_type),
+            json: this.manifestJson(manifest),
+            approvalBlocked: this.approvalBlocked(manifest)
+        }));
+    });
 
     // --- The manifest dialog: a registration, or a new manifest for `manifestFor`.
     readonly manifestVisible = signal(false);
@@ -121,24 +145,24 @@ export class ReportPlugins {
         this.openId.set(this.openId() === plugin.id ? null : plugin.id);
     }
 
-    statusLabel(status: string): string {
+    private statusLabel(status: string): string {
         this.i18n.translations();
         const key = keyFor(MANIFEST_STATUS_KEYS, status);
         return key ? this.i18n.t(key) : status;
     }
 
-    statusSeverity(status: string): 'warn' | 'success' | 'secondary' | 'danger' {
+    private statusSeverity(status: string): 'warn' | 'success' | 'secondary' | 'danger' {
         return (
             (MANIFEST_STATUS_SEVERITY as Record<string, 'warn' | 'success' | 'secondary' | 'danger'>)[status] ??
             'secondary'
         );
     }
 
-    extension(mediaType: string | null | undefined): string {
+    private extension(mediaType: string | null | undefined): string {
         return (MEDIA_TYPE_EXTENSIONS as Record<string, string>)[mediaType ?? ''] ?? mediaType ?? '—';
     }
 
-    manifestJson(manifest: ReportPluginManifestView): string {
+    private manifestJson(manifest: ReportPluginManifestView): string {
         return JSON.stringify(manifest.manifest, null, 2);
     }
 
@@ -149,7 +173,7 @@ export class ReportPlugins {
      * (decision 0035, amended 2026-10-05). Reading today's setting here once offered a button the server
      * now refuses.
      */
-    approvalBlocked(manifest: ReportPluginManifestView): boolean {
+    private approvalBlocked(manifest: ReportPluginManifestView): boolean {
         return manifest.registeredBy === this.session.user()?.username;
     }
 
@@ -271,9 +295,8 @@ export class ReportPlugins {
         this.withdrawing.set(null);
     }
 
-    withdrawalLength(): number {
-        return this.withdrawalText().trim().length;
-    }
+    /** The justification's length as the server counts it, trimmed. */
+    readonly withdrawalLength = computed(() => this.withdrawalText().trim().length);
 
     withdraw(): void {
         // Enter in a field submits the form too: one request at a time.

@@ -149,6 +149,18 @@ describe('the remediation plan', () => {
         expect(text).toContain('2.17.1');
     });
 
+    it('tints each fix by its worst severity: a critical red, a high orange, the rest blue', () => {
+        answer([
+            fix({ packageName: 'log4j-core', criticalCveCount: 1, highCveCount: 2 }),
+            fix({ packageName: 'openssl', criticalCveCount: 0, highCveCount: 1 }),
+            fix({ packageName: 'zlib', criticalCveCount: 0, highCveCount: 0 })
+        ]);
+        const tones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.p-tag')].map(
+            (tag) => tag.className.match(/p-tag-(danger|warn|info)/)?.[1]
+        );
+        expect(tones).toEqual(['danger', 'warn', 'info']);
+    });
+
     it('says no version fixes it, instead of advising an upgrade that does not exist', () => {
         // **The defect this closes, one step further along.** The server returned the string
         // "latest-patch" for everybody, and the dashboard showed it behind an arrow. Now that it

@@ -18,11 +18,9 @@ import { keyFor } from '../../core/i18n/literal-keys';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { encryptionBadge, type EncryptionBadge } from '../../shared/encryption-state';
 import {
-    CA_PROBLEM_KEYS,
     CREDENTIAL_KIND_KEYS,
     DISCOVERY_STATE_KEYS,
     EDITION_KEYS,
-    caCertificateCount,
     caPemProblem,
     daysLeft,
     expiryState,
@@ -30,6 +28,7 @@ import {
     type ExpiryState
 } from '../../shared/forge-words';
 import { INTEGRATIONS_ROUTE, IntegrationRegistry, forgeIntegration } from '../../shared/integrations';
+import { CaFeedbackPipe, CloudAddressPipe } from './forge-connection.pipes';
 
 const FORGE_TOKEN_HINT_KEYS = {
     current: 'forges.encryption.current_hint',
@@ -84,7 +83,9 @@ interface EditForm {
         TagModule,
         TextareaModule,
         TooltipModule,
-        TranslatePipe
+        TranslatePipe,
+        CaFeedbackPipe,
+        CloudAddressPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './forge-connections.html'
@@ -105,6 +106,20 @@ export class ForgeConnections {
     readonly forgeKinds = computed(() => FORGE_KINDS.filter((kind) => this.registry.offers(forgeIntegration(kind))));
 
     readonly connections = signal<ForgeConnection[]>([]);
+
+    /**
+     * Each connection with its edition, its token's kind and its encryption badge in the reader's words,
+     * worked out once per list or language — the badge was built three times per card on every pass.
+     */
+    readonly cards = computed(() => {
+        this.i18n.translations();
+        return this.connections().map((connection) => ({
+            connection,
+            edition: this.edition(connection),
+            credentialKind: this.credentialKind(connection),
+            badge: this.badge(connection.encryptionState)
+        }));
+    });
     readonly loading = signal(true);
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
@@ -147,18 +162,18 @@ export class ForgeConnections {
         });
     }
 
-    edition(connection: ForgeConnection): string {
+    private edition(connection: ForgeConnection): string {
         const key = keyFor(EDITION_KEYS, connection.edition);
         return key ? this.i18n.t(key) : connection.edition;
     }
 
-    credentialKind(connection: ForgeConnection): string | null {
+    private credentialKind(connection: ForgeConnection): string | null {
         if (!connection.credentialKind) return null;
         const key = keyFor(CREDENTIAL_KIND_KEYS, connection.credentialKind);
         return key ? this.i18n.t(key) : connection.credentialKind;
     }
 
-    badge(state: string): EncryptionBadge {
+    private badge(state: string): EncryptionBadge {
         return encryptionBadge(this.i18n, state, FORGE_TOKEN_HINT_KEYS);
     }
 
@@ -170,24 +185,15 @@ export class ForgeConnections {
         return connection.tokenExpiresAt ? daysLeft(connection.tokenExpiresAt, new Date()) : 0;
     }
 
-    /** What a pasted CA looks like, in words: a problem, the count it holds, or nothing yet. */
-    caFeedback(pem: string): { problem: string | null; count: number } {
-        const problem = caPemProblem(pem);
-        return {
-            problem: problem ? this.i18n.t(CA_PROBLEM_KEYS[problem]) : null,
-            count: problem || !pem.trim() ? 0 : caCertificateCount(pem)
-        };
-    }
-
     cloud(): boolean {
         return isCloudAddress(this.form.baseUrl);
     }
 
     /** A connection whose address is a vendor's cloud cannot be internal nor pin a CA. */
-    editCloud(): boolean {
+    readonly editCloud = computed(() => {
         const connection = this.editing();
         return connection !== null && isCloudAddress(connection.baseUrl);
-    }
+    });
 
     openCreate(): void {
         this.form = ForgeConnections.emptyForm();

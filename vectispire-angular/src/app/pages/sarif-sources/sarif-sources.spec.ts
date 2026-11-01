@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema, newerServerWord } from '@/app/core/testing/contract';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { SOURCE } from '@/app/core/testing/plugins.fixtures';
 import { EMPTY_TREE, NO_OPEN_ISSUES } from '@/app/core/testing/scopes.fixtures';
 import { repositorySummary } from '@/app/core/testing/targets.fixtures';
@@ -163,6 +163,74 @@ describe('the declared sources', () => {
             );
         expect(kinds('payments-ci')).toEqual(['SARIF', 'Coverage', 'Test reports', 'Build SBOMs']);
         expect(kinds('future')).toEqual(['spdx']);
+    });
+
+    it('words each source scope and kinds in the reader language, after a switch too', async () => {
+        await start('AUDITOR');
+        fixture.componentInstance.sources.set([{ ...SOURCE, kinds: ['sarif', 'coverage'] }]);
+        fixture.detectChanges();
+        const row = () => dom().querySelector('[data-testid="source-payments-ci"]')!;
+        const kinds = () =>
+            Array.from(row().querySelectorAll('[data-testid="source-kinds"] p-tag')).map((tag) =>
+                tag.textContent?.trim()
+            );
+        expect(row().textContent).toContain('Project Payments / Gateway');
+        expect(kinds()).toEqual(['SARIF', 'Coverage']);
+
+        useFrench();
+        fixture.detectChanges();
+        expect(row().textContent).toContain('Projet Payments / Gateway');
+        expect(kinds()).toEqual(['SARIF', 'Couverture']);
+    });
+
+    it('turns the declare button on only once the draft is complete, following each field and kind', async () => {
+        await start('SUPERUSER');
+        const page = fixture.componentInstance;
+        page.openDeclare();
+        fixture.detectChanges();
+        // The draft's fields change here from code, not through the dialog's controls whose events
+        // would mark the views: marked by hand, as those events do.
+        const redraw = () => {
+            fixture.componentRef.changeDetectorRef.markForCheck();
+            fixture.detectChanges();
+        };
+        const declare = () => {
+            const named = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).filter(
+                (button) => button.textContent?.trim() === 'Declare a source'
+            );
+            return named[named.length - 1];
+        };
+        expect(declare().disabled).toBe(true);
+        Object.assign(page.draft, { slug: 'cov-ci', name: 'Coverage CI', scopeId: 12, apiKeyId: BOTH_KEY });
+        redraw();
+        // SARIF is ticked by default, and SARIF needs its tools.
+        expect(declare().disabled).toBe(true);
+        page.draft.tools = 'SonarQube';
+        redraw();
+        expect(declare().disabled).toBe(false);
+
+        // The kinds change the keys offered: none of them holds what an SBOM alone needs but the
+        // report keys, and with no kind at all, nothing may be declared.
+        expect(document.querySelector('[data-testid="no-sarif-key"]')).toBeNull();
+        page.setKind('sarif', false);
+        redraw();
+        expect(declare().disabled).toBe(true);
+        page.setKind('sbom', true);
+        redraw();
+        expect(page.draft.apiKeyId).toBe(BOTH_KEY);
+        expect(declare().disabled).toBe(false);
+    });
+
+    it('says no key fits when no listed key holds the scope the kinds need', async () => {
+        await start('SUPERUSER');
+        const page = fixture.componentInstance;
+        page.openDeclare();
+        fixture.detectChanges();
+        expect(document.querySelector('[data-testid="no-sarif-key"]')).toBeNull();
+        // The keys arrive after the form opened, or change: the hint follows them, not the first answer.
+        page['keys'].set([]);
+        fixture.detectChanges();
+        expect(document.querySelector('[data-testid="no-sarif-key"]')).not.toBeNull();
     });
 
     it('is a form requiring the slug and the name, which a submit cannot get past', async () => {

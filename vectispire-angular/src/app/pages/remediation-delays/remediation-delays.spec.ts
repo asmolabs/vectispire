@@ -72,29 +72,60 @@ describe('remediation times', () => {
         http.expectOne((call) => call.url === '/api/v1/remediation/distribution').flush(DISTRIBUTION);
     }, 20_000);
 
+    /** The "within the deadline" cell of each row: its words, and its bar's colour where it has one. */
+    const within = () =>
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')].map((row) => {
+            const cell = row.querySelectorAll('td')[2];
+            return {
+                text: cell.textContent.replace(/\s+/g, ' ').trim(),
+                bar: cell.querySelector<HTMLElement>('.rounded[style*="background"]')?.style.background ?? null
+            };
+        });
+
     it('does not claim to measure a severity with no deadline set', () => {
-        const component = fixture.componentInstance;
+        useEnglish();
+        fixture.detectChanges();
         // `low`, like the rest of the API. This test already looked for that spelling and found no
         // row, because the route was the only one sending `LOW` — and its fixture was wrong the
         // same way, which made the absence invisible. The route is fixed; the assertion was right
         // from the start.
-        const low = component.rows().find((row) => row.severity === 'low')!;
+        const low = within()[2];
 
-        expect(component.hasDeadline(low)).toBe(false);
+        expect(low.bar).toBeNull();
+        expect(low.text).not.toContain('%');
+        expect(fixture.componentInstance.rows().find((row) => row.severity === 'low')!.hasDeadline).toBe(false);
     });
 
     it('mesure celles qui en ont un', () => {
-        const component = fixture.componentInstance;
+        useEnglish();
+        fixture.detectChanges();
 
-        expect(component.hasDeadline(component.rows()[0])).toBe(true);
+        expect(within()[0].text).toContain('61%');
+        expect(within()[0].bar).not.toBeNull();
     });
 
     it('turns the bar red below three quarters, amber below ninety', () => {
-        const component = fixture.componentInstance;
-        const [critical, high] = component.rows();
+        fixture.detectChanges();
+        const [critical, high] = within();
 
-        expect(component.barColour(critical)).toBe('#b91c1c');
-        expect(component.barColour(high)).toBe('#d97706');
+        expect(critical.bar).toMatch(/#b91c1c|rgb\(185, 28, 28\)/);
+        expect(high.bar).toMatch(/#d97706|rgb\(217, 119, 6\)/);
+    });
+
+    it('says a severity with a deadline but nothing resolved has nothing to measure, and updates with the answer', () => {
+        useEnglish();
+        const distribution = fixture.componentInstance.distribution;
+        distribution.set({
+            ...DISTRIBUTION,
+            bySeverity: DISTRIBUTION.bySeverity.map((row) =>
+                row.severity === 'high' ? { ...row, percentageWithinSla: null } : row
+            )
+        });
+        fixture.detectChanges();
+
+        expect(within()[1].bar).toBeNull();
+        expect(within()[1].text).not.toContain('%');
+        expect(within()[2].text).not.toBe(within()[1].text);
     });
 
     /** The rows as a reader sees them: the severity cell and the median cell of each. */

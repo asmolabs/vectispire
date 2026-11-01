@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, effect, inject, input, signal, untracked, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -20,7 +20,7 @@ import { findingTypeLabel, findingTypeOptions, isToolProvenance } from '../../sh
 import type { FindingTypeOption } from '../../shared/finding-types';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone } from '@/app/shared/severity';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 /**
@@ -76,6 +76,33 @@ export class ScanDetailPage {
     readonly scan = signal<ScanDetail | null>(null);
     readonly error = signal<string | null>(null);
 
+    /**
+     * What the page shows of the scan, worked out per scan or language rather than by a method per
+     * binding on every pass: its duration in seconds, what it examined, each plugin's refusal in
+     * words and its manifest digest shortened, each finding's type in words and its tint. Spread
+     * rather than wrapped, so the rows still read as the outcomes and findings they are; `t` reads
+     * the bundle's signal, so a switch recomputes the words.
+     */
+    readonly view = computed(() => {
+        const detail = this.scan();
+        if (!detail) return null;
+        return {
+            detail,
+            seconds: detail.scan.durationMs ? Math.round(detail.scan.durationMs / 100) / 10 : null,
+            examination: this.examination(detail),
+            plugins: detail.plugins.map((outcome) => ({
+                ...outcome,
+                refusalLabel: this.refusalLabel(outcome.refusal),
+                shortDigest: shortDigest(outcome.manifestDigest)
+            })),
+            findings: detail.findings.map((finding) => ({
+                ...finding,
+                typeLabel: findingTypeLabel(this.i18n, finding.type),
+                tone: severityTone(finding.severity)
+            }))
+        };
+    });
+
     constructor() {
         // An `effect` rather than a call in the constructor: signal inputs are not bound yet
         // at that point, and reading `id()` there raises NG0950 — the screen sat on "Loading…"
@@ -87,17 +114,8 @@ export class ScanDetailPage {
         });
     }
 
-    refusalLabel(refusal: string | null): string {
+    private refusalLabel(refusal: string | null): string {
         return this.i18n.t(keyFor(PLUGIN_REFUSAL_KEYS, refusal) ?? 'scans.plugin_state.refused');
-    }
-
-    typeLabel(type: string): string {
-        return findingTypeLabel(this.i18n, type);
-    }
-
-    /** A digest shortened like an image's: enough to compare two scans, not enough to crush a row. */
-    shortDigest(digest: string | null): string {
-        return digest ? digest.slice(0, 12) : '—';
     }
 
     /**
@@ -108,7 +126,7 @@ export class ScanDetailPage {
      * before the upgrade would show every step as not examined — telling an assessor that a tree was
      * never searched for secrets, when nothing wrote down whether it was.
      */
-    examination(detail: ScanDetail): Examination | null {
+    private examination(detail: ScanDetail): Examination | null {
         const recorded = detail.examinedTypes;
         if (recorded === null || recorded === undefined) {
             return detail.scan.status === 'completed' ? { state: 'unrecorded' } : null;
@@ -124,10 +142,6 @@ export class ScanDetailPage {
             ],
             notExamined: builtIn.filter((option) => !recorded.includes(option.value))
         };
-    }
-
-    severityOf(severity: string): SeverityTone {
-        return severityTone(severity);
     }
 
     downloadSbom(id: number): void {
@@ -165,15 +179,14 @@ export class ScanDetailPage {
      * When a waiting scan may be claimed again, or null: only for a scan still `pending` whose
      * `notBefore` is ahead. Past it, the scan is simply queued — saying "retry at" a moment already
      * gone would read as a scan stuck on a schedule.
+     *
+     * <p><b>Left a method the template calls</b>, unlike the rest of the page: it reads the clock, and
+     * a computed would keep a moment that has passed on screen until the scan itself changed.
      */
     retryAt(scan: ScanSummary, now: number = Date.now()): string | null {
         if (scan.status !== 'pending' || !scan.notBefore) return null;
         const at = Date.parse(scan.notBefore);
         return Number.isFinite(at) && at > now ? scan.notBefore : null;
-    }
-
-    seconds(durationMs: number): number {
-        return Math.round(durationMs / 100) / 10;
     }
 
     private load(id: number): void {
@@ -193,4 +206,9 @@ export class ScanDetailPage {
                 )
         });
     }
+}
+
+/** A digest shortened like an image's: enough to compare two scans, not enough to crush a row. */
+function shortDigest(digest: string | null): string {
+    return digest ? digest.slice(0, 12) : '—';
 }

@@ -73,6 +73,21 @@ export class Attestation {
         );
     });
 
+    /**
+     * Each framework's tile with its name, its verdict in words and its tone worked out once per
+     * answer or language — through the maps every compliance screen reads. The tile printed the
+     * verdict as the server spells it — "PARTIAL", "NON_COMPLIANT" under a French heading — and the
+     * name by rewriting the constant's underscores.
+     */
+    readonly tiles = computed(() =>
+        this.frameworks().map((evaluation) => ({
+            ...evaluation,
+            name: frameworkLabel(this.i18n, evaluation.framework),
+            verdict: complianceStatusLabel(this.i18n, evaluation.overallStatus),
+            tone: statusTone(evaluation.overallStatus)
+        }))
+    );
+
     constructor() {
         this.reload();
     }
@@ -130,25 +145,12 @@ export class Attestation {
             }
         });
     }
+}
 
-    statusTone(status: string): 'ok' | 'partial' | 'no' | 'none' {
-        if (status === 'COMPLIANT') return 'ok';
-        if (status === 'PARTIAL') return 'partial';
-        // No data is no verdict: not red, and its zero is not shown as a score.
-        if (status === 'NO_DATA') return 'none';
-        return 'no';
-    }
-
-    /**
-     * The framework's name and its verdict in words, through the maps every compliance screen reads.
-     * The tile printed the verdict as the server spells it — "PARTIAL", "NON_COMPLIANT" under a French
-     * heading — and the name by rewriting the constant's underscores.
-     */
-    frameworkLabel(framework: string): string {
-        return frameworkLabel(this.i18n, framework);
-    }
-
-    statusLabel(status: string): string {
-        return complianceStatusLabel(this.i18n, status);
-    }
+function statusTone(status: string): 'ok' | 'partial' | 'no' | 'none' {
+    if (status === 'COMPLIANT') return 'ok';
+    if (status === 'PARTIAL') return 'partial';
+    // No data is no verdict: not red, and its zero is not shown as a score.
+    if (status === 'NO_DATA') return 'none';
+    return 'no';
 }

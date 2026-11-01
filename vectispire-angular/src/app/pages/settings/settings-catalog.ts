@@ -198,7 +198,9 @@ export class SettingsCatalog {
      * configured (`suspended` — kept, and resumed when switched back on), or switched off and empty
      * (`unavailable` — not offered for a new choice). `null` for a setting no switch concerns.
      */
-    integrationState(setting: SettingDefinition): { integration: string; state: 'suspended' | 'unavailable' } | null {
+    private integrationState(
+        setting: SettingDefinition
+    ): { integration: string; state: 'suspended' | 'unavailable' } | null {
         const integration = this.integrationOf(setting);
         if (!integration || !this.registry.isDisabled(integration)) return null;
         return { integration, state: this.configures(setting) ? 'suspended' : 'unavailable' };
@@ -219,11 +221,44 @@ export class SettingsCatalog {
     }
 
     /** A notification channel switched off and not configured: its field offers nothing to fill in. */
-    isUnavailable(setting: SettingDefinition): boolean {
+    private isUnavailable(setting: SettingDefinition): boolean {
         return this.integrationState(setting)?.state === 'unavailable' && setting.key.startsWith('notification_');
     }
 
     readonly riskConfirmVisible = signal(false);
+
+    /**
+     * This tab's cards, each row with its label, help, lock and switch already worked out: computed once
+     * per catalogue, tab, session, registry or language, rather than by a method per binding on every pass
+     * and per keystroke. It reads no typed value, so typing does not rebuild it.
+     */
+    readonly cards = computed(() => {
+        this.i18n.translations();
+        const tab = this.tab();
+        return this.state
+            .sections()
+            .filter((section) => this.tabOf(section) === tab)
+            .map((section) => ({
+                name: section.name,
+                title: this.getSectionTitle(section),
+                modelReview: this.isModelReview(section),
+                rows: this.visibleSettings(section).map((setting) => ({
+                    setting,
+                    label: this.getSettingLabel(setting),
+                    help: this.getSettingHelp(setting),
+                    readOnly: this.isReadOnlyHere(setting),
+                    unavailable: this.isUnavailable(setting),
+                    integration: this.integrationState(setting)
+                }))
+            }));
+    });
+
+    /** The numeric fields' values as numbers, from what is typed: `p-inputnumber` binds a number. */
+    readonly numbers = computed(() => {
+        const numbers: Partial<Record<string, number>> = {};
+        for (const [key, value] of Object.entries(this.state.values())) numbers[key] = this.asNumber(value);
+        return numbers;
+    });
 
     /**
      * Matched on the settings it holds, not on its title.
@@ -238,7 +273,7 @@ export class SettingsCatalog {
     }
 
     /** The rows this card renders: everything but the write-only secrets. See {@link WRITE_ONLY_SECRETS}. */
-    visibleSettings(section: { settings: SettingDefinition[] }): SettingDefinition[] {
+    private visibleSettings(section: { settings: SettingDefinition[] }): SettingDefinition[] {
         return section.settings.filter(
             (setting) => !WRITE_ONLY_SECRETS.has(setting.key) && !SERVER_STAMPED.has(setting.key)
         );
@@ -329,10 +364,6 @@ export class SettingsCatalog {
         return 'governance';
     }
 
-    isSectionVisible(section: { name: string; settings: SettingDefinition[] }): boolean {
-        return this.tabOf(section) === this.tab();
-    }
-
     /**
      * This setting decides a rule and this account does not govern the platform, or it decides
      * where a credential is sent and this account may not set that credential.
@@ -344,7 +375,7 @@ export class SettingsCatalog {
         );
     }
 
-    getSectionTitle(section: { name: string; settings: SettingDefinition[] }): string {
+    private getSectionTitle(section: { name: string; settings: SettingDefinition[] }): string {
         this.i18n.translations();
         const firstKey = section.settings[0]?.key ?? '';
         if (firstKey.startsWith('sla_')) return this.i18n.t('settings.sections.remediation_slas');
@@ -362,21 +393,21 @@ export class SettingsCatalog {
         return section.name;
     }
 
-    getSettingLabel(setting: SettingDefinition): string {
+    private getSettingLabel(setting: SettingDefinition): string {
         this.i18n.translations();
         const key = `settings.keys.${setting.key}.label`;
         const translated = this.i18n.t(key);
         return translated !== key ? translated : setting.label;
     }
 
-    getSettingHelp(setting: SettingDefinition): string {
+    private getSettingHelp(setting: SettingDefinition): string {
         this.i18n.translations();
         const key = `settings.keys.${setting.key}.help`;
         const translated = this.i18n.t(key);
         return translated !== key ? translated : setting.help;
     }
 
-    asNumber(value: string): number {
+    private asNumber(value: string): number {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : 0;
     }

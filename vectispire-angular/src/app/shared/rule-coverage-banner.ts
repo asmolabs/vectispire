@@ -46,6 +46,7 @@ export class RuleCoverageBanner {
     });
 
     readonly uncovered = computed(() => this.coverage()?.uncovered ?? []);
+    readonly uncoveredNames = computed(() => this.uncovered().join(', '));
 
     /**
      * Whether to say which installed rules declare an OWASP edition the grid does not place — on the rule
@@ -64,7 +65,9 @@ export class RuleCoverageBanner {
      * and a warning about it would fire on every instance.
      */
     readonly otherEdition = computed(() =>
-        (this.coverage()?.owasp?.untagged ?? []).filter((row) => row.reason !== 'NOT_DECLARED' && row.ruleFiles > 0)
+        (this.coverage()?.owasp?.untagged ?? [])
+            .filter((row) => row.reason !== 'NOT_DECLARED' && row.ruleFiles > 0)
+            .map((row) => ({ ...row, key: keyFor(RuleCoverageBanner.REASON_KEYS, row.reason) }))
     );
 
     /** The sentence of each reason; one this client does not know is shown by its name ({@link keyFor}). */
@@ -73,10 +76,6 @@ export class RuleCoverageBanner {
         ONLY_2017_EDITION: 'rule_coverage.owasp_other_edition.only_2017',
         NOT_DECLARED: 'rule_coverage.owasp_other_edition.not_declared'
     };
-
-    reasonKey(reason: string): string | undefined {
-        return keyFor(RuleCoverageBanner.REASON_KEYS, reason);
-    }
 
     readonly otherEditionFiles = computed(() => this.otherEdition().reduce((sum, row) => sum + row.ruleFiles, 0));
 

@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { messageOf } from '../../core/api-error';
 import { RouterLink } from '@angular/router';
@@ -40,18 +40,23 @@ export class Quality {
         });
     }
 
-    groups(data: QualityOverview) {
+    /**
+     * The three tables, each bar's width worked out once per answer or language rather than by a
+     * method per bar on every pass.
+     */
+    readonly groups = computed(() => {
+        const data = this.overview();
+        if (!data) return [];
         return [
-            { title: this.i18n.t('quality.tables.most_frequent_rules'), rows: data.topRules },
-            { title: this.i18n.t('quality.tables.most_affected_files'), rows: data.topFiles },
-            { title: this.i18n.t('quality.tables.densest_repositories'), rows: data.topTargets }
+            { title: this.i18n.t('quality.tables.most_frequent_rules'), rows: withShares(data.topRules) },
+            { title: this.i18n.t('quality.tables.most_affected_files'), rows: withShares(data.topFiles) },
+            { title: this.i18n.t('quality.tables.densest_repositories'), rows: withShares(data.topTargets) }
         ];
-    }
+    });
+}
 
-    /** A share relative to the largest in the group: that is the comparison that matters,
-     *  not the proportion of the total. */
-    share(row: Tally, rows: Tally[]): number {
-        const largest = Math.max(...rows.map((item) => item.count), 1);
-        return Math.round((row.count / largest) * 100);
-    }
+/** A share relative to the largest in the group: that is the comparison that matters, not the proportion of the total. */
+function withShares(rows: Tally[]): (Tally & { share: number })[] {
+    const largest = Math.max(...rows.map((item) => item.count), 1);
+    return rows.map((row) => ({ ...row, share: Math.round((row.count / largest) * 100) }));
 }

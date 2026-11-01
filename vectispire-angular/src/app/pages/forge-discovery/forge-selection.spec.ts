@@ -4,9 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ForgeSelectionTable } from './forge-selection';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { asSchema } from '@/app/core/testing/contract';
-import { CANDIDATE_PAGE, CONNECTION_ID } from '@/app/core/testing/forges.fixtures';
+import { CANDIDATE_PAGE, CONNECTION_ID, candidate, repository } from '@/app/core/testing/forges.fixtures';
+import type { ForgeCandidatePage } from '@/app/core/api.models';
 
 /**
  * The selection table, through the DOM: which rows can be ticked and why not, what the first selection
@@ -41,13 +42,13 @@ describe('the selection table', () => {
         return http.expectOne({ method: 'POST', url: BASE });
     }
 
-    async function open(selected: string[] = ['101', '102']): Promise<void> {
+    async function open(selected: string[] = ['101', '102'], page: ForgeCandidatePage = CANDIDATE_PAGE): Promise<void> {
         fixture = TestBed.createComponent(ForgeSelectionTable);
         fixture.componentRef.setInput('connectionId', CONNECTION_ID);
         fixture.componentRef.setInput('discoveryId', 12);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
-        http.expectOne(`${BASE}?limit=50&offset=0&${DEFAULT_QUERY}`).flush(CANDIDATE_PAGE);
+        http.expectOne(`${BASE}?limit=50&offset=0&${DEFAULT_QUERY}`).flush(page);
         const proposed = selectionChange();
         expect(proposed.request.body).toEqual({
             operation: 'proposed',
@@ -81,6 +82,21 @@ describe('the selection table', () => {
         expect(text('[data-testid="candidate-state"]', row('103'))).toBe('Already a target (3 targets)');
         expect(text('[data-testid="selected-count"]')).toBe('2 selected');
         expect(text('[data-testid="matching"]')).toBe('4 repositories match, of 37 listed.');
+    });
+
+    it('says why a row cannot be ticked in the reader language, after a switch too', async () => {
+        const empty = candidate(repository('105', 'acme/empty'), {
+            selectable: false,
+            notSelectable: 'no_default_branch',
+            offered: false
+        });
+        await open(['101'], { ...CANDIDATE_PAGE, items: [...CANDIDATE_PAGE.items, empty], total: 5 });
+        expect(tick('105').disabled).toBe(true);
+        expect(text('[data-testid="candidate-state"]', row('105'))).toBe('Empty repository: no default branch');
+
+        useFrench();
+        await settle();
+        expect(text('[data-testid="candidate-state"]', row('105'))).toBe('Dépôt vide : pas de branche par défaut');
     });
 
     it('counts what a filter could not judge, and says how unknown values are treated', async () => {
@@ -171,6 +187,8 @@ describe('the selection table', () => {
         const dropped = text('[data-testid="dropped"]');
         expect(dropped).toContain('1 id could not be ticked');
         expect(dropped).toContain('999');
+        // The row ticked by the server's answer, not by a click on its box, reads ticked.
+        expect(tick('104').checked).toBe(true);
     });
 
     it('clears nothing on the way back: a selection already made is not replaced by the proposal', async () => {

@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -11,10 +11,10 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { TooltipModule } from '@openng/optimus-ui/tooltip';
 import { messageOf } from '../../core/api-error';
 import { TargetsApi } from '../../core/api/targets.api';
-import type { EncryptionState, GitTokenSummary } from '../../core/api.models';
+import type { GitTokenSummary } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { encryptionBadge, GIT_TOKEN_HINT_KEYS, type EncryptionBadge } from '../../shared/encryption-state';
+import { encryptionBadge, GIT_TOKEN_HINT_KEYS } from '../../shared/encryption-state';
 
 /**
  * The HTTPS clone tokens, beside the SSH keys and built the same way.
@@ -80,9 +80,16 @@ export class GitTokens {
         });
     }
 
-    badge(state: EncryptionState): EncryptionBadge {
-        return encryptionBadge(this.i18n, state, GIT_TOKEN_HINT_KEYS);
-    }
+    /**
+     * Each token with its badge worked out once — per list or language, not three badges per row on
+     * every pass. `t` reads the bundle's signal, so a switch recomputes them.
+     */
+    readonly rows = computed(() =>
+        this.tokens().map((token) => ({
+            ...token,
+            badge: encryptionBadge(this.i18n, token.encryptionState, GIT_TOKEN_HINT_KEYS)
+        }))
+    );
 
     openForm(): void {
         this.form = GitTokens.emptyForm();

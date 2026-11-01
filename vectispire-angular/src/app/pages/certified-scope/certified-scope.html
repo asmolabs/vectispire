@@ -66,11 +66,11 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
                 <div class="font-medium mb-2">{{ 'scope.repositories' | translate }}</div>
-                @for (repository of repositories(); track repository.id) {
+                @for (repository of repositoryRows(); track repository.id) {
                     <label class="flex items-center gap-2 py-1 cursor-pointer">
                         <input
                             type="checkbox"
-                            [checked]="inScope('REPOSITORY', repository.id)"
+                            [checked]="repository.inScope"
                             [disabled]="!canEdit()"
                             (change)="toggleRepository(repository.id, $any($event.target).checked)"
                         />
@@ -82,11 +82,11 @@
             </div>
             <div>
                 <div class="font-medium mb-2">{{ 'scope.containers' | translate }}</div>
-                @for (container of containers(); track container.id) {
+                @for (container of containerRows(); track container.id) {
                     <label class="flex items-center gap-2 py-1 cursor-pointer">
                         <input
                             type="checkbox"
-                            [checked]="inScope('CONTAINER', container.id)"
+                            [checked]="container.inScope"
                             [disabled]="!canEdit()"
                             (change)="toggleContainer(container.id, $any($event.target).checked)"
                         />

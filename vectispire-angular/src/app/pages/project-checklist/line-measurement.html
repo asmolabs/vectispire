@@ -13,32 +13,24 @@
                 }
             </ul>
         </div>
-        @if (found(); as m) {
+        @if (view(); as m) {
             <div class="flex flex-wrap gap-1 justify-end" data-testid="measurement-badges">
-                <p-tag
-                    [severity]="outcomeSeverity(m.outcome)"
-                    [value]="outcomeLabel(m.outcome)"
-                    data-testid="outcome"
-                />
-                @if (measured(); as line) {
-                    <p-tag
-                        [severity]="reconciliationSeverity(line.reconciliation)"
-                        [value]="reconciliationLabel(line.reconciliation)"
-                        data-testid="reconciliation"
-                    />
-                    @for (problem of measuredProblems(); track problem) {
-                        <p-tag severity="danger" [value]="problemLabel(problem)" data-testid="measured-problem" />
+                <p-tag [severity]="m.outcomeTag.severity" [value]="m.outcomeTag.label" data-testid="outcome" />
+                @if (reconciliation(); as line) {
+                    <p-tag [severity]="line.severity" [value]="line.label" data-testid="reconciliation" />
+                    @for (badge of problemBadges(); track badge.problem) {
+                        <p-tag severity="danger" [value]="badge.label" data-testid="measured-problem" />
                     }
                 }
             </div>
         }
     </div>
 
-    @if (found(); as m) {
-        @if (m.reason) {
+    @if (view(); as m) {
+        @if (m.reasonSentence; as reason) {
             <p class="mt-2 mb-0" data-testid="reason">
                 <i class="pi pi-eye-slash text-muted-color" aria-hidden="true"></i>
-                {{ reasonSentence(m.reason) }}
+                {{ reason }}
             </p>
         }
         <p class="mt-2 mb-0 text-muted-color" data-testid="as-of">
@@ -49,14 +41,11 @@
             }
         </p>
         @if (changedSinceSubmission()) {
-            @if (measured()?.atSubmission; as then) {
+            @if (m.outcomeAtSubmission; as then) {
                 <p class="mt-2 mb-0" data-testid="changed-since-submission">
                     <p-tag
                         severity="danger"
-                        [value]="
-                            'project_checklist.changed_since_submission'
-                                | translate: { outcome: outcomeLabel(then.outcome) }
-                        "
+                        [value]="'project_checklist.changed_since_submission' | translate: { outcome: then }"
                     />
                 </p>
             }
@@ -79,14 +68,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (figure of m.evidence.figures; track $index) {
+                    @for (figure of m.figureRows; track $index) {
                         <tr [class.font-medium]="figure.scope === 'all'">
-                            <td class="pr-3">{{ scopeLabel(figure.scope) }}</td>
-                            <td class="pr-3">{{ severityLabel(figure.severity) }}</td>
+                            <td class="pr-3">{{ figure.scopeLabel }}</td>
+                            <td class="pr-3">{{ figure.severityLabel }}</td>
                             <td class="text-right pr-3">{{ figure.open }}</td>
                             <td class="text-right pr-3">{{ figure.resolved }}</td>
                             <td>
-                                {{ metLabel(figure.met) }}
+                                {{ figure.metLabel }}
                                 @if (figure.detail) {
                                     <span class="text-muted-color">· {{ figure.detail }}</span>
                                 }
@@ -156,20 +145,20 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @for (repository of m.evidence.repositories; track $index) {
+                        @for (repository of m.repositoryRows; track $index) {
                             <tr>
                                 <td class="pr-3" [class.font-mono]="repository.repositoryName === null">
-                                    {{ repositoryLabel(repository) }}
+                                    {{ repository.label }}
                                 </td>
-                                <td class="pr-3">{{ repository.scope ? scopeLabel(repository.scope) : '—' }}</td>
-                                <td class="pr-3">{{ statusLabel(repository.status) }}</td>
+                                <td class="pr-3">{{ repository.scopeLabel }}</td>
+                                <td class="pr-3">{{ repository.statusLabel }}</td>
                                 <td class="pr-3">
                                     @if (repository.source === 'scan' && repository.sourceId !== null) {
                                         <a [routerLink]="['/scans', repository.sourceId]">{{
-                                            sourceLabel(repository)
+                                            repository.sourceLabel
                                         }}</a>
                                     } @else if (repository.source) {
-                                        {{ sourceLabel(repository) }}
+                                        {{ repository.sourceLabel }}
                                     } @else {
                                         —
                                     }
@@ -180,7 +169,7 @@
                                 <td class="pr-3 font-mono" [attr.title]="repository.digest">
                                     {{ repository.digest ? repository.digest.slice(0, 12) : '—' }}
                                 </td>
-                                <td class="pr-3">{{ metLabel(repository.met) }}</td>
+                                <td class="pr-3">{{ repository.metLabel }}</td>
                                 <td>{{ repository.detail ?? '' }}</td>
                             </tr>
                         }

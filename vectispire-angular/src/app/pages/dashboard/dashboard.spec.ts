@@ -5,6 +5,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Dashboard } from './dashboard';
+import { GradeTonePipe } from './grade-tone.pipe';
+import { gradeSeverity } from '@/app/shared/scorecard';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
 import type { GateViolation, HighImpactFix, SecurityGrade } from '../../core/api.models';
@@ -483,6 +485,24 @@ describe('the failing targets table', () => {
         expect(table?.querySelector('[data-testid="failing-violations"]')?.textContent.trim()).toBe('2');
     });
 
+    it('words each violation in the reader language, after a switch too', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+        const line = () =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('[data-testid="violation-reason"]')
+                ?.textContent?.replace(/\s+/g, ' ')
+                .trim();
+        const english = line();
+        expect(english).toContain('Severity');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(line()).not.toBe(english);
+        expect(line()).not.toContain('Severity');
+        expect(line()).toContain('Critique');
+    });
+
     it('tags anything else as a severity breach', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
         fixture.detectChanges();
@@ -631,6 +651,15 @@ describe('the maturity ranking', () => {
     });
 
     // What breaks a tie in the order, and what still moves deep in F (decision 0036).
+    it("writes the risk points in the reader's decimal mark, after a switch too", () => {
+        const points = () =>
+            rowOf('graded-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim();
+        expect(points()).toBe('18.125');
+        useFrench();
+        fixture.detectChanges();
+        expect(points()).toBe('18,125');
+    });
+
     it('shows the risk points of each graded target, and a dash where there is no grade', () => {
         expect(rowOf('graded-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim()).toBe(
             '18.125'
@@ -642,8 +671,8 @@ describe('the maturity ranking', () => {
     });
 
     it('paints no grade as neutral, not as failing', () => {
-        expect(fixture.componentInstance.gradeSeverity('NO_DATA')).toBe('secondary');
-        expect(fixture.componentInstance.gradeSeverity('F')).toBe('danger');
+        expect(new GradeTonePipe().transform('NO_DATA')).toBe('secondary');
+        expect(new GradeTonePipe().transform('F')).toBe('danger');
     });
 
     // The ranking grades as the scorecard does, whose best grade is A+: the dashboard's own colours
@@ -651,7 +680,7 @@ describe('the maturity ranking', () => {
     it('paints a clean scanned target at A+ as the card paints it, not as failing', () => {
         const tr = rowOf('clean-repo');
         expect(tr.textContent).toContain('100/100');
-        expect(fixture.componentInstance.gradeSeverity('A_PLUS')).toBe('success');
+        expect(new GradeTonePipe().transform('A_PLUS')).toBe('success');
         expect(tr.querySelector('.p-tag-danger')).toBeNull();
         expect(tr.querySelector('.p-tag-success')).not.toBeNull();
     });
@@ -795,6 +824,18 @@ describe('the portfolio', () => {
         expect(page.querySelector('[data-testid="portfolio-distribution"]')?.getAttribute('aria-label')).toBe(
             'Targets by grade'
         );
+    });
+
+    it("colours each grade's tag as every screen colours that grade", () => {
+        const page = load(PORTFOLIO);
+        const tones = Array.from(page.querySelectorAll('[data-testid="portfolio-distribution"] li')).map((row) => [
+            row.getAttribute('data-grade'),
+            row.querySelector('.p-tag')?.className.match(/p-tag-(success|warn|danger|secondary|info)/)?.[1]
+        ]);
+        expect(tones).toEqual(
+            ['A_PLUS', 'A', 'B', 'C', 'D', 'F', 'NO_DATA'].map((grade) => [grade, gradeSeverity(grade)])
+        );
+        expect(new Set(tones.map(([, tone]) => tone)).size).toBeGreaterThan(2);
     });
 
     it('names the weakest target and what is open, and states no single grade for the estate', () => {

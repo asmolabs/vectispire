@@ -87,6 +87,19 @@ export class ChecklistContactsPanel {
         return byProfile;
     });
 
+    /**
+     * Each profile with the account it is linked to in words and its choices, worked out once per list,
+     * candidates or language — not by a method per row on every pass.
+     */
+    readonly profiles = computed(() => {
+        const options = this.options();
+        return (this.contacts()?.profiles ?? []).map((profile) => ({
+            ...profile,
+            account: this.accountLabel(profile),
+            options: options[profile.profile]
+        }));
+    });
+
     constructor() {
         effect(() => {
             const projectId = this.projectId();
@@ -107,7 +120,7 @@ export class ChecklistContactsPanel {
     }
 
     /** The linked account as the list names it: its name, or its id when it has none a screen may show. */
-    accountLabel(profile: ChecklistContact): string {
+    private accountLabel(profile: ChecklistContact): string {
         if (profile.accountId === null) return this.i18n.t('checklist_contacts.nobody');
         return profile.accountName ?? this.i18n.t('checklist_contacts.account_n', { id: profile.accountId });
     }

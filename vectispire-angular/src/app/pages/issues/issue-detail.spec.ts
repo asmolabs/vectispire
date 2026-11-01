@@ -1,5 +1,5 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -220,6 +220,36 @@ describe('the issue detail', () => {
         expect(text).toContain('Demonstration application.');
     });
 
+    it('words the transition, the triage and the type in the reader language, after a switch too', async () => {
+        await load({
+            ...ISSUE,
+            triageStatus: 'not_affected',
+            decisions: [
+                {
+                    fromStatus: 'under_review',
+                    toStatus: 'not_affected',
+                    justification: null,
+                    comment: null,
+                    actor: 'alice',
+                    origin: 'manual',
+                    occurredAt: '2026-03-07T14:30:00Z',
+                    expiresAt: null,
+                    scanId: 34,
+                    version: null,
+                    previousResolvedAt: null
+                }
+            ]
+        });
+        const text = () => (fixture.nativeElement as HTMLElement).textContent.replace(/\s+/g, ' ');
+        expect(text()).toContain('Under review → Not affected');
+        const english = text();
+
+        useFrench();
+        fixture.detectChanges();
+        expect(text()).toContain("En cours d'examen → Non affecté");
+        expect(text()).not.toBe(english);
+    });
+
     it('shows a status it has no word for as the server sent it, never as a key path', async () => {
         await load({ ...ISSUE, triageStatus: 'deferred' });
 
@@ -292,6 +322,22 @@ describe('the issue detail', () => {
         expect(text).toContain('SEC-1234');
         expect(text).toContain('Closing this ticket can close this finding.');
         expect(page.editingTicket()).toBe(false);
+    });
+
+    it('is a form requiring the reference, and attaches once however often it is submitted', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector<HTMLInputElement>('#ticket-reference')!.required).toBe(true);
+        expect(root.querySelector<HTMLInputElement>('#ticket-url')!.required).toBe(false);
+        page.ticketReference = 'SEC-1234';
+        const form = root.querySelector('#ticket-reference')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/issues/7/ticket').length).toBe(1);
     });
 
     it('sends a null URL rather than an empty one, an internal tracker may have none', async () => {

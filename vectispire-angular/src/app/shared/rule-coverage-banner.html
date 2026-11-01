@@ -22,7 +22,7 @@
             <i class="pi pi-info-circle text-amber-700 mt-1"></i>
             <div class="flex-1">
                 <div class="font-medium text-amber-700">
-                    {{ 'rule_coverage.partial.title' | translate }} {{ uncovered().join(', ') }}
+                    {{ 'rule_coverage.partial.title' | translate }} {{ uncoveredNames() }}
                 </div>
                 <div class="text-sm">{{ 'rule_coverage.partial.body' | translate }}</div>
             </div>
@@ -49,7 +49,7 @@
             <ul class="text-sm my-1 pl-5">
                 @for (row of otherEdition(); track row.reason) {
                     <li>
-                        @if (reasonKey(row.reason); as key) {
+                        @if (row.key; as key) {
                             {{ key | translate: { count: row.ruleFiles } }}
                         } @else {
                             {{ row.reason }}: {{ row.ruleFiles }}

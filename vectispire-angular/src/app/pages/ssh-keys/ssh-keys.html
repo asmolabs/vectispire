@@ -15,7 +15,7 @@
 }
 
 <p-card>
-    <p-table [value]="keys()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'ssh_keys.name' | translate }}</th>
@@ -32,7 +32,7 @@
                 <td>
                     @if (key.publicKey) {
                         <span class="font-mono text-sm whitespace-nowrap" [title]="key.publicKey">{{
-                            shorten(key.publicKey)
+                            key.shortKey
                         }}</span>
                     } @else {
                         <span class="text-muted-color">—</span>
@@ -40,9 +40,9 @@
                 </td>
                 <td>
                     <p-tag
-                        [value]="badge(key.encryptionState).label"
-                        [severity]="badge(key.encryptionState).severity"
-                        [pTooltip]="badge(key.encryptionState).hint"
+                        [value]="key.badge.label"
+                        [severity]="key.badge.severity"
+                        [pTooltip]="key.badge.hint"
                         tooltipPosition="top"
                     />
                 </td>

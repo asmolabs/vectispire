@@ -168,3 +168,62 @@ describe('the audit log when a read fails', () => {
         );
     });
 });
+
+/**
+ * The page of entries, through the DOM: each row's operation is worked out with the page, so it has to
+ * follow a switch of language, and the range under the table has to follow the page it counts.
+ */
+describe('the audit log page', () => {
+    let http: HttpTestingController;
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [AuditLog],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        TestBed.inject(I18nService).translations.set(english);
+        http = TestBed.inject(HttpTestingController);
+    }, 20_000);
+
+    const entry = (id: string, operationType: string) =>
+        asSchema('AuditEntryView', {
+            id,
+            operationType,
+            description: 'something happened',
+            timestamp: '2026-10-01T09:00:00Z',
+            userId: 'alice',
+            ipAddress: '10.0.0.1',
+            resourceId: null,
+            userAgent: null,
+            previousHash: null,
+            entryHash: null
+        });
+
+    it('words each operation in the reader language, after a switch too, and counts the page it shows', () => {
+        const fixture = TestBed.createComponent(AuditLog);
+        fixture.detectChanges();
+        http.expectOne('/api/v1/audit-log/verify').flush({}, { status: 500, statusText: 'Internal Server Error' });
+        http.expectOne((call) => call.url === '/api/v1/audit-log').flush(
+            asSchema('AuditLogPage', {
+                items: [entry('a', 'PROJECT_UPDATED'), entry('b', 'BRAND_NEW_OPERATION')],
+                total: 120,
+                limit: 50,
+                offset: 0
+            })
+        );
+        http.expectOne((call) => call.url === '/api/v1/audit-log/operation-types').flush([]);
+        fixture.detectChanges();
+        const page = fixture.nativeElement as HTMLElement;
+        const tags = () => [...page.querySelectorAll('tbody .p-tag')].map((tag) => tag.textContent.trim());
+        expect(tags()).toEqual(['Project changed', 'BRAND_NEW_OPERATION']);
+        expect(page.textContent).toContain('1–2 of 120');
+
+        const i18n = TestBed.inject(I18nService);
+        i18n.translations.set(french);
+        i18n.currentLang.set('fr');
+        fixture.detectChanges();
+        expect(tags()).toEqual(['Projet modifié', 'BRAND_NEW_OPERATION']);
+        expect(page.textContent).toContain('1–2 sur 120');
+    });
+});

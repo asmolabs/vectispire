@@ -128,6 +128,8 @@ export class SettingsModelReview {
     }
 
     saveOpenAiKey(): void {
+        // Enter in the field submits the form too: one request at a time.
+        if (this.savingOpenAiKey()) return;
         this.savingOpenAiKey.set(true);
         this.state.error.set(null);
         this.settingsApi.setOpenAiKey(this.openAiKeyInput).subscribe({

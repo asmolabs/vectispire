@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Pipe, PipeTransform, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -64,6 +64,66 @@ const KIND_SCOPES: Record<SourceKind, 'sarif_import' | 'report_import'> = {
 };
 
 /**
+ * Only keys that hold the scope of every chosen kind and have not expired: the server refuses any
+ * other, and offering one would be offering a declaration that cannot work.
+ */
+function keyOptionsFor(
+    keys: readonly ApiKeySummary[],
+    kinds: readonly SourceKind[]
+): { label: string; value: string }[] {
+    const needed = [...new Set(kinds.map((kind) => KIND_SCOPES[kind]))];
+    return keys
+        .filter((key) => !key.isExpired && needed.every((scope) => key.scopes.includes(scope)))
+        .map((key) => ({ label: `${key.name} (${key.prefix ?? key.id.slice(0, 8)}…)`, value: key.id }));
+}
+
+/** A draft the server would accept: named, keyed, scoped, at least one kind — and tools when SARIF is one. */
+function declarable(
+    slug: string,
+    name: string,
+    apiKeyId: string | null,
+    scopeId: number | null,
+    kinds: readonly SourceKind[],
+    tools: string
+): boolean {
+    return (
+        !!slug.trim() &&
+        !!name.trim() &&
+        apiKeyId !== null &&
+        scopeId !== null &&
+        kinds.length > 0 &&
+        (!kinds.includes('sarif') || toolsOf(tools).length > 0)
+    );
+}
+
+/**
+ * `draft.kinds | sarifKeyOptions: keys()` — the keys the form offers. The draft is a plain object its
+ * fields and the specs rewrite, so a computed reading it would freeze; a pure pipe is called again
+ * when the kinds (replaced, never mutated, by `setKind` and `openDeclare`) or the keys change.
+ */
+@Pipe({ name: 'sarifKeyOptions' })
+export class SarifKeyOptionsPipe implements PipeTransform {
+    transform(kinds: readonly SourceKind[], keys: readonly ApiKeySummary[]): { label: string; value: string }[] {
+        return keyOptionsFor(keys, kinds);
+    }
+}
+
+/** Whether the declare button is on, from each of the draft's fields — pure for the same reason as above. */
+@Pipe({ name: 'sarifDeclarable' })
+export class SarifDeclarablePipe implements PipeTransform {
+    transform(
+        slug: string,
+        name: string,
+        apiKeyId: string | null,
+        scopeId: number | null,
+        kinds: readonly SourceKind[],
+        tools: string
+    ): boolean {
+        return declarable(slug, name, apiKeyId, scopeId, kinds, tools);
+    }
+}
+
+/**
  * The declared internal sources (decisions 0017 §7, 0032 §7, 0039): SARIF, coverage and test reports, build SBOMs.
  *
  * **External means outside the organisation.** A report from a tool that already had the code — an
@@ -92,7 +152,9 @@ const KIND_SCOPES: Record<SourceKind, 'sarif_import' | 'report_import'> = {
         SelectModule,
         TableModule,
         TagModule,
-        TranslatePipe
+        TranslatePipe,
+        SarifKeyOptionsPipe,
+        SarifDeclarablePipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './sarif-sources.html'
@@ -115,7 +177,7 @@ export class SarifSources {
 
     private readonly tree = signal<SolutionTree | null>(null);
     private readonly repositories = signal<MonitoredRepository[]>([]);
-    private readonly keys = signal<ApiKeySummary[]>([]);
+    protected readonly keys = signal<ApiKeySummary[]>([]);
 
     readonly projectOptions = computed(() =>
         (this.tree()?.solutions ?? []).flatMap((solution) =>
@@ -129,15 +191,11 @@ export class SarifSources {
         this.repositories().map((repository) => ({ label: repository.displayName, value: repository.id }))
     );
     /**
-     * Only keys that hold the scope of every chosen kind and have not expired: the server refuses any
-     * other, and offering one would be offering a declaration that cannot work. A method rather than a
-     * `computed`: it follows `draft.kinds`, a plain field the template's events rewrite.
+     * The keys the draft's kinds allow. A method rather than a `computed`: it follows `draft.kinds`, a
+     * plain field the template's events rewrite; the template reads it through `sarifKeyOptions`.
      */
     keyOptions(): { label: string; value: string }[] {
-        const needed = [...new Set(this.draft.kinds.map((kind) => KIND_SCOPES[kind]))];
-        return this.keys()
-            .filter((key) => !key.isExpired && needed.every((scope) => key.scopes.includes(scope)))
-            .map((key) => ({ label: `${key.name} (${key.prefix ?? key.id.slice(0, 8)}…)`, value: key.id }));
+        return keyOptionsFor(this.keys(), this.draft.kinds);
     }
 
     readonly kindOptions = computed(() => {
@@ -187,8 +245,19 @@ export class SarifSources {
         });
     }
 
-    scopeLabel(source: SarifSource): string {
-        this.i18n.translations();
+    /**
+     * Each source with its scope and kinds in words, worked out per list, tree or language rather than
+     * per binding on every pass; `t` reads the bundle's signal, so a switch recomputes them.
+     */
+    readonly rows = computed(() =>
+        this.sources().map((source) => ({
+            ...source,
+            scopeText: this.scopeLabel(source),
+            kindLabels: source.kinds.map((kind) => ({ kind, label: this.kindLabel(kind) }))
+        }))
+    );
+
+    private scopeLabel(source: SarifSource): string {
         if (source.projectId !== null) {
             const project = this.projectOptions().find((option) => option.value === source.projectId);
             return this.i18n.t('sarif_sources.scope_project_named', { name: project?.label ?? `#${source.projectId}` });
@@ -200,8 +269,7 @@ export class SarifSources {
     }
 
     /** An unknown kind — a server newer than this screen — reads as itself rather than as a raw key. */
-    kindLabel(kind: string): string {
-        this.i18n.translations();
+    private kindLabel(kind: string): string {
         const key = (KIND_KEYS as Record<string, string | undefined>)[kind];
         return key ? this.i18n.t(key) : kind;
     }
@@ -231,19 +299,9 @@ export class SarifSources {
     }
 
     /** Tools are SARIF's: asked for when SARIF is among the kinds, and not otherwise. */
-    deliversSarif(): boolean {
-        return this.draft.kinds.includes('sarif');
-    }
-
     canDeclare(): boolean {
-        return (
-            !!this.draft.slug.trim() &&
-            !!this.draft.name.trim() &&
-            this.draft.apiKeyId !== null &&
-            this.draft.scopeId !== null &&
-            this.draft.kinds.length > 0 &&
-            (!this.deliversSarif() || toolsOf(this.draft.tools).length > 0)
-        );
+        const draft = this.draft;
+        return declarable(draft.slug, draft.name, draft.apiKeyId, draft.scopeId, draft.kinds, draft.tools);
     }
 
     declare(): void {

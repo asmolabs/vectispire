@@ -125,3 +125,71 @@ body {
         box-shadow: none !important;
     }
 }
+
+/* Secondary text readable in both themes (WCAG 2.2 AA, 1.4.3: 4.5:1).
+ *
+ * Templates write secondary text as `text-surface-400` or `text-surface-500`, often with no dark
+ * variant. In the light theme those are 2.6:1 and 4.3:1 on the page's surface-100 background; in the
+ * dark one, surface 500 is 3.7:1 on a card. Surface 600 and 400 pass, the same choice as the muted
+ * text token (`layout/readable-palette.ts`). Done here rather than in a hundred and forty templates,
+ * and in the utilities layer at the specificity of the utility itself, so that a `hover:` or `dark:`
+ * variant written beside it still wins.
+ */
+@layer utilities {
+    :where(html:not(.app-dark)) .text-surface-400,
+    :where(html:not(.app-dark)) .text-surface-500 {
+        color: var(--p-surface-600);
+    }
+
+    :where(html.app-dark) .text-surface-500:not([class*='dark:text-']) {
+        color: var(--p-surface-400);
+    }
+
+    /* Status colours, likewise: shade 600 of the warm hues and of the primary is under 4.5:1 on white
+       or on its own 50 tint, and shade 700 written with no dark variant is 2.5 to 3.7:1 on the dark
+       surfaces. */
+    :where(html:not(.app-dark)) .text-green-600 {
+        color: var(--p-green-700);
+    }
+    :where(html:not(.app-dark)) .text-amber-600 {
+        color: var(--p-amber-700);
+    }
+    :where(html:not(.app-dark)) .text-orange-600 {
+        color: var(--p-orange-700);
+    }
+    :where(html:not(.app-dark)) .text-red-600 {
+        color: var(--p-red-700);
+    }
+    :where(html:not(.app-dark)) .text-rose-600 {
+        color: var(--p-rose-700);
+    }
+    :where(html:not(.app-dark)) .text-primary-600 {
+        color: var(--p-primary-700);
+    }
+    /* Shade 500 is worse — green 500 on white is 2.2:1 — and most of these are only drawn when the
+       data says so (an overdue count, a freshness rate): axe on one estate's data passed what CI's
+       data failed. Every hue the templates write at 500 is held at 700, whatever turns it on. */
+    @each $hue in 'green', 'emerald', 'amber', 'yellow', 'orange', 'red', 'rose', 'blue', 'purple', 'indigo' {
+        :where(html:not(.app-dark)) .text-#{$hue}-500 {
+            color: var(--p-#{$hue}-700);
+        }
+    }
+    :where(html.app-dark) .text-red-700:not([class*='dark:text-']) {
+        color: var(--p-red-400);
+    }
+    :where(html.app-dark) .text-orange-700:not([class*='dark:text-']) {
+        color: var(--p-orange-400);
+    }
+    :where(html.app-dark) .text-amber-700:not([class*='dark:text-']) {
+        color: var(--p-amber-400);
+    }
+    :where(html.app-dark) .text-emerald-700:not([class*='dark:text-']) {
+        color: var(--p-emerald-400);
+    }
+    :where(html.app-dark) .text-green-700:not([class*='dark:text-']) {
+        color: var(--p-green-400);
+    }
+    :where(html.app-dark) .text-rose-700:not([class*='dark:text-']) {
+        color: var(--p-rose-400);
+    }
+}

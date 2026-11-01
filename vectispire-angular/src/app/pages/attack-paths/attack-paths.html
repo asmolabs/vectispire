@@ -50,6 +50,7 @@
     <!-- Repository selector & controls -->
     <div class="flex items-center gap-3">
         <select
+            [attr.aria-label]="'attack_paths.repository' | translate"
             class="p-2 text-sm border rounded-lg bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 min-w-56 font-medium"
             [ngModel]="selectedRepoId()"
             (ngModelChange)="onRepoChange($event)"
@@ -101,7 +102,7 @@
                 {{ 'attack_paths.topological_score' | translate }}
             </span>
             <div class="flex items-baseline justify-between mt-2">
-                <span class="text-3xl font-extrabold" [ngClass]="getRiskScoreColor(g.riskScore)">
+                <span class="text-3xl font-extrabold" [ngClass]="g.riskScore | riskScoreColor">
                     {{ g.riskScore }} / 100
                 </span>
                 <i class="pi pi-shield text-primary-500 text-xl"></i>
@@ -277,7 +278,7 @@
                                     >{{ node.label }}</span
                                 >
                                 <p-tag
-                                    [severity]="getSeverityBadge(node.severity)"
+                                    [severity]="node.severity | severityTone"
                                     [value]="node.severity | severityLabel"
                                     size="small"
                                 />
@@ -327,7 +328,7 @@
                                     node.label
                                 }}</span>
                                 <p-tag
-                                    [severity]="getSeverityBadge(node.severity)"
+                                    [severity]="node.severity | severityTone"
                                     [value]="node.severity | severityLabel"
                                     size="small"
                                 />
@@ -372,7 +373,7 @@
                                 <span
                                     class="text-xs font-bold text-purple-900 dark:text-purple-200 truncate flex items-center gap-1.5"
                                 >
-                                    <i [class]="getNodeIcon(node.type)"></i>
+                                    <i [class]="node.type | nodeIcon"></i>
                                     {{ node.label }}
                                 </span>
                                 <p-tag severity="danger" [value]="'attack_paths.impact_tag' | translate" size="small" />
@@ -422,7 +423,7 @@
                                 </span>
                             }
                         </div>
-                        <p-tag [severity]="getSeverityBadge(path.riskLevel)" [value]="path.riskLevel | severityLabel" />
+                        <p-tag [severity]="path.riskLevel | severityTone" [value]="path.riskLevel | severityLabel" />
                     </div>
 
                     <!--
@@ -528,7 +529,7 @@
                         </td>
                         <td>{{ row.totalPaths }}</td>
                         <td>
-                            <span class="font-bold" [ngClass]="getRiskScoreColor(row.riskScore)">
+                            <span class="font-bold" [ngClass]="row.riskScore | riskScoreColor">
                                 {{ row.riskScore }} / 100
                             </span>
                         </td>
@@ -562,10 +563,10 @@
         <div class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <i [class]="getNodeIcon(node.type)" class="text-xl"></i>
+                    <i [class]="node.type | nodeIcon" class="text-xl"></i>
                     <span class="text-base font-bold">{{ node.label }}</span>
                 </div>
-                <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity | severityLabel" />
+                <p-tag [severity]="node.severity | severityTone" [value]="node.severity | severityLabel" />
             </div>
 
             <div class="p-3 rounded-lg bg-surface-100 dark:bg-surface-800 text-xs flex flex-col gap-1">

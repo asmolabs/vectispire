@@ -112,7 +112,7 @@
         <p-button [label]="'common.filter' | translate" icon="pi pi-search" (onClick)="search()" />
     </div>
 
-    <p-table [value]="entries()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th style="width: 11rem">{{ 'audit_log.col_timestamp' | translate }}</th>
@@ -125,7 +125,7 @@
         <ng-template #body let-entry>
             <tr>
                 <td class="whitespace-nowrap text-sm">{{ entry.timestamp | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
-                <td><p-tag [value]="operationLabel(entry.operationType)" severity="secondary" /></td>
+                <td><p-tag [value]="entry.operation" severity="secondary" /></td>
                 <td>{{ entry.description }}</td>
                 <td>{{ entry.userId || '—' }}</td>
                 <td class="font-mono text-sm">{{ entry.ipAddress || '—' }}</td>

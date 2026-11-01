@@ -32,7 +32,7 @@
                     <div class="flex flex-wrap gap-1">
                         @for (scope of key.scopes; track scope) {
                             <p-tag
-                                [value]="scopeLabel(scope)"
+                                [value]="scopeLabels()[scope] ?? scope"
                                 [severity]="
                                     scope === 'agent'
                                         ? 'danger'

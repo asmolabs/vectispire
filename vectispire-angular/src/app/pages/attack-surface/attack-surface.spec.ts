@@ -201,6 +201,26 @@ describe('the attack surface screen', () => {
         expect(text()).not.toContain(LABELS.pick_repository_routes);
     });
 
+    it('tones each route by its method and its documentation state', async () => {
+        await chooseOurs();
+        const tones = () =>
+            [...page().querySelectorAll('p-table tbody tr')]
+                .filter((row) => row.querySelector('p-tag'))
+                .map((row) => {
+                    const tags = [...row.querySelectorAll('p-tag')];
+                    const tone = (tag: Element) =>
+                        [...(tag.querySelector('.p-tag') ?? tag).classList].find((name) =>
+                            /^p-tag-(info|success|warn|danger|secondary)$/.test(name)
+                        ) ?? null;
+                    return [tone(tags[0]), tone(tags.at(-1)!)];
+                });
+        expect(tones()).toEqual([
+            ['p-tag-info', 'p-tag-success'],
+            ['p-tag-success', 'p-tag-success'],
+            ['p-tag-info', 'p-tag-success']
+        ]);
+    });
+
     it('combines the method, authentication and visibility filters', async () => {
         await chooseOurs();
 
