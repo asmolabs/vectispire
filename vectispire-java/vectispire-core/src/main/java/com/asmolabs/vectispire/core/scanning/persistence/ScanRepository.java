@@ -36,6 +36,24 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     long countByStatus(String status);
 
     /**
+     * The waiting scans of repositories: how many, and the creation of the oldest — the queue's
+     * gauges, read once per scheduling tick rather than at every scrape ({@code PlatformMetrics}).
+     * Those serving out a retry delay count: they wait like the others.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.WaitingScansRow(count(s.id), min(s.createdAt))
+              from ScanEntity s
+             where s.status = :status and s.repoId is not null""")
+    WaitingScansRow waitingRepositoryScans(@Param("status") String status);
+
+    /** The same, for the scans of container images. */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.WaitingScansRow(count(s.id), min(s.createdAt))
+              from ScanEntity s
+             where s.status = :status and s.containerId is not null""")
+    WaitingScansRow waitingContainerScans(@Param("status") String status);
+
+    /**
      * How many scans of this target are already waiting.
      *
      * <p>Asked before queueing another: a target whose previous scan has not started yet does

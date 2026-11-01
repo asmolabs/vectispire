@@ -68,6 +68,12 @@ public interface MaintenanceTask {
         public static final int CREDENTIALED_BACKLOG = 30;
         /** On the scheduler's minute too: the report runs no executor holds or will claim. */
         public static final int REPORT_RUN_SWEEP = 40;
+        /**
+         * The gauges' figures, after the tick and the sweep that change them, so the minute's
+         * snapshot shows what they left: a scrape reads it and never queries.
+         */
+        public static final int SCAN_METRICS = 50;
+        public static final int AGENT_METRICS = 60;
         public static final int SCAN_RETENTION = 100;
         public static final int SENT_MESSAGES = 200;
         public static final int TICKET_SWEEP = 300;

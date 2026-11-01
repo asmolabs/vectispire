@@ -130,6 +130,19 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
                 List.of(new SimpleGrantedAuthority(ROLE_PREFIX + Role.ADMIN.name()), new SimpleGrantedAuthority(SCIM_SCOPE)));
     }
 
+    /** The authority only the scrape token carries, and what {@code /actuator/prometheus} accepts beside an administrator's session. */
+    public static final String METRICS_SCRAPE_SCOPE = "SCOPE_METRICS_SCRAPE";
+
+    /**
+     * Whoever holds the scrape token: no account, no role, no visibility — the one authority, which
+     * only {@code /actuator/prometheus} accepts. The token is recognised on that path alone, so this
+     * principal never meets a route of the application.
+     */
+    public static VectispirePrincipal ofMetricsScraper() {
+        return new VectispirePrincipal(
+                null, null, null, Visibility.only(List.of()), List.of(new SimpleGrantedAuthority(METRICS_SCRAPE_SCOPE)));
+    }
+
     /** What the credential itself allows, before the account's own assignments narrow it further. */
     public Visibility credentialRestriction() {
         return credentialRestriction;
@@ -204,6 +217,12 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
         if (user != null) {
             return user.username();
         }
-        return agent != null ? "agent:" + agent.name() : "anonymous";
+        if (agent != null) {
+            return "agent:" + agent.name();
+        }
+        // Named, so a refusal's audit entry says the scrape token was used rather than "anonymous".
+        return getAuthorities().stream().anyMatch(granted -> METRICS_SCRAPE_SCOPE.equals(granted.getAuthority()))
+                ? "metrics-scraper"
+                : "anonymous";
     }
 }

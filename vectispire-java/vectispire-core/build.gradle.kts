@@ -155,6 +155,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // `/actuator/prometheus`, version managed by Spring Boot's BOM. Behind the administrator's
+    // session or the scrape token, never anonymous — see `ActuatorAccess`.
+    implementation("io.micrometer:micrometer-registry-prometheus")
     // **In `vectispire-core` and not in the domain beside the other exports**, deliberately. The
     // domain half of `vectispire-common` is what the agent also carries, and an agent that never
     // renders a document has no business shipping a PDF library. The layer rule would have

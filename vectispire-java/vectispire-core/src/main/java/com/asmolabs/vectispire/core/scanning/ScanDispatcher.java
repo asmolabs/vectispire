@@ -362,6 +362,9 @@ public class ScanDispatcher {
                 recordCredentialSent(agent, scan, "sealed for the agent's verified sealing key");
             }
 
+            // Counted here, once the task exists and its credential is sealed: a refund above tried
+            // nothing, and a task that failed to build (the catch below) never reached the agent.
+            metrics.scanStarted(scan, PlatformMetrics.Executor.AGENT);
             return Optional.of(new AgentTask(scan.getId(), scan.getAttempts(), task));
         } catch (CredentialWithheldException refused) {
             throw refused;
@@ -487,9 +490,14 @@ public class ScanDispatcher {
         // Read before the write, because recording the result clears the claim. Timed from the
         // claim rather than from the submission: what an operator wants to know is how long the
         // agent held the work, which is the number that grows when an agent is struggling.
-        Instant claimedAt = queue.byId(scanId).map(ScanEntity::getClaimedAt).orElse(null);
+        ScanEntity claimed = queue.byId(scanId).orElse(null);
         boolean accepted = record(scanId, agent.id().toString(), artifacts, alongside);
-        metrics.scanFinishedSince(claimedAt, accepted, true);
+        if (accepted) {
+            metrics.scanCompleted(claimed, PlatformMetrics.Executor.AGENT);
+        } else {
+            // Taken over while the agent ran it: the scan is the successor's, not failed.
+            metrics.scanFailed(claimed, PlatformMetrics.Executor.AGENT, false);
+        }
         return accepted;
     }
 
@@ -515,12 +523,12 @@ public class ScanDispatcher {
      */
     public Optional<AgentFailure> reportAgentFailure(
             long scanId, AgentView agent, int attempt, FailureKind kind, String reason) {
-        Instant claimedAt = queue.byId(scanId).map(ScanEntity::getClaimedAt).orElse(null);
+        ScanEntity claimed = queue.byId(scanId).orElse(null);
         String where = "on agent \"" + agent.name() + "\"";
         Optional<ScanQueue.Abandoned> abandoned =
                 queue.abandon(scanId, agent.id().toString(), attempt, kind, outcome -> sentence(outcome, where, reason));
         abandoned.ifPresent(done -> {
-            metrics.scanFinishedSince(claimedAt, false, true);
+            metrics.scanFailed(claimed, PlatformMetrics.Executor.AGENT, !done.retried());
             logAbandoned(scanId, where, done);
         });
         return abandoned.map(done -> new AgentFailure(
@@ -565,13 +573,20 @@ public class ScanDispatcher {
      *
      * @param task what was handed to the runner, for its secrets; null when the failure came first
      */
-    private void abandon(ScanEntity scan, String worker, String where, RuntimeException error, ScanTask task) {
+    private Optional<ScanQueue.Abandoned> abandon(
+            ScanEntity scan, String worker, String where, RuntimeException error, ScanTask task) {
         String raw = error.getMessage() == null ? error.toString() : error.getMessage();
         String reason = FailureReason.scrub(raw, secretsOf(task));
         FailureKind kind = FailureKind.of(error);
-        queue.abandon(scan.getId(), worker, scan.getAttempts(), kind,
-                        outcome -> sentence(outcome, where, reason.isEmpty() ? "no reason was given." : reason))
-                .ifPresent(done -> logAbandoned(scan.getId(), where, done));
+        Optional<ScanQueue.Abandoned> abandoned = queue.abandon(scan.getId(), worker, scan.getAttempts(), kind,
+                outcome -> sentence(outcome, where, reason.isEmpty() ? "no reason was given." : reason));
+        abandoned.ifPresent(done -> logAbandoned(scan.getId(), where, done));
+        return abandoned;
+    }
+
+    /** Whether an abandoned attempt failed its scan for good; not when the attempt was no longer this worker's. */
+    private static boolean failedForGood(Optional<ScanQueue.Abandoned> abandoned) {
+        return abandoned.map(done -> !done.retried()).orElse(false);
     }
 
     private static List<String> secretsOf(ScanTask task) {
@@ -592,6 +607,7 @@ public class ScanDispatcher {
         if (!reclaimed.failed().isEmpty()) {
             log.error("{} scan(s) failed for good after too many takeovers.", reclaimed.failed().size());
         }
+        metrics.scansLapsed(reclaimed.requeued().size(), reclaimed.failed().size());
     }
 
     /** True when the scan finished normally. */
@@ -604,6 +620,7 @@ public class ScanDispatcher {
             log.warn("Scan {} was taken over before it started — skipped.", scan.getId());
             return false;
         }
+        metrics.scanStarted(scan, PlatformMetrics.Executor.EMBEDDED);
 
         ScanArtifacts artifacts;
         ScanTask task = null;
@@ -620,25 +637,27 @@ public class ScanDispatcher {
             // three cost the built-in worker the scan. A step that failed inside a scan that ran is
             // not this — it is in the artifacts, absent (decision 0007) — this is a scan that could
             // not run at all.
-            abandon(scan, worker, "on the built-in worker", error, task);
-            metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
+            metrics.scanFailed(scan, PlatformMetrics.Executor.EMBEDDED,
+                    failedForGood(abandon(scan, worker, "on the built-in worker", error, task)));
             return false;
         } finally {
             heartbeat.cancel(false);
         }
 
         try {
-            if (!record(scan.getId(), worker, artifacts)) {
+            if (record(scan.getId(), worker, artifacts)) {
+                metrics.scanCompleted(scan, PlatformMetrics.Executor.EMBEDDED);
+            } else {
                 log.warn("Scan {} was taken over by another worker while it ran — results discarded.", scan.getId());
+                metrics.scanFailed(scan, PlatformMetrics.Executor.EMBEDDED, false);
             }
-            metrics.scanFinishedSince(scan.getClaimedAt(), true, false);
             return true;
         } catch (RuntimeException error) {
             // Its results could not be written, and the write rolled back: the scan is still this
             // worker's, as an agent's is when its upload fails — which ends in a lapse, a transient
             // failure. The same here, without the twenty minutes.
-            abandon(scan, worker, "on the built-in worker", error, task);
-            metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
+            metrics.scanFailed(scan, PlatformMetrics.Executor.EMBEDDED,
+                    failedForGood(abandon(scan, worker, "on the built-in worker", error, task)));
             return false;
         }
     }
