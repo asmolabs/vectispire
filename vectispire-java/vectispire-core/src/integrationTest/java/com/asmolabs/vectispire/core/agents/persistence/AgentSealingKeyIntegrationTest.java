@@ -106,7 +106,7 @@ class AgentSealingKeyIntegrationTest {
         AgentEntity readBefore = agents.findById(id).orElseThrow();
         agents.acceptSealingKey(id, key, NOW);
 
-        agents.recordHeartbeat(id, Instant.now(), "host", "linux", "1.0", "docker", null, "1");
+        agents.recordHeartbeat(id, Instant.now(), "host", "linux", "1.0", "docker", null, "1", null, null);
         readBefore.setLabels("dmz");
         agents.save(readBefore);
 

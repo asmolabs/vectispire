@@ -443,6 +443,41 @@ class ScanQueueIntegrationTest {
     }
 
     /**
+     * An agent whose available executors run one kind of target walks past the other kind, a page at a time as the
+     * exclusion does, and takes the first scan it can run — here a repository behind more than a page of image
+     * scans, which a Kubernetes agent cannot run. Walking past them is not "kept": that answer asks the agent for a
+     * sealing key, and a missing executor is not a missing key.
+     */
+    @Test
+    @DisplayName("an agent takes only the kinds of target its executors run, past a page of the others")
+    void theClaimIsNarrowedToTheKindsItCanRun() {
+        enqueue(ScanQueue.PAGE + 10, null);
+        long repository = repository("behind-the-images");
+        enqueueFor(repository, 1, null);
+        UUID cluster = agent("cluster");
+        UUID nothing = agent("nothing");
+
+        ScanQueue.AgentClaim none = queue.claimWithin(nothing, 16, List.of(), ScanQueue.Exclusion.NONE, java.util.Set.of());
+        assertThat(none.scan()).isEmpty();
+        assertThat(none.kept()).isFalse();
+
+        ScanQueue.AgentClaim claim = queue.claimWithin(cluster, 16, List.of(), ScanQueue.Exclusion.NONE,
+                java.util.EnumSet.of(com.asmolabs.vectispire.common.domain.agents.WorkerExecutors.Target.REPOSITORY));
+        assertThat(claim.scan()).get().extracting(ScanEntity::getRepoId).isEqualTo(repository);
+        assertThat(claim.kept()).isFalse();
+        assertThat(scans.findAll()).filteredOn(scan -> scan.getRepoId() == null)
+                .allSatisfy(scan -> assertThat(scan.getStatus()).isEqualTo(ScanStatus.PENDING.wireName()));
+
+        // Nothing left of its kind: nothing more, however many images wait.
+        assertThat(queue.claimWithin(cluster, 16, List.of(), ScanQueue.Exclusion.NONE,
+                        java.util.EnumSet.of(com.asmolabs.vectispire.common.domain.agents.WorkerExecutors.Target.REPOSITORY))
+                .scan()).isEmpty();
+        assertThat(queue.claimWithin(cluster, 16, List.of(), ScanQueue.Exclusion.NONE,
+                        java.util.EnumSet.of(com.asmolabs.vectispire.common.domain.agents.WorkerExecutors.Target.CONTAINER))
+                .scan()).get().extracting(ScanEntity::getRepoId).isNull();
+    }
+
+    /**
      * The owner's half of the same limit: asked about more repositories than any engine binds in one
      * statement — the figure of the scans nobody can take asks about every waiting repository — the
      * lookup answers instead of failing. All but two of these identifiers name nothing, which costs no

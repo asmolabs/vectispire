@@ -21,7 +21,7 @@
 }
 
 <p-card styleClass="mb-4">
-    <p-table [value]="plugins()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'plugins.col_id' | translate }}</th>
@@ -58,7 +58,7 @@
                         <span class="text-muted-color">{{ 'plugins.network_off' | translate }}</span>
                     }
                 </td>
-                <td class="font-mono text-sm">{{ shortDigest(plugin.manifestDigest) }}</td>
+                <td class="font-mono text-sm">{{ plugin.shortDigest }}</td>
                 <td class="text-right whitespace-nowrap">
                     <p-button
                         icon="pi pi-eye"
@@ -254,14 +254,14 @@
         @if (readsGovernance()) {
             <div class="mt-4" data-testid="plugin-projects">
                 <div class="font-medium mb-2">{{ 'plugins.projects_title' | translate }}</div>
-                @if (projects(); as activations) {
+                @if (projectRows(); as activations) {
                     @if (activations.length === 0) {
                         <p class="text-muted-color text-sm m-0">{{ 'plugins.projects_none' | translate }}</p>
                     }
                     <ul class="list-none p-0 m-0 flex flex-col gap-1 text-sm">
                         @for (activation of activations; track activation.id) {
                             <li>
-                                {{ projectName(activation) }}
+                                {{ activation.place }}
                                 <span class="text-muted-color"
                                     >· {{ activation.activatedBy ?? '—' }} ·
                                     {{ activation.activatedAt | date: 'dd/MM/yyyy' }}</span
@@ -355,7 +355,7 @@
 
         <fieldset class="flex flex-col gap-2 border-0 p-0 m-0">
             <legend class="font-medium mb-2">{{ 'plugins.field_arguments' | translate }}</legend>
-            @for (argument of draft.arguments; track trackIndex($index); let index = $index) {
+            @for (argument of draft.arguments; track $index; let index = $index) {
                 <div class="flex items-start gap-2">
                     <textarea
                         pTextarea

@@ -17,7 +17,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (profile of list.profiles; track profile.profile) {
+                    @for (profile of profiles(); track profile.profile) {
                         <tr data-testid="contact-row">
                             <td class="py-2 font-medium" data-testid="contact-profile">{{ profile.label }}</td>
                             <td class="py-2" data-testid="contact-open-lines">{{ profile.openLines }}</td>
@@ -25,7 +25,7 @@
                                 <div class="flex flex-wrap items-center gap-2">
                                     @if (writes()) {
                                         <p-select
-                                            [options]="options()[profile.profile]"
+                                            [options]="profile.options"
                                             optionLabel="label"
                                             optionValue="value"
                                             [filter]="true"
@@ -41,7 +41,7 @@
                                             data-testid="contact-select"
                                         />
                                     } @else {
-                                        <span data-testid="contact-account">{{ accountLabel(profile) }}</span>
+                                        <span data-testid="contact-account">{{ profile.account }}</span>
                                     }
                                     @if (profile.warning; as warning) {
                                         <p-tag

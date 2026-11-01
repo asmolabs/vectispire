@@ -11,8 +11,6 @@ import {
     AGGREGATIONS,
     BUILT_IN_SCOPES,
     type ComponentDraft,
-    type CoverageAggregation,
-    type CoverageMetric,
     describeRule,
     draftOf,
     METRIC_KEYS,
@@ -64,15 +62,12 @@ export class ChecklistRuleEditor implements OnInit {
     readonly kept = output<ChecklistRule | null>();
     readonly cancelled = output<void>();
 
-    readonly kinds = RULE_KINDS;
-    readonly severities = SEVERITIES;
-    readonly builtIns = BUILT_IN_SCOPES;
-    readonly metrics = METRICS;
-    readonly aggregations = AGGREGATIONS;
     readonly bounds = RULE_BOUNDS;
 
     readonly draft = signal<RuleDraft>(emptyDraft(null));
     readonly otherScope = signal('');
+    /** Whether the scope typed is more than blanks: the button that adds it waits for one. */
+    readonly otherScopeTyped = computed(() => this.otherScope().trim() !== '');
     readonly error = signal<string | null>(null);
 
     /** The scopes other than a built-in step: a plugin or an imported tool, typed or suggested. */
@@ -87,30 +82,38 @@ export class ChecklistRuleEditor implements OnInit {
         return rule ? describeRule(this.i18n, rule) : null;
     });
 
+    /*
+     * The lists the form offers, each choice with its words worked out once per language — and the
+     * built-in scopes with their ticks once per draft — rather than by a method per option on every pass.
+     */
+    readonly kindOptions = computed(() => RULE_KINDS.map((kind) => ({ kind, label: ruleKindLabel(this.i18n, kind) })));
+    readonly severityRows = computed(() =>
+        SEVERITIES.map((severity) => ({ severity, label: severityLabel(this.i18n, severity) }))
+    );
+    readonly metricOptions = computed(() =>
+        METRICS.map((metric) => ({ metric, label: this.i18n.t(METRIC_KEYS[metric]) }))
+    );
+    readonly aggregationOptions = computed(() =>
+        AGGREGATIONS.map((aggregation) => ({ aggregation, label: this.i18n.t(AGGREGATION_KEYS[aggregation]) }))
+    );
+    readonly builtInScopes = computed(() => {
+        const scopes = this.draft().scopes;
+        return BUILT_IN_SCOPES.map((scope) => ({
+            scope,
+            // `builtin:secret` → `rule-scope-secret`, the id the label points at.
+            id: 'rule-scope-' + scope.slice('builtin:'.length),
+            label: scopeLabel(this.i18n, scope),
+            checked: scopes.includes(scope)
+        }));
+    });
+    /** The kind chosen, in words, heading the rule described. */
+    readonly kindName = computed(() => {
+        const kind = this.draft().kind;
+        return kind ? ruleKindLabel(this.i18n, kind) : '';
+    });
+
     ngOnInit(): void {
         this.draft.set(draftOf(this.rule()));
-    }
-
-    kindLabel(kind: string): string {
-        return ruleKindLabel(this.i18n, kind);
-    }
-
-    severityLabel(severity: string): string {
-        return severityLabel(this.i18n, severity);
-    }
-
-    scopeLabel(scope: string): string {
-        return scopeLabel(this.i18n, scope);
-    }
-
-    metricLabel(metric: CoverageMetric): string {
-        this.i18n.translations();
-        return this.i18n.t(METRIC_KEYS[metric]);
-    }
-
-    aggregationLabel(aggregation: CoverageAggregation): string {
-        this.i18n.translations();
-        return this.i18n.t(AGGREGATION_KEYS[aggregation]);
     }
 
     /**
@@ -136,10 +139,6 @@ export class ChecklistRuleEditor implements OnInit {
             ...draft,
             thresholds: { ...draft.thresholds, [severity]: { ...draft.thresholds[severity], ...changes } }
         }));
-    }
-
-    hasScope(scope: string): boolean {
-        return this.draft().scopes.includes(scope);
     }
 
     toggleScope(scope: string, on: boolean): void {

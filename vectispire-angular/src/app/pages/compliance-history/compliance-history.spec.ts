@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ComplianceHistoryPage } from './compliance-history';
+import { ComplianceHistoryPage, colourOf, height } from './compliance-history';
 import type { ComplianceMovement, ComplianceStep } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
@@ -74,11 +74,15 @@ describe('compliance progress', () => {
     }, 20_000);
 
     it('does not paint a drop caused by a wider estate as a regression', () => {
-        const component = fixture.componentInstance;
-
-        expect(component.colourOf('ESTATE_GREW')).not.toBe(component.colourOf('DECLINED'));
-        expect(component.colourOf('ESTATE_SHRANK')).not.toBe(component.colourOf('IMPROVED'));
-        expect(component.colourOf('RULES_CHANGED')).not.toBe(component.colourOf('DECLINED'));
+        expect(colourOf('ESTATE_GREW')).not.toBe(colourOf('DECLINED'));
+        expect(colourOf('ESTATE_SHRANK')).not.toBe(colourOf('IMPROVED'));
+        expect(colourOf('RULES_CHANGED')).not.toBe(colourOf('DECLINED'));
+        // And the bar on screen wears it: the month the estate grew is amber, not red.
+        const bars = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+            'tbody tr .rounded:not(.flex-1)'
+        );
+        expect([...bars].map((bar) => bar.className.includes(colourOf('ESTATE_GREW')))).toEqual([false, true]);
+        expect([...bars].map((bar) => bar.style.width)).toEqual(['90%', '71%']);
     });
 
     it('says a series over a moving estate is not a trend', () => {
@@ -98,9 +102,8 @@ describe('compliance progress', () => {
 
     it('scales the bar against one hundred and not against the series maximum', () => {
         // A scale that adjusts itself would make a two-point gain look like a leap.
-        const component = fixture.componentInstance;
-        expect(component.height(step('2026-08', 50, 'STEADY'))).toBe(50);
-        expect(component.height(step('2026-08', 0, 'STEADY'))).toBeGreaterThan(0);
+        expect(height(step('2026-08', 50, 'STEADY'))).toBe(50);
+        expect(height(step('2026-08', 0, 'STEADY'))).toBeGreaterThan(0);
     });
 
     it("heads each series with the standard's name, not the Java constant", () => {

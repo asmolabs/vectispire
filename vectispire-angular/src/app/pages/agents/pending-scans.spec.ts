@@ -31,4 +31,22 @@ describe('the scan queue', () => {
         expect(rows[1]).toContain('1m 1s');
         expect(rows[1]).toContain('Blocked (no matching agent label)');
     });
+
+    it('says a scan waits for an executor when a worker would take it and none can run it now', () => {
+        const { dom } = mountOnAgents(PendingScans, {
+            activity: agentActivity(
+                [],
+                [
+                    pendingScan({ executorAvailable: false }),
+                    pendingScan({ scanId: 9, positionInQueue: 2, isRoutable: false, executorAvailable: false })
+                ]
+            )
+        });
+        const rows = [...dom().querySelectorAll('tbody tr')].map((row) => row.textContent.replace(/\s+/g, ' '));
+        expect(rows[0]).toContain('No executor');
+        expect(rows[0]).not.toContain('Ready for Dispatch');
+        // The label is the first reason: no worker would take it at all, whatever their executors.
+        expect(rows[1]).toContain('Blocked (no matching agent label)');
+        expect(dom().querySelectorAll('[data-testid="no-executor"]')).toHaveLength(1);
+    });
 });

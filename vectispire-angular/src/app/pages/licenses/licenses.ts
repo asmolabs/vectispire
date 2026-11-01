@@ -15,6 +15,7 @@ import { LicensesApi } from '../../core/api/licenses.api';
 import { SessionStore } from '../../core/session.store';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
+import { CompatTonePipe, DisallowedInPipe, RiskTonePipe } from './license-tones.pipe';
 import type {
     MonitoredContainer,
     MonitoredRepository,
@@ -38,7 +39,10 @@ import type {
         SelectModule,
         ToggleSwitchModule,
         InputTextModule,
-        TranslatePipe
+        TranslatePipe,
+        RiskTonePipe,
+        CompatTonePipe,
+        DisallowedInPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './licenses.html'
@@ -186,6 +190,8 @@ export class Licenses {
     }
 
     savePolicy(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.savingPolicy()) return;
         this.savingPolicy.set(true);
         this.policyError.set(null);
 
@@ -291,34 +297,6 @@ export class Licenses {
     toggleProprietary(mode: boolean): void {
         this.proprietaryMode.set(mode);
         this.loadConflicts();
-    }
-
-    riskSeverity(category: LicenseRiskCategory): 'success' | 'warn' | 'danger' | 'secondary' {
-        switch (category) {
-            case 'PERMISSIVE':
-                return 'success';
-            case 'WEAK_COPYLEFT':
-                return 'warn';
-            case 'STRONG_COPYLEFT':
-                return 'danger';
-            case 'FORBIDDEN':
-                return 'danger';
-            default:
-                return 'secondary';
-        }
-    }
-
-    compatSeverity(comp: string): 'success' | 'warn' | 'danger' | 'secondary' {
-        switch (comp) {
-            case 'COMPATIBLE':
-                return 'success';
-            case 'CONDITIONAL':
-                return 'warn';
-            case 'INCOMPATIBLE_BLOCKING':
-                return 'danger';
-            default:
-                return 'secondary';
-        }
     }
 }
 

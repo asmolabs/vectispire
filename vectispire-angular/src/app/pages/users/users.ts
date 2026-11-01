@@ -66,6 +66,17 @@ export class Users {
 
     readonly users = signal<UserSummary[]>([]);
     readonly currentUserId = signal<number | null>(null);
+    /**
+     * Each account with which of its actions it offers, worked out per list or reader rather than by
+     * two methods per row on every pass.
+     */
+    readonly rows = computed(() =>
+        this.users().map((user) => ({
+            ...user,
+            canLift: this.canLift(user),
+            canResetSecondFactor: this.canResetSecondFactor(user)
+        }))
+    );
     readonly loading = signal(true);
     readonly saving = signal(false);
     /** The id of the row being modified: two simultaneous actions on the same account would
@@ -227,7 +238,8 @@ export class Users {
         this.loading.set(true);
         this.accountsApi.users().subscribe({
             next: (result) => {
-                this.users.set(result.users);
+                // An answer without the list drew an empty table before the rows were computed: still.
+                this.users.set(result.users ?? []);
                 this.currentUserId.set(result.currentUserId);
                 if (!preserveError) this.error.set(null);
                 this.loading.set(false);
@@ -328,7 +340,7 @@ export class Users {
      * change, and not one's own. An account signing in with its own password lifts the requirement by
      * changing it — lifting it for them would keep valid a password somebody else chose.
      */
-    canLift(user: UserSummary): boolean {
+    private canLift(user: UserSummary): boolean {
         return user.mustChangePassword && user.federated && user.id !== this.currentUserId();
     }
 
@@ -357,7 +369,7 @@ export class Users {
     }
 
     /** Offered where the server would accept it: a second factor enrolled, on an account not one's own. */
-    canResetSecondFactor(user: UserSummary): boolean {
+    private canResetSecondFactor(user: UserSummary): boolean {
         return user.mfaEnabled && user.id !== this.currentUserId();
     }
 

@@ -311,6 +311,22 @@ La chart refuse de se rendre sans ses valeurs obligatoires, et dit laquelle manq
 est dans le [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md)
 de la chart.
 
+**Vos valeurs sont validées avant que quoi que ce soit soit déployé.** La chart livre un
+`values.schema.json`, que `helm install`, `helm upgrade`, `helm lint` et `helm template` vérifient tous
+en premier : une clé mal orthographiée, une valeur du mauvais type, une valeur obligatoire laissée vide
+ou une image sans son empreinte `sha256:` arrête la commande, et rien n'atteint le cluster. Le refus
+nomme la valeur par son chemin :
+
+```text
+Error: values don't meet the specifications of the schema(s) in the following chart(s):
+vectispire:
+- at '/auditMirror': additional properties 'storageClass' not allowed
+```
+
+Ici, `storageClass` voulait dire `storageClassName` ; sans la vérification, la clé aurait été ignorée et
+la valeur par défaut gardée. `helm lint deploy/helm/vectispire -f mes-valeurs.yaml` vérifie un fichier
+de valeurs à lui seul.
+
 **E-mails et liens.** Renseignez `mail.host` et `mail.from` pour que les alertes, le rapport
 hebdomadaire et les rappels de checklist partent tout court — avec `mail.username` et un Secret
 `secrets.mailPassword` pour un relais qui authentifie. Sans hôte, rien n'est envoyé. Les liens des

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -12,9 +12,7 @@ import { AiVulnerabilityAdvice, Issue, TriageRequest } from '@/app/core/api.mode
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { IssuesPage } from './issues-page';
-
-/** The longest review delay the server accepts, in days — ten years. */
-const MAX_REVIEW_DAYS = 3650;
+import { MAX_REVIEW_DAYS, TriageSubmittablePipe, triageSubmittable } from './triage-submittable.pipe';
 
 /**
  * The triage status a VEX status suggests.
@@ -70,7 +68,8 @@ function reviewDaysLeft(expiresAt: string | null | undefined, now: number = Date
         MessageModule,
         SelectModule,
         TextareaModule,
-        TranslatePipe
+        TranslatePipe,
+        TriageSubmittablePipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './triage-dialog.html'
@@ -93,8 +92,8 @@ export class TriageDialog {
     triageRequested: string | null = null;
     readonly triageError = signal<string | null>(null);
     private triaged: Issue | null = null;
-    /** Whether the dialog is deciding on the selection or on one row. */
-    private bulk = false;
+    /** Whether the dialog is deciding on the selection or on one row; a signal, read by the header's computed. */
+    private readonly bulk = signal(false);
 
     /**
      * On a request awaiting approval, the dialog opens on **what was asked**: the status and the review
@@ -105,7 +104,7 @@ export class TriageDialog {
      */
     openTriage(issue: Issue): void {
         this.triaged = issue;
-        this.bulk = false;
+        this.bulk.set(false);
         const pending = issue.triageStatus === 'pending_approval';
         this.triageRequested = pending ? issue.triageRequestedStatus : null;
         this.triageStatus = this.triageRequested ?? issue.triageStatus;
@@ -130,7 +129,7 @@ export class TriageDialog {
     openBulkTriage(): void {
         if (this.page.selected().length === 0) return;
         this.triaged = null;
-        this.bulk = true;
+        this.bulk.set(true);
         this.triageRequested = null;
         this.triageStatus = 'under_review';
         this.triageJustification = null;
@@ -152,11 +151,22 @@ export class TriageDialog {
 
     /** The dialog says how wide the decision is, because "Save" looks identical for one row and
      *  for forty — and one of the two is not undoable row by row. */
-    protected triageHeader(): string {
-        return this.bulk
+    protected readonly triageHeader = computed(() =>
+        this.bulk()
             ? this.i18n.t('issues.triage_header_bulk', { count: this.page.selected().length })
-            : this.i18n.t('issues.triage_header_single');
-    }
+            : this.i18n.t('issues.triage_header_single')
+    );
+
+    /**
+     * The statuses in the words the select offers, for the hint naming what a request asked for. A
+     * record without a prototype, so a status the client does not know reads as sent — as
+     * `IssuesPage.triageLabel` has it — and never as an inherited member.
+     */
+    protected readonly triageLabels = computed(() => {
+        const labels: Record<string, string | undefined> = Object.create(null) as Record<string, string | undefined>;
+        for (const option of this.page.triageOptions()) labels[option.value] ??= option.label;
+        return labels;
+    });
 
     /**
      * A risk accepted is the one decision that cannot go without a review date, and the one that
@@ -176,19 +186,12 @@ export class TriageDialog {
 
     /** Preventing the submission beats explaining a refusal afterwards. */
     canSubmitTriage(): boolean {
-        if (this.acceptsRisk()) {
-            const days = this.triageExpiresInDays;
-            return days !== null && Number.isInteger(days) && days >= 1 && days <= MAX_REVIEW_DAYS;
-        }
-        return (
-            (this.triageStatus !== 'not_affected' && this.triageStatus !== 'pending_approval') ||
-            !!this.triageJustification
-        );
+        return triageSubmittable(this.triageStatus, this.triageJustification, this.triageExpiresInDays);
     }
 
     submitTriage(): void {
         if (!this.canSubmitTriage()) return;
-        if (this.bulk) {
+        if (this.bulk()) {
             this.submitBulkTriage();
             return;
         }

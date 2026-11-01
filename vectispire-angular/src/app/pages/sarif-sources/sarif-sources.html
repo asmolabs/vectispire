@@ -21,7 +21,7 @@
 }
 
 <p-card>
-    <p-table [value]="sources()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'sarif_sources.col_slug' | translate }}</th>
@@ -40,11 +40,11 @@
                     <div class="font-mono font-medium">{{ source.slug }}</div>
                     <div class="text-sm text-muted-color">{{ source.name }}</div>
                 </td>
-                <td>{{ scopeLabel(source) }}</td>
+                <td>{{ source.scopeText }}</td>
                 <td>
                     <div class="flex flex-wrap gap-1" data-testid="source-kinds">
-                        @for (kind of source.kinds; track kind) {
-                            <p-tag [severity]="kind === 'sarif' ? 'info' : 'secondary'" [value]="kindLabel(kind)" />
+                        @for (kind of source.kindLabels; track kind.kind) {
+                            <p-tag [severity]="kind.kind === 'sarif' ? 'info' : 'secondary'" [value]="kind.label" />
                         }
                     </div>
                 </td>
@@ -167,13 +167,12 @@
                 <small class="text-muted-color">{{ 'sarif_sources.kinds_hint' | translate }}</small>
             }
         </fieldset>
-
         <div class="flex flex-col gap-2">
             <label for="source-key" class="font-medium">{{ 'sarif_sources.col_key' | translate }}</label>
             <p-select
                 inputId="source-key"
                 name="source-key"
-                [options]="keyOptions()"
+                [options]="draft.kinds | sarifKeyOptions: keys()"
                 optionLabel="label"
                 optionValue="value"
                 [ngModelOptions]="{ standalone: true }"
@@ -182,7 +181,7 @@
                 appendTo="body"
                 styleClass="w-full"
             />
-            @if (keyOptions().length === 0) {
+            @if ((draft.kinds | sarifKeyOptions: keys()).length === 0) {
                 <small class="text-orange-600" data-testid="no-sarif-key">{{
                     'sarif_sources.no_key' | translate
                 }}</small>
@@ -230,7 +229,7 @@
         <small class="text-muted-color -mt-2">{{ 'sarif_sources.scope_hint' | translate }}</small>
 
         <!-- Tools are SARIF's: a source delivering coverage or test reports alone declares none. -->
-        @if (deliversSarif()) {
+        @if (draft.kinds.includes('sarif')) {
             <div class="flex flex-col gap-2">
                 <label for="source-tools" class="font-medium">{{ 'sarif_sources.col_tools' | translate }}</label>
                 <input
@@ -255,7 +254,9 @@
         <p-button
             [label]="'sarif_sources.declare_btn' | translate"
             [loading]="saving()"
-            [disabled]="!canDeclare()"
+            [disabled]="
+                !(draft.slug | sarifDeclarable: draft.name : draft.apiKeyId : draft.scopeId : draft.kinds : draft.tools)
+            "
             (onClick)="declare()"
         />
     </ng-template>

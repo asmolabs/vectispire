@@ -182,36 +182,40 @@ export class ProjectReports {
         return messageOf(failure, this.i18n.t(fallback));
     }
 
-    pluginName(pluginId: string): string {
-        return this.activations()?.find((one) => one.pluginId === pluginId)?.pluginName ?? pluginId;
-    }
+    /**
+     * Each run with its plugin's name, its state and reason in words, its colour and its file's type and
+     * size worked out once — per list, activation or language, not per binding on every pass. `t` and
+     * `decimal` read the bundle's and the language's signals, so a switch recomputes them; the name
+     * follows the activations, so a plugin switched off falls back to its id as it did.
+     */
+    readonly runRows = computed(() => {
+        const runs = this.runs();
+        if (runs === null) return null;
+        const names = new Map((this.activations() ?? []).map((one) => [one.pluginId, one.pluginName]));
+        return runs.map((run) => ({
+            ...run,
+            pluginLabel: names.get(run.pluginId) ?? run.pluginId,
+            stateLabel: this.stateLabel(run),
+            stateTone: stateSeverity(run),
+            reasonLabel: this.reasonLabel(run),
+            fileExtension: extension(run.outputMediaType),
+            fileSize: this.size(run.outputSize)
+        }));
+    });
 
-    stateLabel(run: ReportRun): string {
-        this.i18n.translations();
+    private stateLabel(run: ReportRun): string {
         const key = keyFor(RUN_STATE_KEYS, run.state);
         return key ? this.i18n.t(key) : run.state;
     }
 
-    stateSeverity(run: ReportRun): 'secondary' | 'info' | 'success' | 'warn' | 'danger' {
-        return (
-            (RUN_STATE_SEVERITY as Record<string, 'secondary' | 'info' | 'success' | 'warn' | 'danger'>)[run.state] ??
-            'secondary'
-        );
-    }
-
     /** A reason this client does not know is shown as sent: never a key path, never an empty cell. */
-    reasonLabel(run: ReportRun): string | null {
+    private reasonLabel(run: ReportRun): string | null {
         if (!run.reason) return null;
-        this.i18n.translations();
         const key = keyFor(RUN_REASON_KEYS, run.reason);
         return key ? this.i18n.t(key, { code: run.exitCode ?? '—' }) : run.reason;
     }
 
-    extension(mediaType: string | null): string {
-        return (MEDIA_TYPE_EXTENSIONS as Record<string, string>)[mediaType ?? ''] ?? mediaType ?? '';
-    }
-
-    size(bytes: number | null): string {
+    private size(bytes: number | null): string {
         if (bytes === null) return '—';
         if (bytes < 1024) return this.i18n.t('reports.size_bytes', { n: bytes });
         if (bytes < 1024 * 1024) return this.i18n.t('reports.size_kib', { n: this.i18n.decimal(bytes / 1024, 1, 1) });
@@ -355,4 +359,15 @@ export class ProjectReports {
             }
         });
     }
+}
+
+function stateSeverity(run: ReportRun): 'secondary' | 'info' | 'success' | 'warn' | 'danger' {
+    return (
+        (RUN_STATE_SEVERITY as Record<string, 'secondary' | 'info' | 'success' | 'warn' | 'danger'>)[run.state] ??
+        'secondary'
+    );
+}
+
+function extension(mediaType: string | null): string {
+    return (MEDIA_TYPE_EXTENSIONS as Record<string, string>)[mediaType ?? ''] ?? mediaType ?? '';
 }

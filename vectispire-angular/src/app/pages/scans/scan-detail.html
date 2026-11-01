@@ -1,4 +1,5 @@
-@if (scan(); as detail) {
+@if (view(); as shown) {
+    @let detail = shown.detail;
     <div class="mb-4">
         <a routerLink="/repositories" class="text-sm">{{ 'scans.back_to_repos' | translate }}</a>
         <h1 class="text-2xl font-semibold m-0 mt-1">
@@ -7,7 +8,7 @@
         <p class="text-muted-color mt-1 mb-0">
             {{ detail.scan.branch }} · {{ detail.scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}
             @if (detail.scan.durationMs) {
-                · {{ seconds(detail.scan.durationMs) | localNumber }} s
+                · {{ shown.seconds | localNumber }} s
             }
             @if (detail.projectType) {
                 · {{ detail.projectType }}
@@ -121,7 +122,7 @@
         and a scan from before the control plane recorded it says so rather than showing every step
         as not examined.
     -->
-    @if (examination(detail); as examination) {
+    @if (shown.examination; as examination) {
         <p-card styleClass="mb-4" data-testid="scan-examined">
             <ng-template #title>{{ 'scans.examined_title' | translate }}</ng-template>
             @if (examination.state === 'unrecorded') {
@@ -180,7 +181,7 @@
             <ng-template #title>{{ 'scans.plugins_title' | translate }}</ng-template>
             <p class="text-muted-color text-sm mt-0">{{ 'scans.plugins_explain' | translate }}</p>
             <ul class="list-none p-0 m-0 flex flex-col gap-2">
-                @for (outcome of detail.plugins; track outcome.pluginId) {
+                @for (outcome of shown.plugins; track outcome.pluginId) {
                     <li
                         class="flex flex-wrap items-center gap-3 border rounded-md p-2"
                         style="border-color: var(--surface-border)"
@@ -203,7 +204,7 @@
                                 />
                             }
                             @case ('refused') {
-                                <p-tag severity="danger" icon="pi pi-ban" [value]="refusalLabel(outcome.refusal)" />
+                                <p-tag severity="danger" icon="pi pi-ban" [value]="outcome.refusalLabel" />
                             }
                             @default {
                                 <p-tag
@@ -257,7 +258,7 @@
                             }
                         </span>
                         <span class="text-xs text-muted-color font-mono ml-auto" [title]="outcome.manifestDigest ?? ''">
-                            {{ 'scans.plugin_manifest' | translate }} {{ shortDigest(outcome.manifestDigest) }}
+                            {{ 'scans.plugin_manifest' | translate }} {{ outcome.shortDigest }}
                         </span>
                     </li>
                 }
@@ -294,7 +295,7 @@
         }
 
         <p-table
-            [value]="detail.findings"
+            [value]="shown.findings"
             dataKey="id"
             styleClass="p-datatable-sm"
             [paginator]="detail.findings.length > 25"
@@ -311,9 +312,9 @@
             </ng-template>
             <ng-template #body let-finding>
                 <tr>
-                    <td>{{ typeLabel(finding.type) }}</td>
+                    <td>{{ finding.typeLabel }}</td>
                     <td>
-                        <p-tag [value]="finding.severity | severityLabel" [severity]="severityOf(finding.severity)" />
+                        <p-tag [value]="finding.severity | severityLabel" [severity]="finding.tone" />
                     </td>
                     <td>
                         <div class="font-medium">

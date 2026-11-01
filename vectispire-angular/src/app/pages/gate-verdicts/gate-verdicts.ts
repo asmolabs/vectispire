@@ -91,6 +91,9 @@ export class GateVerdicts {
         return this.refusalsOnly() ? rows.filter((row) => !row.passed) : rows;
     });
 
+    /** The rows shown, each with its severity counts worked out once per page or filter, not per pass. */
+    readonly rows = computed(() => this.shown().map((verdict) => ({ verdict, counts: this.counts(verdict) })));
+
     constructor() {
         this.fetch(null);
     }

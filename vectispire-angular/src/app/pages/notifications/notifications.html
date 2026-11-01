@@ -43,14 +43,14 @@
 
     @if (loading()) {
         <div class="flex justify-center items-center py-16">
-            <p-progressSpinner strokeWidth="4"></p-progressSpinner>
+            <p-progressSpinner strokeWidth="4" [ariaLabel]="'common.loading' | translate"></p-progressSpinner>
         </div>
     }
 
     @if (!loading()) {
         <!-- Channels Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            @for (c of channels(); track c.type) {
+            @for (card of cards(); track card.channel.type) {
                 <div
                     class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between gap-4"
                 >
@@ -58,18 +58,18 @@
                         <!-- Card Header -->
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
-                                <i [class]="getChannelIcon(c.type)" class="text-xl"></i>
+                                <i [class]="card.icon" class="text-xl"></i>
                                 <span class="font-bold text-base text-surface-900 dark:text-surface-0">{{
-                                    c.name
+                                    card.channel.name
                                 }}</span>
                             </div>
-                            @if (suspendedIntegration(c.type)) {
+                            @if (card.suspended) {
                                 <p-tag
                                     severity="warn"
                                     data-testid="channel-suspended"
                                     [value]="'integrations.suspended_tag' | translate"
                                 ></p-tag>
-                            } @else if (c.configured) {
+                            } @else if (card.channel.configured) {
                                 <p-tag
                                     severity="success"
                                     [value]="'notifications.channel_configured' | translate"
@@ -82,7 +82,7 @@
                             }
                         </div>
 
-                        @if (suspendedIntegration(c.type); as integration) {
+                        @if (card.suspended; as integration) {
                             <p class="mt-2 mb-0 text-xs" data-testid="channel-suspended-hint">
                                 {{ 'notifications.channel_suspended' | translate: { integration: integration } }}
                                 <a [routerLink]="integrationsRoute">{{ 'integrations.open_screen' | translate }}</a>
@@ -94,11 +94,11 @@
                             <span class="text-xs text-surface-500 block">{{
                                 'notifications.destination' | translate
                             }}</span>
-                            @if (c.configured) {
+                            @if (card.channel.configured) {
                                 <span
                                     class="font-mono text-xs text-surface-800 dark:text-surface-200 break-all bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded block mt-0.5"
                                 >
-                                    {{ c.destination }}
+                                    {{ card.channel.destination }}
                                 </span>
                             } @else {
                                 <span class="text-xs text-surface-400 italic block mt-0.5">
@@ -146,34 +146,37 @@
                                 icon="pi pi-send"
                                 class="p-button-sm p-button-outlined"
                                 [disabled]="
-                                    !c.configured ||
+                                    !card.channel.configured ||
                                     !isSecurityLead() ||
-                                    testingChannel() === c.type ||
-                                    suspendedIntegration(c.type) !== null
+                                    testingChannel() === card.channel.type ||
+                                    card.suspended !== null
                                 "
-                                [loading]="testingChannel() === c.type"
-                                (click)="testChannel(c.type)"
+                                [loading]="testingChannel() === card.channel.type"
+                                (click)="testChannel(card.channel.type)"
                             ></button>
                         </div>
 
                         <!-- Test result notification banner -->
-                        @if (testResults()[c.type]; as res) {
-                            @if (res.success) {
-                                <div
-                                    class="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5"
-                                >
-                                    <i class="pi pi-check-circle text-emerald-600"></i>
-                                    <span>{{ res.message }}</span>
-                                </div>
-                            } @else {
-                                <div
-                                    class="p-2 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-1.5"
-                                >
-                                    <i class="pi pi-times-circle text-rose-600"></i>
-                                    <span>{{ res.message }}</span>
-                                </div>
+                        <!-- Live, and always in the page: a region inserted with its text is not announced. -->
+                        <div aria-live="polite">
+                            @if (testResults()[card.channel.type]; as res) {
+                                @if (res.success) {
+                                    <div
+                                        class="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5"
+                                    >
+                                        <i class="pi pi-check-circle text-emerald-600"></i>
+                                        <span>{{ res.message }}</span>
+                                    </div>
+                                } @else {
+                                    <div
+                                        class="p-2 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-1.5"
+                                    >
+                                        <i class="pi pi-times-circle text-rose-600"></i>
+                                        <span>{{ res.message }}</span>
+                                    </div>
+                                }
                             }
-                        }
+                        </div>
                     </div>
                 </div>
             }

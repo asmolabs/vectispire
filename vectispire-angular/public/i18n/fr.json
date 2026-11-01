@@ -82,6 +82,19 @@
     "title": "Mon compte"
   },
   "agents": {
+    "executors": {
+      "title": "Exécuteurs",
+      "unknown": "Non déclarés",
+      "unknown_hint": "Cet agent est antérieur à la déclaration des exécuteurs : il reçoit n’importe quelle analyse, comme avant.",
+      "none": "Aucun exécuteur",
+      "available": "Disponible",
+      "unavailable": "Indisponible",
+      "target_repository": "dépôts",
+      "target_container": "images"
+    },
+    "status_no_executor": "Aucun exécuteur",
+    "status_no_executor_hint": "Un worker prendrait cette analyse, mais aucun n’a d’exécuteur capable de la lancer maintenant. Voir la colonne Exécuteurs.",
+    "built_in_down": "Le worker intégré ne prend aucune analyse : son exécuteur ne répond pas ({{detail}}).",
     "agent": "Agent",
     "agents_title": "Agents d'analyse enregistrés",
     "aria_delete": "Supprimer {{name}}",
@@ -846,6 +859,8 @@
     "no_scans_run": "Aucune analyse exécutée pour le moment.",
     "target": "Cible",
     "chart": {
+      "backlog_aria": "Backlog ouvert par jour sur la période choisie",
+      "flow_aria": "Issues apparues et résolues par jour sur la période choisie",
       "open_backlog": "Backlog ouvert",
       "opened": "Apparus",
       "per_day": "Par jour",

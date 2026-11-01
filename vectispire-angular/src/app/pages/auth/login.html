@@ -117,6 +117,7 @@
                                 class="w-full mb-4"
                                 placeholder="123456"
                                 [(ngModel)]="mfaCode"
+                                (keyup.enter)="submit()"
                             />
                         }
 

@@ -1,0 +1,18 @@
+# Refused by values.schema.json: `storageClass` for `storageClassName`. Without the schema it was ignored, and
+# the audit mirror went to the cluster's default class without a word.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+networkPolicy:
+  enabled: true
+auditMirror:
+  storageClass: fast-ssd

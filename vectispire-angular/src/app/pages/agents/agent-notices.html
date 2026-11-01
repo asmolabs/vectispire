@@ -26,6 +26,12 @@
     }
 }
 
+@if (builtInDown(); as detail) {
+    <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full" data-testid="built-in-worker-down">
+        {{ 'agents.built_in_down' | translate: { detail: detail } }}
+    </p-message>
+}
+
 @if (page.activityError(); as message) {
     <p-message data-testid="activity-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
         message

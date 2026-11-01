@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, computed, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ExposureApi } from '../../core/api/exposure.api';
 import { BlastRadiusReport, TopImpactPackage } from '../../core/api.models';
@@ -49,6 +49,8 @@ export class BlastRadius implements OnInit {
     /** The ranking's own failure: swallowed, it left an overview with no component and no reason. */
     readonly topError = signal<string | null>(null);
     readonly report = signal<BlastRadiusReport | null>(null);
+    /** The score tag's colour, worked out per report rather than on every pass. */
+    readonly scoreTone = computed(() => scoreTone(this.report()?.blastRadiusScore ?? 0));
     readonly topPackages = signal<TopImpactPackage[]>([]);
     readonly selectedNodeId = signal<string | null>(null);
 
@@ -118,10 +120,11 @@ export class BlastRadius implements OnInit {
         this.selectedNodeId.set(node.id);
         this.selectQuickPackage(node.label);
     }
+}
 
-    getScoreSeverity(score: number): 'success' | 'warn' | 'danger' {
-        if (score >= 70) return 'danger';
-        if (score >= 40) return 'warn';
-        return 'success';
-    }
+/** The score's colour, on the same thresholds as its figure and its words. */
+function scoreTone(score: number): 'success' | 'warn' | 'danger' {
+    if (score >= 70) return 'danger';
+    if (score >= 40) return 'warn';
+    return 'success';
 }

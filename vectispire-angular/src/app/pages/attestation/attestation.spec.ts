@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { Attestation } from './attestation';
 import { asSchema } from '@/app/core/testing/contract';
-import { useFrench } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The auditor's page.
@@ -203,5 +203,35 @@ describe('the attestation', () => {
             ['SOC 2', '90 %', 'Conforme']
         ]);
         expect((fixture.nativeElement as HTMLElement).textContent).not.toMatch(/PARTIAL|COMPLIANT|NIS_2|PCI_DSS/);
+    });
+
+    it('words the tiles again when the reader switches language, and colours each by its verdict', () => {
+        chain(true);
+        compliance();
+        useEnglish();
+        fixture.detectChanges();
+        const tiles = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('.grid > div.rounded-lg')].map((tile) => {
+                const spans = tile.querySelectorAll('span');
+                return [spans[0].textContent.trim(), spans[2].textContent.trim(), spans[2].className];
+            });
+        expect(tiles().map(([name, verdict]) => [name, verdict])).toEqual([
+            ['NIS 2 Directive', 'Compliant'],
+            ['PCI-DSS v4.0', 'Partial'],
+            ['SOC 2', 'Compliant']
+        ]);
+        expect(tiles().map(([, , tone]) => tone.match(/text-(green|amber|red)-\d+/)?.[0])).toEqual([
+            'text-green-700',
+            'text-amber-600',
+            'text-green-700'
+        ]);
+
+        useFrench();
+        fixture.detectChanges();
+        expect(tiles().map(([name, verdict]) => [name, verdict])).toEqual([
+            ['Directive NIS 2', 'Conforme'],
+            ['PCI-DSS v4.0', 'Partiel'],
+            ['SOC 2', 'Conforme']
+        ]);
     });
 });

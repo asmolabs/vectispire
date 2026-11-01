@@ -205,6 +205,11 @@ What follows is against 0.11.2.
   provisioned". It used to be a 500. A group `PATCH` member whose `value` is an object or an array names
   nobody and is skipped, like an unknown member, instead of a 500.
 - **`GET /api/v1/users` answers `mfaEnabled`** on each account (additive).
+- **Agents: what each worker's executors can run** (additive). The `hello` takes an optional `executors`
+  list, and `PUT /api/v1/agent/executors` reports a change; an agent that sends neither claims as before.
+  `GET /api/v1/admin/agents` answers `executors` and `executorsReportedAt` on each agent (absent: never
+  reported), `/activity` answers `executorAvailable` on each waiting scan, and `GET
+  /api/v1/admin/agents/built-in-worker` answers this instance's built-in worker.
 - **A tracker status update that triages nothing is audited under `<PROVIDER>_webhook`**, like a triage
   through the webhook; the name the tracker claims is kept in the description, bounded to 200 characters.
 - **A SIEM endpoint is checked as it is entered.** A webhook port outside 1–65535 is refused (it never
@@ -295,6 +300,15 @@ What follows is against 0.11.2.
   it against the image. The record of published keys starts on the first start of this release: start
   once before rotating.
 - **`/actuator/encryption`**, the sealed stores' census, and the second-factor reset — both above.
+- **A scan is claimed only by a worker that can run it now.** An agent says in its `hello`, and again when
+  it changes, which executors it has and whether each can run anything — a Docker daemon that answers a
+  ping, a Kubernetes API that lists the scans' namespace and lets its Role create a pod — and is handed only
+  the kinds of target an available one runs: nothing while its daemon is down, no image scan on Kubernetes.
+  The built-in worker asks its daemon before each round. The scan waits, with no attempt spent, and the
+  agents page says why: an **Executors** column, **No executor** on a waiting scan none can run, and a
+  notice for a built-in worker whose daemon does not answer. **An agent of the previous release announces
+  nothing and claims as it always did**
+  ([agents](../administration/agents.md#executor-availability)).
 - **The agent of the previous release is tested on every change**: CI runs the newest release's signed
   agent image against the control plane being built, and fails unless it claims and finishes scans.
 - **The OWASP coverage page names the edition it scores**, the OWASP Top 10's 2021 edition. 1.0 stays on

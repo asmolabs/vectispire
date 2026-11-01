@@ -4,6 +4,7 @@ import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.LEASE_EXHAUS
 import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.afterFailure;
 import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.leaseUntil;
 
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.scans.FailureKind;
 import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Next;
 import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -134,10 +136,27 @@ public class ScanQueue {
      *     cannot be handed a delegated credential, those that carry one (decision 0031)
      */
     public AgentClaim claimWithin(UUID agentId, int limit, Collection<String> agentLabels, Exclusion exclusion) {
+        return claimWithin(agentId, limit, agentLabels, exclusion, EnumSet.allOf(WorkerExecutors.Target.class));
+    }
+
+    /**
+     * {@link #claimWithin(UUID, int, Collection, Exclusion)}, among the scans of {@code targets} only.
+     *
+     * <p><b>Narrowed like the exclusion, in the selection and not the take</b>, and for the same reason the
+     * exclusion is walked a page at a time: the kind of a scan is whether it names a repository, which the
+     * candidates' page already carries. A skipped scan of another kind is not {@link AgentClaim#kept} — that
+     * flag answers "a credential was withheld" and asks the agent for a key, which a missing executor is not.
+     *
+     * @param targets the kinds of target this agent's available executors run — every kind for an agent that
+     *     never said ({@code WorkerExecutors#claimable}); none claims nothing, without reading the queue
+     */
+    public AgentClaim claimWithin(
+            UUID agentId, int limit, Collection<String> agentLabels, Exclusion exclusion, Set<WorkerExecutors.Target> targets) {
         String worker = agentId.toString();
-        if (limit <= 0) {
+        if (limit <= 0 || targets.isEmpty()) {
             return AgentClaim.NOTHING;
         }
+        boolean everyKind = targets.containsAll(EnumSet.allOf(WorkerExecutors.Target.class));
 
         boolean kept = false;
         for (int attempt = 0; attempt < policy.claimAttempts(); attempt++) {
@@ -149,9 +168,9 @@ public class ScanQueue {
                 return new AgentClaim(Optional.empty(), kept);
             }
             Instant asOf = clock.instant();
-            Selection selection = exclusion.excludesNothing()
+            Selection selection = exclusion.excludesNothing() && everyKind
                     ? new Selection(candidates(1, agentLabels, asOf).stream().map(ScanEntity::getId).toList(), false)
-                    : eligible(agentLabels, exclusion, asOf);
+                    : eligible(agentLabels, exclusion, targets, asOf);
             kept |= selection.kept();
             List<Long> candidates = selection.candidates();
             if (candidates.isEmpty()) {
@@ -252,18 +271,22 @@ public class ScanQueue {
      * ended, and only its repositories are asked about, so no statement here or in the exclusion's
      * owner carries more than {@link #PAGE}, however large the queue.
      */
-    private Selection eligible(Collection<String> agentLabels, Exclusion exclusion, Instant asOf) {
+    private Selection eligible(
+            Collection<String> agentLabels, Exclusion exclusion, Set<WorkerExecutors.Target> targets, Instant asOf) {
         String pending = ScanStatus.PENDING.wireName();
         boolean kept = false;
         ClaimCandidate last = null;
         for (int page = 0; page < PAGES; page++) {
             List<ClaimCandidate> rows = page(pending, agentLabels, asOf, last);
-            Set<Long> repositories = rows.stream()
+            List<ClaimCandidate> runnable = rows.stream().filter(row -> targets.contains(targetOf(row))).toList();
+            Set<Long> repositories = runnable.stream()
                     .map(ClaimCandidate::repoId)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
-            Set<Long> excluded = repositories.isEmpty() ? Set.of() : exclusion.among(repositories);
-            for (ClaimCandidate row : rows) {
+            Set<Long> excluded = repositories.isEmpty() || exclusion.excludesNothing()
+                    ? Set.of()
+                    : exclusion.among(repositories);
+            for (ClaimCandidate row : runnable) {
                 // An image scan, or a repository with no key and no token, stays the agent's to take.
                 if (row.repoId() == null || !excluded.contains(row.repoId())) {
                     return new Selection(List.of(row.id()), kept);
@@ -276,6 +299,11 @@ public class ScanQueue {
             last = rows.getLast();
         }
         return new Selection(List.of(), kept);
+    }
+
+    /** A scan names a repository, or it names an image: the kind an executor has to be able to run. */
+    private static WorkerExecutors.Target targetOf(ClaimCandidate row) {
+        return row.repoId() == null ? WorkerExecutors.Target.CONTAINER : WorkerExecutors.Target.REPOSITORY;
     }
 
     private List<ClaimCandidate> page(String pending, Collection<String> agentLabels, Instant asOf, ClaimCandidate after) {

@@ -23,7 +23,6 @@ import { SolutionsApi } from '../../core/api/solutions.api';
 import { TargetsApi } from '../../core/api/targets.api';
 import type {
     ForgeCredentialView,
-    ForgeHostCredential,
     ForgeImportPreview,
     ForgeImportRequest,
     ForgeImportResult,
@@ -194,6 +193,52 @@ export class ForgeImportStep {
         return [...preview.targets, ...refused];
     });
 
+    /** The placements the table shows, each marked when the person wrote a rule over its proposal. */
+    readonly placements = computed(() => {
+        const rules = this.rules();
+        return (this.perRepository() ? this.repositories() : this.namespaces()).map((placement) => ({
+            placement,
+            edited: rules.has(placement.key)
+        }));
+    });
+
+    /**
+     * Each host of the preview with the select's value — what was chosen, or what the preview proposes — and
+     * the tokens it may use, worked out once per preview, choice or list rather than per option on every pass.
+     */
+    readonly hosts = computed(() => {
+        const choices = this.choices();
+        const tokens = this.gitTokens();
+        return (this.preview()?.credentials ?? []).map((host) => ({
+            host,
+            choice: choices.get(host.host) || this.valueOf(host.credential),
+            tokens: tokens.filter((token) => same(token.host, host.host)),
+            proposed: host.proposed && !choices.has(host.host)
+        }));
+    });
+
+    /** The planned targets with how each is cloned and who will see it, in the reader's words. */
+    readonly planned = computed(() => {
+        this.i18n.translations();
+        return (this.preview()?.targets ?? []).map((target) => ({
+            target,
+            credential: this.credential(target.credential),
+            visibleTo: this.visibleTo(target)
+        }));
+    });
+
+    /** What the preview skips, each with its reason in the reader's words. */
+    readonly skipped = computed(() => {
+        this.i18n.translations();
+        return (this.preview()?.skipped ?? []).map((skip) => ({ skip, reason: this.skipReason(skip) }));
+    });
+
+    /** What the import skipped, as {@link skipped} for the result. */
+    readonly skippedDone = computed(() => {
+        this.i18n.translations();
+        return (this.result()?.skipped ?? []).map((skip) => ({ skip, reason: this.skipReason(skip) }));
+    });
+
     readonly canImport = computed(
         () =>
             this.preview() !== null &&
@@ -303,27 +348,11 @@ export class ForgeImportStep {
         this.stale.set(true);
     }
 
-    /** The rules written for a placement, to show which proposals the person changed. */
-    edited(placement: Placement): boolean {
-        return this.rules().has(placement.key);
-    }
-
     forget(placement: Placement): void {
         const rules = new Map(this.rules());
         rules.delete(placement.key);
         this.rules.set(rules);
         this.stale.set(true);
-    }
-
-    tokensFor(host: string): GitTokenSummary[] {
-        return this.gitTokens().filter((token) => same(token.host, host));
-    }
-
-    /** The select's value for a host: what was chosen, or what the preview proposes. */
-    choiceFor(host: ForgeHostCredential): string {
-        const chosen = this.choices().get(host.host);
-        if (chosen) return chosen;
-        return this.valueOf(host.credential);
     }
 
     private valueOf(credential: ForgeCredentialView): string {
@@ -344,13 +373,13 @@ export class ForgeImportStep {
         this.stale.set(true);
     }
 
-    credential(credential: ForgeCredentialView): string {
+    private credential(credential: ForgeCredentialView): string {
         const key = keyFor(CLONE_CREDENTIAL_KEYS, credential.kind);
         const kind = key ? this.i18n.t(key) : credential.kind;
         return credential.name ? `${kind} — ${credential.name}` : kind;
     }
 
-    skipReason(skip: ForgeSkippedImport): string {
+    private skipReason(skip: ForgeSkippedImport): string {
         const key = keyFor(SKIP_REASON_KEYS, skip.reason);
         return key ? this.i18n.t(key) : skip.reason;
     }
@@ -360,7 +389,7 @@ export class ForgeImportStep {
      * (`visibleTo`); the facts behind it are all in the preview — the installation's visibility mode and the
      * grants on each reused project — so the screen says it from them.
      */
-    visibleTo(target: ForgePlannedTarget): string {
+    private visibleTo(target: ForgePlannedTarget): string {
         const preview = this.preview();
         if (preview?.visibilityMode === 'everyone') return this.i18n.t('forges.import.visible_everyone');
         if (!target.project) return this.i18n.t('forges.import.visible_unfiled');

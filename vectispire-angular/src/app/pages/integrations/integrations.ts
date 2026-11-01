@@ -22,7 +22,8 @@ import {
 interface FamilyGroup {
     family: string;
     title: string;
-    entries: Integration[];
+    /** Each integration with its name worked out once per list or language, not per binding on every pass. */
+    entries: { entry: Integration; label: string }[];
 }
 
 /** A refused switch, kept beside the integration it names. */
@@ -82,7 +83,18 @@ export class Integrations {
         const order = [...known, ...[...byFamily.keys()].filter((family) => !known.includes(family))];
         return order
             .filter((family) => byFamily.has(family))
-            .map((family) => ({ family, title: familyLabel(this.i18n, family), entries: byFamily.get(family)! }));
+            .map((family) => ({
+                family,
+                title: familyLabel(this.i18n, family),
+                entries: byFamily.get(family)!.map((entry) => ({ entry, label: this.label(entry.key) }))
+            }));
+    });
+
+    /** The integration the switch-off dialog asks about, with its name and what it stops, in the reader's words. */
+    readonly confirmation = computed(() => {
+        this.i18n.translations();
+        const entry = this.confirming();
+        return entry ? { entry, label: this.label(entry.key), suspends: this.suspends(entry) } : null;
     });
 
     constructor() {
@@ -104,13 +116,13 @@ export class Integrations {
         });
     }
 
-    label(key: string): string {
+    private label(key: string): string {
         this.i18n.translations();
         return integrationLabel(this.i18n, key);
     }
 
     /** What switching this one off stops, in its family's words; a family this client does not know says the rule alone. */
-    suspends(entry: Integration): string {
+    private suspends(entry: Integration): string {
         this.i18n.translations();
         const key = keyFor(INTEGRATION_SUSPENDS_KEYS, entry.family);
         return key ? this.i18n.t(key) : '';

@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Project } from './project';
 import { SessionStore } from '@/app/core/session.store';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import {
     COMPLETE_COMPONENTS,
     NO_DATA_SUMMARY,
@@ -201,6 +201,18 @@ describe('the project page', () => {
         expect(text('[data-testid="incomplete"]')).toContain('Incomplete list: 1 target listed no components');
         expect(text('[data-testid="inventory-container-4"] [data-testid="inventory-state"]')).toBe('Never scanned');
         expect(text('[data-testid="inventory-repository-9"] [data-testid="inventory-state"]')).toBe('2 components');
+    });
+
+    it('words each target state and colours it, in the reader language after a switch too', async () => {
+        await open();
+        const state = (id: string) => dom().querySelector(`[data-testid="${id}"] [data-testid="inventory-state"]`)!;
+        expect(state('inventory-repository-9').className).toContain('p-tag-success');
+        expect(state('inventory-container-4').className).toContain('p-tag-warn');
+
+        useFrench();
+        await fixture.whenStable();
+        expect(text('[data-testid="inventory-container-4"] [data-testid="inventory-state"]')).toBe('Jamais analysée');
+        expect(text('[data-testid="inventory-repository-9"] [data-testid="inventory-state"]')).toBe('2 composants');
     });
 
     it('draws no banner over a complete list', async () => {

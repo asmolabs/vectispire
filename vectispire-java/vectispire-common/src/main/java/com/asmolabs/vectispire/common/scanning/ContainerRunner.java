@@ -269,14 +269,14 @@ public final class ContainerRunner implements ContainerExecutor {
         return limits.timeout();
     }
 
-    /** Is the daemon reachable? A ping, nothing more. */
+    /** Is the daemon reachable? A ping, nothing more — and the client's own words when it is not. */
     @Override
-    public boolean isAvailable() {
+    public Optional<String> whyUnavailable() {
         try {
             docker.pingCmd().exec();
-            return true;
+            return Optional.empty();
         } catch (RuntimeException unreachable) {
-            return false;
+            return Optional.of("The Docker daemon did not answer a ping: " + unreachable.getMessage());
         }
     }
 

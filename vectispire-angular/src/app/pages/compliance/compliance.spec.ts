@@ -248,6 +248,36 @@ describe('Compliance Page', () => {
         expect((fixture.nativeElement as HTMLElement).textContent).toContain('Compliance evaluation timed out.');
     });
 
+    it('makes the import and the verification forms, each sending once however often it is submitted', () => {
+        fixture.detectChanges();
+        http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
+        component.openImport();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLTextAreaElement>('#vex-import-json')!.required).toBe(true);
+        const importForm = document.querySelector('#vex-import-json')!.closest('form')!;
+        importForm.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/vex/ingest').length).toBe(0);
+        component.importJson.set('{ "statements": [] }');
+        importForm.dispatchEvent(new Event('submit'));
+        importForm.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/vex/ingest').length).toBe(1);
+
+        component.importOpen.set(false);
+        component.openVerifier();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLTextAreaElement>('#verify-payload')!.required).toBe(true);
+        expect(document.querySelector<HTMLTextAreaElement>('#verify-signature')!.required).toBe(true);
+        expect(document.querySelector<HTMLTextAreaElement>('#verify-public-key')!.required).toBe(false);
+        const verifyForm = document.querySelector('#verify-payload')!.closest('form')!;
+        component.verifyPayload.set('payload');
+        verifyForm.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'POST' && call.url.includes('verify')).length).toBe(0);
+        component.verifySignature.set('signature');
+        verifyForm.dispatchEvent(new Event('submit'));
+        verifyForm.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'POST' && call.url.includes('verify')).length).toBe(1);
+    });
+
     /**
      * A file picked in the import dialog enables Import — **without a `detectChanges` from the test.**
      *

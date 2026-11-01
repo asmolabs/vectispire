@@ -1,6 +1,8 @@
 import type {
     AgentActivitySummary,
     AgentSummary,
+    BuiltInWorkerState,
+    ExecutorState,
     PendingScanItem,
     RunningScanItem,
     UnservedCredentialedScans
@@ -27,9 +29,30 @@ export function agentSummary(changes: Partial<AgentSummary> = {}): AgentSummary 
         version: '0.9.0',
         contractVersion: '1',
         lastSeenAt: '2026-09-26T05:00:00Z',
+        executors: null,
+        executorsReportedAt: null,
         ...changes
     });
 }
+
+/** One executor as a worker reports it: Docker, available, both kinds of target. */
+export function executorState(changes: Partial<ExecutorState> = {}): ExecutorState {
+    return asSchema('ExecutorState', {
+        kind: 'docker',
+        available: true,
+        targets: ['repository' as const, 'container' as const],
+        detail: null,
+        ...changes
+    });
+}
+
+/** The built-in worker of a control plane that scans nothing itself — the API suite's own. */
+export const NO_BUILT_IN_WORKER: BuiltInWorkerState = asSchema('BuiltInWorkerState', {
+    enabled: false,
+    runsScans: false,
+    executors: [],
+    checkedAt: null
+});
 
 export function runningScan(changes: Partial<RunningScanItem> = {}): RunningScanItem {
     return asSchema('RunningScanItem', {
@@ -57,6 +80,7 @@ export function pendingScan(changes: Partial<PendingScanItem> = {}): PendingScan
         queuedAt: '2026-09-26T05:01:00Z',
         requiredLabel: null,
         isRoutable: true,
+        executorAvailable: true,
         positionInQueue: 1,
         waitDurationSeconds: 12,
         ...changes

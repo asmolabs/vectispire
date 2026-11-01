@@ -82,6 +82,19 @@
     "title": "My account"
   },
   "agents": {
+    "executors": {
+      "title": "Executors",
+      "unknown": "Not reported",
+      "unknown_hint": "This agent predates executor reports: it is handed any scan, as before.",
+      "none": "No executor",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "target_repository": "repositories",
+      "target_container": "images"
+    },
+    "status_no_executor": "No executor",
+    "status_no_executor_hint": "A worker would take this scan, but none has an executor that can run it now. See the Executors column.",
+    "built_in_down": "The built-in worker claims no scan: its executor does not answer ({{detail}}).",
     "agent": "Agent",
     "agents_title": "Registered Execution Agents",
     "aria_delete": "Delete {{name}}",
@@ -846,6 +859,8 @@
     "no_scans_run": "No scan has been run yet.",
     "target": "Target",
     "chart": {
+      "backlog_aria": "Open backlog per day over the chosen window",
+      "flow_aria": "Issues opened and resolved per day over the chosen window",
       "open_backlog": "Open backlog",
       "opened": "Opened",
       "per_day": "Per day",

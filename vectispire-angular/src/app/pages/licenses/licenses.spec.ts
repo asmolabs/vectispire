@@ -223,6 +223,18 @@ describe('the licence inventory screen', () => {
         settle();
     });
 
+    it('saves the policy on Enter as on the button, once however often the form is submitted', () => {
+        const page = fixture.componentInstance;
+        page.editPolicy();
+        fixture.detectChanges();
+        const form = (fixture.nativeElement as HTMLElement).querySelector('#policy-allowed')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(
+            http.match((request) => request.method === 'PUT' && request.url === '/api/v1/licenses/policy')
+        ).toHaveLength(1);
+    });
+
     it('unticks one category without touching the others', () => {
         const page = fixture.componentInstance;
         page.editPolicy();
@@ -231,6 +243,55 @@ describe('the licence inventory screen', () => {
 
         expect(page.draftDisallowed).toEqual(['STRONG_COPYLEFT']);
         expect(page.isDisallowed('FORBIDDEN')).toBe(false);
+    });
+
+    it('shows each toggle as the draft has it, and follows a toggle', async () => {
+        const page = fixture.componentInstance;
+        page.editPolicy();
+        // The draft changes here from code, not through the toggles whose events would mark the view.
+        const settled = async () => {
+            fixture.componentRef.changeDetectorRef.markForCheck();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+        };
+        await settled();
+        const on = (category: string) =>
+            document.querySelector(`input[name="policy-${category}"]`)?.getAttribute('aria-checked') === 'true';
+        expect(on('FORBIDDEN')).toBe(true);
+        expect(on('STRONG_COPYLEFT')).toBe(false);
+
+        page.toggleCategory('STRONG_COPYLEFT', true);
+        page.toggleCategory('FORBIDDEN', false);
+        await settled();
+        expect(on('FORBIDDEN')).toBe(false);
+        expect(on('STRONG_COPYLEFT')).toBe(true);
+    });
+
+    it('colours each risk and verdict by its meaning, on the inventory and the conflicts', () => {
+        fixture.detectChanges();
+        const tones = () =>
+            Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody .p-tag'))
+                // The compliance tags beside them are another column's, keyed by the bundle.
+                .filter((tag) => !tag.textContent?.trim().startsWith('licenses.'))
+                .map(
+                    (tag) =>
+                        `${tag.textContent?.trim()}:${tag.className.match(/p-tag-(success|warn|danger|secondary)/)?.[1]}`
+                );
+        expect(tones()).toEqual(['PERMISSIVE:success', 'STRONG_COPYLEFT:danger', 'PERMISSIVE:success']);
+
+        fixture.componentInstance.setTab('conflicts');
+        fixture.detectChanges();
+        settle();
+        fixture.detectChanges();
+        expect(tones()).toEqual([
+            'GPL-2.0:danger',
+            'INCOMPATIBLE_BLOCKING:danger',
+            'GPL-2.0:danger',
+            'CONDITIONAL:warn',
+            'GPL-2.0:danger',
+            'COMPATIBLE:success'
+        ]);
     });
 
     it('garde le formulaire ouvert et dit pourquoi quand le serveur refuse', () => {

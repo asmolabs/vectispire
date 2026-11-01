@@ -9,7 +9,7 @@ import { missingFromBundles } from '@/app/core/testing/bundles';
 import type { ReportPluginActivation, ReportRun } from '@/app/core/api.models';
 import { asSchemaList, newerServerWord } from '@/app/core/testing/contract';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import {
     FAILED_RUN,
     PENDING_RUN,
@@ -103,6 +103,30 @@ describe('a project’s reports', () => {
         expect(row(34).querySelector('[data-testid="download-34"]')).not.toBeNull();
         expect(row(33).querySelector('[data-testid="download-33"]')).toBeNull();
         expect(text('[data-testid="run-provenance"]', row(34))).toContain(PRODUCED_RUN.packageSha256!);
+    });
+
+    it('words each run in the reader language after a switch, and names its plugin as the activations do', async () => {
+        await open('CISO');
+        http.expectOne('/api/v1/report-plugins').flush(asSchemaList('ReportPluginView', [REPORT_PLUGIN]));
+        fixture.detectChanges();
+        const name = () => row(34).querySelector('.font-medium')?.textContent?.trim();
+        const file = () => text('[data-testid="download-34"] + div', row(34));
+        expect(name()).toBe('Quarterly risk summary');
+        expect(file()).toBe('.xlsx · 2.0 MiB');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(text('[data-testid="run-state"]', row(34))).toBe('Produit');
+        expect(file()).toBe('.xlsx · 2,0 Mio');
+
+        // Switched off: the run keeps its row and falls back to the plugin's id.
+        button('[data-testid="deactivate-quarterly-summary"]')!.click();
+        http.expectOne({ method: 'DELETE', url: `${BASE}/report-plugins/quarterly-summary` }).flush(null, {
+            status: 204,
+            statusText: 'No Content'
+        });
+        fixture.detectChanges();
+        expect(name()).toBe('quarterly-summary');
     });
 
     it('shows a reason this client does not know as sent, never as a key', async () => {

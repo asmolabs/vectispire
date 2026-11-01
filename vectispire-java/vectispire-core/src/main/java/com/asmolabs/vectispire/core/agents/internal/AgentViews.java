@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.agents.internal;
 
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 
@@ -35,6 +36,8 @@ public final class AgentViews {
                 agent.getSealingKeyGeneration(),
                 agent.getSigningPublicKey(),
                 agent.getLastSeenAt(),
-                agent.getCreatedAt());
+                agent.getCreatedAt(),
+                WorkerExecutors.read(agent.getExecutors()).orElse(null),
+                agent.getExecutorsReportedAt());
     }
 }

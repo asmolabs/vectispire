@@ -19,7 +19,7 @@
                 placeholder="https://github.com/org/repo.git"
             />
             <small class="text-muted-color">{{ 'repositories.url_hint' | translate }}</small>
-            @if (urlCarriesSecret()) {
+            @if (form.url | urlCarriesSecret) {
                 <p-message id="url-carries-secret" severity="warn" [closable]="false">{{
                     'repositories.url_carries_secret' | translate
                 }}</p-message>
@@ -93,7 +93,7 @@
             <label for="credential-kind" class="font-medium">{{ 'repositories.credential_label' | translate }}</label>
             <p-select
                 inputId="credential-kind"
-                [options]="credentialKinds()"
+                [options]="form.url | credentialKinds: credentialLabels()"
                 optionLabel="label"
                 optionValue="value"
                 [ngModelOptions]="{ standalone: true }"
@@ -127,7 +127,7 @@
                 <label for="https-token" class="font-medium">{{ 'repositories.https_token_label' | translate }}</label>
                 <p-select
                     inputId="https-token"
-                    [options]="httpsTokenOptions()"
+                    [options]="form.url | httpsTokenOptions: page.gitTokens()"
                     optionLabel="label"
                     optionValue="value"
                     [placeholder]="'repositories.https_token_placeholder' | translate"
@@ -135,9 +135,11 @@
                     [(ngModel)]="form.httpsTokenId"
                     styleClass="w-full"
                 />
-                @if (httpsTokenOptions().length === 0) {
+                @if ((form.url | httpsTokenOptions: page.gitTokens()).length === 0) {
                     <small id="no-token-for-host" class="text-muted-color">
-                        {{ 'repositories.https_token_none_for_host' | translate: { host: urlHost() ?? '' } }}
+                        {{
+                            'repositories.https_token_none_for_host' | translate: { host: (form.url | httpsHost) ?? '' }
+                        }}
                         <a routerLink="/git-tokens" class="underline">{{
                             'repositories.https_token_link' | translate
                         }}</a>

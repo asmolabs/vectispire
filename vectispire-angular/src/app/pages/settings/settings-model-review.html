@@ -65,18 +65,21 @@
                 <span class="text-muted-color text-sm font-normal">{{ 'settings.ai_key_none' | translate }}</span>
             }
         </label>
-        <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+        <!-- No `required`: an empty key is how a stored one is removed. -->
+        <form class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto" (ngSubmit)="saveOpenAiKey()">
             <input
                 pInputText
                 id="openai-key"
+                name="openai-key"
                 type="password"
                 class="w-full sm:w-96 max-w-full"
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="openAiKeyInput"
                 placeholder="sk-…"
                 autocomplete="off"
             />
-            <p-button [label]="'common.save' | translate" [loading]="savingOpenAiKey()" (onClick)="saveOpenAiKey()" />
-        </div>
+            <p-button type="submit" [label]="'common.save' | translate" [loading]="savingOpenAiKey()" />
+        </form>
     </div>
     <small class="text-muted-color max-w-3xl">
         {{ 'settings.ai_key_sent_as' | translate }} <code>Authorization: Bearer</code>
