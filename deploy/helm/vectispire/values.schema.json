@@ -149,7 +149,8 @@
         "signingKey": { "$ref": "#/definitions/secretRef" },
         "oidcClientSecret": { "$ref": "#/definitions/secretRef" },
         "previousEncryptionKeys": { "$ref": "#/definitions/secretRef" },
-        "mailPassword": { "$ref": "#/definitions/secretRef" }
+        "mailPassword": { "$ref": "#/definitions/secretRef" },
+        "metricsScrapeToken": { "$ref": "#/definitions/secretRef" }
       }
     },
     "bootstrap": {
