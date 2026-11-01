@@ -73,6 +73,11 @@ secrets:
   mailPassword:
     secretName: ""
     key: mail-password
+  # Optional: the token a Prometheus server scrapes `/actuator/prometheus` with, at least 32 characters.
+  # Unset, the page answers an administrator's session only. Read as `vectispire.metrics.scrape-token`.
+  metricsScrapeToken:
+    secretName: ""
+    key: metrics-scrape-token
 
 bootstrap:
   username: admin

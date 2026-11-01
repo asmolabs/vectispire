@@ -558,8 +558,9 @@ public class AgentAdministrationService {
     /**
      * Seen recently, not "enabled". An enabled agent that has been silent for an hour is the case
      * that matters: the queue fills, nobody drains it, and nothing else on the screen would say so.
+     * The agents' gauge counts by this rule too, so the screen and the scrape cannot disagree.
      */
-    private boolean isOnline(AgentEntity agent, Instant asOf) {
+    static boolean isOnline(AgentEntity agent, Instant asOf) {
         return agent.getLastSeenAt() != null
                 && Duration.between(agent.getLastSeenAt(), asOf).compareTo(ONLINE_TTL) < 0;
     }

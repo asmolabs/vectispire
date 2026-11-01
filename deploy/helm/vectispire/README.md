@@ -47,6 +47,7 @@ kubectl -n vectispire create secret tls vectispire-tls --cert=tls.crt --key=tls.
 | `secrets.oidcClientSecret` | `oidc-client-secret` | `vectispire.oidc.client-secret`, with `oidc.issuer` |
 | `secrets.previousEncryptionKeys` | `previous-encryption-keys` | during a key rotation only |
 | `secrets.mailPassword` | `mail-password` | `vectispire.mail.password`, the relay's password, with `mail.username` |
+| `secrets.metricsScrapeToken` | `metrics-scrape-token` | `vectispire.metrics.scrape-token`, the bearer a Prometheus server scrapes `/actuator/prometheus` with — optional, at least 32 characters |
 
 ## Required values
 
@@ -151,6 +152,15 @@ on 443 cannot be refused by port. Those addresses
 (`kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes`) and the nodes' range are
 the policy's to keep out. Without `restrictEgress` egress is open; the pod mounts no service-account token,
 so a request that reaches the API server is anonymous.
+
+## Prometheus
+
+`/actuator/prometheus` answers an administrator's session, or the token `secrets.metricsScrapeToken`
+names, as a bearer — never an anonymous scrape. The chart ships no `ServiceMonitor`: it would need the
+Prometheus Operator's CRD on every cluster that renders the chart, and CI's kubeconform has no schema for
+it. The user guide gives one to apply beside the release, pointing at the same secret
+(`docs-site/administration/monitoring.md`). With `networkPolicy.enabled`, add the Prometheus namespace to
+`networkPolicy.ingressFrom`, or the scrape never reaches port 3180.
 
 ## Scan agents
 

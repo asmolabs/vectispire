@@ -228,7 +228,7 @@ So, for each `delegated` agent:
    those scans are all that is waiting for it, its poll is answered **412** with the step that is
    missing, and its log says so on every retry; nothing is sent. If no other executor can take
    them, they wait until this agent is fixed. The control plane says so too: the gauge
-   `vectispire.scans.credential.unserved` (under `/actuator/metrics`) counts the waiting scans of
+   `vectispire.scans.credential.unserved` (under `/actuator/metrics`, and `vectispire_scans_credential_unserved` on `/actuator/prometheus` — see [Monitoring](monitoring.md)) counts the waiting scans of
    repositories carrying a credential that no executor able to be handed it serves — an enabled
    `local` agent, a `delegated` one with a verified key, or the built-in worker when it runs — and
    its log warns, at most every fifteen minutes and again when the count grows, naming the labels

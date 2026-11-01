@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.scanning.AgentClaimLock;
 import com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.WaitingScansRow;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -366,9 +367,14 @@ public class ScanQueue {
         return scans.countByStatus(ScanStatus.SCANNING.wireName());
     }
 
-    /** How many scans wait, those serving out a retry delay included — what the queue gauge shows. */
-    public long countPending() {
-        return scans.countByStatus(ScanStatus.PENDING.wireName());
+    /** The waiting scans of repositories, those serving out a retry delay included — what the queue gauges show. */
+    public WaitingScansRow waitingRepositoryScans() {
+        return scans.waitingRepositoryScans(ScanStatus.PENDING.wireName());
+    }
+
+    /** The same, for container images. */
+    public WaitingScansRow waitingContainerScans() {
+        return scans.waitingContainerScans(ScanStatus.PENDING.wireName());
     }
 
     /**

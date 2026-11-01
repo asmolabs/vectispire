@@ -69,6 +69,9 @@ class CredentialedBacklogTest extends VectispireContextTest {
     @Autowired
     private MeterRegistry registry;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.agents.internal.AgentMetricsTask agentTick;
+
     private long keyed;
     private long open;
 
@@ -102,7 +105,9 @@ class CredentialedBacklogTest extends VectispireContextTest {
 
         // The two keyed scans: the open repository's and the image's go to the agent as they are.
         assertThat(unserved).isEqualTo(new CredentialedBacklog.Unserved(2, List.of(""), List.of("edge")));
-        // The application's own gauge reads the same figure: the apitest profile runs no worker.
+        // The application's own gauge reads the same figure once the tick has read it — a scrape never
+        // queries: the apitest profile runs no worker.
+        agentTick.run();
         assertThat(registry.get("vectispire.scans.credential.unserved").gauge().value()).isEqualTo(2.0);
     }
 

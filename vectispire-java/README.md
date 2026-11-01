@@ -336,6 +336,14 @@ home downloads for the tasks CI runs):
   javac reads it to parse docker-java's transport types, which keep Immutables' annotations, and
   nothing of it is packaged. Its signer, `CA3DBEC9…` (Ievgen Lukash, Immutables' maintainer), is
   trusted for `org.immutables` alone.
+- **OpenTelemetry's key, for its own subgroups.** `3F05DDA9…` (uid "OpenTelemetry Java") was trusted
+  for `opentelemetry-bom` alone until `micrometer-registry-prometheus` (2026-11-01, for
+  `/actuator/prometheus`): the Prometheus client's parent POM imports
+  `io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha`, a BOM the same key
+  signs, and Gradle widened the entry to `io.opentelemetry` and the groups under it. No OpenTelemetry
+  jar is resolved; the key signs only those two POMs here, and the namespace is its publisher's.
+  The Prometheus client's own artifacts were already covered: its three keys were trusted for
+  `io.prometheus` before this, for the client's BOMs that Spring Boot's own imports.
 - **Ignored keys: none.** Gradle's first generation could not download 22 of the keys and fell back
   to checksums for their artifacts, Jackson, Hibernate, Flyway and BouncyCastle among them — a failed
   download, not a missing key: all 22 were on `keyserver.ubuntu.com` minutes later. Each was fetched
