@@ -8,9 +8,11 @@ import {
     withEnabledBlockingInitialNavigation,
     withInMemoryScrolling
 } from '@angular/router';
+import { definePreset } from '@openng/optimus-ui-themes';
 import Aura from '@openng/optimus-ui-themes/aura';
 import { provideOptimus } from '@openng/optimus-ui/config';
 import { appRoutes } from './app.routes';
+import { readablePreset } from './app/layout/readable-palette';
 import { I18nService } from './app/core/i18n/i18n.service';
 import { BrandingService } from './app/core/branding.service';
 import { TranslatedTitleStrategy } from './app/core/i18n/translated-title.strategy';
@@ -31,7 +33,12 @@ export const appConfig: ApplicationConfig = {
         { provide: TitleStrategy, useExisting: TranslatedTitleStrategy },
         provideHttpClient(withInterceptors([authInterceptor])),
         provideZonelessChangeDetection(),
-        provideOptimus({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } }),
+        provideOptimus({
+            theme: {
+                preset: definePreset(Aura, readablePreset(Aura.primitive?.emerald)),
+                options: { darkModeSelector: '.app-dark' }
+            }
+        }),
         provideAppInitializer(async () => {
             const i18n = inject(I18nService);
             const branding = inject(BrandingService);

@@ -41,6 +41,7 @@
                         [(ngModel)]="searchQuery"
                         (keydown.enter)="explore()"
                         [placeholder]="'blast_radius.search_placeholder' | translate"
+                        [attr.aria-label]="'blast_radius.search_placeholder' | translate"
                         class="w-full text-sm"
                         style="padding-left: 2.75rem !important"
                     />
@@ -95,7 +96,7 @@
 
     @if (exploring() || (topLoading() && !report())) {
         <div class="flex justify-center items-center py-16">
-            <p-progressSpinner strokeWidth="4"></p-progressSpinner>
+            <p-progressSpinner strokeWidth="4" [ariaLabel]="'common.loading' | translate"></p-progressSpinner>
         </div>
     }
 

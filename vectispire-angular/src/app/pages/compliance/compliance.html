@@ -100,6 +100,7 @@
         </div>
         <div class="flex items-center gap-3">
             <p-select
+                [ariaLabel]="'compliance.scope' | translate"
                 [options]="targetOptions()"
                 optionLabel="label"
                 optionValue="value"
@@ -280,39 +281,43 @@
                 ></textarea>
             </div>
 
-            @if (verifyResult()) {
-                <!-- Green only for a signature under Vectispire's own key. A valid signature under a key the
-                     caller supplied is shown amber: it proves the document matches that key, not that
-                     Vectispire signed it — the confusion this screen used to invite. -->
-                <div
-                    class="p-3 rounded-lg border flex items-center gap-3"
-                    [class.bg-emerald-50]="verifyAuthentic()"
-                    [class.border-emerald-200]="verifyAuthentic()"
-                    [class.text-emerald-800]="verifyAuthentic()"
-                    [class.bg-amber-50]="verifyForeign()"
-                    [class.border-amber-200]="verifyForeign()"
-                    [class.text-amber-800]="verifyForeign()"
-                    [class.bg-rose-50]="!verifyResult()!.valid"
-                    [class.border-rose-200]="!verifyResult()!.valid"
-                    [class.text-rose-800]="!verifyResult()!.valid"
-                >
-                    <i
-                        class="pi text-xl"
-                        [class.pi-check-circle]="verifyAuthentic()"
-                        [class.pi-exclamation-triangle]="verifyForeign()"
-                        [class.pi-times-circle]="!verifyResult()!.valid"
-                    ></i>
-                    <div class="text-xs">
-                        <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
-                        <p class="text-[11px] opacity-75 my-0">
-                            {{
-                                'compliance.verify_result_meta'
-                                    | translate: { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId }
-                            }}
-                        </p>
+            <!-- Live, and always in the page: the verdict arrives after the request, where nobody looks. -->
+            <div aria-live="polite">
+                @if (verifyResult()) {
+                    <!-- Green only for a signature under Vectispire's own key. A valid signature under a key the
+                         caller supplied is shown amber: it proves the document matches that key, not that
+                         Vectispire signed it — the confusion this screen used to invite. -->
+                    <div
+                        class="p-3 rounded-lg border flex items-center gap-3"
+                        [class.bg-emerald-50]="verifyAuthentic()"
+                        [class.border-emerald-200]="verifyAuthentic()"
+                        [class.text-emerald-800]="verifyAuthentic()"
+                        [class.bg-amber-50]="verifyForeign()"
+                        [class.border-amber-200]="verifyForeign()"
+                        [class.text-amber-800]="verifyForeign()"
+                        [class.bg-rose-50]="!verifyResult()!.valid"
+                        [class.border-rose-200]="!verifyResult()!.valid"
+                        [class.text-rose-800]="!verifyResult()!.valid"
+                    >
+                        <i
+                            class="pi text-xl"
+                            [class.pi-check-circle]="verifyAuthentic()"
+                            [class.pi-exclamation-triangle]="verifyForeign()"
+                            [class.pi-times-circle]="!verifyResult()!.valid"
+                        ></i>
+                        <div class="text-xs">
+                            <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
+                            <p class="text-[11px] opacity-75 my-0">
+                                {{
+                                    'compliance.verify_result_meta'
+                                        | translate
+                                            : { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId }
+                                }}
+                            </p>
+                        </div>
                     </div>
-                </div>
-            }
+                }
+            </div>
 
             @if (verifyError()) {
                 <p-message severity="error" [text]="verifyError()!"></p-message>

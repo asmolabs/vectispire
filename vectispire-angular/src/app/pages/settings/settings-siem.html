@@ -18,10 +18,14 @@
             }
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <div class="font-medium">{{ 'settings.siem_enable' | translate }}</div>
+                    <div id="siem-enable-label" class="font-medium">{{ 'settings.siem_enable' | translate }}</div>
                     <small class="text-muted-color">{{ 'settings.siem_enable_desc' | translate }}</small>
                 </div>
-                <p-toggleswitch [ngModelOptions]="{ standalone: true }" [(ngModel)]="siemForm.enabled" />
+                <p-toggleswitch
+                    ariaLabelledBy="siem-enable-label"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="siemForm.enabled"
+                />
             </div>
 
             <div

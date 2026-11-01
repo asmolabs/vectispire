@@ -23,6 +23,7 @@
                     [(ngModel)]="cveSearchQuery"
                     (keydown.enter)="searchCve()"
                     [placeholder]="'epss.lookup_placeholder' | translate"
+                    [attr.aria-label]="'epss.lookup_placeholder' | translate"
                     class="pl-9 text-xs w-48"
                 />
             </div>
@@ -57,7 +58,7 @@
 
     @if (loading()) {
         <div class="flex justify-center items-center py-16">
-            <p-progressSpinner strokeWidth="4"></p-progressSpinner>
+            <p-progressSpinner strokeWidth="4" [ariaLabel]="'common.loading' | translate"></p-progressSpinner>
         </div>
     }
 
@@ -158,7 +159,7 @@
                             summary()!.breakdownByTier['HIGH_PROBABLE'] ?? 0
                         }}</span>
                     </div>
-                    <p class="text-[11px] text-amber-700/80 dark:text-amber-400 leading-tight">
+                    <p class="text-[11px] text-amber-700 dark:text-amber-400 leading-tight">
                         {{ 'epss.q2_help' | translate }}
                     </p>
                 </div>
@@ -174,7 +175,7 @@
                             summary()!.breakdownByTier['MEDIUM_THEORETICAL'] ?? 0
                         }}</span>
                     </div>
-                    <p class="text-[11px] text-blue-700/80 dark:text-blue-400 leading-tight">
+                    <p class="text-[11px] text-blue-700 dark:text-blue-400 leading-tight">
                         {{ 'epss.q3_help' | translate }}
                     </p>
                 </div>
@@ -349,7 +350,7 @@
     >
         @if (lookupLoading()) {
             <div class="flex justify-center py-6">
-                <p-progressSpinner strokeWidth="4"></p-progressSpinner>
+                <p-progressSpinner strokeWidth="4" [ariaLabel]="'common.loading' | translate"></p-progressSpinner>
             </div>
         }
         @if (lookupError()) {

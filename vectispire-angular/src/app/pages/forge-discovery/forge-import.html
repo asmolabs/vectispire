@@ -2,7 +2,7 @@
     <!-- The import's result: what exists now, and where the record of it is. -->
     <p-card data-testid="result">
         <h2 class="text-xl font-semibold m-0">{{ 'forges.result.title' | translate }}</h2>
-        <p class="mt-1 mb-3" data-testid="result-summary">
+        <p class="mt-1 mb-3" data-testid="result-summary" role="status">
             {{ 'forges.result.created' | translate: { count: done.created.length } }}
             {{ 'forges.result.skipped' | translate: { count: done.skipped.length } }}
         </p>

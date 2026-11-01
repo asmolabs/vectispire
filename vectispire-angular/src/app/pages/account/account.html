@@ -153,7 +153,15 @@
             @if (removing()) {
                 <div class="flex flex-col gap-2">
                     <p class="text-sm m-0">{{ 'account.mfa_disable_help' | translate }}</p>
-                    <input pInputText inputmode="numeric" [(ngModel)]="code" name="mfa-removal-code" />
+                    <input
+                        pInputText
+                        id="mfa-removal-code"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        [attr.aria-label]="'account.mfa_code' | translate"
+                        [(ngModel)]="code"
+                        name="mfa-removal-code"
+                    />
                     <div class="flex gap-2">
                         <p-button
                             [label]="'account.mfa_disable' | translate"

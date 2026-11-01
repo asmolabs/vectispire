@@ -43,7 +43,7 @@
 
     @if (loading()) {
         <div class="flex justify-center items-center py-16">
-            <p-progressSpinner strokeWidth="4"></p-progressSpinner>
+            <p-progressSpinner strokeWidth="4" [ariaLabel]="'common.loading' | translate"></p-progressSpinner>
         </div>
     }
 
@@ -157,23 +157,26 @@
                         </div>
 
                         <!-- Test result notification banner -->
-                        @if (testResults()[card.channel.type]; as res) {
-                            @if (res.success) {
-                                <div
-                                    class="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5"
-                                >
-                                    <i class="pi pi-check-circle text-emerald-600"></i>
-                                    <span>{{ res.message }}</span>
-                                </div>
-                            } @else {
-                                <div
-                                    class="p-2 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-1.5"
-                                >
-                                    <i class="pi pi-times-circle text-rose-600"></i>
-                                    <span>{{ res.message }}</span>
-                                </div>
+                        <!-- Live, and always in the page: a region inserted with its text is not announced. -->
+                        <div aria-live="polite">
+                            @if (testResults()[card.channel.type]; as res) {
+                                @if (res.success) {
+                                    <div
+                                        class="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5"
+                                    >
+                                        <i class="pi pi-check-circle text-emerald-600"></i>
+                                        <span>{{ res.message }}</span>
+                                    </div>
+                                } @else {
+                                    <div
+                                        class="p-2 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-1.5"
+                                    >
+                                        <i class="pi pi-times-circle text-rose-600"></i>
+                                        <span>{{ res.message }}</span>
+                                    </div>
+                                }
                             }
-                        }
+                        </div>
                     </div>
                 </div>
             }

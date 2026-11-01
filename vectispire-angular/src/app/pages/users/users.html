@@ -41,6 +41,7 @@
                          protects. The server refuses anyway whatever would lock everybody
                          out. -->
                     <p-select
+                        [ariaLabel]="'users.role' | translate"
                         [options]="roles()"
                         optionLabel="label"
                         optionValue="value"
@@ -204,7 +205,11 @@
                 {{ 'users.reset_new_password_for' | translate }} <span class="font-medium">{{ user.username }}</span
                 >.
             </p>
-            <input pInputText [(ngModel)]="resetPassword" />
+            <input
+                pInputText
+                [attr.aria-label]="'users.aria_reset_password' | translate: { name: user.username }"
+                [(ngModel)]="resetPassword"
+            />
             <small class="text-muted-color">{{ 'users.reset_hint' | translate }}</small>
             @if (formError(); as message) {
                 <p-message severity="error" [closable]="false">{{ message }}</p-message>

@@ -93,6 +93,7 @@
                             [options]="backlogOptions()"
                             [plugins]="chartPlugins"
                             height="12rem"
+                            [ariaLabel]="'dashboard.chart.backlog_aria' | translate"
                         />
                         <p-chart
                             type="line"
@@ -100,6 +101,7 @@
                             [options]="flowOptions()"
                             [plugins]="chartPlugins"
                             height="7rem"
+                            [ariaLabel]="'dashboard.chart.flow_aria' | translate"
                         />
                         <!-- The dated line, in words: a canvas says nothing to a screen reader. -->
                         @if (formulaChange(); as change) {

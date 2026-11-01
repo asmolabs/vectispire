@@ -11,6 +11,7 @@ import type Nora from '@openng/optimus-ui-themes/nora';
 import { Optimus } from '@openng/optimus-ui/config';
 import { SelectButtonModule } from '@openng/optimus-ui/selectbutton';
 import { LayoutService } from '@/app/layout/service/layout.service';
+import { READABLE_COMPONENTS, readableLightPrimary, readableLightText } from '@/app/layout/readable-palette';
 
 type ThemePreset = typeof Aura | typeof Lara | typeof Nora;
 
@@ -93,8 +94,11 @@ declare type SurfacesType = {
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <span class="text-sm text-muted-color font-semibold">{{ 'layout.presets' | translate }}</span>
+                <span id="layout-presets-label" class="text-sm text-muted-color font-semibold">{{
+                    'layout.presets' | translate
+                }}</span>
                 <p-selectbutton
+                    ariaLabelledBy="layout-presets-label"
                     [options]="presets"
                     [ngModel]="selectedPreset()"
                     (ngModelChange)="onPresetChange($event)"
@@ -104,10 +108,11 @@ declare type SurfacesType = {
             </div>
             @if (showMenuModeButton()) {
                 <div class="flex flex-col gap-2">
-                    <span class="text-sm text-muted-color font-semibold">{{
+                    <span id="layout-menu-mode-label" class="text-sm text-muted-color font-semibold">{{
                         'layout.menu_mode_label' | translate
                     }}</span>
                     <p-selectbutton
+                        ariaLabelledBy="layout-menu-mode-label"
                         [ngModel]="menuMode()"
                         (ngModelChange)="onMenuModeChange($event)"
                         [options]="menuModeOptions()"
@@ -340,9 +345,12 @@ export class AppConfigurator implements OnInit {
     getPresetExt() {
         const color: SurfacesType = this.primaryColors().find((c) => c.name === this.selectedPrimaryColor()) || {};
         const preset = this.layoutService.layoutConfig().preset;
+        const surface = this.surfaces.find((s) => s.name === this.selectedSurfaceColor())?.palette;
+        const page = surface?.[100];
 
         if (color.name === 'noir') {
             return {
+                components: READABLE_COMPONENTS,
                 semantic: {
                     primary: {
                         50: '{surface.50}',
@@ -359,6 +367,7 @@ export class AppConfigurator implements OnInit {
                     },
                     colorScheme: {
                         light: {
+                            text: readableLightText(surface),
                             primary: {
                                 color: '{primary.950}',
                                 contrastColor: '#ffffff',
@@ -392,16 +401,13 @@ export class AppConfigurator implements OnInit {
         } else {
             if (preset === 'Nora') {
                 return {
+                    components: READABLE_COMPONENTS,
                     semantic: {
                         primary: color.palette,
                         colorScheme: {
                             light: {
-                                primary: {
-                                    color: '{primary.600}',
-                                    contrastColor: '#ffffff',
-                                    hoverColor: '{primary.700}',
-                                    activeColor: '{primary.800}'
-                                },
+                                primary: readableLightPrimary(color.palette, page),
+                                text: readableLightText(surface),
                                 highlight: {
                                     background: '{primary.600}',
                                     focusBackground: '{primary.700}',
@@ -428,16 +434,13 @@ export class AppConfigurator implements OnInit {
                 };
             } else {
                 return {
+                    components: READABLE_COMPONENTS,
                     semantic: {
                         primary: color.palette,
                         colorScheme: {
                             light: {
-                                primary: {
-                                    color: '{primary.500}',
-                                    contrastColor: '#ffffff',
-                                    hoverColor: '{primary.600}',
-                                    activeColor: '{primary.700}'
-                                },
+                                primary: readableLightPrimary(color.palette, page),
+                                text: readableLightText(surface),
                                 highlight: {
                                     background: '{primary.50}',
                                     focusBackground: '{primary.100}',

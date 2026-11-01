@@ -50,6 +50,7 @@
     <!-- Repository selector & controls -->
     <div class="flex items-center gap-3">
         <select
+            [attr.aria-label]="'attack_paths.repository' | translate"
             class="p-2 text-sm border rounded-lg bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 min-w-56 font-medium"
             [ngModel]="selectedRepoId()"
             (ngModelChange)="onRepoChange($event)"
