@@ -52,27 +52,27 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (row of shown(); track row.id) {
+                    @for (entry of rows(); track entry.verdict.id) {
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
                             <td class="py-3 pr-4">
                                 <div class="font-medium">
-                                    @if (row.target_kind === null) {
+                                    @if (entry.verdict.target_kind === null) {
                                         —
-                                    } @else if (row.target_name) {
-                                        {{ row.target_name }}
+                                    } @else if (entry.verdict.target_name) {
+                                        {{ entry.verdict.target_name }}
                                     } @else {
                                         {{
-                                            row.target_kind === 'REPOSITORY'
+                                            entry.verdict.target_kind === 'REPOSITORY'
                                                 ? ('gate_verdicts.kind.repository' | translate)
                                                 : ('gate_verdicts.kind.container' | translate)
                                         }}
-                                        {{ row.target_id }}
+                                        {{ entry.verdict.target_id }}
                                     }
                                 </div>
-                                @if (row.target_kind !== null && row.target_name) {
+                                @if (entry.verdict.target_kind !== null && entry.verdict.target_name) {
                                     <div class="text-muted-color text-xs">
                                         {{
-                                            row.target_kind === 'REPOSITORY'
+                                            entry.verdict.target_kind === 'REPOSITORY'
                                                 ? ('gate_verdicts.kind.repository' | translate)
                                                 : ('gate_verdicts.kind.container' | translate)
                                         }}
@@ -80,21 +80,21 @@
                                 }
                             </td>
                             <td class="py-3 pr-4">
-                                @if (row.passed) {
+                                @if (entry.verdict.passed) {
                                     <p-tag severity="success" [value]="'gate_verdicts.passed' | translate" />
                                 } @else {
                                     <p-tag severity="danger" [value]="'gate_verdicts.refused_one' | translate" />
                                 }
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap">
-                                <div>{{ row.evaluated }}</div>
-                                @if (row.evaluated === 0) {
+                                <div>{{ entry.verdict.evaluated }}</div>
+                                @if (entry.verdict.evaluated === 0) {
                                     <div class="text-muted-color text-xs">
                                         {{ 'gate_verdicts.nothing_to_judge' | translate }}
                                     </div>
-                                } @else if (row.violations > 0) {
+                                } @else if (entry.verdict.violations > 0) {
                                     <div class="text-red-700 text-xs font-medium">
-                                        {{ row.violations }} {{ 'gate_verdicts.in_violation' | translate }}
+                                        {{ entry.verdict.violations }} {{ 'gate_verdicts.in_violation' | translate }}
                                     </div>
                                 } @else {
                                     <div class="text-muted-color text-xs">
@@ -105,30 +105,30 @@
                             <td class="py-3 pr-4">
                                 <div>
                                     {{ 'gate_verdicts.fails_at' | translate }}
-                                    <strong>{{ row.fail_on_severity | severityLabel }}</strong>
+                                    <strong>{{ entry.verdict.fail_on_severity | severityLabel }}</strong>
                                 </div>
                                 <div class="text-muted-color text-xs">
-                                    {{ row.policy_source | policySource }}
-                                    @if (row.policy_version) {
-                                        <span> · v{{ row.policy_version }}</span>
+                                    {{ entry.verdict.policy_source | policySource }}
+                                    @if (entry.verdict.policy_version) {
+                                        <span> · v{{ entry.verdict.policy_version }}</span>
                                     }
                                 </div>
-                                @if (row.relaxations_ignored) {
+                                @if (entry.verdict.relaxations_ignored) {
                                     <div class="text-orange-700 text-xs font-medium">
                                         {{ 'gate_verdicts.relaxation_refused' | translate }}
                                     </div>
                                 }
-                                @for (count of counts(row); track count.severity) {
+                                @for (count of entry.counts; track count.severity) {
                                     <span class="text-muted-color text-xs mr-2"
                                         >{{ count.severity | severityLabel }} {{ count.count }}</span
                                     >
                                 }
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs">
-                                {{ row.decided_by ?? ('gate_verdicts.unattributed' | translate) }}
+                                {{ entry.verdict.decided_by ?? ('gate_verdicts.unattributed' | translate) }}
                             </td>
                             <td class="py-3 whitespace-nowrap text-muted-color">
-                                {{ row.decided_at | date: 'dd/MM/yyyy HH:mm' }}
+                                {{ entry.verdict.decided_at | date: 'dd/MM/yyyy HH:mm' }}
                             </td>
                         </tr>
                     } @empty {

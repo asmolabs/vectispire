@@ -67,11 +67,11 @@
                                 }
                             </td>
                             <td class="py-3 pr-4">
-                                @if (nothingToMeasure(row)) {
+                                @if (row.nothingToMeasure) {
                                     <div class="text-muted-color text-xs" style="max-width: 26ch">
                                         {{ 'delays.nothing_resolved' | translate }}
                                     </div>
-                                } @else if (hasDeadline(row)) {
+                                } @else if (row.hasDeadline) {
                                     <div class="flex items-baseline gap-2 mb-1">
                                         <span class="font-medium" style="font-variant-numeric: tabular-nums">{{
                                             row.percentageWithinSla | localPercent
@@ -89,7 +89,7 @@
                                             class="rounded"
                                             style="height: 8px"
                                             [style.width.%]="row.percentageWithinSla"
-                                            [style.background]="barColour(row)"
+                                            [style.background]="row.barColour"
                                         ></div>
                                     </div>
                                 } @else {

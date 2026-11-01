@@ -132,7 +132,7 @@
 
 <p-card styleClass="mb-4">
     <h3 class="text-base font-semibold mt-0 mb-2">{{ 'reports.runs_title' | translate }}</h3>
-    @if (runs(); as list) {
+    @if (runRows(); as list) {
         <p-table [value]="list" size="small" dataKey="id" data-testid="report-runs">
             <ng-template #header>
                 <tr>
@@ -145,7 +145,7 @@
             <ng-template #body let-run>
                 <tr [attr.data-testid]="'run-' + run.id">
                     <td>
-                        <div class="font-medium">{{ pluginName(run.pluginId) }}</div>
+                        <div class="font-medium">{{ run.pluginLabel }}</div>
                         <details class="text-xs mt-1">
                             <summary class="cursor-pointer text-muted-color">
                                 {{ 'reports.provenance_btn' | translate }}
@@ -176,8 +176,8 @@
                         </details>
                     </td>
                     <td>
-                        <p-tag [severity]="stateSeverity(run)" [value]="stateLabel(run)" data-testid="run-state" />
-                        @if (reasonLabel(run); as reason) {
+                        <p-tag [severity]="run.stateTone" [value]="run.stateLabel" data-testid="run-state" />
+                        @if (run.reasonLabel; as reason) {
                             <div class="text-sm mt-1" data-testid="run-reason">{{ reason }}</div>
                         }
                         @if (run.detail) {
@@ -222,15 +222,13 @@
                                 size="small"
                                 [outlined]="true"
                                 [label]="'reports.download_btn' | translate"
-                                [ariaLabel]="
-                                    'reports.aria_download' | translate: { name: pluginName(run.pluginId), id: run.id }
-                                "
+                                [ariaLabel]="'reports.aria_download' | translate: { name: run.pluginLabel, id: run.id }"
                                 [loading]="busy() === 'download:' + run.id"
                                 [attr.data-testid]="'download-' + run.id"
                                 (onClick)="download(run)"
                             />
                             <div class="text-xs text-muted-color mt-1">
-                                {{ extension(run.outputMediaType) }} · {{ size(run.outputSize) }}
+                                {{ run.fileExtension }} · {{ run.fileSize }}
                             </div>
                         } @else {
                             <span class="text-muted-color">—</span>

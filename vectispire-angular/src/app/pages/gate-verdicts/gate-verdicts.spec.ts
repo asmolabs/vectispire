@@ -168,4 +168,20 @@ describe('le registre des verdicts', () => {
 
         expect(fixture.componentInstance.counts(refusal)).toEqual([{ severity: 'critical', count: 1 }]);
     });
+
+    it('writes the severities that carry a count on the refused row, and only there, and follows the filter', () => {
+        useEnglish();
+        fixture.detectChanges();
+        const counts = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')].map((tr) =>
+                [...tr.querySelectorAll('td:nth-child(4) span.text-xs')].map((span) =>
+                    span.textContent.replace(/\s+/g, ' ').trim()
+                )
+            );
+        expect(counts()).toEqual([[], ['Critical 1']]);
+
+        fixture.componentInstance.refusalsOnly.set(true);
+        fixture.detectChanges();
+        expect(counts()).toEqual([['Critical 1']]);
+    });
 });

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { NewRepository } from '@/app/core/api.models';
 import { repositorySummary } from '@/app/core/testing/targets.fixtures';
 import { RepositoryFormDialog } from './repository-form-dialog';
+import { asSchema } from '@/app/core/testing/contract';
+import { useFrench } from '@/app/core/testing/english';
 import { mountOnRepositories } from './repositories-page.testing';
 
 /**
@@ -32,6 +34,60 @@ describe('the repository form', () => {
         dialog.onUrlChange();
         expect(dialog.credentialKinds().map((kind) => kind.value)).toEqual(['none', 'https']);
         expect(dialog.form.credentialKind).toBe('none');
+    });
+
+    it('warns of a secret in the URL and names the host no token is bound to, as the URL is typed', async () => {
+        const { fixture, page } = mountOnRepositories(RepositoryFormDialog);
+        const dialog = fixture.componentInstance;
+        dialog.openForm();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const type = async (value: string) => {
+            const url = document.querySelector<HTMLInputElement>('#url')!;
+            url.value = value;
+            url.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+            await fixture.whenStable();
+        };
+        await type('https://user:hunter2@example.org/app.git');
+        expect(document.querySelector('#url-carries-secret')).not.toBeNull();
+
+        await type('https://git.example.org/app.git');
+        expect(document.querySelector('#url-carries-secret')).toBeNull();
+        dialog.form.credentialKind = 'https';
+        fixture.componentRef.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        expect(document.querySelector('#no-token-for-host')?.textContent).toContain('git.example.org');
+
+        // A token for that host arriving afterwards is offered at once, and the hint goes.
+        page.gitTokens.set([
+            asSchema('GitTokenSummary', {
+                id: '3b1f0c2e-6d4a-4e8b-9f10-2a7c5d9e1b44',
+                name: 'ci-read',
+                host: 'git.example.org',
+                username: null,
+                createdAt: '2026-09-20T08:00:00Z',
+                encryptionState: 'current',
+                usedByRepositories: 0
+            })
+        ]);
+        fixture.detectChanges();
+        expect(document.querySelector('#no-token-for-host')).toBeNull();
+    });
+
+    it('words the credential kinds in the reader language, after a switch too', async () => {
+        const { fixture } = mountOnRepositories(RepositoryFormDialog);
+        fixture.componentInstance.openForm();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        // ngModel writes the chosen value on the pass after: the select shows its label then.
+        fixture.detectChanges();
+        const chosen = () => document.querySelector('#credential-kind')?.closest('p-select')?.textContent ?? '';
+        expect(chosen()).toContain('None — public repository');
+        useFrench();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(chosen()).toContain('Aucun — dépôt public');
     });
 
     it('sends what it shows on a submit, and names a target already filed', () => {

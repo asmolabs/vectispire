@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GitTokens } from './git-tokens';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import type { GitTokenSummary } from '@/app/core/api.models';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The HTTPS tokens screen.
@@ -55,6 +56,22 @@ describe('the HTTPS tokens screen', () => {
         expect(text).toContain('gitlab.example.com');
         expect(text).toContain('oauth2');
         expect(text).toContain('4');
+    });
+
+    it('words each badge in the reader language and follows the list, after a switch too', () => {
+        useEnglish();
+        list([{ ...TOKEN, encryptionState: 'previous_key' }]);
+        const tag = () => (fixture.nativeElement as HTMLElement).querySelector('tbody .p-tag')!;
+        expect(tag().textContent.trim()).toBe('Rotate');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(tag().textContent.trim()).toBe('À faire tourner');
+
+        fixture.componentInstance.tokens.set([{ ...TOKEN, encryptionState: 'unreadable' }]);
+        fixture.detectChanges();
+        expect(tag().textContent.trim()).toBe('Illisible');
+        expect(tag().className).toContain('p-tag-danger');
     });
 
     it('offers the token as a password field, so it is not shown while typed', () => {

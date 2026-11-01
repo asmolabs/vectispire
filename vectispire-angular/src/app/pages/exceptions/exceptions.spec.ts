@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Exceptions } from './exceptions';
 import { asSchema } from '@/app/core/testing/contract';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import type { Schema } from '@/app/core/api.models';
 
 /**
@@ -96,12 +96,29 @@ describe('le registre des exceptions', () => {
     it('ne laisse pas partir une prolongation sans date', () => {
         const component = fixture.componentInstance;
         component.openReview(REGISTER.entries[0]);
-        component.outcome = 'EXTENDED';
+        component.outcome.set('EXTENDED');
 
         expect(component.incomplete()).toBe(true);
 
         component.submitReview();
         http.expectNone('/api/v1/exceptions/41/reviews');
+    });
+
+    it('is a form requiring a date for an extension, and records once however often it is submitted', () => {
+        const component = fixture.componentInstance;
+        component.openReview(REGISTER.entries[0]);
+        component.outcome.set('EXTENDED');
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#newExpiry')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#comment')!.required).toBe(false);
+
+        const form = document.querySelector('#newExpiry')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/exceptions/41/reviews').length).toBe(0);
+        component.newExpiry.set('2027-03-01');
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/exceptions/41/reviews').length).toBe(1);
     });
 
     it('offers more even when the page contained nothing visible', () => {
@@ -226,5 +243,58 @@ describe('le registre des exceptions', () => {
         // and simply never have been reopened.
         expect(fixture.componentInstance.lapsed()).toBe(0);
         expect(fixture.componentInstance.neverReviewed()).toBe(1);
+    });
+    it('words each row in the reader language, after a switch too', () => {
+        useEnglish();
+        fixture.detectChanges();
+        const decision = () =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('[data-testid="exception-decision"]')
+                ?.textContent?.trim();
+        expect(decision()).toBe('Not affected');
+        useFrench();
+        fixture.detectChanges();
+        expect(decision()).not.toBe('Not affected');
+        expect(decision()).toBeTruthy();
+    });
+
+    it('colours the lapsed figure by the rows loaded, and follows a new page', () => {
+        const page = fixture.nativeElement as HTMLElement;
+        fixture.detectChanges();
+        const lapsedFigure = () => page.querySelector('.border-l-4 .text-2xl')!;
+        expect(lapsedFigure().className).toContain('text-emerald-700');
+        expect(page.querySelector('.border-l-4')!.className).toContain('border-emerald-500');
+
+        fixture.componentInstance.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', { ...REGISTER, entries: [{ ...REGISTER.entries[0], lapsed: true }] })
+        );
+        fixture.detectChanges();
+        expect(lapsedFigure().className).toContain('text-red-700');
+        expect(page.querySelector('.border-l-4')!.className).toContain('border-red-500');
+    });
+
+    it('enables the record button once an extension has its date, as the form is filled in', async () => {
+        useEnglish();
+        fixture.componentInstance.openReview(REGISTER.entries[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const record = () =>
+            [...document.querySelectorAll('button')].find((button) =>
+                button.textContent?.includes('Record the review')
+            )!;
+        expect(record().disabled).toBe(false);
+
+        const extended = document.querySelector<HTMLInputElement>('input[type="radio"][value="EXTENDED"]')!;
+        extended.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(record().disabled).toBe(true);
+
+        const date = document.querySelector<HTMLInputElement>('#newExpiry')!;
+        date.value = '2027-03-31';
+        date.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(record().disabled).toBe(false);
     });
 });

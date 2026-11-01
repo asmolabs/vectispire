@@ -856,6 +856,8 @@
     "no_scans_run": "No scan has been run yet.",
     "target": "Target",
     "chart": {
+      "backlog_aria": "Open backlog per day over the chosen window",
+      "flow_aria": "Issues opened and resolved per day over the chosen window",
       "open_backlog": "Open backlog",
       "opened": "Opened",
       "per_day": "Per day",

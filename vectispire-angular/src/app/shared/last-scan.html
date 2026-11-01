@@ -13,7 +13,7 @@
         is usually the command, and the cause is on the second.
     -->
     <div class="max-w-64">
-        <p-tag [value]="label(value.status)" [severity]="severity(value.status)" />
+        <p-tag [value]="value.status | scanStatus" [severity]="tone()" />
         <div class="text-sm text-muted-color mt-1">{{ value.createdAt | date: 'dd/MM/yyyy HH:mm' }}</div>
         @if (value.error) {
             <div class="text-sm text-red-500 mt-1 line-clamp-2" [title]="value.error">{{ value.error }}</div>

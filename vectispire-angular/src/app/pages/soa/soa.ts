@@ -71,6 +71,18 @@ export const DIVERGENCE_HELP_KEYS = {
     CONSISTENT: 'soa.divergence_help.CONSISTENT'
 } as const satisfies Record<Divergence, string>;
 
+/** A line of the statement with what its row shows worked out. */
+export interface SoaRow extends SoaLine {
+    finding: boolean;
+    severity: 'danger' | 'warn' | 'info' | 'secondary';
+    applicabilityLabel: string;
+    implementationLabel: string;
+    evidenceLabel: string;
+    measuredLabel: string;
+    divergenceLabel: string;
+    divergenceHelp: string;
+}
+
 /**
  * The statement of applicability: what is claimed, set against what is measured.
  *
@@ -174,13 +186,41 @@ export class Soa {
         'CONSISTENT'
     ];
 
-    readonly lines = computed<SoaLine[]>(() => {
+    /**
+     * Each row with its words, its tag and whether it is a finding worked out once per document or
+     * language — not by eight methods per row on every pass.
+     */
+    readonly lines = computed<SoaRow[]>(() => {
         const statement = this.current();
         if (!statement) {
             return [];
         }
-        return [...statement.lines].sort((a, b) => Soa.ORDER.indexOf(a.divergence) - Soa.ORDER.indexOf(b.divergence));
+        return [...statement.lines]
+            .sort((a, b) => Soa.ORDER.indexOf(a.divergence) - Soa.ORDER.indexOf(b.divergence))
+            .map((line) => ({
+                ...line,
+                finding: isFinding(line),
+                severity: severityOf(line),
+                applicabilityLabel: line.declaration
+                    ? this.labelOf(APPLICABILITY_KEYS, line.declaration.applicability)
+                    : '',
+                implementationLabel: line.declaration?.implementation
+                    ? this.labelOf(IMPLEMENTATION_KEYS, line.declaration.implementation)
+                    : '',
+                evidenceLabel: line.declaration ? this.labelOf(EVIDENCE_KEYS, line.declaration.evidenceSource) : '',
+                measuredLabel: line.measured ? this.labelOf(COMPLIANCE_STATUS_KEYS, line.measured) : '—',
+                divergenceLabel: this.labelOf(DIVERGENCE_KEYS, line.divergence),
+                divergenceHelp: this.divergenceHelp(line.divergence)
+            }));
     });
+
+    /** The lapsed reviews, each with its framework by its name; one this client does not know (`OWASP_2021`) as sent. */
+    readonly overdueRows = computed(() =>
+        this.overdue().map((declaration) => ({
+            ...declaration,
+            frameworkName: frameworkLabel(this.i18n, declaration.framework)
+        }))
+    );
 
     constructor() {
         this.load();
@@ -200,33 +240,8 @@ export class Soa {
         });
     }
 
-    applicabilityLabel(value: string): string {
-        return this.labelOf(APPLICABILITY_KEYS, value);
-    }
-
-    implementationLabel(value: string): string {
-        return this.labelOf(IMPLEMENTATION_KEYS, value);
-    }
-
-    evidenceLabel(value: string): string {
-        return this.labelOf(EVIDENCE_KEYS, value);
-    }
-
-    measuredLabel(value: string | null): string {
-        return value ? this.labelOf(COMPLIANCE_STATUS_KEYS, value) : '—';
-    }
-
-    /** A declaration's framework by its name; one this client does not know (`OWASP_2021`) as sent. */
-    frameworkLabel(value: string): string {
-        return frameworkLabel(this.i18n, value);
-    }
-
-    divergenceLabel(value: string): string {
-        return this.labelOf(DIVERGENCE_KEYS, value);
-    }
-
     /** No sentence for a divergence the client does not know: its name, above, already says it. */
-    divergenceHelp(value: string): string {
+    private divergenceHelp(value: string): string {
         const key = keyFor(DIVERGENCE_HELP_KEYS, value);
         return key ? this.i18n.t(key) : '';
     }
@@ -234,28 +249,6 @@ export class Soa {
     private labelOf<V extends string>(keys: Readonly<Record<V, string>>, value: string): string {
         const key = keyFor(keys, value);
         return key ? this.i18n.t(key) : value;
-    }
-
-    isFinding(line: SoaLine): boolean {
-        return (
-            line.divergence === 'CONTRADICTED' ||
-            line.divergence === 'EXCLUDED_WITHOUT_JUSTIFICATION' ||
-            line.divergence === 'UNDECLARED'
-        );
-    }
-
-    severityOf(line: SoaLine): 'danger' | 'warn' | 'info' | 'secondary' {
-        if (this.isFinding(line)) {
-            return 'danger';
-        }
-        if (
-            line.divergence === 'OVERSTATED' ||
-            line.divergence === 'UNEVIDENCED' ||
-            line.divergence === 'UNDERSTATED'
-        ) {
-            return 'warn';
-        }
-        return line.divergence === 'CONSISTENT' ? 'secondary' : 'info';
     }
 
     openDeclare(line: SoaLine): void {
@@ -287,7 +280,8 @@ export class Soa {
     submit(): void {
         const line = this.editing();
         const statement = this.current();
-        if (!line || !statement || this.incomplete()) {
+        // Enter in a field submits the form whatever the button shows: the same checks, one at a time.
+        if (!line || !statement || this.incomplete() || this.busy()) {
             return;
         }
         this.busy.set(true);
@@ -318,4 +312,23 @@ export class Soa {
                 }
             });
     }
+}
+
+/** The divergences an assessment would write up. */
+export function isFinding(line: SoaLine): boolean {
+    return (
+        line.divergence === 'CONTRADICTED' ||
+        line.divergence === 'EXCLUDED_WITHOUT_JUSTIFICATION' ||
+        line.divergence === 'UNDECLARED'
+    );
+}
+
+function severityOf(line: SoaLine): 'danger' | 'warn' | 'info' | 'secondary' {
+    if (isFinding(line)) {
+        return 'danger';
+    }
+    if (line.divergence === 'OVERSTATED' || line.divergence === 'UNEVIDENCED' || line.divergence === 'UNDERSTATED') {
+        return 'warn';
+    }
+    return line.divergence === 'CONSISTENT' ? 'secondary' : 'info';
 }

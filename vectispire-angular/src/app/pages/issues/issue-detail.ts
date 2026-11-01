@@ -27,7 +27,7 @@ import { findingTypeLabel } from '../../shared/finding-types';
  * release we shipped" and "why is this dismissed".
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone } from '@/app/shared/severity';
 import { IssueStatePipe } from '@/app/shared/scan-status';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
@@ -88,21 +88,30 @@ export class IssueDetailPage {
         });
     }
 
-    severityOf(severity: string | null): SeverityTone {
-        return severityTone(severity);
-    }
+    /**
+     * What the page shows of the issue in words and colour, worked out per issue or language rather
+     * than by a method per binding on every pass; `t` reads the bundle's signal, so a switch
+     * recomputes it. The decisions carry both ends of their transition in words.
+     */
+    readonly view = computed(() => {
+        const detail = this.issue();
+        if (!detail) return null;
+        return {
+            detail,
+            type: findingTypeLabel(this.i18n, detail.type),
+            tone: severityTone(detail.severity),
+            triage: this.triageLabel(detail.triageStatus),
+            pluginId: pluginIdOf(detail.tool),
+            decisions: detail.decisions.map((decision) => ({
+                ...decision,
+                fromLabel: this.triageLabel(decision.fromStatus),
+                toLabel: this.triageLabel(decision.toStatus)
+            }))
+        };
+    });
 
-    triageLabel(status: string | null): string {
+    private triageLabel(status: string | null): string {
         return status ? triageStatusLabel(this.i18n, status) : '—';
-    }
-
-    typeLabel(type: string): string {
-        return findingTypeLabel(this.i18n, type);
-    }
-
-    /** `plugin:<id>` → the id, which names the plugin in the registry. */
-    pluginIdOf(tool: string | null): string | null {
-        return tool?.startsWith('plugin:') ? tool.slice('plugin:'.length) : null;
     }
 
     /** Opens the form, pre-filled with what is already attached. */
@@ -125,7 +134,8 @@ export class IssueDetailPage {
     saveTicket(): void {
         const detail = this.issue();
         const reference = this.ticketReference.trim();
-        if (!detail || !reference) return;
+        // Enter in a field submits the form whatever the button shows: one request at a time.
+        if (!detail || !reference || this.attaching()) return;
 
         this.attaching.set(true);
         this.ticketError.set(null);
@@ -143,4 +153,9 @@ export class IssueDetailPage {
             }
         });
     }
+}
+
+/** `plugin:<id>` → the id, which names the plugin in the registry. */
+function pluginIdOf(tool: string | null): string | null {
+    return tool?.startsWith('plugin:') ? tool.slice('plugin:'.length) : null;
 }

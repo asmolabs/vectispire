@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ForgeImportStep, type ImportDone } from './forge-import';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { CONNECTION_ID, PREVIEW, RESULT } from '@/app/core/testing/forges.fixtures';
 import type { ForgeImportPreview } from '@/app/core/api.models';
@@ -168,6 +168,33 @@ describe('the import step', () => {
         expect(button('import').disabled).toBe(false);
     });
 
+    it('offers to undo a placement the person changed, and only that one, until it is undone', async () => {
+        await open();
+        const row = (path: string) =>
+            Array.from(dom().querySelectorAll<HTMLElement>('[data-testid="placement"]')).find((one) =>
+                one.textContent?.includes(path)
+            )!;
+        const undo = (path: string) => row(path).querySelector<HTMLButtonElement>('p-button button');
+        expect(undo('acme/backend/payments')).toBeNull();
+
+        const solution = row('acme/backend/payments').querySelector<HTMLInputElement>(
+            '[data-testid="placement-solution"]'
+        )!;
+        solution.value = 'Payments';
+        solution.dispatchEvent(new Event('input'));
+        await settle();
+        expect(undo('acme/backend/payments')).not.toBeNull();
+        expect(
+            Array.from(dom().querySelectorAll('[data-testid="placement"]')).filter((one) =>
+                one.querySelector('p-button')
+            )
+        ).toHaveLength(1);
+
+        undo('acme/backend/payments')!.click();
+        await settle();
+        expect(undo('acme/backend/payments')).toBeNull();
+    });
+
     it('files one repository into no project when asked, per repository', async () => {
         await open();
 
@@ -181,6 +208,37 @@ describe('the import step', () => {
 
         await click('preview');
         expect(previewRequest().request.body).toMatchObject({ mapping: [{ forgeId: '101', noProject: true }] });
+    });
+
+    it('words the preview in the reader language, after a switch too, and drops the proposal mark once chosen', async () => {
+        await open();
+        const proposed = () => dom().querySelector('[data-testid="credentials"] p-tag');
+        expect(proposed()?.textContent?.trim()).toBe('Proposed');
+
+        useFrench();
+        await settle();
+        expect(text('[data-testid="skipped"]')).toMatch(/^acme\/frontend\/portal — Déjà une cible \(/);
+        const [api, worker] = Array.from(dom().querySelectorAll('[data-testid="planned-row"]'));
+        expect(api.querySelectorAll('td')[2].textContent?.trim()).toBe('Jeton HTTPS — gitlab-read');
+        expect(text('[data-testid="visible-to"]', worker)).toBe(
+            "Les administrateurs et les rôles qui voient tout le parc seulement : elle n'est classée dans aucun projet."
+        );
+        expect(proposed()?.textContent?.trim()).toBe('Proposé');
+
+        const choice = dom().querySelector<HTMLSelectElement>('[data-testid="credential-choice"]')!;
+        choice.value = `ssh:${KEY_ID}`;
+        choice.dispatchEvent(new Event('change'));
+        await settle();
+        expect(proposed()).toBeNull();
+        expect(choice.value).toBe(`ssh:${KEY_ID}`);
+    });
+
+    it('words what the import skipped in the reader language, after a switch too', async () => {
+        await open(PREVIEW, asSchema('ForgeImportResult', RESULT));
+        useFrench();
+        await settle();
+        expect(text('[data-testid="result-skipped"]')).toBe('acme/frontend/portal — Déjà une cible');
+        http.expectNone({ method: 'POST', url: `${BASE}/preview` });
     });
 
     it('sends the clone credential chosen per host, an SSH key or none', async () => {
@@ -235,6 +293,17 @@ describe('the import step', () => {
         await settle();
         await click('preview');
         expect(previewRequest().request.body).toMatchObject({ firstScan: true, spacingSeconds: 120 });
+    });
+
+    it('previews on Enter as on the button, the spacing required once first scans are asked for', async () => {
+        await open();
+        dom().querySelector<HTMLInputElement>('#first-scan')!.click();
+        await settle();
+        expect(dom().querySelector<HTMLInputElement>('#spacing')!.required).toBe(true);
+
+        dom().querySelector('#spacing')!.closest('form')!.dispatchEvent(new Event('submit'));
+        await settle();
+        expect(previewRequest().request.body).toMatchObject({ firstScan: true, spacingSeconds: 60 });
     });
 
     it('lists what the import would refuse with the reason, and does not offer to import', async () => {

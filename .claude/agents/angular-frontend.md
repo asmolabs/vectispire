@@ -87,6 +87,24 @@ checks native elements, not `<p-button>`; `scripts/check-icon-buttons.mjs`, run 
 `<p-button>`, `<button>` and `<a pButton>` in every template and fails on one without a name. A plural
 message is a `key_one`/`key_other` pair read with `t(key, { count })`, never "(s)" in the text.
 
+**WCAG 2.2 AA is checked by `e2e/accessibility.spec.ts`** (`@axe-core/playwright`, MPL-2.0, a
+development tool): every sidebar screen, in both themes, plus a dialog's focus. A new screen joins its
+`SCREENS` list. Three things it found that a template review had not (2026-11-01):
+- **Contrast is a palette matter.** Aura draws the primary, the severity buttons and the messages at
+  shades that fail 4.5:1 in the light theme; `layout/readable-palette.ts` replaces those tokens at boot
+  *and* in the configurator's extension, which rebuilds the theme on every choice and would put Aura's
+  back. The `text-surface-400/500` and status-colour utilities written without a dark variant are
+  corrected in `styles.scss`'s utilities layer. Write secondary text as `text-muted-color`, not a
+  surface shade.
+- **Focus goes back to a dialog's opener** through `DialogFocusReturn`, started by the root component;
+  Optimus traps focus but dropped it on `<body>` on close. Nothing to add per dialog.
+- **Every field has a name**: a `<label for>`, or `[ariaLabel]`/`ariaLabelledBy` on a select, toggle
+  or search box that has none. An asynchronous result shown outside a `p-message` (which is already
+  `role="alert"`) sits in a region that is `aria-live` *before* the text arrives.
+
+A view-model computed must not be written with `@let` between tags: `check-i18n-keys.mjs` counts what
+the keyword leaves as untranslated text. Spread the row (`{ ...row, tone }`) instead.
+
 **Translation keys are literal.** `'prefix.' + value | translate` and `` t(`…${x}`) `` are invisible
 to the i18n check and ship a raw key when a new value appears; map a generated union to literal keys
 (`Record<Union, 'a.b'>`) instead (decision 0019), look the value up with `keyFor` (`core/i18n/literal-keys.ts`)

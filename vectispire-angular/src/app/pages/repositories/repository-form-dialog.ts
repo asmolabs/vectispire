@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -11,14 +11,17 @@ import type { AssetTier, MonitoredRepository } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ScheduleFields } from '../../shared/schedule-fields';
-import {
-    CredentialKind,
-    httpsHost,
-    TARGET_ALREADY_REGISTERED,
-    urlCarriesSecret,
-    urlTransport
-} from './repository-model';
+import { CredentialKind, TARGET_ALREADY_REGISTERED, urlCarriesSecret } from './repository-model';
 import { RepositoriesPage } from './repositories-page';
+import {
+    CredentialKindsPipe,
+    CredentialLabels,
+    HttpsHostPipe,
+    HttpsTokenOptionsPipe,
+    UrlCarriesSecretPipe,
+    credentialKindsFor,
+    httpsTokenOptionsFor
+} from './repository-url.pipes';
 
 /**
  * A repository added or edited: its URL, tier, branch, name, sub-path and agent label, the one
@@ -39,7 +42,11 @@ import { RepositoriesPage } from './repositories-page';
         MessageModule,
         SelectModule,
         TranslatePipe,
-        ScheduleFields
+        ScheduleFields,
+        CredentialKindsPipe,
+        HttpsHostPipe,
+        HttpsTokenOptionsPipe,
+        UrlCarriesSecretPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './repository-form-dialog.html'
@@ -75,41 +82,27 @@ export class RepositoryFormDialog {
     };
 
     /**
-     * The credential kinds the URL allows.
-     *
-     * **Read from the URL rather than offered in full and refused on save**: an SSH key is useless
-     * to an https:// clone and a token to an SSH one, and the server refuses both combinations.
-     * Methods, not `computed`: `form` is a plain object bound with `ngModel`, and a computed over
-     * it would never recompute.
+     * The words of each credential kind, per language; `t` reads the bundle's signal, so a switch
+     * recomputes them and hands the `credentialKinds` pipe a new argument.
      */
-    credentialKinds(): { label: string; value: CredentialKind }[] {
-        const transport = urlTransport(this.form.url);
-        return [
-            { label: this.i18n.t('repositories.credential_none'), value: 'none' as const },
-            ...(transport !== 'https'
-                ? [{ label: this.i18n.t('repositories.credential_ssh'), value: 'ssh' as const }]
-                : []),
-            ...(transport !== 'ssh'
-                ? [{ label: this.i18n.t('repositories.credential_https'), value: 'https' as const }]
-                : [])
-        ];
-    }
+    protected readonly credentialLabels = computed<CredentialLabels>(() => ({
+        none: this.i18n.t('repositories.credential_none'),
+        ssh: this.i18n.t('repositories.credential_ssh'),
+        https: this.i18n.t('repositories.credential_https')
+    }));
 
     /**
-     * The tokens bound to the URL's host — the only ones the server would accept here (decision
-     * 0022). While the host does not parse yet, all of them, so the choice is not empty mid-typing.
+     * The credential kinds the URL allows (`credentialKindsFor`). Methods, not `computed`: `form` is a
+     * plain object bound with `ngModel`, and a computed over it would never recompute; the template
+     * reads the same answers through pure pipes over `form.url`.
      */
-    httpsTokenOptions(): { label: string; value: string }[] {
-        const host = httpsHost(this.form.url);
-        return this.page
-            .gitTokens()
-            .filter((token) => host === null || token.host.toLowerCase() === host)
-            .map((token) => ({ label: `${token.name} (${token.host})`, value: token.id }));
+    credentialKinds(): { label: string; value: CredentialKind }[] {
+        return credentialKindsFor(this.form.url, this.credentialLabels());
     }
 
-    /** The host the URL names, for the "no token for this host" hint. */
-    urlHost(): string | null {
-        return httpsHost(this.form.url);
+    /** The tokens bound to the URL's host (`httpsTokenOptionsFor`). */
+    httpsTokenOptions(): { label: string; value: string }[] {
+        return httpsTokenOptionsFor(this.form.url, this.page.gitTokens());
     }
 
     urlCarriesSecret(): boolean {

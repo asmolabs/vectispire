@@ -9,6 +9,7 @@ import { asSchema } from '@/app/core/testing/contract';
 import { settingsUpdated, unconfigured } from '@/app/core/testing/settings.fixtures';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { Settings } from './settings';
+import { SettingsState } from './settings-state';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
@@ -224,5 +225,26 @@ describe('the settings catalogue on the settings page', () => {
 
         expect(cardTitles()).toEqual(['Délais de remédiation SLA', 'Rétention & Purge des données']);
         expect(text()).toContain('Valeur par défaut — jamais modifiée.');
+        // A field's label and help switch too; one the bundle does not word keeps the server's sentence.
+        expect(page().querySelector('label[for="sla_critical_days"]')?.textContent.trim()).toBe(
+            'Délai SLA Critique (jours)'
+        );
+        expect(text()).toContain('Délai maximal autorisé pour corriger une vulnérabilité critique');
+        expect(page().querySelector('label[for="retention_scans_days"]')?.textContent.trim()).toBe(
+            'Scan retention (days)'
+        );
+    });
+
+    it('shows a numeric setting as the number stored, and as typed after an edit elsewhere', async () => {
+        await open();
+        const sla = (): HTMLInputElement => page().querySelector('#sla_critical_days')!;
+        expect(sla().value).toBe('7');
+        // The catalogue's rows do not rebuild on a keystroke, but the number bound to the field still follows
+        // what the state holds.
+        fixture.debugElement.injector.get(SettingsState).set('sla_critical_days', '12');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(sla().value).toBe('12');
     });
 });

@@ -1,10 +1,13 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
 import type { Schema, SiemConfig } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
+import { flushRegistry } from '@/app/core/testing/integrations.fixtures';
 import { SettingsState } from './settings-state';
 import { SettingsSiem } from './settings-siem';
 
@@ -33,7 +36,7 @@ describe('the SIEM card, its collector CA', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [SettingsSiem],
-            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), SettingsState]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), SettingsState]
         }).compileComponents();
 
         TestBed.inject(I18nService).translations.set({
@@ -105,6 +108,16 @@ describe('the SIEM card, its collector CA', () => {
         ).toBeUndefined();
     });
 
+    it('is a form requiring the endpoint of an enabled transport, and saves once however often it is submitted', async () => {
+        const page = await loaded(tls);
+        expect(page.querySelector<HTMLInputElement>('#siem-endpoint')!.required).toBe(true);
+
+        const form = page.querySelector('#siem-endpoint')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT' && call.url === '/api/v1/siem/config')).toHaveLength(1);
+    });
+
     it('tests the CA on screen, saved or not', async () => {
         await loaded(tls);
         const card = fixture.componentInstance;
@@ -115,5 +128,33 @@ describe('the SIEM card, its collector CA', () => {
         expect((http.expectOne('/api/v1/siem/test').request.body as Schema<'SiemTestRequest'>).tlsCaPem).toBe(
             'unsaved'
         );
+    });
+
+    it('words the transports in the reader language, after a switch too, and hints the endpoint each reads', async () => {
+        useEnglish();
+        flushRegistry(http, ['siem.syslog_tls']);
+        const page = await loaded(tls);
+        const options = () =>
+            [...page.querySelectorAll<HTMLOptionElement>('#siem-protocol option')].map((option) =>
+                option.textContent.replace(/\s+/g, ' ').trim()
+            );
+        const endpoint = (): string => page.querySelector<HTMLInputElement>('#siem-endpoint')!.placeholder;
+        expect(options()).toContain('Syslog (TLS Encrypted) — suspended, integration disabled');
+        expect(endpoint()).toBe('siem-collector.internal.corp:6514');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(options()).toEqual([
+            'Webhook HTTPS / Splunk HEC / collecteur Sentinel',
+            'Syslog (UDP)',
+            'Syslog (TCP)',
+            'Syslog (chiffré TLS) — suspendu, intégration désactivée'
+        ]);
+
+        const select = page.querySelector<HTMLSelectElement>('#siem-protocol')!;
+        select.value = 'WEBHOOK';
+        select.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+        expect(endpoint()).toBe('https://siem-collector.internal.corp/api/v1/cef-receiver');
     });
 });

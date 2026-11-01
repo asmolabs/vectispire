@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ApiKeys } from './api-keys';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /** The key the server issues back: an issue answers the summary with the secret, never a null summary. */
 const KEY = asSchema('ApiKeySummary', {
@@ -155,6 +156,19 @@ describe('the API keys screen', () => {
         expect(row.textContent).toContain('Arm Libs Spring');
         expect(row.textContent).toContain('alice');
         expect(row.textContent).toContain('api_keys.never');
+    });
+
+    it('names each scope of a key in the reader language, after a switch too, and an unknown one as sent', () => {
+        useEnglish();
+        list([{ ...KEY, scopes: ['read', 'sarif_import', 'quantum'] }]);
+        const tags = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody .p-tag')].map((tag) =>
+                tag.textContent.trim()
+            );
+        expect(tags()).toEqual(['Read', 'SARIF import', 'quantum']);
+        useFrench();
+        fixture.detectChanges();
+        expect(tags()).toEqual(['Lecture', 'Import SARIF', 'quantum']);
     });
 
     it('says the list could not be loaded', () => {

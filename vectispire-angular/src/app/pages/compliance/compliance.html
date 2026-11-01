@@ -100,6 +100,7 @@
         </div>
         <div class="flex items-center gap-3">
             <p-select
+                [ariaLabel]="'compliance.scope' | translate"
                 [options]="targetOptions()"
                 optionLabel="label"
                 optionValue="value"
@@ -132,7 +133,7 @@
         [style]="{ width: '38rem' }"
         [appendTo]="'body'"
     >
-        <div class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" (ngSubmit)="submitIngestVex()">
             <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
                 {{ 'compliance.upload_statement' | translate }}
                 <strong>{{ 'compliance.format_openvex' | translate }}</strong
@@ -165,7 +166,10 @@
                 >
                 <textarea
                     id="vex-import-json"
+                    name="vex-import-json"
                     rows="8"
+                    required
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="importJson"
                     class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
                     placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'
@@ -178,7 +182,7 @@
             @if (importError()) {
                 <p-message severity="error" [text]="importError()!"></p-message>
             }
-        </div>
+        </form>
 
         <ng-template #footer>
             <button
@@ -206,7 +210,7 @@
         [style]="{ width: '42rem' }"
         [appendTo]="'body'"
     >
-        <div class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" (ngSubmit)="submitVerification()">
             <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
                 {{ 'compliance.verify_help' | translate }}
             </p>
@@ -225,7 +229,11 @@
                         class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2"
                     />
                     <textarea
+                        id="verify-payload"
+                        name="verify-payload"
                         rows="4"
+                        required
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="verifyPayload"
                         [placeholder]="'compliance.paste_payload' | translate"
                         class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
@@ -244,7 +252,11 @@
                         class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2"
                     />
                     <textarea
+                        id="verify-signature"
+                        name="verify-signature"
                         rows="4"
+                        required
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="verifySignature"
                         [placeholder]="'compliance.paste_signature' | translate"
                         class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
@@ -260,46 +272,52 @@
                 >
                 <textarea
                     id="verify-public-key"
+                    name="verify-public-key"
                     rows="2"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="verifyPublicKey"
                     placeholder="-----BEGIN PUBLIC KEY----- ..."
                     class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
                 ></textarea>
             </div>
 
-            @if (verifyResult()) {
-                <!-- Green only for a signature under Vectispire's own key. A valid signature under a key the
-                     caller supplied is shown amber: it proves the document matches that key, not that
-                     Vectispire signed it — the confusion this screen used to invite. -->
-                <div
-                    class="p-3 rounded-lg border flex items-center gap-3"
-                    [class.bg-emerald-50]="verifyAuthentic()"
-                    [class.border-emerald-200]="verifyAuthentic()"
-                    [class.text-emerald-800]="verifyAuthentic()"
-                    [class.bg-amber-50]="verifyForeign()"
-                    [class.border-amber-200]="verifyForeign()"
-                    [class.text-amber-800]="verifyForeign()"
-                    [class.bg-rose-50]="!verifyResult()!.valid"
-                    [class.border-rose-200]="!verifyResult()!.valid"
-                    [class.text-rose-800]="!verifyResult()!.valid"
-                >
-                    <i
-                        class="pi text-xl"
-                        [class.pi-check-circle]="verifyAuthentic()"
-                        [class.pi-exclamation-triangle]="verifyForeign()"
-                        [class.pi-times-circle]="!verifyResult()!.valid"
-                    ></i>
-                    <div class="text-xs">
-                        <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
-                        <p class="text-[11px] opacity-75 my-0">
-                            {{
-                                'compliance.verify_result_meta'
-                                    | translate: { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId }
-                            }}
-                        </p>
+            <!-- Live, and always in the page: the verdict arrives after the request, where nobody looks. -->
+            <div aria-live="polite">
+                @if (verifyResult()) {
+                    <!-- Green only for a signature under Vectispire's own key. A valid signature under a key the
+                         caller supplied is shown amber: it proves the document matches that key, not that
+                         Vectispire signed it — the confusion this screen used to invite. -->
+                    <div
+                        class="p-3 rounded-lg border flex items-center gap-3"
+                        [class.bg-emerald-50]="verifyAuthentic()"
+                        [class.border-emerald-200]="verifyAuthentic()"
+                        [class.text-emerald-800]="verifyAuthentic()"
+                        [class.bg-amber-50]="verifyForeign()"
+                        [class.border-amber-200]="verifyForeign()"
+                        [class.text-amber-800]="verifyForeign()"
+                        [class.bg-rose-50]="!verifyResult()!.valid"
+                        [class.border-rose-200]="!verifyResult()!.valid"
+                        [class.text-rose-800]="!verifyResult()!.valid"
+                    >
+                        <i
+                            class="pi text-xl"
+                            [class.pi-check-circle]="verifyAuthentic()"
+                            [class.pi-exclamation-triangle]="verifyForeign()"
+                            [class.pi-times-circle]="!verifyResult()!.valid"
+                        ></i>
+                        <div class="text-xs">
+                            <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
+                            <p class="text-[11px] opacity-75 my-0">
+                                {{
+                                    'compliance.verify_result_meta'
+                                        | translate
+                                            : { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId }
+                                }}
+                            </p>
+                        </div>
                     </div>
-                </div>
-            }
+                }
+            </div>
 
             @if (verifyError()) {
                 <p-message severity="error" [text]="verifyError()!"></p-message>
@@ -311,7 +329,7 @@
                     <code>{{ cosignCliInfo()?.commands?.cosignVerifyManifest }}</code>
                 </div>
             }
-        </div>
+        </form>
 
         <ng-template #footer>
             <button

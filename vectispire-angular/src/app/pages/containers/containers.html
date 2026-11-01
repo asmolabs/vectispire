@@ -16,7 +16,7 @@
 }
 
 <p-dataview
-    [value]="containers()"
+    [value]="rows()"
     [loading]="loading()"
     layout="list"
     [paginator]="true"
@@ -64,10 +64,10 @@
                             and it is read to be compared rather than to be read.
                         -->
                         <div class="text-sm text-muted-color break-all" [title]="container.reference">
-                            {{ shorten(container.reference) }}
+                            {{ container.shortReference }}
                         </div>
                         <div class="text-sm text-muted-color mt-1">
-                            <span class="font-mono" [title]="container.tag">{{ shorten(container.tag) }}</span> ·
+                            <span class="font-mono" [title]="container.tag">{{ container.shortTag }}</span> ·
                             @if (container.openIssues > 0) {
                                 <a
                                     [routerLink]="['/issues']"
@@ -78,7 +78,7 @@
                             } @else {
                                 <span>{{ 'containers.nothing_outstanding' | translate }}</span>
                             }
-                            · <span>{{ scheduleLabel(container) }}</span>
+                            · <span>{{ container.scheduleText }}</span>
                             <!--
                                 The project, linking to its place in the tree as the repository list
                                 does. "No project" is said in words and links to that group: an image

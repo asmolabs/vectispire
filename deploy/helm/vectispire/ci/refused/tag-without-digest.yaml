@@ -1,0 +1,19 @@
+# Refused by values.schema.json: the tag moved and the digest cleared — a tag can be moved under a running
+# release, so what was reviewed and what runs would be two images.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+networkPolicy:
+  enabled: true
+image:
+  tag: "1.0.0"
+  digest: ""

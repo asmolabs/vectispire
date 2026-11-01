@@ -1,5 +1,6 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { DialogFocusReturn } from './app/core/dialog-focus-return';
 
 @Component({
     selector: 'zs-root',
@@ -7,4 +8,8 @@ import { RouterModule } from '@angular/router';
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `<router-outlet></router-outlet>`
 })
-export class AppComponent {}
+export class AppComponent {
+    constructor() {
+        inject(DialogFocusReturn).start();
+    }
+}

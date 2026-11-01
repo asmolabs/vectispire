@@ -1,11 +1,11 @@
-import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, computed, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
 import { IntelApi } from '../../core/api/intel.api';
 import { messageOf } from '../../core/api-error';
 import { LatestRequest } from '../../core/latest-request';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { AiDeterministic, AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
+import { AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
 import * as wording from '../../shared/ai-advice';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -51,6 +51,18 @@ export class Epss implements OnInit {
     readonly loading = signal<boolean>(false);
     readonly syncing = signal<boolean>(false);
     readonly summary = signal<EpssFleetSummary | null>(null);
+    /**
+     * The top priorities with their tier's colour and words worked out once — per summary or language,
+     * not per row on every pass. Spread rather than wrapped, so a row still reads as the priority it is;
+     * `t` reads the bundle's signal, so a switch recomputes the words.
+     */
+    readonly priorities = computed(() =>
+        (this.summary()?.topPriorities ?? []).map((priority) => ({
+            ...priority,
+            tierTone: tierSeverity(priority.priorityTier),
+            tierLabel: tierLabel(this.i18n, priority.priorityTier)
+        }))
+    );
     readonly error = signal<string | null>(null);
     readonly syncFeedback = signal<string | null>(null);
 
@@ -77,19 +89,20 @@ export class Epss implements OnInit {
     /**
      * The product's own sentences, in the reader's language, from exactly the values it sent —
      * unknown said as unknown. This formatted a missing EPSS score as 85 %, beside a server that
-     * made up 75 % for every CVE the estate does not carry.
+     * made up 75 % for every CVE the estate does not carry. Null when a model wrote the explanation,
+     * whose prose is shown as it came; worked out per explanation or language, and `t` reads the
+     * bundle's signal, so a switch recomputes it.
      */
-    adviceSummary(advice: AiVulnerabilityAdvice, own: AiDeterministic): string {
-        return wording.adviceSummary(this.i18n, advice.identifier, own);
-    }
-
-    adviceExploitation(own: AiDeterministic): string {
-        return wording.adviceExploitation(this.i18n, own);
-    }
-
-    adviceFix(own: AiDeterministic): string {
-        return wording.adviceFix(this.i18n, own);
-    }
+    readonly ownWords = computed(() => {
+        const advice = this.advice();
+        const own = advice?.deterministic;
+        if (!advice || !own) return null;
+        return {
+            summary: wording.adviceSummary(this.i18n, advice.identifier, own),
+            exploitation: wording.adviceExploitation(this.i18n, own),
+            fix: wording.adviceFix(this.i18n, own)
+        };
+    });
 
     readonly adviceLoading = signal<boolean>(false);
     readonly adviceError = signal<string | null>(null);
@@ -209,30 +222,30 @@ export class Epss implements OnInit {
             }
         });
     }
+}
 
-    getTierSeverity(tier: string): 'danger' | 'warn' | 'info' | 'secondary' {
-        switch (tier) {
-            case 'CRITICAL_ARMED':
-                return 'danger';
-            case 'HIGH_PROBABLE':
-                return 'warn';
-            case 'MEDIUM_THEORETICAL':
-                return 'info';
-            default:
-                return 'secondary';
-        }
+function tierSeverity(tier: string): 'danger' | 'warn' | 'info' | 'secondary' {
+    switch (tier) {
+        case 'CRITICAL_ARMED':
+            return 'danger';
+        case 'HIGH_PROBABLE':
+            return 'warn';
+        case 'MEDIUM_THEORETICAL':
+            return 'info';
+        default:
+            return 'secondary';
     }
+}
 
-    getTierLabel(tier: string): string {
-        switch (tier) {
-            case 'CRITICAL_ARMED':
-                return this.i18n.t('epss.tier_critical_armed');
-            case 'HIGH_PROBABLE':
-                return this.i18n.t('epss.tier_high_probable');
-            case 'MEDIUM_THEORETICAL':
-                return this.i18n.t('epss.tier_medium_theoretical');
-            default:
-                return this.i18n.t('epss.tier_low');
-        }
+function tierLabel(i18n: I18nService, tier: string): string {
+    switch (tier) {
+        case 'CRITICAL_ARMED':
+            return i18n.t('epss.tier_critical_armed');
+        case 'HIGH_PROBABLE':
+            return i18n.t('epss.tier_high_probable');
+        case 'MEDIUM_THEORETICAL':
+            return i18n.t('epss.tier_medium_theoretical');
+        default:
+            return i18n.t('epss.tier_low');
     }
 }

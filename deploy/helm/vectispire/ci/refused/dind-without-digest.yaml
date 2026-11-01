@@ -1,0 +1,20 @@
+# Refused by values.schema.json: the agents' Docker daemon by tag alone. The chart's own images are refused
+# without a digest by its templates; this one, privileged and root on its node, was rendered as written.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+networkPolicy:
+  enabled: true
+agents:
+  dind:
+    privileged:
+      image: docker:29.9.2-dind

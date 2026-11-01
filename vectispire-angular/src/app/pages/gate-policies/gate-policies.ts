@@ -109,6 +109,35 @@ export class GatePolicies {
     readonly overrides = computed(() => this.catalogue()?.policies.filter((policy) => policy.kind !== 'global') ?? []);
     readonly builtIn = computed(() => this.catalogue()?.built_in ?? null);
 
+    /** The global policy with its threshold and its date in words, worked out once per catalogue or language. */
+    readonly globalView = computed(() => {
+        this.i18n.translations();
+        const policy = this.globalPolicy();
+        return policy
+            ? {
+                  policy,
+                  threshold: this.describeThreshold(policy.fail_on_severity),
+                  when: this.formatDate(policy.created_at)
+              }
+            : null;
+    });
+
+    /** The built-in policy's threshold in words, said on its card and when nothing is stored. */
+    readonly builtInThreshold = computed(() => {
+        this.i18n.translations();
+        return this.describeThreshold(this.builtIn()?.fail_on_severity ?? null);
+    });
+
+    /** Each override with its target and threshold in words, rather than a method per cell on every pass. */
+    readonly overrideRows = computed(() => {
+        this.i18n.translations();
+        return this.overrides().map((policy) => ({
+            policy,
+            name: this.targetName(policy),
+            threshold: this.describeThreshold(policy.fail_on_severity)
+        }));
+    });
+
     readonly severities = computed(() => {
         this.i18n.translations();
         return [

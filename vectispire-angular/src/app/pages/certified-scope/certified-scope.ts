@@ -76,6 +76,26 @@ export class CertifiedScope {
         return Math.round((100 * coverage.scannedRecently) / coverage.declaredAssets);
     });
 
+    /** The targets in scope, by kind and id, so that each checkbox is a lookup rather than a scan of the list. */
+    private readonly inScope = computed(
+        () => new Set((this.scope()?.targets ?? []).map((target) => `${target.kind}:${target.id}`))
+    );
+
+    /** Each repository with whether its box is ticked, worked out once per answer, not per box on every pass. */
+    readonly repositoryRows = computed(() =>
+        this.repositories().map((repository) => ({
+            ...repository,
+            inScope: this.inScope().has(`REPOSITORY:${repository.id}`)
+        }))
+    );
+
+    readonly containerRows = computed(() =>
+        this.containers().map((container) => ({
+            ...container,
+            inScope: this.inScope().has(`CONTAINER:${container.id}`)
+        }))
+    );
+
     constructor() {
         this.complianceApi.certifiedScope().subscribe({
             next: (data) => this.scope.set(data),
@@ -85,10 +105,6 @@ export class CertifiedScope {
             .repositories()
             .subscribe({ next: (rows) => this.repositories.set(rows), error: () => undefined });
         this.targetsApi.containers().subscribe({ next: (rows) => this.containers.set(rows), error: () => undefined });
-    }
-
-    inScope(kind: string, id: number): boolean {
-        return (this.scope()?.targets ?? []).some((target) => target.kind === kind && target.id === id);
     }
 
     toggleRepository(id: number, next: boolean): void {

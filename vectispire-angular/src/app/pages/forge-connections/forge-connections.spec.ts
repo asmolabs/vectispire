@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ForgeConnections } from './forge-connections';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { asSchemaList } from '@/app/core/testing/contract';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { CONNECTION, CONNECTION_ID } from '@/app/core/testing/forges.fixtures';
@@ -314,6 +314,29 @@ describe('the forge connections screen', () => {
 
         fixture.componentInstance.create();
         http.expectNone({ method: 'POST' });
+    });
+
+    it('words a connection and a pasted CA in the reader language, after a switch too', async () => {
+        list();
+        await settle();
+        await click('[data-testid="add-connection"]', dom());
+        await type('#forge-address', 'https://gitlab.example.internal');
+        await type('#forge-ca', PRIVATE_KEY);
+        expect(text('[data-testid="ca-feedback"]', document)).toContain('This is a private key');
+
+        useFrench();
+        await settle();
+        const card = dom().querySelector('[data-testid="connection"]')!;
+        expect(text('[data-testid="connection-edition"]', card)).toBe('GitLab auto-hébergé ou Dedicated');
+        expect(text('[data-testid="connection-token"]', card)).toBe('Jeton GitLab de groupe ou de projet (read_api)');
+        expect(text('[data-testid="ca-feedback"]', document)).toContain('Ceci est une clé privée');
+
+        // A form opened afresh — reset by code, not typed into — forgets the feedback of the last one.
+        fixture.componentInstance.closeCreate();
+        fixture.componentInstance.openCreate();
+        await settle();
+        await type('#forge-address', 'https://gitlab.example.internal');
+        expect(text('[data-testid="ca-feedback"]', document)).toMatch(/^L'AC qui a émis le certificat du serveur/);
     });
 
     it("shows the probe's refusal, keeps the form and clears the token", async () => {

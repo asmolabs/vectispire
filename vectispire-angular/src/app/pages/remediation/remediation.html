@@ -145,7 +145,7 @@
         </p-message>
     } @else {
         <div class="flex flex-col gap-3">
-            @for (fix of fixes(); track fix.packageName; let index = $index) {
+            @for (fix of rows(); track fix.packageName; let index = $index) {
                 <div class="border border-surface rounded-lg p-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div class="min-w-0 flex-1">
@@ -153,7 +153,7 @@
                                 <span class="text-muted-color tabular-nums">{{ index + 1 }}.</span>
                                 <span class="font-semibold break-all">{{ fix.packageName }}</span>
                                 <p-tag
-                                    [severity]="severityOf(fix)"
+                                    [severity]="fix.tone"
                                     [value]="fix.criticalCveCount + ' ' + ('severities.critical' | translate)"
                                 />
                             </div>
@@ -196,14 +196,14 @@
                             <p-button
                                 [text]="true"
                                 size="small"
-                                [icon]="isExpanded(fix) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                                [icon]="expanded() === fix.packageName ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
                                 [label]="'remediation.details' | translate"
                                 (onClick)="toggle(fix)"
                             />
                         </div>
                     </div>
 
-                    @if (isExpanded(fix)) {
+                    @if (expanded() === fix.packageName) {
                         <div class="mt-4 pt-4 border-t border-surface grid gap-4 sm:grid-cols-2">
                             <div>
                                 <div class="font-medium mb-2 text-sm">{{ 'remediation.cves' | translate }}</div>

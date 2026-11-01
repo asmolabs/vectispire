@@ -51,7 +51,7 @@ type RankedIssue = HistoryIssue & { severityRank: number };
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LocalNumberPipe } from '../../core/i18n/local-number.pipe';
-import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone } from '@/app/shared/severity';
 import { IssueStatePipe, ScanStatusPipe } from '@/app/shared/scan-status';
 
 @Component({
@@ -140,23 +140,47 @@ export class History {
         });
     }
 
-    severityOf(severity: string | null): SeverityTone {
-        return severityTone(severity);
-    }
+    /**
+     * The dossier's scans with what each finding's row shows worked out once — its tint, its component,
+     * its triage and each decision's transition in words — per dossier or language, not per binding on
+     * every pass. Spread rather than wrapped, so the table still sorts on the rows' own `severityRank`;
+     * `t` reads the bundle's signal, so a switch recomputes the words.
+     */
+    readonly scans = computed(() =>
+        (this.dossier()?.scans ?? []).map((scan) => ({
+            ...scan,
+            issues: scan.issues.map((issue) => ({
+                ...issue,
+                tone: severityTone(issue.severity),
+                componentText: componentOf(issue),
+                triage: this.triageLabel(issue.triageStatus),
+                decisions: issue.decisions.map((decision) => ({
+                    ...decision,
+                    fromLabel: this.triageLabel(decision.fromStatus),
+                    toLabel: this.triageLabel(decision.toStatus)
+                }))
+            }))
+        }))
+    );
 
-    triageLabel(status: string | null): string {
+    private triageLabel(status: string | null): string {
         if (!status) {
             return '—';
         }
         return triageStatusLabel(this.i18n, status);
     }
+}
 
-    component(issue: { packageName: string | null; packageVersion: string | null; filePath: string | null }): string {
-        if (issue.packageName) {
-            return issue.packageVersion ? `${issue.packageName} ${issue.packageVersion}` : issue.packageName;
-        }
-        return issue.filePath ?? '—';
+/** What a finding is in: the package and its version, or else the file. */
+function componentOf(issue: {
+    packageName: string | null;
+    packageVersion: string | null;
+    filePath: string | null;
+}): string {
+    if (issue.packageName) {
+        return issue.packageVersion ? `${issue.packageName} ${issue.packageVersion}` : issue.packageName;
     }
+    return issue.filePath ?? '—';
 }
 
 /**

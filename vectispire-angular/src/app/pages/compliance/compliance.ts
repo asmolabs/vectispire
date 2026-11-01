@@ -243,7 +243,8 @@ export class Compliance {
     }
 
     submitIngestVex(): void {
-        if (!this.importJson().trim()) return;
+        // A form submits on Enter too, whatever the button shows: the same checks, one request at a time.
+        if (!this.importJson().trim() || this.importing()) return;
         this.importing.set(true);
         this.importSuccess.set(null);
         this.importError.set(null);
@@ -331,7 +332,7 @@ export class Compliance {
     }
 
     submitVerification(): void {
-        if (!this.verifyPayload().trim() || !this.verifySignature().trim()) return;
+        if (!this.verifyPayload().trim() || !this.verifySignature().trim() || this.verifying()) return;
         this.verifying.set(true);
         this.verifyResult.set(null);
         this.verifyError.set(null);

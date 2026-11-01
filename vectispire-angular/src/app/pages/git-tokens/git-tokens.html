@@ -11,7 +11,7 @@
 }
 
 <p-card>
-    <p-table [value]="tokens()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'git_tokens.name' | translate }}</th>
@@ -36,9 +36,9 @@
                 </td>
                 <td>
                     <p-tag
-                        [value]="badge(token.encryptionState).label"
-                        [severity]="badge(token.encryptionState).severity"
-                        [pTooltip]="badge(token.encryptionState).hint"
+                        [value]="token.badge.label"
+                        [severity]="token.badge.severity"
+                        [pTooltip]="token.badge.hint"
                         tooltipPosition="top"
                     />
                 </td>

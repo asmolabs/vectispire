@@ -6,10 +6,18 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Soa } from './soa';
 import { asSchema, newerServerWord } from '@/app/core/testing/contract';
 import { missingFromBundles } from '@/app/core/testing/bundles';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import type { DeclarationRequest, Divergence, SoaLine, SoaStatement } from '@/app/core/api.models';
 import english from '../../../../public/i18n/en.json';
-import { APPLICABILITY_KEYS, DIVERGENCE_HELP_KEYS, DIVERGENCE_KEYS, EVIDENCE_KEYS, IMPLEMENTATION_KEYS } from './soa';
+import french from '../../../../public/i18n/fr.json';
+import {
+    APPLICABILITY_KEYS,
+    DIVERGENCE_HELP_KEYS,
+    DIVERGENCE_KEYS,
+    EVIDENCE_KEYS,
+    IMPLEMENTATION_KEYS,
+    isFinding
+} from './soa';
 
 /**
  * The statement of applicability, and the order it opens in.
@@ -160,11 +168,36 @@ describe('the statement of applicability', () => {
         const component = fixture.componentInstance;
         const [contradicted, undeclared, overstated, consistent] = component.lines();
 
-        expect(component.isFinding(contradicted)).toBe(true);
-        expect(component.isFinding(undeclared)).toBe(true);
+        expect(isFinding(contradicted)).toBe(true);
+        expect(isFinding(undeclared)).toBe(true);
         // A document ahead of the practice is not the same class of problem as a false claim.
-        expect(component.isFinding(overstated)).toBe(false);
-        expect(component.isFinding(consistent)).toBe(false);
+        expect(isFinding(overstated)).toBe(false);
+        expect(isFinding(consistent)).toBe(false);
+        // And the rows on screen say so: only the first two are marked.
+        const rows = [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')];
+        expect(rows.map((row) => row.classList.contains('bg-red-50'))).toEqual([true, true, false, false]);
+    });
+
+    it('words every cell and the lapsed reviews again when the reader switches language', () => {
+        useEnglish();
+        fixture.detectChanges();
+        const page = fixture.nativeElement as HTMLElement;
+        expect(page.textContent).toContain(english.soa.divergence.CONTRADICTED);
+        expect(page.textContent).toContain(english.soa.measured.NON_COMPLIANT);
+        expect(page.textContent).toContain('NIS 2 Directive');
+
+        useFrench();
+        fixture.detectChanges();
+        const text = page.textContent;
+        expect(text).toContain(french.soa.divergence.CONTRADICTED);
+        expect(text).toContain(french.soa.divergence_help.CONTRADICTED);
+        expect(text).toContain(french.soa.applicability.APPLICABLE);
+        expect(text).toContain(french.soa.implementation.IMPLEMENTED);
+        expect(text).toContain(french.soa.evidence.VECTISPIRE);
+        expect(text).toContain(french.soa.measured.NON_COMPLIANT);
+        expect(text).toContain(french.compliance.frameworks.nis2);
+        expect(text).not.toContain(english.soa.divergence.CONTRADICTED);
+        expect(text).not.toContain('NIS 2 Directive');
     });
 
     it('refuses an exclusion with no justification, before the request', () => {
@@ -177,6 +210,27 @@ describe('the statement of applicability', () => {
 
         component.submit();
         http.expectNone((call) => call.method === 'PUT');
+    });
+
+    it('is a form requiring the justification of an exclusion, and sends once however often it is submitted', () => {
+        const component = fixture.componentInstance;
+        component.openDeclare(component.lines()[0]);
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#justification')!.required).toBe(false);
+        component.applicability = 'EXCLUDED';
+        component.justification = '';
+        // Written from code rather than by the select, as the dialog's own event would have marked it.
+        fixture.componentRef.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#justification')!.required).toBe(true);
+
+        const form = document.querySelector('#justification')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT').length).toBe(0);
+        component.justification = 'Out of the certified scope.';
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT').length).toBe(1);
     });
 
     it('refuses evidence declared elsewhere that names nowhere', () => {
