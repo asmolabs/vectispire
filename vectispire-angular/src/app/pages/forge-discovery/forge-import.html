@@ -119,222 +119,242 @@
         <p class="text-muted-color mt-1 mb-3">
             {{ 'forges.import.subtitle' | translate: { count: batch().length } }}
         </p>
-        @if (forgeIds().length > maxImport) {
-            <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="batch-bound">{{
-                'forges.import.batch_bound' | translate: { count: forgeIds().length, max: maxImport }
-            }}</p-message>
-        }
-
-        <datalist id="forge-solution-names">
-            @for (name of solutionNames(); track name) {
-                <option [value]="name"></option>
+        <!-- Enter in a field previews, as the button does: the plan is what the import will run. -->
+        <form (ngSubmit)="runPreview()">
+            @if (forgeIds().length > maxImport) {
+                <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="batch-bound">{{
+                    'forges.import.batch_bound' | translate: { count: forgeIds().length, max: maxImport }
+                }}</p-message>
             }
-        </datalist>
-        <datalist id="forge-project-names">
-            @for (name of projectNames(); track name) {
-                <option [value]="name"></option>
-            }
-        </datalist>
 
-        <!-- Placement: proposed per namespace, editable per namespace or repository. -->
-        <h3 class="text-lg font-semibold mt-2 mb-1">{{ 'forges.mapping.title' | translate }}</h3>
-        <p class="m-0 mb-2 text-sm text-muted-color">{{ 'forges.mapping.explained' | translate }}</p>
-        <label class="flex items-center gap-2 mb-2 text-sm" for="per-repository">
-            <input
-                type="checkbox"
-                id="per-repository"
-                [checked]="perRepository()"
-                (change)="perRepository.set($any($event.target).checked)"
-            />
-            {{ 'forges.mapping.per_repository' | translate }}
-        </label>
-        <div class="overflow-x-auto mb-4">
-            <table class="w-full text-sm border-collapse" data-testid="mapping">
-                <thead>
-                    <tr class="text-left border-b border-surface-200 dark:border-surface-700">
-                        <th class="py-2 pr-3">
-                            @if (perRepository()) {
-                                {{ 'forges.repository.path' | translate }}
-                            } @else {
-                                {{ 'forges.mapping.namespace' | translate }}
-                            }
-                        </th>
-                        <th class="py-2 pr-3">{{ 'forges.mapping.solution' | translate }}</th>
-                        <th class="py-2 pr-3">{{ 'forges.mapping.project' | translate }}</th>
-                        <th class="py-2 pr-3">{{ 'forges.mapping.no_project' | translate }}</th>
-                        <th class="py-2 pr-3"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (row of placements(); track row.placement.key) {
-                        <tr class="border-b border-surface-100 dark:border-surface-800" data-testid="placement">
-                            <td class="py-2 pr-3 font-mono break-all">
-                                {{ row.placement.label || '—' }}
-                                @if (!perRepository()) {
-                                    <span class="block text-xs text-muted-color font-sans">{{
-                                        'forges.mapping.repositories' | translate: { count: row.placement.repositories }
-                                    }}</span>
-                                }
-                            </td>
-                            <td class="py-2 pr-3">
-                                <input
-                                    pInputText
-                                    class="w-full min-w-32"
-                                    list="forge-solution-names"
-                                    data-testid="placement-solution"
-                                    [attr.aria-label]="
-                                        'forges.mapping.aria_solution' | translate: { name: row.placement.label }
-                                    "
-                                    [ngModel]="row.placement.solution"
-                                    (ngModelChange)="place(row.placement, 'solution', $event)"
-                                />
-                            </td>
-                            <td class="py-2 pr-3">
-                                <input
-                                    pInputText
-                                    class="w-full min-w-32"
-                                    list="forge-project-names"
-                                    data-testid="placement-project"
-                                    [attr.aria-label]="
-                                        'forges.mapping.aria_project' | translate: { name: row.placement.label }
-                                    "
-                                    [ngModel]="row.placement.project"
-                                    [disabled]="row.placement.noProject"
-                                    (ngModelChange)="place(row.placement, 'project', $event)"
-                                />
-                            </td>
-                            <td class="py-2 pr-3">
-                                <input
-                                    type="checkbox"
-                                    data-testid="placement-no-project"
-                                    [attr.aria-label]="
-                                        'forges.mapping.aria_no_project' | translate: { name: row.placement.label }
-                                    "
-                                    [checked]="row.placement.noProject"
-                                    (change)="place(row.placement, 'noProject', $any($event.target).checked)"
-                                />
-                            </td>
-                            <td class="py-2 pr-3">
-                                @if (row.edited) {
-                                    <p-button
-                                        [label]="'forges.mapping.undo' | translate"
-                                        size="small"
-                                        [text]="true"
-                                        [ariaLabel]="
-                                            'forges.mapping.aria_undo' | translate: { name: row.placement.label }
-                                        "
-                                        (onClick)="forget(row.placement)"
-                                    />
-                                }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Clone credentials per host, and the first scans. -->
-        @if (preview(); as plan) {
-            <h3 class="text-lg font-semibold mt-2 mb-1">{{ 'forges.import.credentials' | translate }}</h3>
-            <p class="m-0 mb-2 text-sm text-muted-color">{{ 'forges.import.credentials_explained' | translate }}</p>
-            <div class="flex flex-col gap-3 mb-4" data-testid="credentials">
-                @for (row of hosts(); track row.host.host) {
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                        <label [for]="'credential-' + $index" class="font-mono text-sm sm:w-64 break-all">
-                            {{ row.host.host }}
-                            <span class="block font-sans text-xs text-muted-color">{{
-                                'forges.mapping.repositories' | translate: { count: row.host.repositories }
-                            }}</span>
-                        </label>
-                        <select
-                            [id]="'credential-' + $index"
-                            data-testid="credential-choice"
-                            class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0 flex-1"
-                            [value]="row.choice"
-                            (change)="choose(row.host.host, $any($event.target).value)"
-                        >
-                            <option value="none" [selected]="row.choice === 'none'">
-                                {{ 'forges.import.credential_none' | translate }}
-                            </option>
-                            @for (token of row.tokens; track token.id) {
-                                <option [value]="'https:' + token.id" [selected]="row.choice === 'https:' + token.id">
-                                    {{ 'forges.import.credential_https_token' | translate }} — {{ token.name }}
-                                </option>
-                            }
-                            @for (key of sshKeys(); track key.id) {
-                                <option [value]="'ssh:' + key.id" [selected]="row.choice === 'ssh:' + key.id">
-                                    {{ 'forges.import.credential_ssh_key' | translate }} — {{ key.name }}
-                                </option>
-                            }
-                        </select>
-                        @if (row.proposed) {
-                            <p-tag severity="info" [value]="'forges.import.proposed' | translate" />
-                        }
-                    </div>
+            <datalist id="forge-solution-names">
+                @for (name of solutionNames(); track name) {
+                    <option [value]="name"></option>
                 }
-            </div>
-        }
+            </datalist>
+            <datalist id="forge-project-names">
+                @for (name of projectNames(); track name) {
+                    <option [value]="name"></option>
+                }
+            </datalist>
 
-        <fieldset class="border border-surface-200 dark:border-surface-700 rounded-md p-3 m-0 mb-4 flex flex-col gap-3">
-            <legend class="font-medium px-1">{{ 'forges.import.first_scans' | translate }}</legend>
-            <label class="flex items-start gap-2" for="first-scan">
+            <!-- Placement: proposed per namespace, editable per namespace or repository. -->
+            <h3 class="text-lg font-semibold mt-2 mb-1">{{ 'forges.mapping.title' | translate }}</h3>
+            <p class="m-0 mb-2 text-sm text-muted-color">{{ 'forges.mapping.explained' | translate }}</p>
+            <label class="flex items-center gap-2 mb-2 text-sm" for="per-repository">
                 <input
                     type="checkbox"
-                    id="first-scan"
-                    class="mt-1"
-                    [(ngModel)]="firstScan"
-                    (ngModelChange)="optionsChanged()"
+                    id="per-repository"
+                    [checked]="perRepository()"
+                    (change)="perRepository.set($any($event.target).checked)"
                 />
-                <span>
-                    {{ 'forges.import.first_scan_toggle' | translate }}
-                    <small class="block text-muted-color">{{ 'forges.import.first_scan_hint' | translate }}</small>
-                </span>
+                {{ 'forges.mapping.per_repository' | translate }}
             </label>
-            @if (firstScan) {
-                <div class="flex flex-col gap-1">
-                    <label for="spacing" class="text-sm font-medium">{{ 'forges.import.spacing' | translate }}</label>
-                    <input
-                        pInputText
-                        id="spacing"
-                        type="number"
-                        class="w-40"
-                        [min]="minSpacing"
-                        [max]="maxSpacing"
-                        [(ngModel)]="spacingSeconds"
-                        (ngModelChange)="optionsChanged()"
-                        aria-describedby="spacing-hint"
-                    />
-                    <small id="spacing-hint" [class.text-red-600]="!spacingValid()" data-testid="spacing-hint">{{
-                        'forges.import.spacing_hint' | translate: { min: minSpacing, max: maxSpacing }
-                    }}</small>
+            <div class="overflow-x-auto mb-4">
+                <table class="w-full text-sm border-collapse" data-testid="mapping">
+                    <thead>
+                        <tr class="text-left border-b border-surface-200 dark:border-surface-700">
+                            <th class="py-2 pr-3">
+                                @if (perRepository()) {
+                                    {{ 'forges.repository.path' | translate }}
+                                } @else {
+                                    {{ 'forges.mapping.namespace' | translate }}
+                                }
+                            </th>
+                            <th class="py-2 pr-3">{{ 'forges.mapping.solution' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.mapping.project' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.mapping.no_project' | translate }}</th>
+                            <th class="py-2 pr-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (row of placements(); track row.placement.key) {
+                            <tr class="border-b border-surface-100 dark:border-surface-800" data-testid="placement">
+                                <td class="py-2 pr-3 font-mono break-all">
+                                    {{ row.placement.label || '—' }}
+                                    @if (!perRepository()) {
+                                        <span class="block text-xs text-muted-color font-sans">{{
+                                            'forges.mapping.repositories'
+                                                | translate: { count: row.placement.repositories }
+                                        }}</span>
+                                    }
+                                </td>
+                                <td class="py-2 pr-3">
+                                    <input
+                                        pInputText
+                                        class="w-full min-w-32"
+                                        list="forge-solution-names"
+                                        data-testid="placement-solution"
+                                        [attr.aria-label]="
+                                            'forges.mapping.aria_solution' | translate: { name: row.placement.label }
+                                        "
+                                        [ngModelOptions]="{ standalone: true }"
+                                        [ngModel]="row.placement.solution"
+                                        (ngModelChange)="place(row.placement, 'solution', $event)"
+                                    />
+                                </td>
+                                <td class="py-2 pr-3">
+                                    <input
+                                        pInputText
+                                        class="w-full min-w-32"
+                                        list="forge-project-names"
+                                        data-testid="placement-project"
+                                        [attr.aria-label]="
+                                            'forges.mapping.aria_project' | translate: { name: row.placement.label }
+                                        "
+                                        [ngModelOptions]="{ standalone: true }"
+                                        [ngModel]="row.placement.project"
+                                        [disabled]="row.placement.noProject"
+                                        (ngModelChange)="place(row.placement, 'project', $event)"
+                                    />
+                                </td>
+                                <td class="py-2 pr-3">
+                                    <input
+                                        type="checkbox"
+                                        data-testid="placement-no-project"
+                                        [attr.aria-label]="
+                                            'forges.mapping.aria_no_project' | translate: { name: row.placement.label }
+                                        "
+                                        [checked]="row.placement.noProject"
+                                        (change)="place(row.placement, 'noProject', $any($event.target).checked)"
+                                    />
+                                </td>
+                                <td class="py-2 pr-3">
+                                    @if (row.edited) {
+                                        <p-button
+                                            [label]="'forges.mapping.undo' | translate"
+                                            size="small"
+                                            [text]="true"
+                                            [ariaLabel]="
+                                                'forges.mapping.aria_undo' | translate: { name: row.placement.label }
+                                            "
+                                            (onClick)="forget(row.placement)"
+                                        />
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Clone credentials per host, and the first scans. -->
+            @if (preview(); as plan) {
+                <h3 class="text-lg font-semibold mt-2 mb-1">{{ 'forges.import.credentials' | translate }}</h3>
+                <p class="m-0 mb-2 text-sm text-muted-color">{{ 'forges.import.credentials_explained' | translate }}</p>
+                <div class="flex flex-col gap-3 mb-4" data-testid="credentials">
+                    @for (row of hosts(); track row.host.host) {
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <label [for]="'credential-' + $index" class="font-mono text-sm sm:w-64 break-all">
+                                {{ row.host.host }}
+                                <span class="block font-sans text-xs text-muted-color">{{
+                                    'forges.mapping.repositories' | translate: { count: row.host.repositories }
+                                }}</span>
+                            </label>
+                            <select
+                                [id]="'credential-' + $index"
+                                data-testid="credential-choice"
+                                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0 flex-1"
+                                [value]="row.choice"
+                                (change)="choose(row.host.host, $any($event.target).value)"
+                            >
+                                <option value="none" [selected]="row.choice === 'none'">
+                                    {{ 'forges.import.credential_none' | translate }}
+                                </option>
+                                @for (token of row.tokens; track token.id) {
+                                    <option
+                                        [value]="'https:' + token.id"
+                                        [selected]="row.choice === 'https:' + token.id"
+                                    >
+                                        {{ 'forges.import.credential_https_token' | translate }} — {{ token.name }}
+                                    </option>
+                                }
+                                @for (key of sshKeys(); track key.id) {
+                                    <option [value]="'ssh:' + key.id" [selected]="row.choice === 'ssh:' + key.id">
+                                        {{ 'forges.import.credential_ssh_key' | translate }} — {{ key.name }}
+                                    </option>
+                                }
+                            </select>
+                            @if (row.proposed) {
+                                <p-tag severity="info" [value]="'forges.import.proposed' | translate" />
+                            }
+                        </div>
+                    }
                 </div>
             }
-            <div class="flex flex-col gap-1">
-                <label for="agent-label" class="text-sm font-medium"
-                    >{{ 'forges.import.agent_label' | translate }}
-                    <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
-                >
-                <input
-                    pInputText
-                    id="agent-label"
-                    class="sm:w-80"
-                    [(ngModel)]="requiredAgentLabel"
-                    (ngModelChange)="optionsChanged()"
-                />
-            </div>
-        </fieldset>
 
-        <div class="flex flex-wrap gap-2 mb-2">
-            <p-button
-                data-testid="preview"
-                icon="pi pi-eye"
-                [label]="'forges.import.preview' | translate"
-                [outlined]="!stale()"
-                [loading]="previewing()"
-                (onClick)="runPreview()"
-            />
-            <p-button [label]="'forges.import.back' | translate" [text]="true" (onClick)="back.emit()" />
-        </div>
+            <fieldset
+                class="border border-surface-200 dark:border-surface-700 rounded-md p-3 m-0 mb-4 flex flex-col gap-3"
+            >
+                <legend class="font-medium px-1">{{ 'forges.import.first_scans' | translate }}</legend>
+                <label class="flex items-start gap-2" for="first-scan">
+                    <input
+                        type="checkbox"
+                        id="first-scan"
+                        class="mt-1"
+                        name="first-scan"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="firstScan"
+                        (ngModelChange)="optionsChanged()"
+                    />
+                    <span>
+                        {{ 'forges.import.first_scan_toggle' | translate }}
+                        <small class="block text-muted-color">{{ 'forges.import.first_scan_hint' | translate }}</small>
+                    </span>
+                </label>
+                @if (firstScan) {
+                    <div class="flex flex-col gap-1">
+                        <label for="spacing" class="text-sm font-medium">{{
+                            'forges.import.spacing' | translate
+                        }}</label>
+                        <input
+                            pInputText
+                            id="spacing"
+                            type="number"
+                            required
+                            class="w-40"
+                            [min]="minSpacing"
+                            [max]="maxSpacing"
+                            name="spacing"
+                            [ngModelOptions]="{ standalone: true }"
+                            [(ngModel)]="spacingSeconds"
+                            (ngModelChange)="optionsChanged()"
+                            aria-describedby="spacing-hint"
+                        />
+                        <small id="spacing-hint" [class.text-red-600]="!spacingValid()" data-testid="spacing-hint">{{
+                            'forges.import.spacing_hint' | translate: { min: minSpacing, max: maxSpacing }
+                        }}</small>
+                    </div>
+                }
+                <div class="flex flex-col gap-1">
+                    <label for="agent-label" class="text-sm font-medium"
+                        >{{ 'forges.import.agent_label' | translate }}
+                        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+                    >
+                    <input
+                        pInputText
+                        id="agent-label"
+                        class="sm:w-80"
+                        name="agent-label"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="requiredAgentLabel"
+                        (ngModelChange)="optionsChanged()"
+                    />
+                </div>
+            </fieldset>
+
+            <div class="flex flex-wrap gap-2 mb-2">
+                <p-button
+                    data-testid="preview"
+                    icon="pi pi-eye"
+                    [label]="'forges.import.preview' | translate"
+                    [outlined]="!stale()"
+                    type="submit"
+                    [loading]="previewing()"
+                />
+                <p-button [label]="'forges.import.back' | translate" [text]="true" (onClick)="back.emit()" />
+            </div>
+        </form>
         @if (stale()) {
             <p class="m-0 text-sm text-orange-600 dark:text-orange-400" data-testid="stale">
                 {{ 'forges.import.stale' | translate }}

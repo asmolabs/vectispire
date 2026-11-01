@@ -318,6 +318,23 @@ describe('la grille OWASP', () => {
             expect(component.evidenceSource).toBe('EXTERNAL');
         });
 
+        it('is a form requiring what the declaration needs, and sends once however often it is submitted', () => {
+            asSecurityLead();
+            const component = fixture.componentInstance;
+            component.openDeclare(component.lines()[0]);
+            fixture.detectChanges();
+            expect(document.querySelector<HTMLInputElement>('#owasp-external-evidence')!.required).toBe(true);
+            expect(document.querySelector<HTMLInputElement>('#owasp-justification')!.required).toBe(false);
+
+            const form = document.querySelector('#owasp-justification')!.closest('form')!;
+            form.dispatchEvent(new Event('submit'));
+            expect(http.match((call) => call.method === 'PUT').length).toBe(0);
+            component.externalEvidence = 'Dossier QUAL-2026';
+            form.dispatchEvent(new Event('submit'));
+            form.dispatchEvent(new Event('submit'));
+            expect(http.match((call) => call.method === 'PUT').length).toBe(1);
+        });
+
         it("sends the declaration on the row's category, and reloads the grid", () => {
             asSecurityLead();
             const component = fixture.componentInstance;

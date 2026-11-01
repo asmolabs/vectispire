@@ -190,6 +190,8 @@ export class Licenses {
     }
 
     savePolicy(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.savingPolicy()) return;
         this.savingPolicy.set(true);
         this.policyError.set(null);
 

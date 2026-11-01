@@ -223,6 +223,18 @@ describe('the licence inventory screen', () => {
         settle();
     });
 
+    it('saves the policy on Enter as on the button, once however often the form is submitted', () => {
+        const page = fixture.componentInstance;
+        page.editPolicy();
+        fixture.detectChanges();
+        const form = (fixture.nativeElement as HTMLElement).querySelector('#policy-allowed')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(
+            http.match((request) => request.method === 'PUT' && request.url === '/api/v1/licenses/policy')
+        ).toHaveLength(1);
+    });
+
     it('unticks one category without touching the others', () => {
         const page = fixture.componentInstance;
         page.editPolicy();

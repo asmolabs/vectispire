@@ -295,6 +295,17 @@ describe('the import step', () => {
         expect(previewRequest().request.body).toMatchObject({ firstScan: true, spacingSeconds: 120 });
     });
 
+    it('previews on Enter as on the button, the spacing required once first scans are asked for', async () => {
+        await open();
+        dom().querySelector<HTMLInputElement>('#first-scan')!.click();
+        await settle();
+        expect(dom().querySelector<HTMLInputElement>('#spacing')!.required).toBe(true);
+
+        dom().querySelector('#spacing')!.closest('form')!.dispatchEvent(new Event('submit'));
+        await settle();
+        expect(previewRequest().request.body).toMatchObject({ firstScan: true, spacingSeconds: 60 });
+    });
+
     it('lists what the import would refuse with the reason, and does not offer to import', async () => {
         await open({
             ...PREVIEW,

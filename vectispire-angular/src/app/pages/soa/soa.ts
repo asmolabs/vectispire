@@ -280,7 +280,8 @@ export class Soa {
     submit(): void {
         const line = this.editing();
         const statement = this.current();
-        if (!line || !statement || this.incomplete()) {
+        // Enter in a field submits the form whatever the button shows: the same checks, one at a time.
+        if (!line || !statement || this.incomplete() || this.busy()) {
             return;
         }
         this.busy.set(true);

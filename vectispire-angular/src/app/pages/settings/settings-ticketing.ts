@@ -75,6 +75,9 @@ export class SettingsTicketing {
     }
 
     saveToken(): void {
+        // Enter in the field submits the form too: one request at a time. No `required`: an empty
+        // save is how the stored value is removed.
+        if (this.savingToken()) return;
         this.savingToken.set(true);
         this.state.error.set(null);
         this.settingsApi.setTicketToken(this.tokenInput).subscribe({
@@ -96,6 +99,9 @@ export class SettingsTicketing {
     }
 
     saveTicketWebhookSecret(): void {
+        // Enter in the field submits the form too: one request at a time. No `required`: an empty
+        // save is how the stored value is removed.
+        if (this.savingTicketWebhookSecret()) return;
         this.savingTicketWebhookSecret.set(true);
         this.state.error.set(null);
         this.settingsApi.setTicketWebhookSecret(this.ticketWebhookSecretInput).subscribe({
@@ -114,6 +120,9 @@ export class SettingsTicketing {
     }
 
     saveWebhookSecret(): void {
+        // Enter in the field submits the form too: one request at a time. No `required`: an empty
+        // save is how the stored value is removed.
+        if (this.savingWebhookSecret()) return;
         this.savingWebhookSecret.set(true);
         this.state.error.set(null);
         this.settingsApi.setWebhookSecret(this.webhookSecretInput).subscribe({

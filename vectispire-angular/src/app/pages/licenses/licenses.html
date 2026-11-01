@@ -183,13 +183,14 @@
                         }
                     </div>
                 } @else {
-                    <div class="flex flex-col gap-4">
+                    <form class="flex flex-col gap-4" (ngSubmit)="savePolicy()">
                         <p class="text-sm text-muted-color m-0">{{ 'licenses.policy_edit_warning' | translate }}</p>
 
                         <div class="flex flex-col gap-2">
                             @for (category of CATEGORIES; track category) {
                                 <div class="flex items-center gap-3">
                                     <p-toggleswitch
+                                        [ngModelOptions]="{ standalone: true }"
                                         [ngModel]="category | disallowedIn: draftDisallowed"
                                         [name]="'policy-' + category"
                                         (ngModelChange)="toggleCategory(category, $event)"
@@ -207,6 +208,7 @@
                                 pInputText
                                 id="policy-allowed"
                                 name="policy-allowed"
+                                [ngModelOptions]="{ standalone: true }"
                                 [(ngModel)]="draftAllowedLicenses"
                             />
                         </div>
@@ -218,16 +220,17 @@
                                 pInputText
                                 id="policy-banned"
                                 name="policy-banned"
+                                [ngModelOptions]="{ standalone: true }"
                                 [(ngModel)]="draftDisallowedLicenses"
                             />
                         </div>
 
                         <div class="flex gap-2">
                             <p-button
+                                type="submit"
                                 size="small"
                                 [label]="'common.save' | translate"
                                 [loading]="savingPolicy()"
-                                (onClick)="savePolicy()"
                             />
                             <p-button
                                 size="small"
@@ -237,7 +240,7 @@
                                 (onClick)="editingPolicy.set(false)"
                             />
                         </div>
-                    </div>
+                    </form>
                 }
             } @else {
                 <span data-testid="policy-unavailable" class="text-muted-color">{{

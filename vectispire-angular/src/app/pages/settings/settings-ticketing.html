@@ -19,18 +19,20 @@
                         >
                     }
                 </label>
-                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                <form class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto" (ngSubmit)="saveToken()">
                     <input
                         pInputText
                         id="ticket-token"
                         type="password"
                         class="w-full sm:w-96 max-w-full"
+                        name="ticket-token"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="tokenInput"
                         [placeholder]="'settings.token_placeholder' | translate"
                         autocomplete="off"
                     />
-                    <p-button [label]="'common.save' | translate" [loading]="savingToken()" (onClick)="saveToken()" />
-                </div>
+                    <p-button type="submit" [label]="'common.save' | translate" [loading]="savingToken()" />
+                </form>
             </div>
             @if (tokenState()?.state === 'suspended') {
                 <!-- Said before the token's life: while the governor has the tracker switched off, nothing is
@@ -113,21 +115,23 @@
                         }}</span>
                     }
                 </label>
-                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                <form class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto" (ngSubmit)="saveTicketWebhookSecret()">
                     <input
                         pInputText
                         id="ticket-webhook-secret"
                         type="password"
                         class="w-full sm:w-96 max-w-full"
+                        name="ticket-webhook-secret"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="ticketWebhookSecretInput"
                         autocomplete="off"
                     />
                     <p-button
+                        type="submit"
                         [label]="'common.save' | translate"
                         [loading]="savingTicketWebhookSecret()"
-                        (onClick)="saveTicketWebhookSecret()"
                     />
-                </div>
+                </form>
             </div>
             <small class="text-muted-color max-w-3xl">
                 {{ 'settings.ticket_secret_hint_before' | translate }}
@@ -161,21 +165,19 @@
                         >
                     }
                 </label>
-                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                <form class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto" (ngSubmit)="saveWebhookSecret()">
                     <input
                         pInputText
                         id="webhook-secret"
                         type="password"
                         class="w-full sm:w-96 max-w-full"
+                        name="webhook-secret"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="webhookSecretInput"
                         autocomplete="off"
                     />
-                    <p-button
-                        [label]="'common.save' | translate"
-                        [loading]="savingWebhookSecret()"
-                        (onClick)="saveWebhookSecret()"
-                    />
-                </div>
+                    <p-button type="submit" [label]="'common.save' | translate" [loading]="savingWebhookSecret()" />
+                </form>
             </div>
             <small class="text-muted-color max-w-3xl">
                 {{ 'settings.webhook_signing_hint' | translate }}

@@ -170,68 +170,101 @@
             <div class="text-muted-color text-sm">{{ entry.target_name ?? '—' }}</div>
         </div>
 
-        <div class="flex flex-col gap-2 mb-4">
-            <label class="flex items-start gap-2">
-                <input type="radio" name="outcome" value="CONFIRMED" [(ngModel)]="outcome" class="mt-1" />
-                <span>
-                    <span class="font-medium">{{ 'exceptions.outcome.confirmed' | translate }}</span>
-                    <span class="block text-muted-color text-sm">{{
-                        'exceptions.outcome.confirmed_help' | translate
-                    }}</span>
-                </span>
-            </label>
-            <label class="flex items-start gap-2">
-                <input type="radio" name="outcome" value="EXTENDED" [(ngModel)]="outcome" class="mt-1" />
-                <span>
-                    <span class="font-medium">{{ 'exceptions.outcome.extended' | translate }}</span>
-                    <span class="block text-muted-color text-sm">{{
-                        'exceptions.outcome.extended_help' | translate
-                    }}</span>
-                </span>
-            </label>
-            <label class="flex items-start gap-2">
-                <input type="radio" name="outcome" value="REVOKED" [(ngModel)]="outcome" class="mt-1" />
-                <span>
-                    <span class="font-medium">{{ 'exceptions.outcome.revoked' | translate }}</span>
-                    <span class="block text-muted-color text-sm">{{
-                        'exceptions.outcome.revoked_help' | translate
-                    }}</span>
-                </span>
-            </label>
-        </div>
+        <form (ngSubmit)="submitReview()">
+            <div class="flex flex-col gap-2 mb-4">
+                <label class="flex items-start gap-2">
+                    <input
+                        type="radio"
+                        name="outcome"
+                        value="CONFIRMED"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="outcome"
+                        class="mt-1"
+                    />
+                    <span>
+                        <span class="font-medium">{{ 'exceptions.outcome.confirmed' | translate }}</span>
+                        <span class="block text-muted-color text-sm">{{
+                            'exceptions.outcome.confirmed_help' | translate
+                        }}</span>
+                    </span>
+                </label>
+                <label class="flex items-start gap-2">
+                    <input
+                        type="radio"
+                        name="outcome"
+                        value="EXTENDED"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="outcome"
+                        class="mt-1"
+                    />
+                    <span>
+                        <span class="font-medium">{{ 'exceptions.outcome.extended' | translate }}</span>
+                        <span class="block text-muted-color text-sm">{{
+                            'exceptions.outcome.extended_help' | translate
+                        }}</span>
+                    </span>
+                </label>
+                <label class="flex items-start gap-2">
+                    <input
+                        type="radio"
+                        name="outcome"
+                        value="REVOKED"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="outcome"
+                        class="mt-1"
+                    />
+                    <span>
+                        <span class="font-medium">{{ 'exceptions.outcome.revoked' | translate }}</span>
+                        <span class="block text-muted-color text-sm">{{
+                            'exceptions.outcome.revoked_help' | translate
+                        }}</span>
+                    </span>
+                </label>
+            </div>
 
-        @if (outcome() === 'EXTENDED') {
+            @if (outcome() === 'EXTENDED') {
+                <div class="mb-4">
+                    <label for="newExpiry" class="block font-medium mb-1">{{
+                        'exceptions.review_dialog.new_expiry' | translate
+                    }}</label>
+                    <input
+                        id="newExpiry"
+                        name="newExpiry"
+                        type="date"
+                        required
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="newExpiry"
+                        class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded"
+                    />
+                </div>
+            }
+
             <div class="mb-4">
-                <label for="newExpiry" class="block font-medium mb-1">{{
-                    'exceptions.review_dialog.new_expiry' | translate
+                <label for="comment" class="block font-medium mb-1">{{
+                    'exceptions.review_dialog.comment' | translate
                 }}</label>
                 <input
-                    id="newExpiry"
-                    type="date"
-                    [(ngModel)]="newExpiry"
-                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded"
+                    id="comment"
+                    name="comment"
+                    pInputText
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="comment"
+                    class="w-full"
                 />
             </div>
-        }
 
-        <div class="mb-4">
-            <label for="comment" class="block font-medium mb-1">{{
-                'exceptions.review_dialog.comment' | translate
-            }}</label>
-            <input id="comment" pInputText [(ngModel)]="comment" class="w-full" />
-        </div>
+            @if (error()) {
+                <p-message severity="error" [text]="error()!" styleClass="w-full mb-3" />
+            }
 
-        @if (error()) {
-            <p-message severity="error" [text]="error()!" styleClass="w-full mb-3" />
-        }
-
-        <div class="flex justify-end gap-2">
-            <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="reviewing.set(null)" />
-            <p-button
-                [label]="'exceptions.review_dialog.record' | translate"
-                [disabled]="incomplete() || busy()"
-                (onClick)="submitReview()"
-            />
-        </div>
+            <div class="flex justify-end gap-2">
+                <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="reviewing.set(null)" />
+                <p-button
+                    type="submit"
+                    [label]="'exceptions.review_dialog.record' | translate"
+                    [disabled]="incomplete() || busy()"
+                />
+            </div>
+        </form>
     }
 </p-dialog>

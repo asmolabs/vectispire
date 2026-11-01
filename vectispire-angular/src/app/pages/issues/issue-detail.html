@@ -194,25 +194,38 @@
                 }
             </div>
         } @else {
-            <div class="flex flex-col gap-3">
+            <form class="flex flex-col gap-3" (ngSubmit)="saveTicket()">
                 <div class="flex flex-col gap-2">
                     <label for="ticket-reference" class="font-medium">{{
                         'issues.ticket_reference' | translate
                     }}</label>
-                    <input pInputText id="ticket-reference" name="ticket-reference" [(ngModel)]="ticketReference" />
+                    <input
+                        pInputText
+                        id="ticket-reference"
+                        required
+                        name="ticket-reference"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="ticketReference"
+                    />
                     <small class="text-muted-color">{{ 'issues.ticket_reference_help' | translate }}</small>
                 </div>
                 <div class="flex flex-col gap-2">
                     <label for="ticket-url" class="font-medium">{{ 'issues.ticket_url' | translate }}</label>
-                    <input pInputText id="ticket-url" name="ticket-url" [(ngModel)]="ticketUrl" />
+                    <input
+                        pInputText
+                        id="ticket-url"
+                        name="ticket-url"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="ticketUrl"
+                    />
                 </div>
                 <div class="flex gap-2">
                     <p-button
+                        type="submit"
                         size="small"
                         [label]="'common.save' | translate"
                         [loading]="attaching()"
                         [disabled]="!ticketReference.trim()"
-                        (onClick)="saveTicket()"
                     />
                     <p-button
                         size="small"
@@ -222,7 +235,7 @@
                         (onClick)="editingTicket.set(false)"
                     />
                 </div>
-            </div>
+            </form>
         }
     </p-card>
 

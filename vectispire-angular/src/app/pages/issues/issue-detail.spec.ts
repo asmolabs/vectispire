@@ -324,6 +324,22 @@ describe('the issue detail', () => {
         expect(page.editingTicket()).toBe(false);
     });
 
+    it('is a form requiring the reference, and attaches once however often it is submitted', async () => {
+        await load();
+
+        const page = fixture.componentInstance;
+        page.editTicket();
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector<HTMLInputElement>('#ticket-reference')!.required).toBe(true);
+        expect(root.querySelector<HTMLInputElement>('#ticket-url')!.required).toBe(false);
+        page.ticketReference = 'SEC-1234';
+        const form = root.querySelector('#ticket-reference')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/issues/7/ticket').length).toBe(1);
+    });
+
     it('sends a null URL rather than an empty one, an internal tracker may have none', async () => {
         await load();
 

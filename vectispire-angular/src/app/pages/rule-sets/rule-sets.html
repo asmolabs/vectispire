@@ -17,12 +17,15 @@
 <p-card styleClass="mb-4">
     <ng-template #title>{{ 'rule_sets.upload_set_title' | translate }}</ng-template>
 
-    <div class="flex flex-col gap-4">
+    <form class="flex flex-col gap-4" (ngSubmit)="upload()">
         <div class="flex flex-col gap-2">
             <label for="rule-set-name" class="font-medium">{{ 'rule_sets.name_label' | translate }}</label>
             <input
                 pInputText
                 id="rule-set-name"
+                name="rule-set-name"
+                required
+                [ngModelOptions]="{ standalone: true }"
                 [(ngModel)]="name"
                 [placeholder]="'rule_sets.name_placeholder' | translate"
             />
@@ -33,6 +36,7 @@
             <input
                 id="rule-set-files"
                 type="file"
+                required
                 multiple
                 accept=".yaml,.yml"
                 (change)="pick($event)"
@@ -65,14 +69,14 @@
 
         <div>
             <p-button
+                type="submit"
                 [label]="'rule_sets.upload_btn' | translate"
                 icon="pi pi-upload"
                 [loading]="uploading()"
                 [disabled]="picked().length === 0 || !name.trim()"
-                (onClick)="upload()"
             />
         </div>
-    </div>
+    </form>
 </p-card>
 
 <p-card styleClass="mb-4">
@@ -192,7 +196,12 @@
                     >{{ preview.licence }}</pre>
 
                 <div class="flex items-start gap-2 mt-3">
-                    <p-checkbox inputId="licence-accepted" [binary]="true" [(ngModel)]="licenceAccepted" />
+                    <p-checkbox
+                        inputId="licence-accepted"
+                        [binary]="true"
+                        [required]="true"
+                        [(ngModel)]="licenceAccepted"
+                    />
                     <label for="licence-accepted" class="cursor-pointer text-sm">
                         {{ 'rule_sets.licence_accept' | translate }}
                         <span class="block text-muted-color">

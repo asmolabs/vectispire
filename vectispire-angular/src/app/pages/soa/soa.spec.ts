@@ -212,6 +212,27 @@ describe('the statement of applicability', () => {
         http.expectNone((call) => call.method === 'PUT');
     });
 
+    it('is a form requiring the justification of an exclusion, and sends once however often it is submitted', () => {
+        const component = fixture.componentInstance;
+        component.openDeclare(component.lines()[0]);
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#justification')!.required).toBe(false);
+        component.applicability = 'EXCLUDED';
+        component.justification = '';
+        // Written from code rather than by the select, as the dialog's own event would have marked it.
+        fixture.componentRef.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#justification')!.required).toBe(true);
+
+        const form = document.querySelector('#justification')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT').length).toBe(0);
+        component.justification = 'Out of the certified scope.';
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT').length).toBe(1);
+    });
+
     it('refuses evidence declared elsewhere that names nowhere', () => {
         const component = fixture.componentInstance;
         component.openDeclare(component.lines()[0]);

@@ -108,6 +108,16 @@ describe('the SIEM card, its collector CA', () => {
         ).toBeUndefined();
     });
 
+    it('is a form requiring the endpoint of an enabled transport, and saves once however often it is submitted', async () => {
+        const page = await loaded(tls);
+        expect(page.querySelector<HTMLInputElement>('#siem-endpoint')!.required).toBe(true);
+
+        const form = page.querySelector('#siem-endpoint')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.method === 'PUT' && call.url === '/api/v1/siem/config')).toHaveLength(1);
+    });
+
     it('tests the CA on screen, saved or not', async () => {
         await loaded(tls);
         const card = fixture.componentInstance;

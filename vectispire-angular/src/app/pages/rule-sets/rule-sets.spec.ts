@@ -409,4 +409,22 @@ describe('the picked rule files', () => {
         expect(said(1, 2)).toBe('1 file selected. 2 files without a .yaml or .yml extension were ignored.');
         expect(said(3, 1)).toBe('3 files selected. 1 file without a .yaml or .yml extension was ignored.');
     });
+
+    it('is a form requiring a name and files, and uploads once however often it is submitted', () => {
+        const http = TestBed.inject(HttpTestingController);
+        const page = fixture.componentInstance;
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector<HTMLInputElement>('#rule-set-name')!.required).toBe(true);
+        expect(root.querySelector<HTMLInputElement>('#rule-set-files')!.required).toBe(true);
+
+        const form = root.querySelector('#rule-set-name')!.closest('form')!;
+        const uploads = () => http.match((call) => call.method === 'POST' && call.url === '/api/v1/rule-sets');
+        page.name = 'house rules';
+        form.dispatchEvent(new Event('submit'));
+        expect(uploads().length).toBe(0);
+        page.picked.set([{ name: 'r.yaml', content: 'rules: []' }]);
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(uploads().length).toBe(1);
+    });
 });

@@ -147,6 +147,8 @@ export class SettingsSiem {
     }
 
     saveSiemConfig(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.savingSiem()) return;
         this.savingSiem.set(true);
         this.state.error.set(null);
         this.integrationsApi

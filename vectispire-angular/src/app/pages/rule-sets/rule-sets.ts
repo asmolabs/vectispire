@@ -244,6 +244,8 @@ export class RuleSets {
     }
 
     upload(): void {
+        // Enter in the name submits the form whatever the button shows: the same checks, one at a time.
+        if (this.picked().length === 0 || !this.name.trim() || this.uploading()) return;
         this.uploading.set(true);
         this.error.set(null);
         this.notice.set(null);

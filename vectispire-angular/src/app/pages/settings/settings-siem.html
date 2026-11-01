@@ -7,7 +7,7 @@
             </div>
         </ng-template>
 
-        <div class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" (ngSubmit)="saveSiemConfig()">
             @if (suspendedTransport(); as transport) {
                 <p-message severity="warn" [closable]="false" styleClass="w-full" data-testid="siem-suspended">
                     {{ 'settings.siem_suspended' | translate: { integration: transport } }}
@@ -21,7 +21,7 @@
                     <div class="font-medium">{{ 'settings.siem_enable' | translate }}</div>
                     <small class="text-muted-color">{{ 'settings.siem_enable_desc' | translate }}</small>
                 </div>
-                <p-toggleswitch [(ngModel)]="siemForm.enabled" />
+                <p-toggleswitch [ngModelOptions]="{ standalone: true }" [(ngModel)]="siemForm.enabled" />
             </div>
 
             <div
@@ -32,6 +32,8 @@
                     <label for="siem-protocol" class="font-medium">{{ 'settings.siem_protocol' | translate }}</label>
                     <select
                         id="siem-protocol"
+                        name="siem-protocol"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.protocol"
                         class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
                     >
@@ -46,6 +48,8 @@
                     <label for="siem-min-sev" class="font-medium">{{ 'settings.siem_min_sev' | translate }}</label>
                     <select
                         id="siem-min-sev"
+                        name="siem-min-sev"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.minSeverity"
                         class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
                     >
@@ -63,6 +67,9 @@
                 <input
                     pInputText
                     id="siem-endpoint"
+                    [required]="siemForm.enabled"
+                    name="siem-endpoint"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="siemForm.endpoint"
                     [placeholder]="endpointPlaceholders[siemForm.protocol]"
                 />
@@ -92,6 +99,8 @@
                         pInputText
                         id="siem-auth"
                         type="password"
+                        name="siem-auth"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.authHeader"
                         [placeholder]="'settings.siem_auth_placeholder' | translate"
                         autocomplete="off"
@@ -113,6 +122,8 @@
                     <textarea
                         id="siem-ca"
                         rows="6"
+                        name="siem-ca"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.tlsCaPem"
                         spellcheck="false"
                         class="p-2 border rounded-md font-mono text-xs bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
@@ -141,8 +152,8 @@
                 <p-button
                     [label]="'settings.siem_save_btn' | translate"
                     icon="pi pi-save"
+                    type="submit"
                     [loading]="savingSiem()"
-                    (onClick)="saveSiemConfig()"
                 />
                 <p-button
                     [label]="'settings.siem_test_btn' | translate"
@@ -153,6 +164,6 @@
                     (onClick)="testSiem()"
                 />
             </div>
-        </div>
+        </form>
     </p-card>
 }

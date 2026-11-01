@@ -75,41 +75,50 @@
                     </div>
                     <div class="text-xs text-muted-color break-all">{{ setup.qrCodeUri }}</div>
 
-                    <div class="flex flex-col gap-2">
-                        <label for="mfa-password" class="font-medium">{{ 'account.mfa_password' | translate }}</label>
-                        <input
-                            pInputText
-                            id="mfa-password"
-                            type="password"
-                            autocomplete="current-password"
-                            [(ngModel)]="password"
-                            name="mfa-password"
-                        />
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <label for="mfa-code" class="font-medium">{{ 'account.mfa_code' | translate }}</label>
-                        <input
-                            pInputText
-                            id="mfa-code"
-                            inputmode="numeric"
-                            autocomplete="one-time-code"
-                            [(ngModel)]="code"
-                            name="mfa-code"
-                        />
-                    </div>
-                    <div class="flex gap-2">
-                        <p-button
-                            [label]="'account.mfa_confirm' | translate"
-                            [loading]="busy()"
-                            (onClick)="confirm()"
-                        />
-                        <p-button
-                            [label]="'common.cancel' | translate"
-                            severity="secondary"
-                            [text]="true"
-                            (onClick)="cancel()"
-                        />
-                    </div>
+                    <form class="flex flex-col gap-3" (ngSubmit)="confirm()">
+                        <div class="flex flex-col gap-2">
+                            <label for="mfa-password" class="font-medium">{{
+                                'account.mfa_password' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="mfa-password"
+                                type="password"
+                                autocomplete="current-password"
+                                required
+                                [ngModelOptions]="{ standalone: true }"
+                                [(ngModel)]="password"
+                                name="mfa-password"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="mfa-code" class="font-medium">{{ 'account.mfa_code' | translate }}</label>
+                            <input
+                                pInputText
+                                id="mfa-code"
+                                inputmode="numeric"
+                                autocomplete="one-time-code"
+                                required
+                                [ngModelOptions]="{ standalone: true }"
+                                [(ngModel)]="code"
+                                name="mfa-code"
+                            />
+                        </div>
+                        <div class="flex gap-2">
+                            <p-button
+                                type="submit"
+                                [label]="'account.mfa_confirm' | translate"
+                                [loading]="busy()"
+                                [disabled]="!code.trim() || !password"
+                            />
+                            <p-button
+                                [label]="'common.cancel' | translate"
+                                severity="secondary"
+                                [text]="true"
+                                (onClick)="cancel()"
+                            />
+                        </div>
+                    </form>
                 </div>
             }
 

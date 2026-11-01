@@ -167,7 +167,8 @@ export class Exceptions {
 
     submitReview(): void {
         const entry = this.reviewing();
-        if (!entry || this.incomplete()) {
+        // Enter in a field submits the form whatever the button shows: the same checks, one at a time.
+        if (!entry || this.incomplete() || this.busy()) {
             return;
         }
         const outcome = this.outcome();

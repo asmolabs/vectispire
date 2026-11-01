@@ -134,7 +134,8 @@ export class IssueDetailPage {
     saveTicket(): void {
         const detail = this.issue();
         const reference = this.ticketReference.trim();
-        if (!detail || !reference) return;
+        // Enter in a field submits the form whatever the button shows: one request at a time.
+        if (!detail || !reference || this.attaching()) return;
 
         this.attaching.set(true);
         this.ticketError.set(null);

@@ -104,6 +104,23 @@ describe('le registre des exceptions', () => {
         http.expectNone('/api/v1/exceptions/41/reviews');
     });
 
+    it('is a form requiring a date for an extension, and records once however often it is submitted', () => {
+        const component = fixture.componentInstance;
+        component.openReview(REGISTER.entries[0]);
+        component.outcome.set('EXTENDED');
+        fixture.detectChanges();
+        expect(document.querySelector<HTMLInputElement>('#newExpiry')!.required).toBe(true);
+        expect(document.querySelector<HTMLInputElement>('#comment')!.required).toBe(false);
+
+        const form = document.querySelector('#newExpiry')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/exceptions/41/reviews').length).toBe(0);
+        component.newExpiry.set('2027-03-01');
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match('/api/v1/exceptions/41/reviews').length).toBe(1);
+    });
+
     it('offers more even when the page contained nothing visible', () => {
         // **The client half of the same defect as on the server.** Visibility applies after the
         // read: a whole window can belong to other people only. Hiding the button because the page
