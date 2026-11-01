@@ -372,6 +372,15 @@ What follows is against 0.11.2.
 From a full review of `develop` before this release. Every finding is fixed, or documented as a residual
 risk where a fix would be a decision of its own:
 
+- **Four-eyes: a second identity is no longer one the requester made.** An approval — of a triage or of
+  an account change — is refused (`409`, `approver-not-independent`) when its requester created the
+  approver's account, reset its password or changed its role within the last 30 days
+  (`four_eyes_independence_days`, the platform governor's). And creating an account with a role that
+  approves, raising a role to one, or resetting the password of an account that holds one now waits for a
+  second administrator: `POST` and `PATCH /api/v1/users` answer `202` with the request, which
+  `/api/v1/account-requests` lists, approves and rejects, and the Users screen shows. An administrator
+  alone still applies it at once. With four-eyes off, nothing changes
+  ([Four-eyes approval](../administration/four-eyes.md#an-approver-the-requester-administered)).
 - **Sign-in lockout is per client.** The five-failure ceiling counts an account's failures from one
   client, beside a ceiling of fifty from every client together, against guessing spread across machines.
   Someone who knows an account's name can no longer keep its owner locked out from one machine. A success

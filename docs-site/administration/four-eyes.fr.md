@@ -50,6 +50,37 @@ entrée d'audit pour toute trace. Retirer le droit d'approuver n'aurait rien fer
 la décision de tout le monde quand le réglage est éteint. Ce qui le ferme est qu'**aucun rôle ne
 détient les deux moitiés** : celui qui peut lever la règle ne peut pas agir sous elle.
 
+## Un approbateur que le demandeur a administré {#an-approver-the-requester-administered}
+
+Deux noms ne font pas deux personnes quand le demandeur a fait le second. Double validation activée,
+une approbation est **refusée quand son demandeur, dans les 30 derniers jours, a créé le compte de
+l'approbateur, réinitialisé son mot de passe ou changé son rôle** — un administrateur qui demande
+ensuite une dérogation comme simple compte ne peut pas la faire approuver par le compte qu'il vient de
+créer, ou dont il a saisi le mot de passe. Le refus est un `409` de code `approver-not-independent`
+(`urn:vectispire:problem:approver-not-independent`), avec les membres `gesture` (`created`,
+`password_reset` ou `role_changed`) et `windowDays`. Quelqu'un d'autre approuve, ou le même compte une
+fois la fenêtre passée.
+
+La fenêtre est **Fenêtre d'indépendance de l'approbateur (jours)** dans **Réglages → Triage VEX et
+approbation**, 30 sauf réglage, et comme l'interrupteur lui-même seul le gouverneur de la plateforme la
+change ; `0` désactive le contrôle, et elle vaut 3650 au plus. Elle s'applique aux approbations de
+triage et aux
+[modifications de comptes qui attendent un second administrateur](users-and-teams.fr.md#changes-that-wait-for-a-second-administrator).
+Les gestes sont enregistrés à partir de la mise à jour en 1.0 : un geste antérieur ne figure qu'au
+journal d'audit. Pour une modification de compte, la question est posée dans les deux sens : un approbateur qui a créé
+le compte du demandeur, réinitialisé son mot de passe ou changé son rôle est refusé aussi, puisqu'un
+administrateur qu'on a créé pourrait être son propre second nom. Double validation désactivée, rien
+n'est contrôlé.
+
+## Les modifications de comptes exigent deux administrateurs {#account-changes-take-two-administrators}
+
+Double validation activée, créer un compte doté d'un rôle qui approuve, élever un rôle vers l'un
+d'eux et réinitialiser le mot de passe d'un compte qui en détient un attendent un second
+administrateur, qui les approuve ou les refuse depuis l'écran des utilisateurs —
+[Utilisateurs et équipes](users-and-teams.fr.md#changes-that-wait-for-a-second-administrator) décrit
+la file. Sans cela, un seul administrateur pourrait fabriquer la seconde identité qu'exige une
+approbation.
+
 ## L'activer demande qu'une seconde personne existe
 
 Si aucun compte actif ne peut approuver, le serveur refuse l'activation. Sans ce garde, l'allumer là

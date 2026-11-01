@@ -62,6 +62,55 @@ Removing a factor otherwise needs a current code, which is exactly what such an 
 
 The route is `DELETE /api/v1/users/{id}/second-factor`, for administrators.
 
+### Changes that wait for a second administrator
+
+With [four-eyes approval](four-eyes.md) on, three gestures that would make an approver are **filed
+for another administrator** instead of applied:
+
+- creating an account with a role that approves — Security Champion, CISO, Administrator, Superuser;
+- raising an account's role to one of those;
+- resetting the password of an account that holds one.
+
+The screen says the change is waiting, and lists it under **Pending account changes** at the top of
+the page, with who asked and when. Another administrator approves or rejects it there; until then
+nothing about the account has changed. The requester may reject their own request to withdraw it, but
+**cannot approve it**, and nobody approves a change to their own account. The approval applies the
+change as its approver would make it: an administrator cannot approve the creation of a superuser,
+and a request whose account changed role in the meantime is refused as stale. The temporary password
+typed with the request is kept only as a hash until the approval sets it, and the account must change
+it at its next sign-in, as after any reset.
+
+Activating, deactivating, granting targets and giving a role that approves nothing — User, Auditor —
+apply at once, as before: taking a privilege away must stay easy. A deactivation sent together with a
+filed change applies at once too.
+
+**Responding to a stolen credential**: the reset of an account that approves waits like any other,
+so **deactivate the account first**. Deactivating closes its sessions and stops its API keys at once,
+with nobody to wait for; reactivate it once the reset is approved.
+
+**An administrator alone is not locked out.** With no other administrator — an installation whose
+only account is the bootstrap superuser — the change applies at once, and its audit entry says no
+second administrator was there. A deactivated administrator still counts, and so does one lowered out
+of an administrative role recently: reactivate or restore one to approve. While a change to an account
+waits, its password cannot be reset.
+A request whose requester has since been deactivated or demoted cannot be approved.
+
+**Restoring a role after a reset is not one administrator's.** A raise to a role that approves is
+refused (`409`, `password-known-to-administrator`) when its requester — or, at the approval, its
+approver — created the account or reset its password within the window: lowering a role, resetting
+the password and raising it back would otherwise hand them an approver, and the request alone would not
+show it. Another administrator files and approves it.
+
+The directory (SCIM) may still grant Security Champion, outside this queue; see
+[SSO](sso.md). And an approver the requester created, reset or re-roled recently
+is refused, as for a triage — see [Four-eyes approval](four-eyes.md#an-approver-the-requester-administered).
+
+Each request is recorded as `ACCOUNT_REQUEST_FILED`, then `ACCOUNT_REQUEST_APPROVED` or
+`ACCOUNT_REQUEST_REJECTED`, beside the `USER_UPDATED` entry of the change itself, which names both
+administrators. The routes are `GET /api/v1/account-requests`, and `POST
+/api/v1/account-requests/{id}/approve` and `/reject`, for administrators; a filed change answers
+`202` with the request.
+
 ## Roles
 
 Roles decide what a person may **do**; teams decide what they may **see**. The two are independent
