@@ -295,6 +295,21 @@ which keeps the documents signed before verifiable.
 The chart refuses to render without its required values, and says which is missing. The full list is
 in the chart's [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md).
 
+**Your values are validated before anything is deployed.** The chart ships a `values.schema.json`,
+which `helm install`, `helm upgrade`, `helm lint` and `helm template` all check first: a misspelt key,
+a value of the wrong type, a required value left empty or an image without its `sha256:` digest stops
+the command, and nothing reaches the cluster. The refusal names the value by its path:
+
+```text
+Error: values don't meet the specifications of the schema(s) in the following chart(s):
+vectispire:
+- at '/auditMirror': additional properties 'storageClass' not allowed
+```
+
+Here `storageClass` was meant as `storageClassName`; without the check it would have been ignored and
+the default kept. Run `helm lint deploy/helm/vectispire -f my-values.yaml` to check a values file on
+its own.
+
 **E-mail and links.** Set `mail.host` and `mail.from` for alerts, the weekly digest and the checklist
 reminders to leave at all — with `mail.username` and a `secrets.mailPassword` Secret for a relay that
 authenticates. Without a host, nothing is sent. Links in messages and documents use `publicUrl`, or
