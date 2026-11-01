@@ -205,7 +205,7 @@
             </h2>
 
             <p-table
-                [value]="summary()!.topPriorities"
+                [value]="priorities()"
                 [paginator]="true"
                 [rows]="10"
                 styleClass="p-datatable-sm p-datatable-striped"
@@ -236,10 +236,7 @@
                                 >
                                     {{ p.priorityScore }}/100
                                 </span>
-                                <p-tag
-                                    [severity]="getTierSeverity(p.priorityTier)"
-                                    [value]="getTierLabel(p.priorityTier)"
-                                ></p-tag>
+                                <p-tag [severity]="p.tierTone" [value]="p.tierLabel"></p-tag>
                             </div>
                         </td>
                         <td>
@@ -425,16 +422,16 @@
                                 <!-- Same arrangement as the issues screen: the model's prose when
                                      a model wrote it, ours from the bundles when it did not. -->
                                 <p class="m-0">
-                                    @if (explanation.deterministic; as own) {
-                                        {{ adviceSummary(explanation, own) }}
+                                    @if (ownWords(); as own) {
+                                        {{ own.summary }}
                                     } @else {
                                         {{ explanation.summaryExplanation }}
                                     }
                                 </p>
                                 @if (explanation.exploitMechanics) {
                                     <p class="m-0 text-xs text-muted-color">
-                                        @if (explanation.deterministic; as own) {
-                                            {{ adviceExploitation(own) }}
+                                        @if (ownWords(); as own) {
+                                            {{ own.exploitation }}
                                         } @else {
                                             {{ explanation.exploitMechanics }}
                                         }
@@ -443,8 +440,8 @@
                                 @if (explanation.remediation.fixAction) {
                                     <p class="m-0 text-xs">
                                         <strong>{{ 'epss.explain_fix' | translate }}</strong>
-                                        @if (explanation.deterministic; as own) {
-                                            {{ adviceFix(own) }}
+                                        @if (ownWords(); as own) {
+                                            {{ own.fix }}
                                         } @else {
                                             {{ explanation.remediation.fixAction }}
                                         }

@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CONTACT_CANDIDATES, CONTACTS, PROJECT_ID } from '@/app/core/testing/checklists.fixtures';
 import { asSchema } from '@/app/core/testing/contract';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import english from '../../../../public/i18n/en.json';
 import french from '../../../../public/i18n/fr.json';
 import { ChecklistContactsPanel, WARNING_KEYS } from './checklist-contacts';
@@ -76,6 +76,28 @@ describe('the checklist contacts panel', () => {
             'Reminded to the CISOs'
         ]);
         expect(dom().querySelector('[data-testid="contact-select"]')).toBeNull();
+    });
+
+    it('names the linked account in the reader language, after a switch too, and follows a new list', async () => {
+        await start(false);
+        const accounts = () => rows().map((row) => cell(row, 'contact-account'));
+        const english = accounts();
+
+        useFrench();
+        fixture.detectChanges();
+        expect(accounts()[0]).toBe('Product owner');
+        expect(accounts()[1]).not.toBe(english[1]);
+        expect(accounts()[2]).not.toBe(english[2]);
+        expect(accounts()[1]).toContain('42');
+
+        fixture.componentInstance.contacts.set(
+            asSchema('ChecklistContactsView', {
+                ...CONTACTS,
+                profiles: [{ ...CONTACTS.profiles[2], accountId: 41, accountName: 'Architecte' }]
+            })
+        );
+        fixture.detectChanges();
+        expect(accounts()).toEqual(['Architecte']);
     });
 
     it('tells a reader an account would not be reminded, not why', async () => {

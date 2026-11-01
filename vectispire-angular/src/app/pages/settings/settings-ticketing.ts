@@ -144,7 +144,15 @@ export class SettingsTicketing {
         return expiresAt ? daysLeft(expiresAt, new Date()) : 0;
     }
 
-    getWebhookUrl(provider: string): string {
+    /** Each tracker's inbound address, built once: the origin does not change under an open page. */
+    readonly webhookUrls = {
+        jira: this.getWebhookUrl('jira'),
+        gitlab: this.getWebhookUrl('gitlab'),
+        github: this.getWebhookUrl('github'),
+        servicenow: this.getWebhookUrl('servicenow')
+    };
+
+    private getWebhookUrl(provider: string): string {
         return `${window.location.origin}/api/v1/tickets/webhook/${provider}`;
     }
 

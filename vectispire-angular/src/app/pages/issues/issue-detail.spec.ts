@@ -1,5 +1,5 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -218,6 +218,36 @@ describe('the issue detail', () => {
         expect(text.toLowerCase()).toContain('under review');
         expect(text.toLowerCase()).toContain('not affected');
         expect(text).toContain('Demonstration application.');
+    });
+
+    it('words the transition, the triage and the type in the reader language, after a switch too', async () => {
+        await load({
+            ...ISSUE,
+            triageStatus: 'not_affected',
+            decisions: [
+                {
+                    fromStatus: 'under_review',
+                    toStatus: 'not_affected',
+                    justification: null,
+                    comment: null,
+                    actor: 'alice',
+                    origin: 'manual',
+                    occurredAt: '2026-03-07T14:30:00Z',
+                    expiresAt: null,
+                    scanId: 34,
+                    version: null,
+                    previousResolvedAt: null
+                }
+            ]
+        });
+        const text = () => (fixture.nativeElement as HTMLElement).textContent.replace(/\s+/g, ' ');
+        expect(text()).toContain('Under review → Not affected');
+        const english = text();
+
+        useFrench();
+        fixture.detectChanges();
+        expect(text()).toContain("En cours d'examen → Non affecté");
+        expect(text()).not.toBe(english);
     });
 
     it('shows a status it has no word for as the server sent it, never as a key path', async () => {

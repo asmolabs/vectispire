@@ -158,7 +158,7 @@
                     <p class="m-0 text-muted-color">{{ 'solutions.no_repositories' | translate }}</p>
                 }
                 <ul class="list-none p-0 m-0 flex flex-col gap-2">
-                    @for (target of merged.targets; track target.kind + '-' + target.id) {
+                    @for (target of targets(); track target.kind + '-' + target.id) {
                         <li
                             class="flex flex-wrap items-center gap-2 text-sm"
                             [attr.data-testid]="'inventory-' + target.kind + '-' + target.id"
@@ -169,8 +169,8 @@
                             ></i>
                             <span class="font-medium">{{ target.name }}</span>
                             <p-tag
-                                [severity]="inventorySeverity(target)"
-                                [value]="inventoryLabel(target)"
+                                [severity]="target.stateTone"
+                                [value]="target.stateLabel"
                                 data-testid="inventory-state"
                             />
                             @if (target.scanId !== null) {

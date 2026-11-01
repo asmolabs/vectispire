@@ -15,7 +15,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import { messageOf } from '@/app/core/api-error';
 import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository } from '../../core/api.models';
-import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { NodeIconPipe, RiskScoreColorPipe, SeverityTonePipe } from './attack-paths.pipes';
 
 @Component({
     selector: 'app-attack-paths',
@@ -32,7 +33,10 @@ import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared
         TableModule,
         TagModule,
         TranslatePipe,
-        SeverityLabelPipe
+        SeverityLabelPipe,
+        SeverityTonePipe,
+        NodeIconPipe,
+        RiskScoreColorPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attack-paths.html'
@@ -155,32 +159,5 @@ export class AttackPaths implements OnInit {
         } else {
             this.selectedPath.set(path);
         }
-    }
-
-    getNodeIcon(type: string): string {
-        switch (type) {
-            case 'INTERNET_INGRESS':
-                return 'pi pi-globe text-blue-500';
-            case 'API_ENDPOINT':
-                return 'pi pi-link text-amber-500';
-            case 'VULNERABLE_COMPONENT':
-                return 'pi pi-shield text-rose-500';
-            case 'SECRET':
-                return 'pi pi-key text-yellow-500';
-            case 'DATABASE':
-                return 'pi pi-database text-purple-500';
-            default:
-                return 'pi pi-box text-surface-400';
-        }
-    }
-
-    getSeverityBadge(sev: string): SeverityTone {
-        return severityTone(sev);
-    }
-
-    getRiskScoreColor(score: number): string {
-        if (score >= 75) return 'text-rose-600 dark:text-rose-400';
-        if (score >= 40) return 'text-amber-500';
-        return 'text-emerald-600 dark:text-emerald-400';
     }
 }

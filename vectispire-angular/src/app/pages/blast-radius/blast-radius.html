@@ -255,7 +255,7 @@
                             {{ report()!.blastRadiusScore }} / 100
                         </span>
                         <p-tag
-                            [severity]="getScoreSeverity(report()!.blastRadiusScore)"
+                            [severity]="scoreTone()"
                             [value]="
                                 report()!.blastRadiusScore >= 70
                                     ? ('blast_radius.level_critical' | translate)

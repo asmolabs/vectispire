@@ -307,6 +307,83 @@ describe('EPSS prioritisation', () => {
         expect(text).not.toContain('ENGLISH FALLBACK FROM THE SERVER');
     });
 
+    it('rewords the product wording when the language changes, without asking again', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush(
+            asSchema('AiVulnerabilityAdvice', {
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
+                exploitMechanics: 'x',
+                exposureAssessment: '',
+                remediation: { fixAction: 'x', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+                references: [],
+                deterministic: {
+                    packageName: 'log4j-core',
+                    currentVersion: '2.14.1',
+                    targetVersion: null,
+                    kev: 'NOT_LISTED',
+                    exploitProbability: null
+                }
+            })
+        );
+        fixture.detectChanges();
+        expect(document.body.textContent).toContain('KEV: absente.');
+
+        useEnglish();
+        TestBed.inject(I18nService).translations.update((bundle) => ({
+            ...bundle,
+            ai: { ...(bundle['ai'] as object), kev_not_listed: 'KEV: SWITCHED.' }
+        }));
+        fixture.detectChanges();
+        expect(document.body.textContent).toContain('KEV: SWITCHED.');
+        expect(document.body.textContent).not.toContain('KEV: absente.');
+        http.expectNone((request) => request.url.includes('/ai-advisor/explain/cve/'));
+    });
+
+    it("words each priority's tier in the reader language, after a switch too", () => {
+        useEnglish();
+        const priority = (issueId: number, priorityTier: 'CRITICAL_ARMED' | 'LOW_PROBABILITY') => ({
+            issueId,
+            identifier: `CVE-2026-000${issueId}`,
+            title: 'something',
+            severity: 'high',
+            targetName: 'alpha',
+            targetKind: 'repository',
+            recommendedAction: 'P0_48H' as const,
+            priorityTier,
+            priorityScore: 90,
+            isKev: false,
+            cvssScore: null,
+            epssScore: null,
+            epssPercentile: null
+        });
+        fixture.componentInstance.summary.set(
+            asSchema('EpssFleetSummary', {
+                totalVulnerabilities: 2,
+                activeKevCount: 0,
+                highEpssCount: 0,
+                averageFleetEpss: 0,
+                topPriorities: [priority(1, 'CRITICAL_ARMED'), priority(2, 'LOW_PROBABILITY')],
+                breakdownByTier: {}
+            })
+        );
+        fixture.detectChanges();
+        const tags = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody .p-tag')]
+                .filter((tag) => /P[0-3]/.test(tag.textContent))
+                .map((tag) => [tag.textContent.trim(), tag.className.match(/p-tag-(danger|secondary)/)?.[1]]);
+        expect(tags()).toEqual([
+            ['Critical / Weaponised (P0)', 'danger'],
+            ['Low probability (P3)', 'secondary']
+        ]);
+        useFrench();
+        fixture.detectChanges();
+        expect(tags().map(([label]) => label)).toEqual(['Critique / Armée (P0)', 'Faible probabilité (P3)']);
+    });
+
     /**
      * A CVE the estate does not carry, asked about before either feed was read.
      *

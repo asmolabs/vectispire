@@ -17,7 +17,7 @@ import type { MonitoredContainer } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { SettingsApi } from '../../core/api/settings.api';
-import { ScheduleFields, scheduleLabel, type ScheduleInForce } from '../../shared/schedule-fields';
+import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -74,29 +74,23 @@ export class Containers {
         tier: 'TIER_2_BUSINESS_OPERATIONAL' as string
     };
 
-    /** Exposed to the template: the list says what each image's schedule is, because a target
-     *  nobody rescans looks monitored until somebody reads the date of its last scan. */
-    /** Bound rather than referenced: the label is translated, so it needs the service — and it
-     *  reads `translations()` so the row redraws when the reader changes language. */
-    readonly scheduleLabel = (target: { scanCron: string | null; schedule?: ScheduleInForce | null }) => {
-        this.i18n.translations();
-        return scheduleLabel(target, this.i18n);
-    };
+    /**
+     * Each image with what its card shows worked out once — per list or language, not per binding on
+     * every pass. The list says what each image's schedule is, because a target nobody rescans looks
+     * monitored until somebody reads the date of its last scan; `t` reads the bundle's signal, so a
+     * switch of language recomputes the words.
+     */
+    readonly rows = computed(() =>
+        this.containers().map((container) => ({
+            ...container,
+            shortReference: shorten(container.reference),
+            shortTag: shorten(container.tag),
+            scheduleText: scheduleLabel(container, this.i18n)
+        }))
+    );
 
     /** The row being edited, or null when the dialog is adding one. */
     readonly editing = signal<MonitoredContainer | null>(null);
-
-    /**
-     * Shortens a digest for display, the whole value staying in the tooltip.
-     *
-     * Without this the 64 hexadecimal characters widen their column until they crush every
-     * other one — the table becomes unreadable for *all* containers as soon as a single one is
-     * pinned by digest. It only shows on screen.
-     */
-    shorten(value: string): string {
-        const match = /sha256:([a-f0-9]{64})/.exec(value);
-        return match ? value.replace(match[1], match[1].slice(0, 12) + '…') : value;
-    }
 
     /**
      * **A scan that has been launched must be seen to progress.** This screen announced "queued"
@@ -276,4 +270,16 @@ export class Containers {
             }
         });
     }
+}
+
+/**
+ * Shortens a digest for display, the whole value staying in the tooltip.
+ *
+ * Without this the 64 hexadecimal characters widen their column until they crush every
+ * other one — the table becomes unreadable for *all* containers as soon as a single one is
+ * pinned by digest. It only shows on screen.
+ */
+function shorten(value: string): string {
+    const match = /sha256:([a-f0-9]{64})/.exec(value);
+    return match ? value.replace(match[1], match[1].slice(0, 12) + '…') : value;
 }

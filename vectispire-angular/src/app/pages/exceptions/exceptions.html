@@ -9,20 +9,20 @@
                 <div class="text-muted-color text-sm">{{ 'exceptions.granted' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium" [class]="alarming(awaiting(), 'warn')">{{ awaiting() }}</div>
+                <div class="text-2xl font-medium" [class]="tones().awaiting">{{ awaiting() }}</div>
                 <div class="text-muted-color text-sm">{{ 'exceptions.awaiting' | translate }}</div>
             </div>
-            <div class="pl-4 border-l-4" [class]="rail(lapsed(), 'danger')">
-                <div class="text-2xl font-medium" [class]="alarming(lapsed(), 'danger')">{{ lapsed() }}</div>
-                <div class="text-sm font-medium" [class]="alarming(lapsed(), 'danger')">
+            <div class="pl-4 border-l-4" [class]="tones().lapsedRail">
+                <div class="text-2xl font-medium" [class]="tones().lapsed">{{ lapsed() }}</div>
+                <div class="text-sm font-medium" [class]="tones().lapsed">
                     {{ 'exceptions.lapsed' | translate }}
                 </div>
             </div>
-            <div class="pl-4 border-l-4" [class]="rail(neverReviewed(), 'warn')">
-                <div class="text-2xl font-medium" [class]="alarming(neverReviewed(), 'warn')">
+            <div class="pl-4 border-l-4" [class]="tones().neverReviewedRail">
+                <div class="text-2xl font-medium" [class]="tones().neverReviewed">
                     {{ neverReviewed() }}
                 </div>
-                <div class="text-sm font-medium" [class]="alarming(neverReviewed(), 'warn')">
+                <div class="text-sm font-medium" [class]="tones().neverReviewed">
                     {{ 'exceptions.never_reviewed' | translate }}
                 </div>
             </div>
@@ -64,7 +64,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @for (entry of loaded(); track entry.issue_id) {
+                        @for (entry of rows(); track entry.issue_id) {
                             <tr
                                 class="border-b border-surface-100 dark:border-surface-800 align-top"
                                 [class.bg-red-50]="entry.lapsed"
@@ -72,7 +72,7 @@
                                 <td class="py-3 pr-4">
                                     <div class="font-medium font-mono text-xs">{{ entry.identifier ?? '—' }}</div>
                                     <p-tag
-                                        [severity]="severityOf(entry)"
+                                        [severity]="entry.tone"
                                         [value]="entry.severity | severityLabel"
                                         styleClass="mt-1"
                                     />
@@ -88,7 +88,7 @@
                                                 class="text-muted-color text-xs mt-1"
                                                 data-testid="exception-requested"
                                             >
-                                                {{ requestedLabel(entry) }}
+                                                {{ entry.requestedText }}
                                             </div>
                                         }
                                     } @else {
@@ -96,7 +96,7 @@
                                     }
                                     @if (entry.decision !== 'pending_approval') {
                                         <div class="text-muted-color text-xs mt-1" data-testid="exception-decision">
-                                            {{ decisionLabel(entry) }}
+                                            {{ entry.decisionText }}
                                         </div>
                                     }
                                 </td>
@@ -200,7 +200,7 @@
             </label>
         </div>
 
-        @if (outcome === 'EXTENDED') {
+        @if (outcome() === 'EXTENDED') {
             <div class="mb-4">
                 <label for="newExpiry" class="block font-medium mb-1">{{
                     'exceptions.review_dialog.new_expiry' | translate

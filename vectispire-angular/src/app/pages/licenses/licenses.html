@@ -190,7 +190,7 @@
                             @for (category of CATEGORIES; track category) {
                                 <div class="flex items-center gap-3">
                                     <p-toggleswitch
-                                        [ngModel]="isDisallowed(category)"
+                                        [ngModel]="category | disallowedIn: draftDisallowed"
                                         [name]="'policy-' + category"
                                         (ngModelChange)="toggleCategory(category, $event)"
                                     />
@@ -312,7 +312,7 @@
                             <span class="font-semibold text-sm">{{ item.license }}</span>
                         </td>
                         <td>
-                            <p-tag [severity]="riskSeverity(item.riskCategory)" [value]="item.riskCategory" />
+                            <p-tag [severity]="item.riskCategory | riskTone" [value]="item.riskCategory" />
                         </td>
                         <td>
                             <div class="text-sm">{{ item.targetName }}</div>
@@ -413,13 +413,13 @@
                                 <td>
                                     <p-tag
                                         [value]="conflict.licenseExpression"
-                                        [severity]="riskSeverity(conflict.riskCategory)"
+                                        [severity]="conflict.riskCategory | riskTone"
                                     />
                                 </td>
                                 <td>
                                     <p-tag
                                         [value]="conflict.compatibility"
-                                        [severity]="compatSeverity(conflict.compatibility)"
+                                        [severity]="conflict.compatibility | compatTone"
                                     />
                                 </td>
                                 <td class="text-xs">{{ conflict.targetName }}</td>
@@ -567,10 +567,10 @@
                         <td>
                             <p-tag
                                 [value]="rule.dependencyLicenseCategory"
-                                [severity]="riskSeverity(rule.dependencyLicenseCategory)"
+                                [severity]="rule.dependencyLicenseCategory | riskTone"
                             />
                         </td>
-                        <td><p-tag [value]="rule.compatibility" [severity]="compatSeverity(rule.compatibility)" /></td>
+                        <td><p-tag [value]="rule.compatibility" [severity]="rule.compatibility | compatTone" /></td>
                         <td class="text-xs text-surface-600 dark:text-surface-300">
                             @switch (rule.note) {
                                 @case ('PERMISSIVE_IN_PROPRIETARY') {

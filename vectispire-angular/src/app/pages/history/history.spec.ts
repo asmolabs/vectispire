@@ -1,5 +1,5 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -186,6 +186,37 @@ describe('the history screen', () => {
         expect(text.toLowerCase()).toContain('not affected');
         expect(text).toContain('alice');
         expect(text).toContain('Not compiled in.');
+    });
+
+    it('words the transition, the triage and the component in the reader language, after a switch too', () => {
+        load([
+            {
+                fromStatus: 'under_review',
+                toStatus: 'not_affected',
+                justification: null,
+                comment: null,
+                actor: 'alice',
+                origin: 'manual',
+                occurredAt: '2026-03-07T14:30:00Z',
+                expiresAt: null,
+                scanId: 34,
+                version: null,
+                previousResolvedAt: null
+            }
+        ]);
+        const cells = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('p-card tbody tr td')].map((cell) =>
+                cell.textContent.replace(/\s+/g, ' ').trim()
+            );
+        expect(
+            cells().some((cell) => cell.startsWith('openssl 3.0.1') && cell.includes('Under review → Not affected'))
+        ).toBe(true);
+        expect(cells()).toContain('Under review');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(cells().some((cell) => cell.includes("En cours d'examen → Non affecté"))).toBe(true);
+        expect(cells()).toContain("En cours d'examen");
     });
 
     it('names a lapse as a lapse instead of crediting a person', () => {

@@ -36,56 +36,65 @@
                 </div>
             </ng-template>
 
-            @if (globalPolicy(); as policy) {
+            @if (globalView(); as global) {
                 <ul class="list-none p-0 m-0 flex flex-col gap-2">
                     <li>
                         <span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span>
-                        {{ describeThreshold(policy.fail_on_severity) }}
+                        {{ global.threshold }}
                     </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span>
-                        {{ (policy.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored') | translate }}
+                        {{
+                            (global.policy.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored')
+                                | translate
+                        }}
                     </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.fixable_only' | translate }}</span>
-                        {{ (policy.fixable_only ? 'common.yes' : 'common.no') | translate }}
+                        {{ (global.policy.fixable_only ? 'common.yes' : 'common.no') | translate }}
                     </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.triaged' | translate }}</span>
                         {{
-                            (policy.include_triaged ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate
+                            (global.policy.include_triaged ? 'gate_policies.counted' : 'gate_policies.not_counted')
+                                | translate
                         }}
                     </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span>
                         {{
-                            (policy.include_ai_review ? 'gate_policies.counted' : 'gate_policies.not_counted')
+                            (global.policy.include_ai_review ? 'gate_policies.counted' : 'gate_policies.not_counted')
                                 | translate
                         }}
                     </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.plugins' | translate }}</span>
                         {{
-                            (policy.include_plugins ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate
+                            (global.policy.include_plugins ? 'gate_policies.counted' : 'gate_policies.not_counted')
+                                | translate
                         }}
                     </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.unexamined' | translate }}</span>
                         {{
-                            (policy.fail_on_uncovered_languages ? 'gate_policies.fail_build' : 'gate_policies.pass')
-                                | translate
+                            (global.policy.fail_on_uncovered_languages
+                                ? 'gate_policies.fail_build'
+                                : 'gate_policies.pass'
+                            ) | translate
                         }}
                     </li>
-                    @if (policy.note) {
-                        <li class="text-surface-500 dark:text-surface-400">“{{ policy.note }}”</li>
+                    @if (global.policy.note) {
+                        <li class="text-surface-500 dark:text-surface-400">“{{ global.policy.note }}”</li>
                     }
                     <li class="text-surface-500 dark:text-surface-400 text-sm">
                         {{
                             'gate_policies.set_by'
                                 | translate
                                     : {
-                                          who: policy.created_by ?? ('gate_policies.an_administrator' | translate),
-                                          when: formatDate(policy.created_at)
+                                          who:
+                                              global.policy.created_by ??
+                                              ('gate_policies.an_administrator' | translate),
+                                          when: global.when
                                       }
                         }}
                     </li>
@@ -94,8 +103,7 @@
                 <p class="m-0">
                     {{ 'gate_policies.nothing_stored_before' | translate }}
                     <strong>{{ 'gate_policies.nothing_stored_strong' | translate }}</strong
-                    >{{ 'gate_policies.nothing_stored_mid' | translate }}
-                    <strong>{{ describeThreshold(builtIn()?.fail_on_severity ?? null) }}</strong
+                    >{{ 'gate_policies.nothing_stored_mid' | translate }} <strong>{{ builtInThreshold() }}</strong
                     >{{ 'gate_policies.nothing_stored_after' | translate }}
                 </p>
             }
@@ -118,7 +126,7 @@
                 <ul class="list-none p-0 m-0 flex flex-col gap-2">
                     <li>
                         <span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span>
-                        {{ describeThreshold(fallback.fail_on_severity) }}
+                        {{ builtInThreshold() }}
                     </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span>
@@ -146,7 +154,7 @@
         {{ 'gate_policies.overrides_explain' | translate }}
     </p>
 
-    <p-table [value]="overrides()" [paginator]="overrides().length > 10" [rows]="10" styleClass="p-datatable-sm">
+    <p-table [value]="overrideRows()" [paginator]="overrideRows().length > 10" [rows]="10" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'gate_policies.col_target' | translate }}</th>
@@ -161,36 +169,36 @@
                 <th class="text-right">{{ 'common.actions' | translate }}</th>
             </tr>
         </ng-template>
-        <ng-template #body let-policy>
+        <ng-template #body let-row>
             <tr>
                 <td>
-                    <div class="font-medium" data-testid="override-target">{{ targetName(policy) }}</div>
-                    @if (policy.note) {
-                        <div class="text-surface-500 dark:text-surface-400 text-sm">“{{ policy.note }}”</div>
+                    <div class="font-medium" data-testid="override-target">{{ row.name }}</div>
+                    @if (row.policy.note) {
+                        <div class="text-surface-500 dark:text-surface-400 text-sm">“{{ row.policy.note }}”</div>
                     }
                 </td>
-                <td>{{ describeThreshold(policy.fail_on_severity) }}</td>
-                <td>{{ policy.fail_on_kev ? ('gate_policies.fails_short' | translate) : '—' }}</td>
-                <td>{{ policy.fixable_only ? ('common.yes' | translate) : '—' }}</td>
-                <td>{{ policy.include_triaged ? ('gate_policies.counted' | translate) : '—' }}</td>
-                <td>{{ policy.include_ai_review ? ('gate_policies.counted' | translate) : '—' }}</td>
-                <td>{{ policy.include_plugins ? ('gate_policies.counted' | translate) : '—' }}</td>
-                <td>{{ policy.fail_on_uncovered_languages ? ('gate_policies.fails_short' | translate) : '—' }}</td>
-                <td><p-tag severity="info" [value]="'v' + policy.version" /></td>
+                <td>{{ row.threshold }}</td>
+                <td>{{ row.policy.fail_on_kev ? ('gate_policies.fails_short' | translate) : '—' }}</td>
+                <td>{{ row.policy.fixable_only ? ('common.yes' | translate) : '—' }}</td>
+                <td>{{ row.policy.include_triaged ? ('gate_policies.counted' | translate) : '—' }}</td>
+                <td>{{ row.policy.include_ai_review ? ('gate_policies.counted' | translate) : '—' }}</td>
+                <td>{{ row.policy.include_plugins ? ('gate_policies.counted' | translate) : '—' }}</td>
+                <td>{{ row.policy.fail_on_uncovered_languages ? ('gate_policies.fails_short' | translate) : '—' }}</td>
+                <td><p-tag severity="info" [value]="'v' + row.policy.version" /></td>
                 <td class="text-right whitespace-nowrap">
                     <p-button
                         icon="pi pi-pencil"
                         severity="secondary"
                         [text]="true"
-                        [ariaLabel]="'gate_policies.aria_edit' | translate: { name: targetName(policy) }"
-                        (onClick)="editOverride(policy)"
+                        [ariaLabel]="'gate_policies.aria_edit' | translate: { name: row.name }"
+                        (onClick)="editOverride(row.policy)"
                     />
                     <p-button
                         icon="pi pi-trash"
                         severity="danger"
                         [text]="true"
-                        [ariaLabel]="'gate_policies.aria_remove' | translate: { name: targetName(policy) }"
-                        (onClick)="remove(policy)"
+                        [ariaLabel]="'gate_policies.aria_remove' | translate: { name: row.name }"
+                        (onClick)="remove(row.policy)"
                     />
                 </td>
             </tr>

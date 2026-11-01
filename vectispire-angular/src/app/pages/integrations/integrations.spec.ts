@@ -151,6 +151,25 @@ describe('the integrations screen', () => {
         expect(text('[data-testid="integrations-notice"]')).toBe('GitLab is switched off; what uses it is suspended.');
     });
 
+    it('names each integration and words the dialog in the reader language, after a switch too', async () => {
+        await start('SUPERUSER');
+        expect(text('[data-testid="integration-name"]', row('tracker.gitlab'))).toBe('GitLab issues');
+        await press('switch-off-tracker.gitlab');
+        expect(text('.p-dialog-title')).toBe('Switch off GitLab issues?');
+
+        // The open dialog and the list behind it both follow the switch.
+        useFrench();
+        await settle();
+        expect(text('.p-dialog-title')).toBe('Désactiver Tickets GitLab ?');
+        expect(text('[data-testid="confirm-suspends"]', document)).toContain("Aucun ticket n'est ouvert");
+        expect(text('[data-testid="integration-name"]', row('tracker.gitlab'))).toBe('Tickets GitLab');
+        expect(
+            row('tracker.gitlab')
+                .querySelector('[data-testid="switch-off-tracker.gitlab"] button')
+                ?.getAttribute('aria-label')
+        ).toBe('Désactiver Tickets GitLab');
+    });
+
     it('sends nothing when the confirmation is cancelled', async () => {
         await start('SUPERUSER');
 

@@ -4,7 +4,8 @@ import type { TriageRequest } from '@/app/core/api.models';
 import { backlogEntry } from '@/app/core/testing/issues.fixtures';
 import { TriageDialog } from './triage-dialog';
 import { vulnerabilityAdvice as advice } from '@/app/core/testing/intel.fixtures';
-import { mountOnIssues } from './issues-page.testing';
+import { mountOnIssues, namedButton } from './issues-page.testing';
+import { useFrench } from '@/app/core/testing/english';
 
 /**
  * The triage dialog, on its own: the VEX rules as the API applies them — a justification for "not
@@ -78,5 +79,40 @@ describe('the triage dialog', () => {
         fixture.componentInstance.applySuggestion(issue, advice('under_investigation'));
         expect(fixture.componentInstance.triageStatus).toBe('under_review');
         expect(fixture.componentInstance.triageComment).toContain('Reachable.');
+    });
+    it('keeps Save disabled until the draft is complete, and follows each field as it changes', () => {
+        const { fixture } = open();
+        const dialog = fixture.componentInstance;
+        const save = () => namedButton(document.body, 'Save');
+        expect(save().disabled).toBe(false);
+        dialog.chooseTriageStatus('not_affected');
+        redraw(fixture);
+        expect(save().disabled).toBe(true);
+        dialog.triageJustification = 'vulnerable_code_not_present';
+        redraw(fixture);
+        expect(save().disabled).toBe(false);
+        dialog.chooseTriageStatus('will_not_fix');
+        redraw(fixture);
+        expect(save().disabled).toBe(true);
+        expect(document.querySelector('#triage-expires-hint')?.textContent).toContain('review');
+        dialog.triageExpiresInDays = 90;
+        redraw(fixture);
+        expect(save().disabled).toBe(false);
+    });
+
+    it('heads the dialog and names what a request asked for in the reader language, after a switch too', () => {
+        const pending = { ...issue, triageStatus: 'pending_approval', triageRequestedStatus: 'will_not_fix' };
+        const { fixture } = mountOnIssues(TriageDialog, { issues: [pending] });
+        fixture.componentInstance.openTriage(pending);
+        fixture.detectChanges();
+        const header = () => document.querySelector('.p-dialog-title')?.textContent?.trim();
+        const hint = () => document.querySelector('[data-testid="triage-requested-hint"]')?.textContent;
+        expect(header()).toBe('Triage this issue');
+        expect(hint()).toContain('“Will not fix — risk accepted”');
+
+        useFrench();
+        redraw(fixture);
+        expect(header()).toBe('Trier ce constat');
+        expect(hint()).toContain('« Ne sera pas corrigé — risque accepté »');
     });
 });

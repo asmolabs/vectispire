@@ -102,22 +102,22 @@
             <p-message severity="error" [closable]="false" styleClass="w-full">{{ message }}</p-message>
         }
 
-        @if (catalogue(); as preview) {
+        @if (catalogueView(); as preview) {
             <div class="border-t pt-4" style="border-color: var(--surface-border)">
                 <p class="m-0 mb-3 text-sm">
                     <span class="font-medium">{{ preview.upstream }}</span> {{ 'rule_sets.at_commit' | translate }}
-                    <span class="font-mono">{{ preview.commit.slice(0, 12) }}</span
+                    <span class="font-mono">{{ preview.shortCommit }}</span
                     >.
                 </p>
 
                 <div class="font-medium mb-2">{{ 'rule_sets.languages_title' | translate }}</div>
                 <div class="flex flex-wrap gap-3 mb-4">
-                    @for (language of languagesOf(preview); track language.name) {
+                    @for (language of preview.languageRows; track language.name) {
                         <div class="flex items-center gap-2">
                             <p-checkbox
                                 [inputId]="'lang-' + language.name"
                                 [binary]="true"
-                                [ngModel]="chosen().has(language.name)"
+                                [ngModel]="language.chosen"
                                 (ngModelChange)="choose(language.name, $event)"
                             />
                             <label [for]="'lang-' + language.name" class="cursor-pointer text-sm">
@@ -134,7 +134,7 @@
                     already, and each leak would come back as a SAST twin that outlives the secret's
                     triage. Said where generic is chosen, since that is where they sit.
                 -->
-                @if (preview.gitleaksDuplicates > 0 && chosen().has('generic')) {
+                @if (preview.gitleaksDuplicates > 0 && preview.genericChosen) {
                     <div class="flex flex-col gap-2 mb-4 max-w-3xl" data-testid="gitleaks-duplicates">
                         <small class="text-muted-color">
                             {{
@@ -161,7 +161,7 @@
                     empty, this block is an answer too: this catalogue declares no category.
                 -->
                 <div class="font-medium mb-2">{{ 'rule_sets.owasp_title' | translate }}</div>
-                @if (categoriesOf(preview); as categories) {
+                @if (preview.categoryRows; as categories) {
                     @if (categories.length > 0) {
                         <div class="flex flex-wrap gap-2 mb-4">
                             @for (category of categories; track category.id) {
@@ -223,7 +223,7 @@
 <p-card>
     <ng-template #title>{{ 'rule_sets.active_rules_title' | translate }}</ng-template>
 
-    <p-table [value]="sets()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="setRows()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'common.name' | translate }}</th>
@@ -239,7 +239,7 @@
             <tr>
                 <td>
                     <div class="font-medium">{{ set.name }}</div>
-                    <div class="text-muted-color text-xs font-mono">{{ set.contentHash.slice(0, 12) }}</div>
+                    <div class="text-muted-color text-xs font-mono">{{ set.shortHash }}</div>
                 </td>
                 <td class="text-right">{{ set.ruleCount }}</td>
                 <td class="text-right">{{ set.fileCount }}</td>
@@ -338,7 +338,7 @@
                             </p>
                             <p class="m-0 mt-2 text-sm">
                                 {{ 'rule_sets.impact_losing' | translate }}
-                                <span class="font-mono">{{ cost.losingIssues.slice(0, 10).join(', ') }}</span>
+                                <span class="font-mono">{{ losingSample() }}</span>
                                 @if (cost.losingIssues.length > 10) {
                                     <span>
                                         {{

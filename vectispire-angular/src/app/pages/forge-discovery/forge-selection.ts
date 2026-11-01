@@ -108,6 +108,16 @@ export class ForgeSelectionTable {
     byIds = '';
 
     readonly selectedSet = computed(() => new Set(this.selected()));
+
+    /** The page's candidates, each with its tick and the key of its skip reason, worked out once per page or selection. */
+    readonly candidates = computed(() => {
+        const selected = this.selectedSet();
+        return (this.page()?.items ?? []).map((candidate) => ({
+            candidate,
+            ticked: selected.has(candidate.repository.forgeId),
+            skipKey: keyFor(SKIP_REASON_KEYS, candidate.notSelectable)
+        }));
+    });
     readonly unjudged = computed(() =>
         Object.entries(this.page()?.unjudged ?? {})
             .filter(([, count]) => count > 0)
@@ -243,9 +253,5 @@ export class ForgeSelectionTable {
     removeByIds(): void {
         const ids = this.pastedIds();
         if (ids.length > 0) this.apply('remove', ids);
-    }
-
-    skipKey(candidate: ForgeCandidate): string | undefined {
-        return keyFor(SKIP_REASON_KEYS, candidate.notSelectable);
     }
 }

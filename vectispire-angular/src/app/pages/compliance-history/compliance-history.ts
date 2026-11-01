@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '@/app/core/api-error';
 import { ComplianceApi } from '@/app/core/api/compliance.api';
@@ -35,40 +35,53 @@ export class ComplianceHistoryPage {
     readonly series = signal<ComplianceSeries[]>([]);
     readonly error = signal<string | null>(null);
 
+    /** Each month with its bar's colour and height and its signed change worked out once per answer, not per cell on every pass. */
+    readonly rows = computed(() =>
+        this.series().map((one) => ({
+            ...one,
+            steps: one.steps.map((step) => ({
+                ...step,
+                colour: colourOf(step.movement),
+                height: height(step),
+                change: step.movement === 'FIRST' ? '—' : signed(step.delta)
+            }))
+        }))
+    );
+
     constructor() {
         this.complianceApi.complianceHistory().subscribe({
             next: (data) => this.series.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('history_compliance.load_failed')))
         });
     }
+}
 
-    /**
-     * A bar's height, as a percentage of the chart's tallest.
-     *
-     * <p>Against one hundred and not against the series maximum: a scale that adjusts itself would
-     * make a two-point gain look like a leap, and it is the score one reads, not its shape.
-     */
-    height(step: ComplianceStep): number {
-        return Math.max(2, step.snapshot.score);
-    }
+/**
+ * A bar's height, as a percentage of the chart's tallest.
+ *
+ * <p>Against one hundred and not against the series maximum: a scale that adjusts itself would
+ * make a two-point gain look like a leap, and it is the score one reads, not its shape.
+ */
+export function height(step: ComplianceStep): number {
+    return Math.max(2, step.snapshot.score);
+}
 
-    /** Un mouvement qui n'est pas le travail ne se peint pas comme le travail. */
-    colourOf(movement: ComplianceMovement): string {
-        switch (movement) {
-            case 'IMPROVED':
-                return 'bg-emerald-500';
-            case 'DECLINED':
-                return 'bg-red-500';
-            case 'ESTATE_GREW':
-            case 'ESTATE_SHRANK':
-            case 'RULES_CHANGED':
-                return 'bg-amber-400';
-            default:
-                return 'bg-surface-400';
-        }
+/** A movement that is not the work is not painted as the work. */
+export function colourOf(movement: ComplianceMovement): string {
+    switch (movement) {
+        case 'IMPROVED':
+            return 'bg-emerald-500';
+        case 'DECLINED':
+            return 'bg-red-500';
+        case 'ESTATE_GREW':
+        case 'ESTATE_SHRANK':
+        case 'RULES_CHANGED':
+            return 'bg-amber-400';
+        default:
+            return 'bg-surface-400';
     }
+}
 
-    signed(delta: number): string {
-        return delta > 0 ? `+${delta}` : String(delta);
-    }
+function signed(delta: number): string {
+    return delta > 0 ? `+${delta}` : String(delta);
 }

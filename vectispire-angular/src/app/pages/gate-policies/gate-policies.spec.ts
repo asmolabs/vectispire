@@ -305,6 +305,36 @@ describe('the gate policy screen', () => {
         expect(title()).toBe('Politique pour Dépôt n° 12');
     });
 
+    it("words every threshold on screen in the reader's language, after a switch too", () => {
+        useEnglish();
+        load([GLOBAL, OVERRIDE]);
+        const page = () => (fixture.nativeElement as HTMLElement).textContent.replace(/\s+/g, ' ');
+        const overrideThreshold = () =>
+            (fixture.nativeElement as HTMLElement).querySelector('tbody tr td:nth-child(2)')?.textContent?.trim();
+        expect(page()).toContain('Medium and above');
+        expect(page()).toContain('High and above');
+        expect(page()).toMatch(/Set by admin on \d\d\/08\/2026 \d\d:00/);
+        expect(overrideThreshold()).toBe('No severity rule — actively exploited only');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(page()).toContain('Moyenne et au-dessus');
+        expect(page()).toContain('Élevée et au-dessus');
+        expect(page()).toMatch(/Posée par admin le \d\d\/08\/2026 \d\d:00/);
+        expect(overrideThreshold()).toBe('Aucune règle de gravité — activement exploités seulement');
+    });
+
+    it('words the built-in threshold when nothing is stored, after a switch too', () => {
+        useEnglish();
+        load([]);
+        const page = () => (fixture.nativeElement as HTMLElement).textContent.replace(/\s+/g, ' ');
+        expect(page()).toContain('High and above');
+        useFrench();
+        fixture.detectChanges();
+        expect(page()).toContain('Élevée et au-dessus');
+        expect(page()).not.toContain('High and above');
+    });
+
     it('keeps the name of a named target, and its number in the dialog title', () => {
         useEnglish();
         load([OVERRIDE]);

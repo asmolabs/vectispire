@@ -49,13 +49,13 @@
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.covered' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium" [class]="alarming(data.withFindings, 'danger')">
+                <div class="text-2xl font-medium" [class]="tones().withFindings">
                     {{ data.withFindings }}
                 </div>
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.with_findings' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium" [class]="alarming(data.unmeasured, 'warn')">
+                <div class="text-2xl font-medium" [class]="tones().unmeasured">
                     {{ data.unmeasured }}
                 </div>
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.unmeasured' | translate }}</div>
@@ -79,20 +79,20 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (line of lines(); track line.id) {
+                    @for (line of rows(); track line.id) {
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
                             <td class="py-3 pr-4 whitespace-nowrap">
                                 <span class="font-mono text-xs font-medium">{{ line.id }}</span>
                                 <span class="ml-2">{{ line.title }}</span>
                             </td>
-                            <td class="py-3 pr-4 whitespace-nowrap font-medium" [class]="colourOf(line.state)">
-                                {{ stateLabel(line.state) }}
+                            <td class="py-3 pr-4 whitespace-nowrap font-medium" [class]="line.colour">
+                                {{ line.stateLabel }}
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
                                 @if (line.state === 'FINDINGS') {
                                     <a
                                         routerLink="/issues"
-                                        [queryParams]="openParams(line)"
+                                        [queryParams]="line.link"
                                         [attr.aria-label]="
                                             'owasp_grid.open_issues'
                                                 | translate: { count: line.findings, category: line.id }
@@ -106,7 +106,7 @@
                             </td>
                             <td class="py-3 text-muted-color">
                                 @if (line.state !== 'NOT_COVERED') {
-                                    {{ because(line) }}
+                                    {{ line.reasonSentence }}
                                 }
                                 <!--
                                     What the organisation states about a category no scanner here
@@ -114,7 +114,7 @@
                                     nobody reviews; with one it carries a name, evidence and a due
                                     date — the difference between noting a limit and owning it.
                                 -->
-                                @if (declarable(line)) {
+                                @if (line.declarable) {
                                     <div class="mt-1">
                                         <p-button
                                             [label]="
@@ -129,11 +129,9 @@
                                 }
                                 @if (line.declaration; as declared) {
                                     <div class="mt-1 text-sm">
-                                        <span class="font-medium">{{
-                                            applicabilityLabel(declared.applicability)
-                                        }}</span>
+                                        <span class="font-medium">{{ line.applicabilityLabel }}</span>
                                         @if (declared.implementation) {
-                                            · {{ implementationLabel(declared.implementation) }}
+                                            · {{ line.implementationLabel }}
                                         }
                                         @if (declared.owner) {
                                             · {{ declared.owner }}

@@ -11,7 +11,7 @@
 }
 
 <p-card>
-    <p-table [value]="users()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'users.username' | translate }}</th>
@@ -93,7 +93,7 @@
                         [disabled]="busy() === user.id"
                         (onClick)="openReset(user)"
                     />
-                    @if (canLift(user)) {
+                    @if (user.canLift) {
                         <p-button
                             icon="pi pi-unlock"
                             [text]="true"
@@ -103,7 +103,7 @@
                             (onClick)="askLift(user)"
                         />
                     }
-                    @if (canResetSecondFactor(user)) {
+                    @if (user.canResetSecondFactor) {
                         <p-button
                             icon="pi pi-shield"
                             [text]="true"

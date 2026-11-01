@@ -399,7 +399,7 @@
                                 [attr.aria-label]="row.accessibleName"
                                 [attr.data-grade]="row.grade"
                             >
-                                <p-tag [value]="row.label" [severity]="gradeSeverity(row.grade)" aria-hidden="true" />
+                                <p-tag [value]="row.label" [severity]="row.grade | gradeTone" aria-hidden="true" />
                                 <span class="text-xl font-bold" aria-hidden="true">{{ row.targets }}</span>
                             </li>
                         }
@@ -412,7 +412,7 @@
                                     <span class="font-bold">{{ weakest.targetName }}</span>
                                     <p-tag
                                         [value]="weakest.grade | gradeLabel"
-                                        [severity]="gradeSeverity(weakest.grade)"
+                                        [severity]="weakest.grade | gradeTone"
                                     />
                                     <span class="font-mono text-sm">{{ weakest.score }}/100</span>
                                 </div>
@@ -483,7 +483,7 @@
                             } @else {
                                 <p-tag
                                     [value]="target.maturityGrade | gradeLabel"
-                                    [severity]="gradeSeverity(target.maturityGrade)"
+                                    [severity]="target.maturityGrade | gradeTone"
                                 />
                             }
                         </td>
@@ -505,7 +505,7 @@
                         </td>
                         <!-- What breaks a tie in the order, and what still moves deep in F. -->
                         <td class="text-right font-mono text-xs" data-testid="maturity-risk-points">
-                            {{ target.riskPoints !== null ? figure(target.riskPoints) : '—' }}
+                            {{ target.riskPoints !== null ? (target.riskPoints | localNumber: 3) : '—' }}
                         </td>
                         <td class="text-center">
                             @if (target.openCritical > 0) {
@@ -580,7 +580,7 @@
             @if (overview.failing.length === 0) {
                 <p class="text-muted-color m-0">{{ 'dashboard.no_target_failing' | translate }}</p>
             } @else {
-                <p-table [value]="overview.failing" styleClass="p-datatable-sm zs-table-narrow">
+                <p-table [value]="failing()" styleClass="p-datatable-sm zs-table-narrow">
                     <ng-template #header>
                         <tr>
                             <th>{{ 'dashboard.target' | translate }}</th>
@@ -602,14 +602,10 @@
                                 </div>
                             </td>
                             <td>
-                                @for (violation of firstViolations(target.violations); track $index) {
+                                @for (violation of target.firstViolations; track $index) {
                                     <div class="text-sm" [title]="violation.reason" data-testid="violation-reason">
-                                        <p-tag
-                                            [value]="ruleLabel(violation.rule)"
-                                            severity="danger"
-                                            styleClass="mr-2"
-                                        />
-                                        {{ reasonOf(violation) }}
+                                        <p-tag [value]="violation.label" severity="danger" styleClass="mr-2" />
+                                        {{ violation.text }}
                                     </div>
                                 }
                                 @if (target.violations.length > 3) {

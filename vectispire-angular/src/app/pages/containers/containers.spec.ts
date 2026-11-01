@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Containers } from './containers';
 import type { MonitoredContainer, NewContainer } from '@/app/core/api.models';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The container list, as cards rather than rows.
@@ -134,6 +134,16 @@ describe('the container list', () => {
     it('says an image set to manual only is scanned only when somebody asks', () => {
         load({ ...CONTAINER, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
         expect((fixture.nativeElement as HTMLElement).textContent).toContain('manual only');
+    });
+
+    it('words the schedule in the reader language, after a switch too', () => {
+        load({ ...CONTAINER, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
+        const page = fixture.nativeElement as HTMLElement;
+        expect(page.textContent).toContain('manual only');
+        useFrench();
+        fixture.detectChanges();
+        expect(page.textContent).not.toContain('manual only');
+        expect(page.textContent).toContain('manuel uniquement');
     });
 
     it('says a custom interval in hours rather than in minutes', () => {

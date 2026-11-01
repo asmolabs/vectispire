@@ -40,7 +40,7 @@
             <p-message severity="warn" styleClass="w-full mb-4" [text]="'security.unobserved_warn' | translate" />
         }
 
-        <p-table [value]="data.targets" [tableStyle]="{ 'min-width': '50rem' }">
+        <p-table [value]="rows()" [tableStyle]="{ 'min-width': '50rem' }">
             <ng-template #header>
                 <tr>
                     <th>{{ 'security.target' | translate }}</th>
@@ -51,50 +51,50 @@
                     <th></th>
                 </tr>
             </ng-template>
-            <ng-template #body let-target>
+            <ng-template #body let-row>
                 <tr>
                     <td>
-                        <span class="font-medium">{{ target.name }}</span>
+                        <span class="font-medium">{{ row.target.name }}</span>
                         <div class="text-muted-color text-sm">
                             {{
-                                (target.kind === 'repository' ? 'security.repository' : 'security.container')
+                                (row.target.kind === 'repository' ? 'security.repository' : 'security.container')
                                     | translate
                             }}
                         </div>
                     </td>
                     <td>
                         <p-tag
-                            [severity]="target.passed ? 'success' : 'danger'"
-                            [value]="(target.passed ? 'security.passing' : 'security.failing') | translate"
+                            [severity]="row.target.passed ? 'success' : 'danger'"
+                            [value]="(row.target.passed ? 'security.passing' : 'security.failing') | translate"
                         />
-                        @if (!target.observed) {
-                            <p-tag severity="warn" [value]="observationLabel(target)" styleClass="ml-2" />
+                        @if (row.observation; as observation) {
+                            <p-tag severity="warn" [value]="observation" styleClass="ml-2" />
                         }
-                        @if (target.verdict.violations.length) {
+                        @if (row.target.verdict.violations.length) {
                             <div
                                 class="text-muted-color text-sm mt-1"
-                                [title]="target.verdict.violations[0].reason"
+                                [title]="row.target.verdict.violations[0].reason"
                                 data-testid="violation-reason"
                             >
-                                {{ reasonOf(target) }}
+                                {{ row.reason }}
                             </div>
                         }
                     </td>
-                    <td>{{ target.verdict.evaluated }}</td>
+                    <td>{{ row.target.verdict.evaluated }}</td>
                     <td class="text-muted-color">
-                        {{ target.policy.source | policySource }}
-                        @if (target.policy.version !== null) {
-                            <span> · v{{ target.policy.version }}</span>
+                        {{ row.target.policy.source | policySource }}
+                        @if (row.target.policy.version !== null) {
+                            <span> · v{{ row.target.policy.version }}</span>
                         }
                     </td>
-                    <td class="text-muted-color">{{ formatDate(target.lastScanAt) }}</td>
+                    <td class="text-muted-color">{{ row.lastScan }}</td>
                     <td>
                         <p-button
                             [label]="'security.issues_btn' | translate"
                             size="small"
                             [text]="true"
                             [routerLink]="['/issues']"
-                            [queryParams]="issueFilter(target)"
+                            [queryParams]="row.issueFilter"
                         />
                         <!--
                             Buttons and not links: the session token lives in memory and
@@ -106,29 +106,29 @@
                             [label]="'security.pdf_btn' | translate"
                             size="small"
                             [text]="true"
-                            [disabled]="downloading() === target.targetId"
-                            (onClick)="download(target, 'posture.pdf')"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'posture.pdf')"
                         />
                         <p-button
                             [label]="'security.csv_btn' | translate"
                             size="small"
                             [text]="true"
-                            [disabled]="downloading() === target.targetId"
-                            (onClick)="download(target, 'issues.csv')"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'issues.csv')"
                         />
                         <p-button
                             [label]="'security.vex_btn' | translate"
                             size="small"
                             [text]="true"
-                            [disabled]="downloading() === target.targetId"
-                            (onClick)="download(target, 'vex')"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'vex')"
                         />
                         <p-button
                             [label]="'security.csaf_btn' | translate"
                             size="small"
                             [text]="true"
-                            [disabled]="downloading() === target.targetId"
-                            (onClick)="download(target, 'issues.csaf.json')"
+                            [disabled]="downloading() === row.target.targetId"
+                            (onClick)="download(row.target, 'issues.csaf.json')"
                         />
                     </td>
                 </tr>

@@ -267,6 +267,37 @@ describe('the scan detail', () => {
         expect(headers()).not.toContain('Constats');
     });
 
+    it('words the findings, the examination and a refusal in the reader language, after a switch too', async () => {
+        useEnglish();
+        await load({
+            ...DETAIL,
+            examinedTypes: ['secret', 'vulnerability'],
+            plugins: [...PLUGINS, ...SIGNATURE_OUTCOMES]
+        });
+        const root = fixture.nativeElement as HTMLElement;
+        const words = () => ({
+            type: root.querySelector('tbody tr td')?.textContent?.trim(),
+            tint: root.querySelector('tbody tr td:nth-child(2) .p-tag')?.className,
+            examined: root.querySelector('[data-testid="examined-type"]')?.textContent?.trim(),
+            refusal: root
+                .querySelector('[data-testid="plugin-outcome"][data-state="refused"] .p-tag-danger')
+                ?.textContent?.trim()
+        });
+        const english = words();
+        expect(english.type).toBe('Vulnerability');
+        expect(english.tint).toContain('p-tag-warn');
+        expect(english.examined).toBeTruthy();
+        expect(english.refusal).toBeTruthy();
+
+        useFrench();
+        fixture.detectChanges();
+        const french = words();
+        expect(french.type).toBe('Vulnérabilité');
+        expect(french.tint).toContain('p-tag-warn');
+        expect(french.examined).not.toBe(english.examined);
+        expect(french.refusal).not.toBe(english.refusal);
+    });
+
     it('shows a failed read in the server’s words, and an unknown scan in its own', async () => {
         await Promise.resolve();
         http.expectOne('/api/v1/scans/34').flush(

@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import {
     APPROVED_DIGEST,
     PENDING_DIGEST,
@@ -92,6 +92,25 @@ describe('the report plugin registry', () => {
         );
         expect(dom().querySelector('[data-testid="approve"]')).toBeNull();
         expect(dom().querySelector('[data-testid="withdraw"]')).toBeNull();
+    });
+
+    it('words each manifest in the reader language, after a switch too, with its output and its text', async () => {
+        await start('AUDITOR', 'auditor');
+        open();
+        const pending = manifest(PENDING_DIGEST);
+        expect(pending.textContent).toContain('summary.xlsx (.xlsx)');
+        expect(pending.querySelector('pre')?.textContent).toContain('"output": "summary.xlsx"');
+        expect(dom().querySelector('[data-testid="pending-digest"] p-tag')?.getAttribute('aria-label')).toBe(
+            `Digest ${PENDING_DIGEST.slice(0, 12)} awaiting approval`
+        );
+
+        useFrench();
+        fixture.detectChanges();
+        expect(text(manifest(PENDING_DIGEST), '[data-testid="manifest-status"]')).toBe("En attente d'approbation");
+        expect(text(manifest(APPROVED_DIGEST), '[data-testid="manifest-status"]')).toBe('Approuvé');
+        expect(dom().querySelector('[data-testid="pending-digest"] p-tag')?.getAttribute('aria-label')).toBe(
+            `Empreinte ${PENDING_DIGEST.slice(0, 12)} en attente d'approbation`
+        );
     });
 
     it('lets a CISO approve a digest somebody else registered, with a POST on that digest', async () => {

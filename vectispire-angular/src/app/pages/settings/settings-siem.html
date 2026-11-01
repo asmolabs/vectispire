@@ -36,25 +36,8 @@
                         class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
                     >
                         <!-- The transports the platform governor has switched on, and the stored one (decision 0040). -->
-                        @if (offers('WEBHOOK')) {
-                            <option value="WEBHOOK">
-                                {{ optionLabel('WEBHOOK', 'settings.siem_protocol_webhook' | translate) }}
-                            </option>
-                        }
-                        @if (offers('SYSLOG_UDP')) {
-                            <option value="SYSLOG_UDP">
-                                {{ optionLabel('SYSLOG_UDP', 'settings.siem_protocol_udp' | translate) }}
-                            </option>
-                        }
-                        @if (offers('SYSLOG_TCP')) {
-                            <option value="SYSLOG_TCP">
-                                {{ optionLabel('SYSLOG_TCP', 'settings.siem_protocol_tcp' | translate) }}
-                            </option>
-                        }
-                        @if (offers('SYSLOG_TLS')) {
-                            <option value="SYSLOG_TLS">
-                                {{ optionLabel('SYSLOG_TLS', 'settings.siem_protocol_tls' | translate) }}
-                            </option>
+                        @for (protocol of protocols(); track protocol.value) {
+                            <option [value]="protocol.value">{{ protocol.label }}</option>
                         }
                     </select>
                 </div>
@@ -81,9 +64,9 @@
                     pInputText
                     id="siem-endpoint"
                     [(ngModel)]="siemForm.endpoint"
-                    [placeholder]="endpointPlaceholder()"
+                    [placeholder]="endpointPlaceholders[siemForm.protocol]"
                 />
-                @if (isWebhook()) {
+                @if (siemForm.protocol === 'WEBHOOK') {
                     <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_webhook' | translate }}</small>
                 } @else {
                     <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_syslog' | translate }}</small>
@@ -94,7 +77,7 @@
                 Webhook only: a syslog frame has nowhere to carry a header, and the server refuses
                 one sent with a syslog protocol rather than storing a credential it can never use.
             -->
-            @if (isWebhook()) {
+            @if (siemForm.protocol === 'WEBHOOK') {
                 <div class="flex flex-col gap-2">
                     <label for="siem-auth" class="font-medium">
                         {{ 'settings.siem_auth' | translate }}
@@ -121,7 +104,7 @@
                 Syslog over TLS only: the CA the collector's certificate must chain to, in place of
                 the server's trust store and for this connection alone. Hostname verification stays on.
             -->
-            @if (isTls()) {
+            @if (siemForm.protocol === 'SYSLOG_TLS') {
                 <div class="flex flex-col gap-2">
                     <label for="siem-ca" class="font-medium">
                         {{ 'settings.siem_ca' | translate }}

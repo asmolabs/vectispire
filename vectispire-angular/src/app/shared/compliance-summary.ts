@@ -40,7 +40,6 @@ export class ComplianceSummaryView {
     readonly inspectable = input(false);
     readonly inspect = output<string>();
 
-    readonly Math = Math;
     readonly selectedFramework = signal<string>('NIS_2');
 
     /**
@@ -78,14 +77,13 @@ export class ComplianceSummaryView {
         return this.freshnessRate() < 75 ? 'text-orange-500' : 'text-green-500';
     });
 
-    /** The framework's name and what it covers, read through the one map every screen uses. */
-    frameworkLabel(key: string): string {
-        return frameworkLabel(this.i18n, key);
-    }
-
-    frameworkDesc(key: string): string {
-        return frameworkDescription(this.i18n, key);
-    }
+    /** The share of the scope passing its gate; a hundred on an empty scope, like freshness. */
+    readonly gatePassRate = computed(() => {
+        const data = this.summary();
+        return data.totalMonitoredTargets > 0
+            ? Math.round((data.passingGateTargets / data.totalMonitoredTargets) * 100)
+            : 100;
+    });
 
     readonly orderedEvaluations = computed<ComplianceEvaluation[]>(() => {
         const orderMap = new Map<string, number>(FRAMEWORKS.map((key, i) => [key, i]));
@@ -100,37 +98,76 @@ export class ComplianceSummaryView {
         () => this.summary().evaluations.find((e) => e.framework === this.selectedFramework()) ?? null
     );
 
+    /**
+     * The matrix's rows with the gate and the verdict in words and tones, worked out once per summary or
+     * language — not by five methods per row on every pass. The gate showed `PASSED`, `NEVER_SCANNED` as
+     * the server spells them.
+     */
+    readonly matrix = computed(() =>
+        (this.summary().targets ?? []).map((target) => ({
+            ...target,
+            gateLabel: gateStatusLabel(this.i18n, target.gateStatus),
+            gateSeverity: gateStatusSeverity(target.gateStatus),
+            verdict: this.verdict(target.overallStatus, target.overallScore)
+        }))
+    );
+
+    /** The framework cards, each with its name and what it covers read through the one map every screen uses. */
+    readonly cards = computed(() =>
+        this.orderedEvaluations().map((evaluation) => ({
+            ...evaluation,
+            name: frameworkLabel(this.i18n, evaluation.framework),
+            description: frameworkDescription(this.i18n, evaluation.framework),
+            verdict: this.verdict(evaluation.overallStatus, evaluation.scorePercentage)
+        }))
+    );
+
+    /** The selected framework's breakdown, its controls' verdicts worked out with it. */
+    readonly active = computed(() => {
+        const evaluation = this.activeEvaluation();
+        if (!evaluation) return null;
+        return {
+            ...evaluation,
+            name: frameworkLabel(this.i18n, evaluation.framework),
+            verdict: this.verdict(evaluation.overallStatus, evaluation.scorePercentage),
+            controls: evaluation.controls.map((control) => ({
+                ...control,
+                verdict: this.verdict(control.status, control.scorePercentage)
+            }))
+        };
+    });
+
     selectFramework(key: string): void {
         this.selectedFramework.set(key);
     }
 
-    /** The verdict in the reader's language; a status the client does not know yet is shown as sent. */
-    statusLabel(status: string): string {
-        return complianceStatusLabel(this.i18n, status);
+    /**
+     * A verdict as a tag and a figure: the status in the reader's language — one the client does not know
+     * yet shown as sent — and the score, or a dash where nothing was measured: its zero is no measurement.
+     */
+    private verdict(
+        status: string,
+        score: number
+    ): { label: string; severity: ReturnType<typeof statusSeverity>; score: string } {
+        return {
+            label: complianceStatusLabel(this.i18n, status),
+            severity: statusSeverity(status),
+            score: status === 'NO_DATA' ? '—' : this.i18n.percent(score)
+        };
     }
+}
 
-    /** The gate in words: the matrix showed `PASSED`, `NEVER_SCANNED` as the server spells them. */
-    gateStatusLabel(status: string): string {
-        return gateStatusLabel(this.i18n, status);
-    }
+export function statusSeverity(status: string): 'success' | 'warn' | 'danger' | 'secondary' {
+    if (status === 'COMPLIANT') return 'success';
+    if (status === 'PARTIAL') return 'warn';
+    // No data is no verdict: neither green nor red.
+    if (status === 'NO_DATA') return 'secondary';
+    return 'danger';
+}
 
-    statusSeverity(status: string): 'success' | 'warn' | 'danger' | 'secondary' {
-        if (status === 'COMPLIANT') return 'success';
-        if (status === 'PARTIAL') return 'warn';
-        // No data is no verdict: neither green nor red.
-        if (status === 'NO_DATA') return 'secondary';
-        return 'danger';
-    }
-
-    /** A score, or a dash where nothing was measured — its zero is no measurement. */
-    scoreOf(status: string, score: number): string {
-        return status === 'NO_DATA' ? '—' : this.i18n.percent(score);
-    }
-
-    gateStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' {
-        if (status === 'PASSED') return 'success';
-        if (status === 'SCANNING' || status === 'IN_PROGRESS') return 'info';
-        if (status === 'NEVER_SCANNED') return 'warn';
-        return 'danger';
-    }
+function gateStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' {
+    if (status === 'PASSED') return 'success';
+    if (status === 'SCANNING' || status === 'IN_PROGRESS') return 'info';
+    if (status === 'NEVER_SCANNED') return 'warn';
+    return 'danger';
 }

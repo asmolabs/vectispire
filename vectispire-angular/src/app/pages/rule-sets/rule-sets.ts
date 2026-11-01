@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -103,23 +103,27 @@ export class RuleSets {
      */
     includeGitleaksDuplicates = false;
 
-    languagesOf(preview: CataloguePreview): { name: string; count: number }[] {
-        return Object.entries(preview.languages).map(([name, count]) => ({ name, count }));
-    }
-
     /**
-     * The OWASP categories this catalogue covers, sorted by identifier.
-     *
-     * **What it answers.** The OWASP grid marks a category "not covered" when no installed rule
-     * declares it. A grey square therefore said two very different things — the product cannot look
-     * there, or nobody imported the rules that can — and nothing told them apart without importing
-     * first, which is the reverse of the order an operator wants.
+     * The catalogue as the panel shows it: its commit shortened, each language with whether it is
+     * chosen, and the OWASP categories it covers — worked out once per catalogue or choice rather
+     * than by a method per checkbox on every pass.
      */
-    categoriesOf(preview: CataloguePreview): { id: string; count: number }[] {
-        return Object.entries(preview.categories)
-            .map(([id, count]) => ({ id, count }))
-            .sort((a, b) => a.id.localeCompare(b.id));
-    }
+    readonly catalogueView = computed(() => {
+        const preview = this.catalogue();
+        if (!preview) return null;
+        const chosen = this.chosen();
+        return {
+            ...preview,
+            shortCommit: preview.commit.slice(0, 12),
+            languageRows: Object.entries(preview.languages).map(([name, count]) => ({
+                name,
+                count,
+                chosen: chosen.has(name)
+            })),
+            categoryRows: categoriesOf(preview),
+            genericChosen: chosen.has('generic')
+        };
+    });
 
     choose(language: string, selected: boolean): void {
         const next = new Set(this.chosen());
@@ -199,9 +203,13 @@ export class RuleSets {
         this.reload();
     }
 
-    active(): boolean {
-        return this.sets().some((set) => set.isActive);
-    }
+    readonly active = computed(() => this.sets().some((set) => set.isActive));
+
+    /** Each set with the short form of its hash the table shows, cut once per listing rather than per row on every pass. */
+    readonly setRows = computed(() => this.sets().map((set) => ({ ...set, shortHash: set.contentHash.slice(0, 12) })));
+
+    /** The first ten issues the change would resolve, as the impact panel names them. */
+    readonly losingSample = computed(() => (this.impact()?.losingIssues ?? []).slice(0, 10).join(', '));
 
     /**
      * Reads the chosen files in the browser.
@@ -361,4 +369,18 @@ export class RuleSets {
             error: () => this.error.set(this.i18n.t('rule_sets.error_load'))
         });
     }
+}
+
+/**
+ * The OWASP categories a catalogue covers, sorted by identifier.
+ *
+ * **What it answers.** The OWASP grid marks a category "not covered" when no installed rule
+ * declares it. A grey square therefore said two very different things — the product cannot look
+ * there, or nobody imported the rules that can — and nothing told them apart without importing
+ * first, which is the reverse of the order an operator wants.
+ */
+function categoriesOf(preview: CataloguePreview): { id: string; count: number }[] {
+    return Object.entries(preview.categories)
+        .map(([id, count]) => ({ id, count }))
+        .sort((a, b) => a.id.localeCompare(b.id));
 }

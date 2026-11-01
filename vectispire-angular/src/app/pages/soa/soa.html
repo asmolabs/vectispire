@@ -55,10 +55,10 @@
             <div class="border border-orange-300 dark:border-orange-800 rounded-lg p-4 mb-6">
                 <div class="font-medium mb-2">{{ 'soa.overdue_title' | translate }}</div>
                 <ul class="m-0 pl-0 list-none flex flex-col gap-1 text-sm">
-                    @for (declaration of overdue(); track declaration.framework + declaration.controlId) {
+                    @for (declaration of overdueRows(); track declaration.framework + declaration.controlId) {
                         <li class="flex flex-wrap gap-2">
                             <span class="font-mono">{{ declaration.controlId }}</span>
-                            <span class="text-muted-color">{{ frameworkLabel(declaration.framework) }}</span>
+                            <span class="text-muted-color">{{ declaration.frameworkName }}</span>
                             @if (declaration.owner) {
                                 <span class="text-muted-color">· {{ declaration.owner }}</span>
                             }
@@ -97,7 +97,7 @@
                     @for (line of lines(); track line.control.id) {
                         <tr
                             class="border-b border-surface-100 dark:border-surface-800 align-top"
-                            [class.bg-red-50]="isFinding(line)"
+                            [class.bg-red-50]="line.finding"
                         >
                             <td class="py-3 pr-4">
                                 <div class="font-mono text-xs font-medium">{{ line.control.id }}</div>
@@ -105,26 +105,26 @@
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap">
                                 @if (line.declaration; as declaration) {
-                                    <div>{{ applicabilityLabel(declaration.applicability) }}</div>
+                                    <div>{{ line.applicabilityLabel }}</div>
                                     @if (declaration.implementation) {
                                         <div class="text-muted-color text-xs">
-                                            {{ implementationLabel(declaration.implementation) }}
+                                            {{ line.implementationLabel }}
                                         </div>
                                     }
                                     <div class="text-muted-color text-xs">
-                                        {{ evidenceLabel(declaration.evidenceSource) }}
+                                        {{ line.evidenceLabel }}
                                     </div>
                                 } @else {
                                     <span class="text-red-700 font-medium">{{ 'soa.not_declared' | translate }}</span>
                                 }
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap">
-                                {{ measuredLabel(line.measured) }}
+                                {{ line.measuredLabel }}
                             </td>
                             <td class="py-3 pr-4">
-                                <p-tag [severity]="severityOf(line)" [value]="divergenceLabel(line.divergence)" />
+                                <p-tag [severity]="line.severity" [value]="line.divergenceLabel" />
                                 <div class="text-muted-color text-xs mt-1" style="max-width: 40ch">
-                                    {{ divergenceHelp(line.divergence) }}
+                                    {{ line.divergenceHelp }}
                                 </div>
                                 @if (line.reviewOverdue) {
                                     <div class="text-orange-700 text-xs font-medium mt-1">

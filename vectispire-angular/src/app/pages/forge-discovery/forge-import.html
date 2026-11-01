@@ -90,9 +90,9 @@
         @if (done.skipped.length > 0) {
             <h3 class="text-lg font-semibold mt-3 mb-2">{{ 'forges.import.skipped_title' | translate }}</h3>
             <ul class="list-disc m-0 mb-3 pl-5 text-sm" data-testid="result-skipped">
-                @for (skip of done.skipped; track skip.forgeId) {
+                @for (row of skippedDone(); track row.skip.forgeId) {
                     <li>
-                        <span class="font-mono break-all">{{ skip.fullPath }}</span> — {{ skipReason(skip) }}
+                        <span class="font-mono break-all">{{ row.skip.fullPath }}</span> — {{ row.reason }}
                     </li>
                 }
             </ul>
@@ -166,13 +166,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (placement of perRepository() ? repositories() : namespaces(); track placement.key) {
+                    @for (row of placements(); track row.placement.key) {
                         <tr class="border-b border-surface-100 dark:border-surface-800" data-testid="placement">
                             <td class="py-2 pr-3 font-mono break-all">
-                                {{ placement.label || '—' }}
+                                {{ row.placement.label || '—' }}
                                 @if (!perRepository()) {
                                     <span class="block text-xs text-muted-color font-sans">{{
-                                        'forges.mapping.repositories' | translate: { count: placement.repositories }
+                                        'forges.mapping.repositories' | translate: { count: row.placement.repositories }
                                     }}</span>
                                 }
                             </td>
@@ -183,10 +183,10 @@
                                     list="forge-solution-names"
                                     data-testid="placement-solution"
                                     [attr.aria-label]="
-                                        'forges.mapping.aria_solution' | translate: { name: placement.label }
+                                        'forges.mapping.aria_solution' | translate: { name: row.placement.label }
                                     "
-                                    [ngModel]="placement.solution"
-                                    (ngModelChange)="place(placement, 'solution', $event)"
+                                    [ngModel]="row.placement.solution"
+                                    (ngModelChange)="place(row.placement, 'solution', $event)"
                                 />
                             </td>
                             <td class="py-2 pr-3">
@@ -196,11 +196,11 @@
                                     list="forge-project-names"
                                     data-testid="placement-project"
                                     [attr.aria-label]="
-                                        'forges.mapping.aria_project' | translate: { name: placement.label }
+                                        'forges.mapping.aria_project' | translate: { name: row.placement.label }
                                     "
-                                    [ngModel]="placement.project"
-                                    [disabled]="placement.noProject"
-                                    (ngModelChange)="place(placement, 'project', $event)"
+                                    [ngModel]="row.placement.project"
+                                    [disabled]="row.placement.noProject"
+                                    (ngModelChange)="place(row.placement, 'project', $event)"
                                 />
                             </td>
                             <td class="py-2 pr-3">
@@ -208,20 +208,22 @@
                                     type="checkbox"
                                     data-testid="placement-no-project"
                                     [attr.aria-label]="
-                                        'forges.mapping.aria_no_project' | translate: { name: placement.label }
+                                        'forges.mapping.aria_no_project' | translate: { name: row.placement.label }
                                     "
-                                    [checked]="placement.noProject"
-                                    (change)="place(placement, 'noProject', $any($event.target).checked)"
+                                    [checked]="row.placement.noProject"
+                                    (change)="place(row.placement, 'noProject', $any($event.target).checked)"
                                 />
                             </td>
                             <td class="py-2 pr-3">
-                                @if (edited(placement)) {
+                                @if (row.edited) {
                                     <p-button
                                         [label]="'forges.mapping.undo' | translate"
                                         size="small"
                                         [text]="true"
-                                        [ariaLabel]="'forges.mapping.aria_undo' | translate: { name: placement.label }"
-                                        (onClick)="forget(placement)"
+                                        [ariaLabel]="
+                                            'forges.mapping.aria_undo' | translate: { name: row.placement.label }
+                                        "
+                                        (onClick)="forget(row.placement)"
                                     />
                                 }
                             </td>
@@ -236,39 +238,36 @@
             <h3 class="text-lg font-semibold mt-2 mb-1">{{ 'forges.import.credentials' | translate }}</h3>
             <p class="m-0 mb-2 text-sm text-muted-color">{{ 'forges.import.credentials_explained' | translate }}</p>
             <div class="flex flex-col gap-3 mb-4" data-testid="credentials">
-                @for (host of plan.credentials; track host.host) {
+                @for (row of hosts(); track row.host.host) {
                     <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                         <label [for]="'credential-' + $index" class="font-mono text-sm sm:w-64 break-all">
-                            {{ host.host }}
+                            {{ row.host.host }}
                             <span class="block font-sans text-xs text-muted-color">{{
-                                'forges.mapping.repositories' | translate: { count: host.repositories }
+                                'forges.mapping.repositories' | translate: { count: row.host.repositories }
                             }}</span>
                         </label>
                         <select
                             [id]="'credential-' + $index"
                             data-testid="credential-choice"
                             class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0 flex-1"
-                            [value]="choiceFor(host)"
-                            (change)="choose(host.host, $any($event.target).value)"
+                            [value]="row.choice"
+                            (change)="choose(row.host.host, $any($event.target).value)"
                         >
-                            <option value="none" [selected]="choiceFor(host) === 'none'">
+                            <option value="none" [selected]="row.choice === 'none'">
                                 {{ 'forges.import.credential_none' | translate }}
                             </option>
-                            @for (token of tokensFor(host.host); track token.id) {
-                                <option
-                                    [value]="'https:' + token.id"
-                                    [selected]="choiceFor(host) === 'https:' + token.id"
-                                >
+                            @for (token of row.tokens; track token.id) {
+                                <option [value]="'https:' + token.id" [selected]="row.choice === 'https:' + token.id">
                                     {{ 'forges.import.credential_https_token' | translate }} — {{ token.name }}
                                 </option>
                             }
                             @for (key of sshKeys(); track key.id) {
-                                <option [value]="'ssh:' + key.id" [selected]="choiceFor(host) === 'ssh:' + key.id">
+                                <option [value]="'ssh:' + key.id" [selected]="row.choice === 'ssh:' + key.id">
                                     {{ 'forges.import.credential_ssh_key' | translate }} — {{ key.name }}
                                 </option>
                             }
                         </select>
-                        @if (host.proposed && !choices().has(host.host)) {
+                        @if (row.proposed) {
                             <p-tag severity="info" [value]="'forges.import.proposed' | translate" />
                         }
                     </div>
@@ -394,12 +393,13 @@
             @if (plan.skipped.length > 0) {
                 <h4 class="text-base font-semibold mt-3 mb-1">{{ 'forges.import.skipped_title' | translate }}</h4>
                 <ul class="list-disc m-0 mb-3 pl-5 text-sm" data-testid="skipped">
-                    @for (skip of plan.skipped; track skip.forgeId) {
+                    @for (row of skipped(); track row.skip.forgeId) {
                         <li>
-                            <span class="font-mono break-all">{{ skip.fullPath }}</span> — {{ skipReason(skip) }}
-                            @if (skip.repositoryIds && skip.repositoryIds.length > 0) {
+                            <span class="font-mono break-all">{{ row.skip.fullPath }}</span> — {{ row.reason }}
+                            @if (row.skip.repositoryIds && row.skip.repositoryIds.length > 0) {
                                 <span class="text-muted-color">{{
-                                    'forges.import.present_targets' | translate: { ids: skip.repositoryIds.join(', ') }
+                                    'forges.import.present_targets'
+                                        | translate: { ids: row.skip.repositoryIds.join(', ') }
                                 }}</span>
                             }
                         </li>
@@ -456,33 +456,33 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @for (target of plan.targets; track target.forgeId) {
+                        @for (row of planned(); track row.target.forgeId) {
                             <tr
                                 class="border-b border-surface-100 dark:border-surface-800 align-top"
                                 data-testid="planned-row"
                             >
                                 <td class="py-2 pr-3 min-w-56">
-                                    <span class="font-mono break-all">{{ target.fullPath }}</span>
-                                    @if (target.warning) {
+                                    <span class="font-mono break-all">{{ row.target.fullPath }}</span>
+                                    @if (row.target.warning) {
                                         <span
                                             class="block text-orange-600 dark:text-orange-400"
                                             data-testid="warning"
-                                            >{{ target.warning }}</span
+                                            >{{ row.target.warning }}</span
                                         >
                                     }
                                 </td>
-                                <td class="py-2 pr-3">{{ target.branch ?? ('common.unknown' | translate) }}</td>
-                                <td class="py-2 pr-3">{{ credential(target.credential) }}</td>
+                                <td class="py-2 pr-3">{{ row.target.branch ?? ('common.unknown' | translate) }}</td>
+                                <td class="py-2 pr-3">{{ row.credential }}</td>
                                 <td class="py-2 pr-3">
-                                    @if (target.project) {
-                                        {{ target.solution }} / {{ target.project }}
+                                    @if (row.target.project) {
+                                        {{ row.target.solution }} / {{ row.target.project }}
                                     } @else {
                                         <span class="text-muted-color">{{
                                             'forges.mapping.no_project' | translate
                                         }}</span>
                                     }
                                 </td>
-                                <td class="py-2 pr-3" data-testid="visible-to">{{ visibleTo(target) }}</td>
+                                <td class="py-2 pr-3" data-testid="visible-to">{{ row.visibleTo }}</td>
                             </tr>
                         }
                     </tbody>

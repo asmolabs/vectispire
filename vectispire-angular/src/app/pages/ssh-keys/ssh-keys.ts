@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -13,7 +13,7 @@ import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { TooltipModule } from '@openng/optimus-ui/tooltip';
 import { messageOf } from '../../core/api-error';
 import { TargetsApi } from '../../core/api/targets.api';
-import type { EncryptionState, SshKeySummary } from '../../core/api.models';
+import type { SshKeySummary } from '../../core/api.models';
 
 /**
  * The encryption state deserves a column, not a log line.
@@ -24,7 +24,7 @@ import type { EncryptionState, SshKeySummary } from '../../core/api.models';
  */
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { encryptionBadge, SSH_KEY_HINT_KEYS, type EncryptionBadge } from '../../shared/encryption-state';
+import { encryptionBadge, SSH_KEY_HINT_KEYS } from '../../shared/encryption-state';
 
 @Component({
     selector: 'app-ssh-keys',
@@ -79,15 +79,17 @@ export class SshKeys {
         });
     }
 
-    badge(state: EncryptionState): EncryptionBadge {
-        return encryptionBadge(this.i18n, state, SSH_KEY_HINT_KEYS);
-    }
-
-    /** A public key runs to a 400-character line: shortened, like image digests, or it
-     *  crushes every other column. */
-    shorten(value: string): string {
-        return value.length > 44 ? `${value.slice(0, 44)}…` : value;
-    }
+    /**
+     * Each key with its badge and its shortened public key worked out once — per list or language,
+     * not three badges per row on every pass. `t` reads the bundle's signal, so a switch recomputes them.
+     */
+    readonly rows = computed(() =>
+        this.keys().map((key) => ({
+            ...key,
+            badge: encryptionBadge(this.i18n, key.encryptionState, SSH_KEY_HINT_KEYS),
+            shortKey: key.publicKey ? shorten(key.publicKey) : null
+        }))
+    );
 
     openForm(): void {
         this.form = { name: '', privateKey: '', publicKey: '' };
@@ -143,4 +145,9 @@ export class SshKeys {
             }
         });
     }
+}
+
+/** A public key runs to a 400-character line: shortened, like image digests, or it crushes every other column. */
+function shorten(value: string): string {
+    return value.length > 44 ? `${value.slice(0, 44)}…` : value;
 }

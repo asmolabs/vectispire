@@ -1,11 +1,12 @@
-@if (issue(); as detail) {
+@if (view(); as shown) {
+    @let detail = shown.detail;
     <div class="mb-4">
         <a routerLink="/issues" class="text-sm">{{ 'issues.back_to_issues' | translate }}</a>
         <h1 class="text-2xl font-semibold m-0 mt-1">
             {{ detail.identifier ?? detail.type }}
         </h1>
         <p class="text-muted-color mt-1 mb-0">
-            {{ detail.targetName }} · {{ typeLabel(detail.type) }} ·
+            {{ detail.targetName }} · {{ shown.type }} ·
             {{
                 detail.timesSeen === 1
                     ? ('issues.seen_once' | translate)
@@ -18,10 +19,7 @@
         <p-card>
             <div class="text-muted-color text-sm">{{ 'issues.filter_severity' | translate }}</div>
             <div class="mt-2">
-                <p-tag
-                    [value]="detail.severity ?? 'unknown' | severityLabel"
-                    [severity]="severityOf(detail.severity)"
-                />
+                <p-tag [value]="detail.severity ?? 'unknown' | severityLabel" [severity]="shown.tone" />
             </div>
         </p-card>
         <p-card>
@@ -32,7 +30,7 @@
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'history.triage' | translate }}</div>
-            <div class="text-lg font-medium mt-1">{{ triageLabel(detail.triageStatus) }}</div>
+            <div class="text-lg font-medium mt-1">{{ shown.triage }}</div>
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">Fix</div>
@@ -119,7 +117,7 @@
                 <p class="mt-0">{{ 'issues.provenance_imported' | translate }}</p>
             }
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                @if (pluginIdOf(detail.tool); as pluginId) {
+                @if (shown.pluginId; as pluginId) {
                     <div>
                         <span class="text-muted-color">{{ 'issues.provenance_plugin_label' | translate }}</span> ·
                         <a class="font-mono" [routerLink]="['/plugins']" [queryParams]="{ id: pluginId }">{{
@@ -235,11 +233,11 @@
                 {{ 'history.no_decision_recorded' | translate }}
             </p>
         } @else {
-            @for (decision of detail.decisions; track decision.occurredAt) {
+            @for (decision of shown.decisions; track decision.occurredAt) {
                 <div class="mb-3">
                     <div>
                         <span class="text-muted-color"> {{ decision.occurredAt | date: 'dd/MM/yyyy HH:mm' }} — </span>
-                        {{ triageLabel(decision.fromStatus) }} → {{ triageLabel(decision.toStatus) }}
+                        {{ decision.fromLabel }} → {{ decision.toLabel }}
                         @if (decision.justification) {
                             ({{ decision.justification }})
                         }

@@ -72,13 +72,13 @@ describe('the rule coverage banner', () => {
         await mount({
             state: 'PARTIAL',
             languagesWithRules: ['java'],
-            ecosystemsInEstate: ['maven', 'go'],
-            uncovered: ['go'],
+            ecosystemsInEstate: ['maven', 'go', 'cargo'],
+            uncovered: ['go', 'rust'],
             ruleFiles: 40
         });
 
-        expect(fixture.componentInstance.uncovered()).toEqual(['go']);
-        expect((fixture.nativeElement as HTMLElement).textContent).toContain('go');
+        expect(fixture.componentInstance.uncovered()).toEqual(['go', 'rust']);
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('go, rust');
     });
 
     it('stays quiet when coverage could not be read', async () => {
@@ -122,6 +122,8 @@ describe('the rule coverage banner', () => {
             expect(fixture.componentInstance.otherEditionFiles()).toBe(3);
             expect(fixture.componentInstance.otherEdition().map((row) => row.reason)).toEqual(['ONLY_2025_EDITION']);
             expect(notice()).not.toBeNull();
+            // A reason this client knows is its sentence, not its name.
+            expect(notice()?.textContent).not.toContain('ONLY_2025_EDITION');
         });
 
         it('are not named by the banner of the other screens', async () => {
@@ -143,7 +145,7 @@ describe('the rule coverage banner', () => {
             fixture.componentInstance.coverage.set(tagged([{ reason: 'ONLY_2030_EDITION', ruleFiles: 2 }]));
             fixture.detectChanges();
 
-            expect(fixture.componentInstance.reasonKey('ONLY_2030_EDITION')).toBeUndefined();
+            expect(fixture.componentInstance.otherEdition()[0].key).toBeUndefined();
             expect(notice()?.textContent).toContain('ONLY_2030_EDITION: 2');
         });
     });

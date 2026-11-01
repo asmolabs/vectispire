@@ -4,7 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CertifiedScope } from './certified-scope';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { containerSummary, repositorySummary } from '@/app/core/testing/targets.fixtures';
 import type { ScopeCoverage } from '@/app/core/api.models';
 
 /**
@@ -40,8 +41,16 @@ describe('the certified scope', () => {
                 targets: [{ kind: 'REPOSITORY', id: 7 }]
             })
         );
-        http.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
-        http.expectOne((call) => call.url === '/api/v1/containers').flush([]);
+        http.expectOne((call) => call.url === '/api/v1/repositories').flush(
+            asSchemaList('RepositorySummary', [
+                repositorySummary(7, { name: 'billing' }),
+                repositorySummary(8, { name: 'web' })
+            ])
+        );
+        http.expectOne((call) => call.url === '/api/v1/containers').flush(
+            asSchemaList('ContainerSummary', [containerSummary(7, { reference: 'registry/app:1' })])
+        );
+        fixture.detectChanges();
     }
 
     beforeEach(async () => {
@@ -67,9 +76,27 @@ describe('the certified scope', () => {
         expect(fixture.componentInstance.freshShare()).toBe(50);
     });
 
-    it('knows which targets are in scope', () => {
-        expect(fixture.componentInstance.inScope('REPOSITORY', 7)).toBe(true);
-        expect(fixture.componentInstance.inScope('REPOSITORY', 8)).toBe(false);
-        expect(fixture.componentInstance.inScope('CONTAINER', 7)).toBe(false);
+    /** Each box as a reader sees it: the target's name and whether it is ticked. */
+    const boxes = () =>
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('label')].map(
+            (label) => `${label.textContent.trim()} ${label.querySelector('input')!.checked}`
+        );
+
+    it('ticks the targets in scope, by kind as well as id', () => {
+        // Repository 7 is in scope; container 7 shares its id and is not.
+        expect(boxes()).toEqual(['billing true', 'web false', 'registry/app:1 false']);
+    });
+
+    it('ticks the boxes again when the scope changes', () => {
+        fixture.componentInstance.scope.update((view) => ({
+            ...view!,
+            targets: [
+                { kind: 'REPOSITORY', id: 8 },
+                { kind: 'CONTAINER', id: 7 }
+            ]
+        }));
+        fixture.detectChanges();
+
+        expect(boxes()).toEqual(['billing false', 'web true', 'registry/app:1 true']);
     });
 });

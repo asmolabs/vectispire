@@ -70,6 +70,35 @@ describe('la grille OWASP', () => {
 
         expect(component.colourOf('NOT_COVERED')).not.toBe(component.colourOf('NO_FINDING'));
         expect(component.colourOf('NOT_MEASURED')).not.toBe(component.colourOf('NO_FINDING'));
+        // And the state cells wear them.
+        const states = [
+            ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('tbody tr td:nth-child(2)')
+        ];
+        expect(
+            states.map((cell) =>
+                [...cell.classList].find((name) => /^text-(red|orange|emerald)-700$|^text-muted-color$/.test(name))
+            )
+        ).toEqual(['text-muted-color', 'text-red-700', 'text-emerald-700', 'text-orange-700']);
+    });
+
+    it('paints a counter at zero green, and one above zero as its alarm', () => {
+        const counters = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.text-2xl')].map(
+                (counter) => [...counter.classList].find((name) => /^text-(red|orange|emerald)-700$/.test(name)) ?? null
+            );
+        // Covered, with findings (1), unmeasured (1).
+        expect(counters()).toEqual([null, 'text-red-700', 'text-orange-700']);
+
+        fixture.componentInstance.grid.set({ ...GRID, withFindings: 0, unmeasured: 0 });
+        fixture.detectChanges();
+        expect(counters()).toEqual([null, 'text-emerald-700', 'text-emerald-700']);
+    });
+
+    it('links each count to the backlog it counts, settled triage left out', () => {
+        const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>(
+            '[data-testid="grid-open"]'
+        );
+        expect(link?.getAttribute('href')).toBe('/issues?owasp_category=A05&unsettled=true');
     });
 
     it('shows a count only where something was counted', () => {
@@ -234,6 +263,18 @@ describe('la grille OWASP', () => {
             // it is the measurement that would lose.
             expect(component.declarable(component.lines()[1])).toBe(false);
             expect(component.declarable(component.lines()[0])).toBe(true);
+        });
+
+        it('shows its button on screen once the reader may declare, on the unmeasured row only', () => {
+            const buttons = () =>
+                [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')].map(
+                    (row) => row.querySelector('td:nth-child(4) p-button') !== null
+                );
+            expect(buttons()).toEqual([false, false, false, false]);
+
+            asSecurityLead();
+            fixture.detectChanges();
+            expect(buttons()).toEqual([true, false, false, false]);
         });
 
         it('is not offered to somebody who cannot write it', () => {
@@ -402,6 +443,25 @@ describe('la grille OWASP', () => {
                     "n'a pas été examiné pour elle par l'analyse de code (1 dans les langages desquels aucune " +
                     'règle installée ne déclare cette catégorie) : un zéro ici ne serait pas un résultat.'
             ]);
+        });
+
+        it('words the states and the reasons again when the reader switches language', () => {
+            useEnglish();
+            fixture.componentInstance.grid.set(reasoned);
+            fixture.detectChanges();
+            const states = () =>
+                [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr td:nth-child(2)')].map(
+                    (cell: Element) => cell.textContent.trim()
+                );
+            const before = { states: states(), reasons: reasons() };
+            expect(before.states[0]).toBe(english.owasp_grid.state.NO_FINDING);
+
+            useFrench();
+            fixture.detectChanges();
+            expect(states()[0]).toBe(french.owasp_grid.state.NO_FINDING);
+            expect(states()[0]).not.toBe(before.states[0]);
+            expect(reasons()[0]).toMatch(/^Examinée par vulnérabilité, fin de support/);
+            expect(reasons()[1]).not.toBe(before.reasons[1]);
         });
 
         it('writes the English one to an English reader', () => {

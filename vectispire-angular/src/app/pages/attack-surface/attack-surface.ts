@@ -15,6 +15,7 @@ import { saveDocument } from '../../core/download';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
+import { MethodSeverityPipe, ShadowSeverityPipe } from './endpoint-severity.pipe';
 import type {
     ApiEndpointView,
     GlobalAttackSurface,
@@ -35,7 +36,9 @@ import type {
         SelectModule,
         TableModule,
         TagModule,
-        TranslatePipe
+        TranslatePipe,
+        MethodSeverityPipe,
+        ShadowSeverityPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attack-surface.html'
@@ -83,7 +86,7 @@ export class AttackSurface implements OnInit {
                 unauthenticatedEndpoints: sum.unauthenticatedEndpoints,
                 shadowEndpoints: sum.shadowEndpoints,
                 sensitiveUnprotectedEndpoints: sum.sensitiveUnprotectedEndpoints,
-                frameworks
+                frameworks: frameworks.join(', ')
             };
         }
         const g = this.globalData();
@@ -93,7 +96,7 @@ export class AttackSurface implements OnInit {
             unauthenticatedEndpoints: g?.unauthenticatedEndpoints ?? 0,
             shadowEndpoints: g?.shadowEndpoints ?? 0,
             sensitiveUnprotectedEndpoints: g?.sensitiveUnprotectedEndpoints ?? 0,
-            frameworks: g?.frameworks ?? []
+            frameworks: (g?.frameworks ?? []).join(', ')
         };
     });
 
@@ -270,36 +273,5 @@ export class AttackSurface implements OnInit {
                 this.error.set(messageOf(err, this.i18n.t('attack_surface.error_clear')));
             }
         });
-    }
-
-    getMethodSeverity(method: string): 'info' | 'success' | 'warn' | 'danger' | 'secondary' {
-        switch (method?.toUpperCase()) {
-            case 'GET':
-                return 'info';
-            case 'POST':
-                return 'success';
-            case 'PUT':
-            case 'PATCH':
-                return 'warn';
-            case 'DELETE':
-                return 'danger';
-            default:
-                return 'secondary';
-        }
-    }
-
-    getShadowSeverity(status: string): 'success' | 'warn' | 'danger' | 'secondary' {
-        switch (status) {
-            case 'DOCUMENTED':
-                return 'success';
-            case 'SHADOW_API':
-                return 'danger';
-            case 'UNDOCUMENTED':
-                return 'warn';
-            case 'HIGH_RISK_EXPOSURE':
-                return 'danger';
-            default:
-                return 'secondary';
-        }
     }
 }

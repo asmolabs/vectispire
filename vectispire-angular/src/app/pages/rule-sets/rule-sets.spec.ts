@@ -80,7 +80,7 @@ describe('the catalogue preview', () => {
 
         // Sorted: two readings of the same catalogue must present the same list, and the order of
         // a JSON map is no guarantee.
-        expect(fixture.componentInstance.categoriesOf(fixture.componentInstance.catalogue()!)).toEqual([
+        expect(fixture.componentInstance.catalogueView()!.categoryRows).toEqual([
             { id: 'A01', count: 44 },
             { id: 'A03', count: 128 },
             { id: 'A10', count: 7 }
@@ -99,11 +99,30 @@ describe('the catalogue preview', () => {
     it('says a catalogue that declares nothing will move no square', () => {
         readCatalogue({});
 
-        expect(fixture.componentInstance.categoriesOf(fixture.componentInstance.catalogue()!)).toEqual([]);
+        expect(fixture.componentInstance.catalogueView()!.categoryRows).toEqual([]);
         // The key rather than the sentence, since the sentence now has two of them and this
         // harness renders keys unresolved. It is also the better assertion: a rewording of the
         // English does not break it, and a screen that stops rendering the empty branch does.
         expect((fixture.nativeElement as HTMLElement).textContent).toContain('rule_sets.owasp_none');
+    });
+
+    it('names the commit by its short form, and ticks each language as it is chosen', async () => {
+        readCatalogue({});
+        const page = fixture.nativeElement as HTMLElement;
+        expect(page.textContent).toContain('1c7e0f3a9b2d');
+        expect(page.textContent).not.toContain('1c7e0f3a9b2d4');
+
+        const ticked = () =>
+            ['generic', 'java', 'python'].filter(
+                (name) => page.querySelector<HTMLInputElement>(`#lang-${name}`)?.checked === true
+            );
+        expect(ticked()).toEqual([]);
+
+        fixture.componentInstance.choose('java', true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(ticked()).toEqual(['java']);
     });
 
     /**
@@ -268,6 +287,16 @@ describe('a rule-set change', () => {
         expect(request.request.body).toMatchObject({ acceptLosing: 3 });
         request.flush(ACTIVATED);
         reload();
+    });
+
+    it('names each set by its short hash, and the first ten issues a change would resolve', () => {
+        expect(text()).toContain('a1b2c3d4e5f6');
+        expect(text()).not.toContain('a1b2c3d4e5f6a');
+
+        const losing = Array.from({ length: 12 }, (_, index) => `rule.${index + 1}`);
+        previewActivation(12, losing);
+        expect(text()).toContain(losing.slice(0, 10).join(', '));
+        expect(text()).not.toContain('rule.11');
     });
 
     it('sends no acceptance when the preview loses nothing', () => {
