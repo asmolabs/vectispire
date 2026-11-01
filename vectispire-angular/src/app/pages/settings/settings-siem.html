@@ -7,7 +7,7 @@
             </div>
         </ng-template>
 
-        <div class="flex flex-col gap-4">
+        <form class="flex flex-col gap-4" (ngSubmit)="saveSiemConfig()">
             @if (suspendedTransport(); as transport) {
                 <p-message severity="warn" [closable]="false" styleClass="w-full" data-testid="siem-suspended">
                     {{ 'settings.siem_suspended' | translate: { integration: transport } }}
@@ -18,10 +18,14 @@
             }
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <div class="font-medium">{{ 'settings.siem_enable' | translate }}</div>
+                    <div id="siem-enable-label" class="font-medium">{{ 'settings.siem_enable' | translate }}</div>
                     <small class="text-muted-color">{{ 'settings.siem_enable_desc' | translate }}</small>
                 </div>
-                <p-toggleswitch [(ngModel)]="siemForm.enabled" />
+                <p-toggleswitch
+                    ariaLabelledBy="siem-enable-label"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="siemForm.enabled"
+                />
             </div>
 
             <div
@@ -32,29 +36,14 @@
                     <label for="siem-protocol" class="font-medium">{{ 'settings.siem_protocol' | translate }}</label>
                     <select
                         id="siem-protocol"
+                        name="siem-protocol"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.protocol"
                         class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
                     >
                         <!-- The transports the platform governor has switched on, and the stored one (decision 0040). -->
-                        @if (offers('WEBHOOK')) {
-                            <option value="WEBHOOK">
-                                {{ optionLabel('WEBHOOK', 'settings.siem_protocol_webhook' | translate) }}
-                            </option>
-                        }
-                        @if (offers('SYSLOG_UDP')) {
-                            <option value="SYSLOG_UDP">
-                                {{ optionLabel('SYSLOG_UDP', 'settings.siem_protocol_udp' | translate) }}
-                            </option>
-                        }
-                        @if (offers('SYSLOG_TCP')) {
-                            <option value="SYSLOG_TCP">
-                                {{ optionLabel('SYSLOG_TCP', 'settings.siem_protocol_tcp' | translate) }}
-                            </option>
-                        }
-                        @if (offers('SYSLOG_TLS')) {
-                            <option value="SYSLOG_TLS">
-                                {{ optionLabel('SYSLOG_TLS', 'settings.siem_protocol_tls' | translate) }}
-                            </option>
+                        @for (protocol of protocols(); track protocol.value) {
+                            <option [value]="protocol.value">{{ protocol.label }}</option>
                         }
                     </select>
                 </div>
@@ -63,6 +52,8 @@
                     <label for="siem-min-sev" class="font-medium">{{ 'settings.siem_min_sev' | translate }}</label>
                     <select
                         id="siem-min-sev"
+                        name="siem-min-sev"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.minSeverity"
                         class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
                     >
@@ -80,10 +71,13 @@
                 <input
                     pInputText
                     id="siem-endpoint"
+                    [required]="siemForm.enabled"
+                    name="siem-endpoint"
+                    [ngModelOptions]="{ standalone: true }"
                     [(ngModel)]="siemForm.endpoint"
-                    [placeholder]="endpointPlaceholder()"
+                    [placeholder]="endpointPlaceholders[siemForm.protocol]"
                 />
-                @if (isWebhook()) {
+                @if (siemForm.protocol === 'WEBHOOK') {
                     <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_webhook' | translate }}</small>
                 } @else {
                     <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_syslog' | translate }}</small>
@@ -94,7 +88,7 @@
                 Webhook only: a syslog frame has nowhere to carry a header, and the server refuses
                 one sent with a syslog protocol rather than storing a credential it can never use.
             -->
-            @if (isWebhook()) {
+            @if (siemForm.protocol === 'WEBHOOK') {
                 <div class="flex flex-col gap-2">
                     <label for="siem-auth" class="font-medium">
                         {{ 'settings.siem_auth' | translate }}
@@ -109,6 +103,8 @@
                         pInputText
                         id="siem-auth"
                         type="password"
+                        name="siem-auth"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.authHeader"
                         [placeholder]="'settings.siem_auth_placeholder' | translate"
                         autocomplete="off"
@@ -121,7 +117,7 @@
                 Syslog over TLS only: the CA the collector's certificate must chain to, in place of
                 the server's trust store and for this connection alone. Hostname verification stays on.
             -->
-            @if (isTls()) {
+            @if (siemForm.protocol === 'SYSLOG_TLS') {
                 <div class="flex flex-col gap-2">
                     <label for="siem-ca" class="font-medium">
                         {{ 'settings.siem_ca' | translate }}
@@ -130,6 +126,8 @@
                     <textarea
                         id="siem-ca"
                         rows="6"
+                        name="siem-ca"
+                        [ngModelOptions]="{ standalone: true }"
                         [(ngModel)]="siemForm.tlsCaPem"
                         spellcheck="false"
                         class="p-2 border rounded-md font-mono text-xs bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
@@ -158,8 +156,8 @@
                 <p-button
                     [label]="'settings.siem_save_btn' | translate"
                     icon="pi pi-save"
+                    type="submit"
                     [loading]="savingSiem()"
-                    (onClick)="saveSiemConfig()"
                 />
                 <p-button
                     [label]="'settings.siem_test_btn' | translate"
@@ -170,6 +168,6 @@
                     (onClick)="testSiem()"
                 />
             </div>
-        </div>
+        </form>
     </p-card>
 }

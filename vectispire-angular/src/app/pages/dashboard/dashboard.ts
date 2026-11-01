@@ -22,12 +22,12 @@ import type {
 import { LastScanTag } from '../../shared/last-scan';
 import { GradeLabelPipe, gradeLabel } from '../../shared/grade-label';
 import { RiskPointsPipe } from '../../shared/risk-points';
-import { gradeSeverity } from '../../shared/scorecard';
 import { DATED_MARKER } from '../../shared/dated-marker';
 import { LatestRequest } from '../../core/latest-request';
 import { SEVERITY_TONES } from '../../shared/severity';
 import { gateReason } from '../../shared/gate-reason';
 import { messageOf } from '../../core/api-error';
+import { GradeTonePipe } from './grade-tone.pipe';
 
 /** The severities in descending order, with their colour from the one scale every screen uses. A
  *  fixed order, not derived from the data: otherwise two successive loads could present them
@@ -104,7 +104,8 @@ function dayAndMonth(day: string): string {
         RiskPointsPipe,
         LocalNumberPipe,
         LocalPercentPipe,
-        TargetKindPipe
+        TargetKindPipe,
+        GradeTonePipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './dashboard.html'
@@ -239,32 +240,25 @@ export class Dashboard {
         });
     }
 
-    /** The card's colours: one target, one grade, painted alike on every screen. */
-    readonly gradeSeverity = gradeSeverity;
-
-    /** A ranking row's risk points, in the reader's decimal mark: the column's header names the unit. */
-    figure(points: number): string {
-        return new Intl.NumberFormat(this.i18n.currentLang(), { maximumFractionDigits: 3 }).format(points);
-    }
-
     /**
      * The mean time to resolve, in words.
      *
      * `null` is **not** rendered as zero: zero reads as "everything is fixed the day it appears",
      * which is the opposite of "nothing was resolved in this window, so there is nothing to
      * measure". The two states look identical in a stat tile, and one of them would flatter the
-     * team that fixed nothing.
+     * team that fixed nothing. Worked out per series or language: `t` and `decimal` read the bundle's
+     * and the language's signals.
      */
-    meanLabel(): string {
+    readonly meanLabel = computed(() => {
         const mean = this.trends()?.mean_days_to_resolve;
         if (mean === null || mean === undefined) return this.i18n.t('dashboard.no_measurement');
         // One decimal always ("5,0 jours" beside "12,5 jours"), in the reader's mark: `toFixed` wrote
         // "11.4 jours" on the French dashboard. The plural reads the figure back in the same marks.
         return this.i18n.t('dashboard.days_count', { count: this.i18n.decimal(mean, 1, 1) });
-    }
+    });
 
     /** Why there is no mean, when there is none — a stat with no explanation gets read as a bug. */
-    meanCaption(): string {
+    readonly meanCaption = computed(() => {
         const series = this.trends();
         if (!series) return '';
         if (series.mean_days_to_resolve === null || series.mean_days_to_resolve === undefined) {
@@ -273,7 +267,7 @@ export class Dashboard {
         // The denominator, stated beside the average: an average with no population behind it is a
         // number people quote and should not.
         return this.i18n.t('dashboard.mean_population', { count: series.resolved_in_window });
-    }
+    });
 
     /**
      * The backlog, on a chart of its own.
@@ -379,24 +373,29 @@ export class Dashboard {
         };
     }
 
-    /** Three violations at most: beyond that the row becomes a wall of text and the table
-     *  stops serving its purpose, which is spotting what to handle. */
-    firstViolations(violations: DashboardOverview['failing'][number]['violations']) {
-        return violations.slice(0, 3);
-    }
-
     /**
-     * Why the gate refused, in the reader's language ({@link gateReason}). The row knows no observation, so
-     * an `observation` violation reads the general sentence; the server's own is the line's tooltip.
+     * The failing targets, each with its first violations in words, worked out per overview or
+     * language rather than per row on every pass. Spread rather than wrapped, so a row still reads as
+     * the target it is.
+     *
+     * Three violations at most: beyond that the row becomes a wall of text and the table stops serving
+     * its purpose, which is spotting what to handle. Why the gate refused is in the reader's language
+     * ({@link gateReason}): the row knows no observation, so an `observation` violation reads the
+     * general sentence, and the server's own is the line's tooltip.
      */
-    reasonOf(violation: GateViolation): string {
-        this.i18n.translations();
-        return gateReason(this.i18n, violation);
-    }
+    readonly failing = computed(() =>
+        (this.data()?.failing ?? []).map((target) => ({
+            ...target,
+            firstViolations: target.violations.slice(0, 3).map((violation) => ({
+                ...violation,
+                label: this.ruleLabel(violation.rule),
+                text: gateReason(this.i18n, violation)
+            }))
+        }))
+    );
 
     /** A rule this version does not know shows as the server spells it rather than as another rule. */
-    ruleLabel(rule: string): string {
-        this.i18n.translations();
+    private ruleLabel(rule: string): string {
         const key = (RULE_KEYS as Record<string, string | undefined>)[rule];
         return key ? this.i18n.t(key) : rule;
     }

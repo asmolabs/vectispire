@@ -75,6 +75,9 @@ export class SettingsTicketing {
     }
 
     saveToken(): void {
+        // Enter in the field submits the form too: one request at a time. No `required`: an empty
+        // save is how the stored value is removed.
+        if (this.savingToken()) return;
         this.savingToken.set(true);
         this.state.error.set(null);
         this.settingsApi.setTicketToken(this.tokenInput).subscribe({
@@ -96,6 +99,9 @@ export class SettingsTicketing {
     }
 
     saveTicketWebhookSecret(): void {
+        // Enter in the field submits the form too: one request at a time. No `required`: an empty
+        // save is how the stored value is removed.
+        if (this.savingTicketWebhookSecret()) return;
         this.savingTicketWebhookSecret.set(true);
         this.state.error.set(null);
         this.settingsApi.setTicketWebhookSecret(this.ticketWebhookSecretInput).subscribe({
@@ -114,6 +120,9 @@ export class SettingsTicketing {
     }
 
     saveWebhookSecret(): void {
+        // Enter in the field submits the form too: one request at a time. No `required`: an empty
+        // save is how the stored value is removed.
+        if (this.savingWebhookSecret()) return;
         this.savingWebhookSecret.set(true);
         this.state.error.set(null);
         this.settingsApi.setWebhookSecret(this.webhookSecretInput).subscribe({
@@ -144,7 +153,15 @@ export class SettingsTicketing {
         return expiresAt ? daysLeft(expiresAt, new Date()) : 0;
     }
 
-    getWebhookUrl(provider: string): string {
+    /** Each tracker's inbound address, built once: the origin does not change under an open page. */
+    readonly webhookUrls = {
+        jira: this.getWebhookUrl('jira'),
+        gitlab: this.getWebhookUrl('gitlab'),
+        github: this.getWebhookUrl('github'),
+        servicenow: this.getWebhookUrl('servicenow')
+    };
+
+    private getWebhookUrl(provider: string): string {
         return `${window.location.origin}/api/v1/tickets/webhook/${provider}`;
     }
 

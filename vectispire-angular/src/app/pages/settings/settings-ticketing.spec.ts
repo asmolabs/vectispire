@@ -155,6 +155,20 @@ describe('the tracker cards of the settings page', () => {
         expect((page().querySelector('#ticket-webhook-secret') as HTMLInputElement).value).toBe('');
     });
 
+    it('saves each write-only value on Enter as on its button, once however often its form is submitted', async () => {
+        await integrations();
+        for (const [id, url] of [
+            ['ticket-token', '/api/v1/settings/ticket-token'],
+            ['ticket-webhook-secret', '/api/v1/settings/ticket-webhook-secret'],
+            ['webhook-secret', '/api/v1/settings/webhook-secret']
+        ]) {
+            const form = page().querySelector(`#${id}`)!.closest('form')!;
+            form.dispatchEvent(new Event('submit'));
+            form.dispatchEvent(new Event('submit'));
+            expect(http.match({ method: 'PUT', url }), id).toHaveLength(1);
+        }
+    });
+
     it('gives each tracker the address of its webhook on this host, and copies it', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });

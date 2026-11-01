@@ -139,6 +139,23 @@ describe('the account screen', () => {
         expect(text).toContain('bbbb-2222');
     });
 
+    it('is a form requiring the password and the code, and sends once however often it is submitted', () => {
+        const page = fixture.componentInstance;
+        page.begin();
+        http.expectOne((call) => call.url === '/api/v1/auth/mfa/setup').flush(SETUP);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector<HTMLInputElement>('#mfa-password')!.required).toBe(true);
+        expect(root.querySelector<HTMLInputElement>('#mfa-code')!.required).toBe(true);
+
+        page.code = '123456';
+        page.password = 'correct horse battery staple';
+        const form = root.querySelector('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match((call) => call.url === '/api/v1/auth/mfa/enable').length).toBe(1);
+    });
+
     it('keeps enrolment open when the code is refused', () => {
         const page = fixture.componentInstance;
         page.begin();

@@ -73,74 +73,76 @@ export class LineMeasurement {
         return !!line && differs(line);
     });
 
-    ruleKind(): string {
-        return ruleKindLabel(this.i18n, this.rule().kind);
-    }
+    readonly ruleKind = computed(() => ruleKindLabel(this.i18n, this.rule().kind));
+    readonly ruleWords = computed(() => describeRule(this.i18n, this.rule()));
 
-    ruleWords(): string[] {
-        return describeRule(this.i18n, this.rule());
-    }
+    /**
+     * The measurement with every word and tone it shows worked out once per measurement or language,
+     * the figures' and the repositories' rows included — not by a method per cell on every pass.
+     */
+    readonly view = computed(() => {
+        const found = this.found();
+        if (!found) return null;
+        const then = this.measured()?.atSubmission;
+        return {
+            ...found,
+            outcomeTag: { severity: outcomeSeverity(found.outcome), label: this.label(OUTCOME_KEYS, found.outcome) },
+            reasonSentence: found.reason ? this.label(NO_DATA_KEYS, found.reason) : null,
+            outcomeAtSubmission: then ? this.label(OUTCOME_KEYS, then.outcome) : null,
+            figureRows: found.evidence.figures.map((figure) => ({
+                ...figure,
+                scopeLabel: scopeLabel(this.i18n, figure.scope),
+                severityLabel: severityLabel(this.i18n, figure.severity),
+                metLabel: this.metLabel(figure.met)
+            })),
+            repositoryRows: found.evidence.repositories.map((look) => ({
+                ...look,
+                label: this.repositoryLabel(look),
+                scopeLabel: look.scope ? scopeLabel(this.i18n, look.scope) : '—',
+                statusLabel: this.label(LOOK_STATUS_KEYS, look.status),
+                sourceLabel: this.sourceLabel(look),
+                metLabel: this.metLabel(look.met)
+            }))
+        };
+    });
 
-    outcomeLabel(outcome: string): string {
-        return this.label(OUTCOME_KEYS, outcome);
-    }
+    /** How the answer and the measurement agree, as its tag says it. */
+    readonly reconciliation = computed(() => {
+        const line = this.measured();
+        if (!line) return null;
+        return {
+            severity:
+                (RECONCILIATION_SEVERITIES as Record<string, 'success' | 'danger' | 'warn' | 'info' | 'secondary'>)[
+                    line.reconciliation
+                ] ?? 'secondary',
+            label: this.label(RECONCILIATION_KEYS, line.reconciliation)
+        };
+    });
 
-    outcomeSeverity(outcome: string): 'success' | 'danger' | 'warn' {
-        return outcome === 'pass' ? 'success' : outcome === 'fail' ? 'danger' : 'warn';
-    }
-
-    reasonSentence(reason: string): string {
-        return this.label(NO_DATA_KEYS, reason);
-    }
-
-    reconciliationLabel(reconciliation: string): string {
-        return this.label(RECONCILIATION_KEYS, reconciliation);
-    }
-
-    reconciliationSeverity(reconciliation: string): 'success' | 'danger' | 'warn' | 'info' | 'secondary' {
-        return (
-            (RECONCILIATION_SEVERITIES as Record<string, 'success' | 'danger' | 'warn' | 'info' | 'secondary'>)[
-                reconciliation
-            ] ?? 'secondary'
-        );
-    }
-
-    problemLabel(problem: string): string {
-        return this.label(MEASURED_PROBLEM_KEYS, problem);
-    }
+    readonly problemBadges = computed(() =>
+        this.measuredProblems().map((problem) => ({ problem, label: this.label(MEASURED_PROBLEM_KEYS, problem) }))
+    );
 
     /** The repository by its name, as every screen names it; by its id once it left the project or is gone. */
-    repositoryLabel(look: RepositoryLook): string {
-        this.i18n.translations();
+    private repositoryLabel(look: RepositoryLook): string {
         return look.repositoryName ?? this.i18n.t('project_checklist.repository_n', { id: look.repositoryId });
     }
 
-    statusLabel(status: string): string {
-        return this.label(LOOK_STATUS_KEYS, status);
-    }
-
-    sourceLabel(look: RepositoryLook): string {
-        this.i18n.translations();
+    private sourceLabel(look: RepositoryLook): string {
         const key = look.source ? (SOURCE_KEYS as Record<string, string | undefined>)[look.source] : undefined;
         return key ? this.i18n.t(key, { id: look.sourceId ?? '' }) : (look.source ?? '—');
     }
 
-    scopeLabel(scope: string): string {
-        return scopeLabel(this.i18n, scope);
-    }
-
-    severityLabel(severity: string): string {
-        return severityLabel(this.i18n, severity);
-    }
-
-    metLabel(met: boolean | null): string {
-        this.i18n.translations();
+    private metLabel(met: boolean | null): string {
         return met === null ? '—' : met ? this.i18n.t(OUTCOME_KEYS.pass) : this.i18n.t(OUTCOME_KEYS.fail);
     }
 
     private label(keys: Readonly<Record<string, string>>, value: string): string {
-        this.i18n.translations();
         const key = keys[value];
         return key ? this.i18n.t(key) : value;
     }
+}
+
+function outcomeSeverity(outcome: string): 'success' | 'danger' | 'warn' {
+    return outcome === 'pass' ? 'success' : outcome === 'fail' ? 'danger' : 'warn';
 }

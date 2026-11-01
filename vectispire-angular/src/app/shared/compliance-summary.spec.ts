@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ComplianceSummaryView } from './compliance-summary';
-import { useEnglish } from '@/app/core/testing/english';
+import { ComplianceSummaryView, statusSeverity } from './compliance-summary';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { COMPLIANCE_SUMMARY, NO_DATA_SUMMARY } from '@/app/core/testing/scopes.fixtures';
 
 /**
@@ -34,7 +34,7 @@ describe('a compliance summary', () => {
         expect(card).not.toContain('NO_DATA');
         expect(card).toContain('—');
         expect(card).not.toContain('0%');
-        expect(fixture.componentInstance.statusSeverity('NO_DATA')).toBe('secondary');
+        expect(statusSeverity('NO_DATA')).toBe('secondary');
     });
 
     it('opens the controls of the framework a reader picks', async () => {
@@ -89,5 +89,47 @@ describe('a compliance summary', () => {
 
         expect(fixture.componentInstance.freshnessRate()).toBe(100);
         expect(fixture.componentInstance.neverObserved()).toBe(0);
+    });
+
+    it('words the cards, the matrix and the controls again when the reader switches language', async () => {
+        await draw(COMPLIANCE_SUMMARY);
+        const words = () => ({
+            card: text('[data-testid="framework-NIS_2"]'),
+            gate: text('[data-testid="matrix-row"] td:nth-child(2)'),
+            verdict: text('[data-testid="matrix-row"] td:nth-child(8)'),
+            controls: dom().querySelector('.divide-y.mt-4')?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+        });
+        const english = words();
+        expect(english.card).toContain('NIS 2 Directive');
+        expect(english.card).toContain('Partial');
+        expect(english.card).toContain('72%');
+        expect(english.gate).toBe('Failed');
+        expect(english.controls).toContain('Compliant');
+
+        useFrench();
+        await fixture.whenStable();
+        const french = words();
+        expect(french.card).toContain('Directive NIS 2');
+        expect(french.card).toContain('Partiel');
+        // The no-break space before the sign, collapsed to a space by `text`.
+        expect(french.card).toContain('72 %');
+        expect(french.gate).not.toBe(english.gate);
+        expect(french.verdict).toContain('Partiel');
+        expect(french.controls).toContain('Conforme');
+        expect(french.controls).not.toContain('Compliant');
+    });
+
+    it('draws the gate pass rate over the scope, and a hundred on an empty one', async () => {
+        // Three of four passing: 75 %, a figure no other tile shows here (freshness is 1 of 4).
+        await draw({ ...COMPLIANCE_SUMMARY, totalMonitoredTargets: 4, passingGateTargets: 3, observedTargets: 4 });
+        expect(dom().textContent).toContain('75%');
+
+        fixture.componentRef.setInput('summary', {
+            ...COMPLIANCE_SUMMARY,
+            totalMonitoredTargets: 0,
+            passingGateTargets: 0
+        });
+        await fixture.whenStable();
+        expect(fixture.componentInstance.gatePassRate()).toBe(100);
     });
 });

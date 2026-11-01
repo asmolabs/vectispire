@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { SshKeys } from './ssh-keys';
 import { asSchema, asSchemaList, newerServerWord } from '@/app/core/testing/contract';
 import type { SshKeySummary } from '@/app/core/api.models';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The deployment keys screen, driven as an operator drives it: the buttons, the fields, the dialogs.
@@ -103,6 +104,23 @@ describe('the SSH keys screen', () => {
             tag.textContent.trim()
         );
         expect(tags).toEqual(['ssh_keys.encryption_status.rotate', 'ssh_keys.encryption_status.unreadable']);
+    });
+
+    it('words each badge in the reader language and follows the list, after a switch too', () => {
+        useEnglish();
+        list([{ ...KEY, id: 'a', name: 'old', encryptionState: 'previous_key' }]);
+        const tag = () => (fixture.nativeElement as HTMLElement).querySelector('tbody .p-tag')!;
+        expect(tag().textContent.trim()).toBe('Rotate');
+        expect(tag().className).toContain('p-tag-warn');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(tag().textContent.trim()).toBe('À faire tourner');
+
+        fixture.componentInstance.keys.set([{ ...KEY, encryptionState: 'unreadable' }]);
+        fixture.detectChanges();
+        expect(tag().textContent.trim()).toBe('Illisible');
+        expect(tag().className).toContain('p-tag-danger');
     });
 
     it('says when there is no key', () => {

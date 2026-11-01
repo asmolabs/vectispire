@@ -208,6 +208,20 @@ describe('the attack path graph', () => {
         ]);
     });
 
+    it("colours the score, tints each node by its severity and draws a sink's icon by its kind", () => {
+        const score = [...page().querySelectorAll('span.text-3xl')].find((node) => node.textContent.includes('/ 100'))!;
+        expect(score.className).toContain('text-rose-600');
+
+        const tones = (column: number) =>
+            [
+                ...(page().querySelector('.grid.md\\:grid-cols-4')?.children[column]?.querySelectorAll('.p-tag') ?? [])
+            ].map((tag) => tag.className.match(/p-tag-(danger|warn|info|secondary)/)?.[1]);
+        expect(tones(1)).toEqual(['danger', 'info']);
+        expect(tones(2)).toEqual(['danger', 'info']);
+        const sink = page().querySelector('.grid.md\\:grid-cols-4')?.children[3];
+        expect(sink?.querySelector('i.pi-key')).not.toBeNull();
+    });
+
     it('opens a node’s details when it is clicked', () => {
         const node = [...page().querySelectorAll<HTMLElement>('[role="button"]')].find((candidate) =>
             candidate.textContent.includes('CVE-2021-44228')

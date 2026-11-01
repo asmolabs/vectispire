@@ -86,6 +86,8 @@ export class Remediation {
     readonly coverageError = signal<string | null>(null);
     readonly targetsError = signal<string | null>(null);
     readonly expanded = signal<string | null>(null);
+    /** Each fix with its tint worked out once per list, rather than per binding on every pass. */
+    readonly rows = computed(() => this.fixes().map((fix) => ({ ...fix, tone: severityOf(fix) })));
 
     /**
      * The target the plan covers, or the whole estate.
@@ -213,20 +215,16 @@ export class Remediation {
     toggle(fix: HighImpactFix): void {
         this.expanded.set(this.expanded() === fix.packageName ? null : fix.packageName);
     }
+}
 
-    isExpanded(fix: HighImpactFix): boolean {
-        return this.expanded() === fix.packageName;
-    }
-
-    /**
-     * The severity that governs the row, for the tint.
-     *
-     * <p>A single critical decides the colour: it is what decides the urgency, and an average would
-     * have diluted it in the count.
-     */
-    severityOf(fix: HighImpactFix): 'danger' | 'warn' | 'info' {
-        if (fix.criticalCveCount > 0) return 'danger';
-        if (fix.highCveCount > 0) return 'warn';
-        return 'info';
-    }
+/**
+ * The severity that governs the row, for the tint.
+ *
+ * <p>A single critical decides the colour: it is what decides the urgency, and an average would
+ * have diluted it in the count.
+ */
+function severityOf(fix: HighImpactFix): 'danger' | 'warn' | 'info' {
+    if (fix.criticalCveCount > 0) return 'danger';
+    if (fix.highCveCount > 0) return 'warn';
+    return 'info';
 }

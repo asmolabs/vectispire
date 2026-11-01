@@ -15,6 +15,32 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { INTEGRATIONS_ROUTE, IntegrationRegistry, siemIntegration } from '../../shared/integrations';
 import { SettingsState } from './settings-state';
 
+/** The four transports the server accepts, in the order the list shows them. */
+const PROTOCOLS: readonly {
+    value: SiemConfig['protocol'];
+    key:
+        | 'settings.siem_protocol_webhook'
+        | 'settings.siem_protocol_udp'
+        | 'settings.siem_protocol_tcp'
+        | 'settings.siem_protocol_tls';
+}[] = [
+    { value: 'WEBHOOK', key: 'settings.siem_protocol_webhook' },
+    { value: 'SYSLOG_UDP', key: 'settings.siem_protocol_udp' },
+    { value: 'SYSLOG_TCP', key: 'settings.siem_protocol_tcp' },
+    { value: 'SYSLOG_TLS', key: 'settings.siem_protocol_tls' }
+];
+
+/**
+ * The endpoint each protocol reads: a URL for the webhook, host:port for syslog — 6514 is the
+ * registered port for syslog over TLS, 514 for UDP and TCP.
+ */
+const ENDPOINT_PLACEHOLDERS: Record<SiemConfig['protocol'], string> = {
+    WEBHOOK: 'https://siem-collector.internal.corp/api/v1/cef-receiver',
+    SYSLOG_UDP: 'siem-collector.internal.corp:514',
+    SYSLOG_TCP: 'siem-collector.internal.corp:514',
+    SYSLOG_TLS: 'siem-collector.internal.corp:6514'
+};
+
 /**
  * The Integrations tab's SIEM forwarder card.
  *
@@ -78,18 +104,28 @@ export class SettingsSiem {
         this.state.register(() => this.load(), inject(DestroyRef));
     }
 
-    /** Whether the protocol list offers this transport: enabled, or the one stored. */
-    offers(protocol: SiemConfig['protocol']): boolean {
+    /**
+     * The protocols the list offers — enabled, or the one stored — each worded with *suspended* beside the
+     * stored transport the governor switched off: computed once per configuration, registry or language.
+     */
+    readonly protocols = computed(() => {
+        this.i18n.translations();
         const stored = this.siemConfig()?.protocol;
-        return this.registry.offers(siemIntegration(protocol), stored ? siemIntegration(stored) : null);
-    }
+        return PROTOCOLS.filter(({ value }) =>
+            this.registry.offers(siemIntegration(value), stored ? siemIntegration(stored) : null)
+        ).map(({ value, key }) => {
+            const label = this.i18n.t(key);
+            return {
+                value,
+                label: this.registry.isDisabled(siemIntegration(value))
+                    ? this.i18n.t('integrations.option_suspended', { name: label })
+                    : label
+            };
+        });
+    });
 
-    /** The option's words, with *suspended* beside the stored transport the governor switched off. */
-    optionLabel(protocol: SiemConfig['protocol'], label: string): string {
-        return this.registry.isDisabled(siemIntegration(protocol))
-            ? this.i18n.t('integrations.option_suspended', { name: label })
-            : label;
-    }
+    /** Read by the template as a lookup on the protocol on screen: the form is a plain field the select writes. */
+    readonly endpointPlaceholders = ENDPOINT_PLACEHOLDERS;
 
     /** The authorization header travels with a webhook only; the syslog protocols have nowhere to put it. */
     isWebhook(): boolean {
@@ -110,23 +146,9 @@ export class SettingsSiem {
         return this.isTls() ? this.siemForm.tlsCaPem.trim() : undefined;
     }
 
-    /**
-     * The endpoint each protocol reads: a URL for the webhook, host:port for syslog — 6514 is the
-     * registered port for syslog over TLS, 514 for UDP and TCP.
-     */
-    endpointPlaceholder(): string {
-        switch (this.siemForm.protocol) {
-            case 'SYSLOG_TLS':
-                return 'siem-collector.internal.corp:6514';
-            case 'SYSLOG_UDP':
-            case 'SYSLOG_TCP':
-                return 'siem-collector.internal.corp:514';
-            default:
-                return 'https://siem-collector.internal.corp/api/v1/cef-receiver';
-        }
-    }
-
     saveSiemConfig(): void {
+        // Enter in a field submits the form too: one request at a time.
+        if (this.savingSiem()) return;
         this.savingSiem.set(true);
         this.state.error.set(null);
         this.integrationsApi

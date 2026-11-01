@@ -68,6 +68,17 @@ export class Users {
 
     readonly users = signal<UserSummary[]>([]);
     readonly currentUserId = signal<number | null>(null);
+    /**
+     * Each account with which of its actions it offers, worked out per list or reader rather than by
+     * two methods per row on every pass.
+     */
+    readonly rows = computed(() =>
+        this.users().map((user) => ({
+            ...user,
+            canLift: this.canLift(user),
+            canResetSecondFactor: this.canResetSecondFactor(user)
+        }))
+    );
     readonly loading = signal(true);
     readonly saving = signal(false);
     /** The id of the row being modified: two simultaneous actions on the same account would
@@ -92,6 +103,18 @@ export class Users {
      * the row, as a change that did not happen.
      */
     readonly requests = signal<AccountRequest[]>([]);
+    /**
+     * Each request with its roles named and whether it is the caller's own, worked out per list, language or
+     * reader — as `rows` is for the accounts — rather than by method calls on every pass.
+     */
+    readonly requestRows = computed(() =>
+        this.requests().map((request) => ({
+            ...request,
+            own: this.isOwnRequest(request),
+            heldLabel: this.roleLabel(request.heldRole),
+            requestedLabel: this.roleLabel(request.requestedRole)
+        }))
+    );
     readonly requestsError = signal<string | null>(null);
     /** The request being approved or rejected: one decision at a time on each. */
     readonly requestBusy = signal<number | null>(null);
@@ -245,7 +268,8 @@ export class Users {
         this.loading.set(true);
         this.accountsApi.users().subscribe({
             next: (result) => {
-                this.users.set(result.users);
+                // An answer without the list drew an empty table before the rows were computed: still.
+                this.users.set(result.users ?? []);
                 this.currentUserId.set(result.currentUserId);
                 if (!preserveError) this.error.set(null);
                 this.loading.set(false);
@@ -269,13 +293,13 @@ export class Users {
     }
 
     /** The role's label, or the value as sent when the client does not know it. */
-    roleLabel(role: string | null): string {
+    private roleLabel(role: string | null): string {
         if (role == null) return '';
         return this.roles().find((option) => option.value === role)?.label ?? role;
     }
 
     /** One's own request is withdrawn, never approved: the server refuses that, and a second pair of eyes is the point. */
-    isOwnRequest(request: AccountRequest): boolean {
+    private isOwnRequest(request: AccountRequest): boolean {
         const me = this.currentUserId();
         return me != null && request.requestedById === me;
     }
@@ -415,7 +439,7 @@ export class Users {
      * change, and not one's own. An account signing in with its own password lifts the requirement by
      * changing it — lifting it for them would keep valid a password somebody else chose.
      */
-    canLift(user: UserSummary): boolean {
+    private canLift(user: UserSummary): boolean {
         return user.mustChangePassword && user.federated && user.id !== this.currentUserId();
     }
 
@@ -444,7 +468,7 @@ export class Users {
     }
 
     /** Offered where the server would accept it: a second factor enrolled, on an account not one's own. */
-    canResetSecondFactor(user: UserSummary): boolean {
+    private canResetSecondFactor(user: UserSummary): boolean {
         return user.mfaEnabled && user.id !== this.currentUserId();
     }
 

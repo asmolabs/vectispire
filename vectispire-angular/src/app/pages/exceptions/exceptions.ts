@@ -12,7 +12,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/core/api.models';
-import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone } from '@/app/shared/severity';
 import { triageStatusLabel } from '@/app/shared/triage-status';
 
 /** The decisions that are an exemption in force once granted. */
@@ -89,33 +89,36 @@ export class Exceptions {
      */
     readonly hasMore = computed(() => this.register()?.next_cursor != null);
 
+    /** The figures' colours, worked out when the counts move rather than by a method per binding. */
+    readonly tones = computed(() => ({
+        awaiting: alarming(this.awaiting(), 'warn'),
+        lapsed: alarming(this.lapsed(), 'danger'),
+        lapsedRail: rail(this.lapsed(), 'danger'),
+        neverReviewed: alarming(this.neverReviewed(), 'warn'),
+        neverReviewedRail: rail(this.neverReviewed(), 'warn')
+    }));
+
     /**
-     * The colour follows the meaning, not the metric.
-     *
-     * <p><b>"0 lapsed" in red was good news painted as an alarm.</b> A table where good news is red
-     * teaches people to ignore red, and it is then the red that matters that becomes invisible —
-     * the same reasoning as the coverage banner, applied to a number rather than to a warning.
+     * Each loaded row with its colour and its words worked out once — per page loaded or language,
+     * not per binding on every pass. `t` reads the bundle's signal, so a switch recomputes them.
      */
-    alarming(count: number, tone: 'danger' | 'warn'): string {
-        if (count === 0) {
-            return 'text-emerald-700';
-        }
-        return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
-    }
+    readonly rows = computed(() =>
+        this.loaded().map((entry) => ({
+            ...entry,
+            tone: severityTone(entry.severity),
+            decisionText: this.decisionLabel(entry),
+            requestedText: this.requestedLabel(entry)
+        }))
+    );
 
-    /** The card's border goes with the alarm, for the same reason. */
-    rail(count: number, tone: 'danger' | 'warn'): string {
-        if (count === 0) {
-            return 'border-emerald-500';
-        }
-        return tone === 'danger' ? 'border-red-500' : 'border-orange-400';
-    }
-
-    /** La ligne en cours de revue, et ce que le formulaire porte. */
+    /**
+     * La ligne en cours de revue, et ce que le formulaire porte. Signals, so that `incomplete` can be
+     * a computed: a plain field written by the form would leave it reading the value it first saw.
+     */
     readonly reviewing = signal<ExceptionEntry | null>(null);
-    outcome: ReviewOutcome = 'CONFIRMED';
-    comment = '';
-    newExpiry = '';
+    readonly outcome = signal<ReviewOutcome>('CONFIRMED');
+    readonly comment = signal('');
+    readonly newExpiry = signal('');
 
     readonly canReview = computed(() => this.session.isSecurityLead());
 
@@ -145,9 +148,9 @@ export class Exceptions {
     }
 
     openReview(entry: ExceptionEntry): void {
-        this.outcome = 'CONFIRMED';
-        this.comment = '';
-        this.newExpiry = '';
+        this.outcome.set('CONFIRMED');
+        this.comment.set('');
+        this.newExpiry.set('');
         this.error.set(null);
         this.reviewing.set(entry);
     }
@@ -160,24 +163,24 @@ export class Exceptions {
      */
     readonly submittable = computed(() => !this.busy());
 
-    incomplete(): boolean {
-        return this.outcome === 'EXTENDED' && !this.newExpiry;
-    }
+    readonly incomplete = computed(() => this.outcome() === 'EXTENDED' && !this.newExpiry());
 
     submitReview(): void {
         const entry = this.reviewing();
-        if (!entry || this.incomplete()) {
+        // Enter in a field submits the form whatever the button shows: the same checks, one at a time.
+        if (!entry || this.incomplete() || this.busy()) {
             return;
         }
+        const outcome = this.outcome();
         this.busy.set(true);
         this.error.set(null);
 
         this.issuesApi
             .reviewException(
                 entry.issue_id,
-                this.outcome,
-                this.comment.trim() || null,
-                this.outcome === 'EXTENDED' ? new Date(this.newExpiry).toISOString() : null
+                outcome,
+                this.comment().trim() || null,
+                outcome === 'EXTENDED' ? new Date(this.newExpiry()).toISOString() : null
             )
             .subscribe({
                 next: (data) => {
@@ -202,19 +205,37 @@ export class Exceptions {
      * not fix", which are opposite claims about the product: one says it is not exposed, the
      * other that it is and the team knows.
      */
-    decisionLabel(entry: ExceptionEntry): string {
+    private decisionLabel(entry: ExceptionEntry): string {
         return triageStatusLabel(this.i18n, entry.decision);
     }
 
     /** What a request awaiting approval asks for — an acceptance, a clearance or a fix, which looked
      *  alike here while the queue kept only `pending_approval` (decision 0041). */
-    requestedLabel(entry: ExceptionEntry): string {
+    private requestedLabel(entry: ExceptionEntry): string {
         return this.i18n.t('exceptions.requested', {
             status: triageStatusLabel(this.i18n, entry.requested_status ?? '')
         });
     }
+}
 
-    severityOf(entry: ExceptionEntry): SeverityTone {
-        return severityTone(entry.severity);
+/**
+ * The colour follows the meaning, not the metric.
+ *
+ * <p><b>"0 lapsed" in red was good news painted as an alarm.</b> A table where good news is red
+ * teaches people to ignore red, and it is then the red that matters that becomes invisible —
+ * the same reasoning as the coverage banner, applied to a number rather than to a warning.
+ */
+function alarming(count: number, tone: 'danger' | 'warn'): string {
+    if (count === 0) {
+        return 'text-emerald-700';
     }
+    return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
+}
+
+/** The card's border goes with the alarm, for the same reason. */
+function rail(count: number, tone: 'danger' | 'warn'): string {
+    if (count === 0) {
+        return 'border-emerald-500';
+    }
+    return tone === 'danger' ? 'border-red-500' : 'border-orange-400';
 }

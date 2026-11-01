@@ -92,6 +92,25 @@ describe('the blast-radius explorer', () => {
         expect(page().textContent).not.toContain('graph of log4j-core');
     });
 
+    it("colours the score's level with its figure, and follows the next report", () => {
+        http.expectOne((call) => call.url === TOP).flush([top('log4j-core')]);
+        fixture.componentInstance.selectQuickPackage('log4j-core');
+        http.expectOne((call) => call.url === EXPLORE).flush(report('log4j-core'));
+        fixture.detectChanges();
+        const level = () =>
+            Array.from(page().querySelectorAll('.p-tag')).find((tag) =>
+                /-tag-(warn|danger|success)/.test(tag.className)
+            )!;
+        expect(level().className).toContain('p-tag-warn');
+
+        fixture.componentInstance.selectQuickPackage('jackson-databind');
+        http.expectOne((call) => call.url === EXPLORE).flush(
+            asSchema('BlastRadiusReport', { ...report('jackson-databind'), blastRadiusScore: 85 })
+        );
+        fixture.detectChanges();
+        expect(level().className).toContain('p-tag-danger');
+    });
+
     it('keeps the exploration spinning when the ranking answers first', () => {
         fixture.componentInstance.searchQuery = 'log4j-core';
         fixture.componentInstance.explore();

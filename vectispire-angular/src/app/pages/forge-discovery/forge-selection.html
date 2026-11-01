@@ -247,100 +247,108 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (candidate of current.items; track candidate.repository.forgeId) {
+                    @for (row of candidates(); track row.candidate.repository.forgeId) {
                         <tr
                             class="border-b border-surface-100 dark:border-surface-800"
-                            [class.opacity-60]="!candidate.selectable"
+                            [class.opacity-60]="!row.candidate.selectable"
                             data-testid="candidate"
-                            [attr.data-forge-id]="candidate.repository.forgeId"
+                            [attr.data-forge-id]="row.candidate.repository.forgeId"
                         >
                             <td class="py-2 pr-2">
                                 <input
                                     type="checkbox"
                                     data-testid="tick"
-                                    [id]="'tick-' + candidate.repository.forgeId"
-                                    [checked]="selectedSet().has(candidate.repository.forgeId)"
-                                    [disabled]="!candidate.selectable || changing()"
+                                    [id]="'tick-' + row.candidate.repository.forgeId"
+                                    [checked]="row.ticked"
+                                    [disabled]="!row.candidate.selectable || changing()"
                                     [attr.aria-label]="
                                         'forges.selection.aria_tick'
-                                            | translate: { path: candidate.repository.fullPath }
+                                            | translate: { path: row.candidate.repository.fullPath }
                                     "
-                                    (change)="toggle(candidate, $any($event.target).checked)"
+                                    (change)="toggle(row.candidate, $any($event.target).checked)"
                                 />
                             </td>
                             <td class="py-2 pr-3 font-mono break-all">
-                                @if (candidate.repository.webUrl) {
-                                    <a [href]="candidate.repository.webUrl" target="_blank" rel="noopener noreferrer">{{
-                                        candidate.repository.fullPath
-                                    }}</a>
+                                @if (row.candidate.repository.webUrl) {
+                                    <a
+                                        [href]="row.candidate.repository.webUrl"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        >{{ row.candidate.repository.fullPath }}</a
+                                    >
                                 } @else {
-                                    {{ candidate.repository.fullPath }}
+                                    {{ row.candidate.repository.fullPath }}
                                 }
-                                <span class="block text-xs text-muted-color">{{ candidate.repository.forgeId }}</span>
+                                <span class="block text-xs text-muted-color">{{
+                                    row.candidate.repository.forgeId
+                                }}</span>
                             </td>
                             <td class="py-2 pr-3">
                                 <div class="flex flex-wrap gap-1">
-                                    @if (candidate.repository.personal) {
+                                    @if (row.candidate.repository.personal) {
                                         <p-tag
                                             data-testid="personal"
                                             severity="secondary"
                                             [value]="'forges.repository.personal' | translate"
                                         />
                                     }
-                                    @if (candidate.repository.archived === true) {
+                                    @if (row.candidate.repository.archived === true) {
                                         <p-tag severity="warn" [value]="'forges.repository.archived' | translate" />
-                                    } @else if (candidate.repository.archived === null) {
+                                    } @else if (row.candidate.repository.archived === null) {
                                         <p-tag
                                             severity="secondary"
                                             [value]="'forges.repository.archived_unknown' | translate"
                                         />
                                     }
-                                    @if (candidate.repository.fork === true) {
+                                    @if (row.candidate.repository.fork === true) {
                                         <p-tag severity="info" [value]="'forges.repository.fork' | translate" />
                                     }
-                                    @if (candidate.repository.visibility; as visibility) {
+                                    @if (row.candidate.repository.visibility; as visibility) {
                                         <p-tag severity="secondary" [value]="visibility" />
                                     }
                                 </div>
                             </td>
                             <td class="py-2 pr-3">
-                                {{ candidate.repository.language ?? ('common.unknown' | translate) }}
+                                {{ row.candidate.repository.language ?? ('common.unknown' | translate) }}
                             </td>
                             <td class="py-2 pr-3">
-                                @if (candidate.repository.lastActivityAt) {
-                                    {{ candidate.repository.lastActivityAt | date: 'dd/MM/yyyy' }}
+                                @if (row.candidate.repository.lastActivityAt) {
+                                    {{ row.candidate.repository.lastActivityAt | date: 'dd/MM/yyyy' }}
                                 } @else {
                                     {{ 'common.unknown' | translate }}
                                 }
                             </td>
                             <td class="py-2 pr-3">
-                                {{ candidate.repository.defaultBranch ?? ('common.unknown' | translate) }}
+                                {{ row.candidate.repository.defaultBranch ?? ('common.unknown' | translate) }}
                             </td>
                             <td class="py-2 pr-3" data-testid="candidate-state">
-                                @if (candidate.notSelectable === 'already_present') {
+                                @if (row.candidate.notSelectable === 'already_present') {
                                     {{
                                         'forges.selection.present_as'
-                                            | translate: { count: candidate.presentAs?.length ?? 0 }
+                                            | translate: { count: row.candidate.presentAs?.length ?? 0 }
                                     }}
-                                } @else if (candidate.notSelectable === 'already_imported') {
-                                    {{ 'forges.selection.imported_as' | translate: { id: candidate.importedAs ?? '' } }}
-                                } @else if (skipKey(candidate); as key) {
+                                } @else if (row.candidate.notSelectable === 'already_imported') {
+                                    {{
+                                        'forges.selection.imported_as'
+                                            | translate: { id: row.candidate.importedAs ?? '' }
+                                    }}
+                                } @else if (row.skipKey; as key) {
                                     {{ key | translate }}
-                                } @else if (candidate.notSelectable) {
-                                    {{ candidate.notSelectable }}
-                                } @else if (candidate.offered) {
+                                } @else if (row.candidate.notSelectable) {
+                                    {{ row.candidate.notSelectable }}
+                                } @else if (row.candidate.offered) {
                                     <span class="text-muted-color">{{ 'forges.selection.offered' | translate }}</span>
-                                } @else if (candidate.repository.personal) {
+                                } @else if (row.candidate.repository.personal) {
                                     <span class="text-muted-color">{{
                                         'forges.selection.personal_unticked' | translate
                                     }}</span>
                                 }
                             </td>
                             <td class="py-2 pr-3">
-                                @if (candidate.proposedProject) {
-                                    {{ candidate.proposedSolution }} / {{ candidate.proposedProject }}
-                                } @else if (candidate.proposedSolution) {
-                                    {{ candidate.proposedSolution }}
+                                @if (row.candidate.proposedProject) {
+                                    {{ row.candidate.proposedSolution }} / {{ row.candidate.proposedProject }}
+                                } @else if (row.candidate.proposedSolution) {
+                                    {{ row.candidate.proposedSolution }}
                                 } @else {
                                     <span class="text-muted-color">{{ 'forges.mapping.no_project' | translate }}</span>
                                 }

@@ -22,11 +22,11 @@
     Four-eyes holds these: the accounts table below still shows each account as it was, so what waits
     is said above it. Hidden when nothing waits — an empty card on every visit is noise.
 -->
-@if (requests().length > 0) {
+@if (requestRows().length > 0) {
     <p-card id="account-requests" styleClass="mb-4">
         <h2 class="text-lg font-semibold mt-0 mb-1">{{ 'users.requests_title' | translate }}</h2>
         <p class="text-muted-color mt-0 mb-3">{{ 'users.requests_subtitle' | translate }}</p>
-        <p-table [value]="requests()" dataKey="id" styleClass="p-datatable-sm">
+        <p-table [value]="requestRows()" dataKey="id" styleClass="p-datatable-sm">
             <ng-template #header>
                 <tr>
                     <th>{{ 'users.requests_col_change' | translate }}</th>
@@ -42,7 +42,7 @@
                             <div>
                                 {{
                                     'users.request_create'
-                                        | translate: { name: request.username, role: roleLabel(request.requestedRole) }
+                                        | translate: { name: request.username, role: request.requestedLabel }
                                 }}
                             </div>
                         } @else {
@@ -53,8 +53,8 @@
                                             | translate
                                                 : {
                                                       name: request.username,
-                                                      held: roleLabel(request.heldRole),
-                                                      requested: roleLabel(request.requestedRole)
+                                                      held: request.heldLabel,
+                                                      requested: request.requestedLabel
                                                   }
                                     }}
                                 </div>
@@ -66,13 +66,13 @@
                     </td>
                     <td>
                         {{ request.requestedBy ?? request.requestedById }}
-                        @if (isOwnRequest(request)) {
+                        @if (request.own) {
                             <span class="text-muted-color text-sm">({{ 'users.you' | translate }})</span>
                         }
                     </td>
                     <td>{{ request.requestedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
                     <td class="text-right whitespace-nowrap">
-                        @if (isOwnRequest(request)) {
+                        @if (request.own) {
                             <p-button
                                 class="request-withdraw"
                                 [label]="'users.request_withdraw' | translate"
@@ -106,7 +106,7 @@
 }
 
 <p-card>
-    <p-table [value]="users()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+    <p-table [value]="rows()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
                 <th>{{ 'users.username' | translate }}</th>
@@ -136,6 +136,7 @@
                          protects. The server refuses anyway whatever would lock everybody
                          out. -->
                     <p-select
+                        [ariaLabel]="'users.role' | translate"
                         [options]="roles()"
                         optionLabel="label"
                         optionValue="value"
@@ -188,7 +189,7 @@
                         [disabled]="busy() === user.id"
                         (onClick)="openReset(user)"
                     />
-                    @if (canLift(user)) {
+                    @if (user.canLift) {
                         <p-button
                             icon="pi pi-unlock"
                             [text]="true"
@@ -198,7 +199,7 @@
                             (onClick)="askLift(user)"
                         />
                     }
-                    @if (canResetSecondFactor(user)) {
+                    @if (user.canResetSecondFactor) {
                         <p-button
                             icon="pi pi-shield"
                             [text]="true"
@@ -299,7 +300,11 @@
                 {{ 'users.reset_new_password_for' | translate }} <span class="font-medium">{{ user.username }}</span
                 >.
             </p>
-            <input pInputText [(ngModel)]="resetPassword" />
+            <input
+                pInputText
+                [attr.aria-label]="'users.aria_reset_password' | translate: { name: user.username }"
+                [(ngModel)]="resetPassword"
+            />
             <small class="text-muted-color">{{ 'users.reset_hint' | translate }}</small>
             @if (formError(); as message) {
                 <p-message severity="error" [closable]="false">{{ message }}</p-message>

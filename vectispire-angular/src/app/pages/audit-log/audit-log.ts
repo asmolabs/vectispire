@@ -211,14 +211,21 @@ export class AuditLog {
         });
     }
 
-    operationLabel(type: string | null): string {
+    /**
+     * Each entry with its operation in words, worked out per page or language rather than per row on
+     * every pass; `t` reads the bundle's signal, so a switch recomputes them.
+     */
+    readonly rows = computed(() =>
+        this.entries().map((entry) => ({ ...entry, operation: this.operationLabel(entry.operationType) }))
+    );
+
+    /** The last entry shown, for the page's range and its "next" button. */
+    readonly shownTo = computed(() => Math.min(this.offset() + this.entries().length, this.total()));
+
+    private operationLabel(type: string | null): string {
         if (!type) return '—';
         const key = OPERATION_KEYS[type];
         return key ? this.i18n.t(key) : type;
-    }
-
-    shownTo(): number {
-        return Math.min(this.offset() + this.entries().length, this.total());
     }
 
     search(): void {

@@ -49,13 +49,13 @@
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.covered' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium" [class]="alarming(data.withFindings, 'danger')">
+                <div class="text-2xl font-medium" [class]="tones().withFindings">
                     {{ data.withFindings }}
                 </div>
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.with_findings' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-medium" [class]="alarming(data.unmeasured, 'warn')">
+                <div class="text-2xl font-medium" [class]="tones().unmeasured">
                     {{ data.unmeasured }}
                 </div>
                 <div class="text-muted-color text-sm">{{ 'owasp_grid.unmeasured' | translate }}</div>
@@ -79,20 +79,20 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (line of lines(); track line.id) {
+                    @for (line of rows(); track line.id) {
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
                             <td class="py-3 pr-4 whitespace-nowrap">
                                 <span class="font-mono text-xs font-medium">{{ line.id }}</span>
                                 <span class="ml-2">{{ line.title }}</span>
                             </td>
-                            <td class="py-3 pr-4 whitespace-nowrap font-medium" [class]="colourOf(line.state)">
-                                {{ stateLabel(line.state) }}
+                            <td class="py-3 pr-4 whitespace-nowrap font-medium" [class]="line.colour">
+                                {{ line.stateLabel }}
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
                                 @if (line.state === 'FINDINGS') {
                                     <a
                                         routerLink="/issues"
-                                        [queryParams]="openParams(line)"
+                                        [queryParams]="line.link"
                                         [attr.aria-label]="
                                             'owasp_grid.open_issues'
                                                 | translate: { count: line.findings, category: line.id }
@@ -106,7 +106,7 @@
                             </td>
                             <td class="py-3 text-muted-color">
                                 @if (line.state !== 'NOT_COVERED') {
-                                    {{ because(line) }}
+                                    {{ line.reasonSentence }}
                                 }
                                 <!--
                                     What the organisation states about a category no scanner here
@@ -114,7 +114,7 @@
                                     nobody reviews; with one it carries a name, evidence and a due
                                     date — the difference between noting a limit and owning it.
                                 -->
-                                @if (declarable(line)) {
+                                @if (line.declarable) {
                                     <div class="mt-1">
                                         <p-button
                                             [label]="
@@ -129,11 +129,9 @@
                                 }
                                 @if (line.declaration; as declared) {
                                     <div class="mt-1 text-sm">
-                                        <span class="font-medium">{{
-                                            applicabilityLabel(declared.applicability)
-                                        }}</span>
+                                        <span class="font-medium">{{ line.applicabilityLabel }}</span>
                                         @if (declared.implementation) {
-                                            · {{ implementationLabel(declared.implementation) }}
+                                            · {{ line.implementationLabel }}
                                         }
                                         @if (declared.owner) {
                                             · {{ declared.owner }}
@@ -200,109 +198,142 @@
             <div class="text-muted-color text-sm">{{ 'owasp_grid.dialog.why' | translate }}</div>
         </div>
 
-        <div class="mb-4">
-            <label for="owasp-applicability" class="block font-medium mb-1">{{
-                'owasp_grid.dialog.applicability' | translate
-            }}</label>
-            <select
-                id="owasp-applicability"
-                [(ngModel)]="applicability"
-                class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
-            >
-                <option value="APPLICABLE">{{ 'owasp_grid.declared.APPLICABLE' | translate }}</option>
-                <option value="EXCLUDED">{{ 'owasp_grid.declared.EXCLUDED' | translate }}</option>
-            </select>
-        </div>
-
-        @if (applicability === 'APPLICABLE') {
+        <form (ngSubmit)="submit()">
             <div class="mb-4">
-                <label for="owasp-implementation" class="block font-medium mb-1">{{
-                    'owasp_grid.dialog.implementation' | translate
+                <label for="owasp-applicability" class="block font-medium mb-1">{{
+                    'owasp_grid.dialog.applicability' | translate
                 }}</label>
                 <select
-                    id="owasp-implementation"
-                    [(ngModel)]="implementation"
+                    id="owasp-applicability"
+                    name="owasp-applicability"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="applicability"
                     class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
                 >
-                    <option value="IMPLEMENTED">{{ 'owasp_grid.implementation.IMPLEMENTED' | translate }}</option>
-                    <option value="PARTIALLY_IMPLEMENTED">
-                        {{ 'owasp_grid.implementation.PARTIALLY_IMPLEMENTED' | translate }}
-                    </option>
-                    <option value="PLANNED">{{ 'owasp_grid.implementation.PLANNED' | translate }}</option>
-                    <option value="NOT_IMPLEMENTED">
-                        {{ 'owasp_grid.implementation.NOT_IMPLEMENTED' | translate }}
-                    </option>
+                    <option value="APPLICABLE">{{ 'owasp_grid.declared.APPLICABLE' | translate }}</option>
+                    <option value="EXCLUDED">{{ 'owasp_grid.declared.EXCLUDED' | translate }}</option>
                 </select>
             </div>
 
+            @if (applicability === 'APPLICABLE') {
+                <div class="mb-4">
+                    <label for="owasp-implementation" class="block font-medium mb-1">{{
+                        'owasp_grid.dialog.implementation' | translate
+                    }}</label>
+                    <select
+                        id="owasp-implementation"
+                        name="owasp-implementation"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="implementation"
+                        class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+                    >
+                        <option value="IMPLEMENTED">{{ 'owasp_grid.implementation.IMPLEMENTED' | translate }}</option>
+                        <option value="PARTIALLY_IMPLEMENTED">
+                            {{ 'owasp_grid.implementation.PARTIALLY_IMPLEMENTED' | translate }}
+                        </option>
+                        <option value="PLANNED">{{ 'owasp_grid.implementation.PLANNED' | translate }}</option>
+                        <option value="NOT_IMPLEMENTED">
+                            {{ 'owasp_grid.implementation.NOT_IMPLEMENTED' | translate }}
+                        </option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label for="owasp-evidence-source" class="block font-medium mb-1">{{
+                        'owasp_grid.dialog.evidence_source' | translate
+                    }}</label>
+                    <select
+                        id="owasp-evidence-source"
+                        name="owasp-evidence-source"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="evidenceSource"
+                        class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+                    >
+                        <option value="EXTERNAL">{{ 'owasp_grid.evidence_source.EXTERNAL' | translate }}</option>
+                        <option value="BOTH">{{ 'owasp_grid.evidence_source.BOTH' | translate }}</option>
+                        <option value="VECTISPIRE">{{ 'owasp_grid.evidence_source.VECTISPIRE' | translate }}</option>
+                    </select>
+                    <p class="text-muted-color text-xs mt-1">{{ 'owasp_grid.dialog.evidence_help' | translate }}</p>
+                </div>
+            }
+
+            @if (applicability !== 'APPLICABLE' || evidenceSource !== 'VECTISPIRE') {
+                <div class="mb-4">
+                    <label for="owasp-external-evidence" class="block font-medium mb-1">{{
+                        'owasp_grid.dialog.external_evidence' | translate
+                    }}</label>
+                    <input
+                        id="owasp-external-evidence"
+                        [required]="applicability === 'APPLICABLE'"
+                        pInputText
+                        name="owasp-external-evidence"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="externalEvidence"
+                        class="w-full"
+                    />
+                </div>
+            }
+
             <div class="mb-4">
-                <label for="owasp-evidence-source" class="block font-medium mb-1">{{
-                    'owasp_grid.dialog.evidence_source' | translate
-                }}</label>
-                <select
-                    id="owasp-evidence-source"
-                    [(ngModel)]="evidenceSource"
-                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
-                >
-                    <option value="EXTERNAL">{{ 'owasp_grid.evidence_source.EXTERNAL' | translate }}</option>
-                    <option value="BOTH">{{ 'owasp_grid.evidence_source.BOTH' | translate }}</option>
-                    <option value="VECTISPIRE">{{ 'owasp_grid.evidence_source.VECTISPIRE' | translate }}</option>
-                </select>
-                <p class="text-muted-color text-xs mt-1">{{ 'owasp_grid.dialog.evidence_help' | translate }}</p>
-            </div>
-        }
-
-        @if (applicability !== 'APPLICABLE' || evidenceSource !== 'VECTISPIRE') {
-            <div class="mb-4">
-                <label for="owasp-external-evidence" class="block font-medium mb-1">{{
-                    'owasp_grid.dialog.external_evidence' | translate
-                }}</label>
-                <input id="owasp-external-evidence" pInputText [(ngModel)]="externalEvidence" class="w-full" />
-            </div>
-        }
-
-        <div class="mb-4">
-            <label for="owasp-justification" class="block font-medium mb-1">
-                {{
-                    applicability === 'EXCLUDED'
-                        ? ('owasp_grid.dialog.justification_excluded' | translate)
-                        : ('owasp_grid.dialog.justification' | translate)
-                }}
-            </label>
-            <input id="owasp-justification" pInputText [(ngModel)]="justification" class="w-full" />
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div>
-                <label for="owasp-owner" class="block font-medium mb-1">{{
-                    'owasp_grid.dialog.owner' | translate
-                }}</label>
-                <input id="owasp-owner" pInputText [(ngModel)]="owner" class="w-full" />
-            </div>
-            <div>
-                <label for="owasp-review-due" class="block font-medium mb-1">{{
-                    'owasp_grid.dialog.review_due' | translate
-                }}</label>
+                <label for="owasp-justification" class="block font-medium mb-1">
+                    {{
+                        applicability === 'EXCLUDED'
+                            ? ('owasp_grid.dialog.justification_excluded' | translate)
+                            : ('owasp_grid.dialog.justification' | translate)
+                    }}
+                </label>
                 <input
-                    id="owasp-review-due"
-                    type="date"
-                    [(ngModel)]="reviewDue"
-                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+                    id="owasp-justification"
+                    [required]="applicability === 'EXCLUDED'"
+                    pInputText
+                    name="owasp-justification"
+                    [ngModelOptions]="{ standalone: true }"
+                    [(ngModel)]="justification"
+                    class="w-full"
                 />
             </div>
-        </div>
 
-        @if (error()) {
-            <p-message severity="error" [text]="error()!" styleClass="w-full mb-3" />
-        }
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="owasp-owner" class="block font-medium mb-1">{{
+                        'owasp_grid.dialog.owner' | translate
+                    }}</label>
+                    <input
+                        id="owasp-owner"
+                        pInputText
+                        name="owasp-owner"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="owner"
+                        class="w-full"
+                    />
+                </div>
+                <div>
+                    <label for="owasp-review-due" class="block font-medium mb-1">{{
+                        'owasp_grid.dialog.review_due' | translate
+                    }}</label>
+                    <input
+                        id="owasp-review-due"
+                        type="date"
+                        name="owasp-review-due"
+                        [ngModelOptions]="{ standalone: true }"
+                        [(ngModel)]="reviewDue"
+                        class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+                    />
+                </div>
+            </div>
 
-        <div class="flex justify-end gap-2">
-            <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="editing.set(null)" />
-            <p-button
-                [label]="'owasp_grid.dialog.record' | translate"
-                [disabled]="incomplete() || busy()"
-                (onClick)="submit()"
-            />
-        </div>
+            @if (error()) {
+                <p-message severity="error" [text]="error()!" styleClass="w-full mb-3" />
+            }
+
+            <div class="flex justify-end gap-2">
+                <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="editing.set(null)" />
+                <p-button
+                    type="submit"
+                    [label]="'owasp_grid.dialog.record' | translate"
+                    [disabled]="incomplete() || busy()"
+                />
+            </div>
+        </form>
     }
 </p-dialog>

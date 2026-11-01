@@ -154,6 +154,15 @@ describe('the model review block of the settings page', () => {
         expect((page().querySelector('#openai-key') as HTMLInputElement).value).toBe('');
     });
 
+    it('saves the key on Enter as on a click, once however often the form is submitted', async () => {
+        await open();
+        await typeKey('an-api-key');
+        const form = page().querySelector('#openai-key')!.closest('form')!;
+        form.dispatchEvent(new Event('submit'));
+        form.dispatchEvent(new Event('submit'));
+        expect(http.match({ method: 'PUT', url: '/api/v1/settings/ai-openai-key' }).length).toBe(1);
+    });
+
     it('says the key state could not be read rather than that no key is stored', async () => {
         // A stored key whose state read failed looked absent, and invited a save over it.
         await open({}, 'unreadable');

@@ -846,6 +846,8 @@
     "no_scans_run": "Aucune analyse exécutée pour le moment.",
     "target": "Cible",
     "chart": {
+      "backlog_aria": "Backlog ouvert par jour sur la période choisie",
+      "flow_aria": "Issues apparues et résolues par jour sur la période choisie",
       "open_backlog": "Backlog ouvert",
       "opened": "Apparus",
       "per_day": "Par jour",

@@ -554,6 +554,30 @@ jobs:
           # only on a cluster that has the API.
           refused -f ci/kubernetes-executor-values.yaml --set agents.kubernetes.admissionPolicy.enabled=false
           refused -f ci/kubernetes-executor-values.yaml --kube-version 1.29.0
+      # **The values are checked before any template renders** (`values.schema.json`): a wrong type, a
+      # required value left empty, a misspelt key and an image without its digest, each refused by the
+      # schema itself — by `lint` and by `template`, which is what `install` and `upgrade` run. A refusal
+      # from a template instead would mean the schema let it through, and a typo it lets through is a
+      # default silently kept. The shapes above passing `lint --strict` is the other half: the schema
+      # refuses nothing the chart is meant to render.
+      - name: the values schema refuses what it says it refuses
+        working-directory: deploy/helm/vectispire
+        run: |
+          schema="values don't meet the specifications of the schema"
+          for values in ci/refused/*.yaml; do
+            echo "::group::$values"
+            if helm template vs . -n vectispire -f "$values" > /dev/null 2> refusal.txt; then
+              echo "::error::$values rendered, and the schema should have refused it"; exit 1
+            fi
+            cat refusal.txt
+            grep -q "$schema" refusal.txt || { echo "::error::$values was refused, but not by the schema"; exit 1; }
+            if helm lint . --strict -f "$values" > refusal.txt 2>&1; then
+              echo "::error::$values passed helm lint"; exit 1
+            fi
+            grep -q "$schema" refusal.txt || { echo "::error::helm lint refused $values, but not by the schema"; exit 1; }
+            echo "::endgroup::"
+          done
+          [ "$(ls ci/refused/*.yaml | wc -l)" -ge 5 ] || { echo "::error::a refusal fixture is missing"; exit 1; }
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |

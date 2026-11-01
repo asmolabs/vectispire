@@ -22,6 +22,13 @@ import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
  * A severity with no deadline set shows no percentage. A rate computed against an absent rule is
  * not one, and it would be quoted.
  */
+/** A severity's line with its bar's colour and which of the three sentences it says, worked out. */
+export interface DelayRow extends RemediationBySeverity {
+    hasDeadline: boolean;
+    nothingToMeasure: boolean;
+    barColour: string;
+}
+
 @Component({
     selector: 'zs-remediation-delays',
     imports: [MessageModule, TranslatePipe, SeverityLabelPipe, LocalNumberPipe, LocalPercentPipe],
@@ -35,7 +42,15 @@ export class RemediationDelays {
     readonly distribution = signal<RemediationDistribution | null>(null);
     readonly error = signal<string | null>(null);
 
-    readonly rows = computed<RemediationBySeverity[]>(() => this.distribution()?.bySeverity ?? []);
+    /** Each severity with what its row shows worked out once per answer, not by a method per cell on every pass. */
+    readonly rows = computed<DelayRow[]>(() =>
+        (this.distribution()?.bySeverity ?? []).map((row) => ({
+            ...row,
+            hasDeadline: hasDeadline(row),
+            nothingToMeasure: nothingToMeasure(row),
+            barColour: barColour(row)
+        }))
+    );
 
     constructor() {
         this.remediationApi.remediationDistribution(90).subscribe({
@@ -59,33 +74,33 @@ export class RemediationDelays {
         const row = this.rows().find((entry) => entry.severity === data.oldestOpenSeverity);
         return !!row && row.windowDays > 0 && data.oldestOpenDays > row.windowDays;
     });
+}
 
-    /** Vert au-dessus de quatre-vingt-dix, ambre au-dessus de soixante-quinze, rouge sinon. */
-    barColour(row: RemediationBySeverity): string {
-        const share = row.percentageWithinSla ?? 0;
-        return share >= 90 ? '#059669' : share >= 75 ? '#d97706' : '#b91c1c';
-    }
+/** Green from ninety per cent, amber from seventy-five, red below. */
+function barColour(row: RemediationBySeverity): string {
+    const share = row.percentageWithinSla ?? 0;
+    return share >= 90 ? '#059669' : share >= 75 ? '#d97706' : '#b91c1c';
+}
 
-    /**
-     * A severity nobody has given a deadline has nothing to meet.
-     *
-     * <p><b>Distinct from "nothing to measure", and the two were conflated.</b> The condition also
-     * tested the percentage, so a severity that had a deadline but nothing resolved within the
-     * window showed "15 d" as its deadline and "no deadline set" right beside it — two
-     * contradictory sentences on the same row.
-     */
-    hasDeadline(row: RemediationBySeverity): boolean {
-        return row.windowDays > 0;
-    }
+/**
+ * A severity nobody has given a deadline has nothing to meet.
+ *
+ * <p><b>Distinct from "nothing to measure", and the two were conflated.</b> The condition also
+ * tested the percentage, so a severity that had a deadline but nothing resolved within the
+ * window showed "15 d" as its deadline and "no deadline set" right beside it — two
+ * contradictory sentences on the same row.
+ */
+function hasDeadline(row: RemediationBySeverity): boolean {
+    return row.windowDays > 0;
+}
 
-    /**
-     * The deadline exists, but nothing was resolved within the window to measure it against.
-     *
-     * <p>This is neither a rate of zero nor an absent deadline: it is the absence of material.
-     * Showing `0 %` would read as "we never meet the deadlines" where the true sentence is "nothing
-     * was closed in these ninety days".
-     */
-    nothingToMeasure(row: RemediationBySeverity): boolean {
-        return row.windowDays > 0 && row.percentageWithinSla === null;
-    }
+/**
+ * The deadline exists, but nothing was resolved within the window to measure it against.
+ *
+ * <p>This is neither a rate of zero nor an absent deadline: it is the absence of material.
+ * Showing `0 %` would read as "we never meet the deadlines" where the true sentence is "nothing
+ * was closed in these ninety days".
+ */
+function nothingToMeasure(row: RemediationBySeverity): boolean {
+    return row.windowDays > 0 && row.percentageWithinSla === null;
 }

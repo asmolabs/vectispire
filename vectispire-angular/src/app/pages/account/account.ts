@@ -117,7 +117,8 @@ export class Account {
      */
     confirm(): void {
         const enrolment = this.enrolment();
-        if (!enrolment || !this.code.trim() || !this.password) return;
+        // Enter submits the form whatever the button shows: the same checks, one request at a time.
+        if (!enrolment || !this.code.trim() || !this.password || this.busy()) return;
 
         this.busy.set(true);
         this.error.set(null);

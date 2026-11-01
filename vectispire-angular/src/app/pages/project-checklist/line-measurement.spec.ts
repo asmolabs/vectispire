@@ -134,4 +134,38 @@ describe('the measurement of a checklist line', () => {
         );
         expect(named(page, 'Preuves mesurées pour la ligne 3')?.textContent.trim()).toBe('Afficher les preuves (1)');
     });
+
+    it('words the rule, the badges and both tables again when the reader switches language', () => {
+        const page = render(
+            failing({
+                problems: ['evidence_required'],
+                atSubmission: { ...FAIL_MEASUREMENT, outcome: 'pass' }
+            })
+        );
+        named(page, 'Evidence measured for line 3')!.click();
+        fixture.detectChanges();
+        const words = () => ({
+            kind: text(page, '[data-testid="rule-kind"]'),
+            rule: text(page, '[data-testid="rule-words"] li'),
+            reconciliation: text(page, '[data-testid="reconciliation"]'),
+            problem: text(page, '[data-testid="measured-problem"]'),
+            changed: text(page, '[data-testid="changed-since-submission"]'),
+            figures: text(page, '[data-testid="figures"] tbody td:not(.text-right)'),
+            evidence: text(page, '[data-testid="measured-evidence-3"] tbody td:nth-child(n+2):nth-child(-n+4)'),
+            met: text(page, '[data-testid="measured-evidence-3"] tbody td:nth-child(7)')
+        });
+        const english = words();
+        expect(english.figures).toContain('Critical');
+        expect(english.met).toEqual(['Met']);
+
+        useFrench();
+        fixture.detectChanges();
+        const french = words();
+        for (const [part, before] of Object.entries(english)) {
+            expect(before.length, part).toBeGreaterThan(0);
+            expect(french[part as keyof typeof french], part).not.toEqual(before);
+        }
+        expect(french.figures).toContain('Critique');
+        expect(french.met).toEqual(['Atteint']);
+    });
 });

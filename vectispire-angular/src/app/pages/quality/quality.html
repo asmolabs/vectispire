@@ -23,7 +23,7 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            @for (group of groups(data); track group.title) {
+            @for (group of groups(); track group.title) {
                 <div>
                     <div class="font-medium mb-3">{{ group.title }}</div>
                     @for (row of group.rows; track row.label) {
@@ -33,11 +33,7 @@
                                 <span class="text-muted-color">{{ row.count }}</span>
                             </div>
                             <div class="bg-surface-200 dark:bg-surface-700 rounded" style="height: 6px">
-                                <div
-                                    class="bg-primary rounded"
-                                    style="height: 6px"
-                                    [style.width.%]="share(row, group.rows)"
-                                ></div>
+                                <div class="bg-primary rounded" style="height: 6px" [style.width.%]="row.share"></div>
                             </div>
                         </div>
                     } @empty {

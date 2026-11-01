@@ -69,6 +69,17 @@ The chart refuses to render without these. Each refusal names its reason.
 
 See `values.example.yaml` for a complete installation.
 
+**Checked before any template renders.** `values.schema.json` gives every key of `values.yaml` its type,
+and `helm install`, `upgrade`, `lint` and `template` refuse values that do not match it: a key the chart
+does not know (`storageClass` for `storageClassName` was otherwise ignored), a wrong type (`enabled:
+"false"`, a string, reads as true), `database.url`, `database.password.secretName` or
+`secrets.encryptionKey.secretName` left empty, and any image — the agents' Docker daemon's included —
+without its `sha256:` digest. The maps that are yours to fill stay open: `resources`, `affinity`,
+`tolerations`, `extraEnv`, the network policies' peers; annotations and node selectors take strings
+only, as Kubernetes does. The guards that weigh several values together stay in the templates, whose
+messages give the reason. `ci/refused/` holds one file per kind of refusal, and CI checks the schema
+refuses each.
+
 ## The database
 
 MySQL, installed and backed up by you:

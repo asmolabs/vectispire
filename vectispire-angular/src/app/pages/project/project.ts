@@ -172,16 +172,21 @@ export class Project {
         });
     }
 
-    inventoryLabel(target: TargetInventory): string {
-        this.i18n.translations();
+    /**
+     * Each target with its state in words and its colour, worked out per inventory or language — not
+     * per binding on every pass. `t` reads the bundle's signal, so a switch recomputes them.
+     */
+    readonly targets = computed(() =>
+        (this.inventory()?.targets ?? []).map((target) => ({
+            ...target,
+            stateLabel: this.inventoryLabel(target),
+            stateTone: inventoryTone(target)
+        }))
+    );
+
+    private inventoryLabel(target: TargetInventory): string {
         const key = (INVENTORY_KEYS as Record<string, string | undefined>)[target.inventory];
         return key ? this.i18n.t(key, { count: target.componentCount }) : target.inventory;
-    }
-
-    inventorySeverity(target: TargetInventory): 'success' | 'secondary' | 'warn' {
-        if (target.inventory === 'listed') return 'success';
-        if (target.inventory === 'empty') return 'secondary';
-        return 'warn';
     }
 
     /**
@@ -207,4 +212,11 @@ export class Project {
             }
         });
     }
+}
+
+/** A target's inventory state as a tag colour: listed is good, counted-and-empty is neutral, the rest a warning. */
+function inventoryTone(target: TargetInventory): 'success' | 'secondary' | 'warn' {
+    if (target.inventory === 'listed') return 'success';
+    if (target.inventory === 'empty') return 'secondary';
+    return 'warn';
 }

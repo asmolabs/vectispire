@@ -165,4 +165,52 @@ describe('the rule editor of a template line', () => {
         expect(button('Retirer le périmètre plugin:licence-audit')).toBeDefined();
         expect(button('Garder cette règle')).toBeDefined();
     });
+
+    it('words the kinds, the scopes and the thresholds again when the reader switches language', async () => {
+        await open(SECRETS_RULE);
+        const words = () => ({
+            // The kinds after "none", and the built-in scopes' boxes: the lists the component words itself.
+            kinds: [...dom().querySelectorAll('#rule-kind option')].slice(1).map((option) => option.textContent.trim()),
+            described: text('[data-testid="rule-described"] li.font-medium'),
+            scopes: [...dom().querySelectorAll('[data-testid="rule-scopes"] label:has(input[type="checkbox"])')].map(
+                (label) => label.textContent.trim()
+            ),
+            severities: [...dom().querySelectorAll('[data-testid="rule-thresholds"] tbody td:first-child')].map(
+                (cell) => cell.textContent.trim()
+            ),
+            aria: dom().querySelector('[id^="rule-max-open-"]')?.getAttribute('aria-label') ?? ''
+        });
+        const english = words();
+        expect(english.severities[0]).toBe('Critical');
+        expect(english.kinds).toContain(english.described);
+
+        useFrench();
+        fixture.detectChanges();
+        const french = words();
+        for (const [part, before] of Object.entries(english)) {
+            expect(before.length, part).toBeGreaterThan(0);
+            expect(french[part as keyof typeof french], part).not.toEqual(before);
+        }
+        expect(french.severities[0]).toBe('Critique');
+        expect(french.aria).toContain('Critique');
+    });
+
+    it('ticks a built-in scope from the draft, and adds a typed scope only once it is more than blanks', async () => {
+        await open({ ...SECRETS_RULE, scopes: ['builtin:secret'] });
+        const ticked = () =>
+            [...dom().querySelectorAll<HTMLInputElement>('[data-testid="rule-scopes"] input[type="checkbox"]')]
+                .filter((box) => box.checked)
+                .map((box) => box.id);
+        expect(ticked()).toEqual(['rule-scope-secret']);
+
+        fixture.componentInstance.toggleScope('builtin:sast', true);
+        fixture.detectChanges();
+        expect(ticked()).toEqual(['rule-scope-secret', 'rule-scope-sast']);
+
+        const add = () => button('rule-scope-add');
+        await type('#rule-scope-other', '   ');
+        expect(add().disabled).toBe(true);
+        await type('#rule-scope-other', 'plugin:licence-audit');
+        expect(add().disabled).toBe(false);
+    });
 });

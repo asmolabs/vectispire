@@ -1,7 +1,8 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { By } from '@angular/platform-browser';
+import { RouterLink, provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { Security } from './security';
 import type { TargetPosture } from '@/app/core/api.models';
@@ -79,6 +80,50 @@ describe('the security posture', () => {
             'team · v1'
         ]);
     }, 20_000);
+
+    it('words an unobserved target in the reader language, after a switch too, and links to its backlog', async () => {
+        await mount([
+            {
+                ...target(7, 'built-in', null),
+                observation: 'never_scanned',
+                observed: false,
+                passed: false,
+                lastScanAt: '2026-08-10 18:45:18.408868',
+                verdict: {
+                    passed: false,
+                    evaluated: 0,
+                    countsBySeverity: {},
+                    violations: [
+                        {
+                            rule: 'observation',
+                            issueId: null,
+                            severity: null,
+                            reason: 'Not observed.',
+                            identifier: null,
+                            package: null
+                        }
+                    ]
+                }
+            } as TargetPosture
+        ]);
+        useEnglish();
+        fixture.detectChanges();
+        const row = (): HTMLElement => (fixture.nativeElement as HTMLElement).querySelector('tbody tr')!;
+        const badges = () => [...row().querySelectorAll('p-tag')].map((tag) => tag.textContent.trim());
+        const reason = () => row().querySelector('[data-testid="violation-reason"]')?.textContent?.trim();
+        expect(badges()).toEqual(['Failing', 'Never scanned']);
+        expect(reason()).toMatch(/^No scan of this target has completed/);
+        // Shown in the reader's time zone, day first: the hour is the machine's, the pattern is not.
+        expect(row().querySelectorAll('td')[4].textContent.trim()).toMatch(/^1[01]\/08\/2026 \d\d:\d5$/);
+        // A `p-button` carries the link, not an anchor: read the tree its RouterLink would navigate to.
+        const link = fixture.debugElement.query(By.directive(RouterLink)).injector.get(RouterLink);
+        expect(link.urlTree?.toString()).toBe('/issues?repository_id=7');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(badges()).toEqual(['Non conforme', 'Jamais analysé']);
+        expect(reason()).toMatch(/^Aucune analyse de cette cible n'a abouti/);
+    });
 
     it('says a failed export above the table it was asked from', async () => {
         // The export wrote to the error the page shows only without an overview: once the table

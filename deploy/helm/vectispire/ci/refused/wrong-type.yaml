@@ -1,0 +1,18 @@
+# Refused by values.schema.json: the recommended shape with `auditMirror.enabled` quoted. A template reads
+# the string "false" as true, so the mirror stayed on — the opposite of what was written.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+networkPolicy:
+  enabled: true
+auditMirror:
+  enabled: "false"

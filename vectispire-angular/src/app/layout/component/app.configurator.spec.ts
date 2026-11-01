@@ -8,6 +8,14 @@ import { provideOptimus } from '@openng/optimus-ui/config';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { AppConfigurator, PRESETS } from './app.configurator';
+import {
+    BUTTON_SEVERITIES,
+    MESSAGE_SEVERITIES,
+    READABLE_BUTTONS,
+    READABLE_COMPONENTS,
+    READABLE_MESSAGES,
+    contrast
+} from '../readable-palette';
 
 /**
  * The theme presets other than the starting one arrive when they are chosen, not with the shell.
@@ -84,5 +92,72 @@ describe('the appearance configurator', () => {
         await slow;
         expect(layout.layoutConfig().preset).toBe('Nora');
         expect(emerald()).toBe('#000002');
+    });
+    it('draws primary and muted text readable on white and on the page in the light scheme, for every choice', async () => {
+        const { fixture, layout } = mount();
+        await fixture.whenStable();
+        const configurator = fixture.componentInstance;
+        for (const preset of ['Aura', 'Nora'] as const) {
+            await configurator.onPresetChange(preset);
+            for (const surface of [undefined, ...configurator.surfaces]) {
+                const page = surface?.palette?.[100] ?? Aura.primitive!.slate![100]!;
+                for (const choice of configurator.primaryColors().filter((c) => c.name !== 'noir')) {
+                    const label = `${preset}/${surface?.name ?? 'default'}/${choice.name}`;
+                    layout.layoutConfig.update((state) => ({
+                        ...state,
+                        primary: choice.name!,
+                        surface: surface?.name ?? null
+                    }));
+                    const light = configurator.getPresetExt().semantic.colorScheme.light as {
+                        primary: { color: string };
+                        text: { mutedColor: string };
+                    };
+                    const muted = /^\{surface\.(\d+)\}$/.exec(light.text.mutedColor)![1] as '600';
+                    const surfacePalette = surface?.palette ?? Aura.primitive!.slate!;
+                    expect(contrast(surfacePalette[muted]!, page), label).toBeGreaterThanOrEqual(4.5);
+                    const shade = /^\{primary\.(\d+)\}$/.exec(light.primary.color)![1] as '700';
+                    const colour = choice.palette![shade]!;
+                    // White on a primary button, and primary text on a card or on the page.
+                    expect(contrast(colour, '#ffffff'), label).toBeGreaterThanOrEqual(4.5);
+                    expect(contrast(colour, page), label).toBeGreaterThanOrEqual(4.5);
+                }
+            }
+        }
+    });
+    it('draws the severity buttons and messages readable in the light scheme, and keeps them through every choice', async () => {
+        const { fixture, layout } = mount();
+        await fixture.whenStable();
+        const configurator = fixture.componentInstance;
+        const page = Aura.primitive!.slate![100]!;
+        const shade = (token: string) => {
+            const [, palette, step] = /^\{(\w+)\.(\d+)\}$/.exec(token)!;
+            return (Aura.primitive as Record<string, Record<string, string>>)[palette][step];
+        };
+        const light = READABLE_BUTTONS.button.colorScheme.light;
+        for (const severity of Object.keys(BUTTON_SEVERITIES) as (keyof typeof BUTTON_SEVERITIES)[]) {
+            // White on the solid button; the colour on a card or the page for outlined and text.
+            expect(contrast(shade(light.root[severity]['background']), '#ffffff'), severity).toBeGreaterThanOrEqual(
+                4.5
+            );
+            for (const variant of [light.outlined, light.text]) {
+                expect(contrast(shade(variant[severity]['color']), '#ffffff'), severity).toBeGreaterThanOrEqual(4.5);
+                expect(contrast(shade(variant[severity]['color']), page), severity).toBeGreaterThanOrEqual(4.5);
+            }
+        }
+        // A message's text on its own 50 tint, as Aura mixes it (5% transparent over a white card).
+        for (const [severity, palette] of Object.entries(MESSAGE_SEVERITIES)) {
+            const colour = shade(READABLE_MESSAGES.message.colorScheme.light[severity as 'info'].color);
+            const tint = (Aura.primitive as Record<string, Record<string, string>>)[palette]['50'];
+            expect(contrast(colour, tint), severity).toBeGreaterThanOrEqual(4.5);
+        }
+        // The configurator rebuilds the theme from the preset on every choice: without the buttons in
+        // its extension, the first click would put Aura's back.
+        for (const preset of ['Aura', 'Nora'] as const) {
+            await configurator.onPresetChange(preset);
+            for (const choice of configurator.primaryColors()) {
+                layout.layoutConfig.update((state) => ({ ...state, primary: choice.name! }));
+                expect(configurator.getPresetExt().components, `${preset}/${choice.name}`).toBe(READABLE_COMPONENTS);
+            }
+        }
     });
 });

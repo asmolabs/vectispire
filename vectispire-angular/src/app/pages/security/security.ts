@@ -1,5 +1,5 @@
 import { formatDate } from '@angular/common';
-import { Component, inject, signal, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -55,6 +55,22 @@ export class Security {
      */
     readonly exportError = signal<string | null>(null);
 
+    /**
+     * Each target with its badge, its reason, its last scan and its backlog link worked out once per
+     * overview or language — not per binding on every pass, with a new query-parameter object each time
+     * for the router to read again.
+     */
+    readonly rows = computed(() => {
+        this.i18n.translations();
+        return (this.overview()?.targets ?? []).map((target) => ({
+            target,
+            observation: target.observed ? null : this.observationLabel(target),
+            reason: target.verdict.violations.length ? this.reasonOf(target) : null,
+            lastScan: this.formatDate(target.lastScanAt),
+            issueFilter: this.issueFilter(target)
+        }));
+    });
+
     constructor() {
         this.dashboardApi.securityOverview().subscribe({
             next: (data) => this.overview.set(data),
@@ -70,7 +86,7 @@ export class Security {
      * and the wrong thing to display. The conversion therefore happens here, at the last
      * moment, and nowhere earlier.
      */
-    formatDate(value: string | null): string {
+    private formatDate(value: string | null): string {
         if (!value) return '—';
         // Explicit `Z` suffix: the value is UTC with no zone, and without it the browser would
         // read it as local time — and therefore display it shifted.
@@ -89,12 +105,12 @@ export class Security {
      * The first violation's reason in the reader's language ({@link gateReason}), naming which examination
      * is missing from the target's own observation; the server's sentence is its tooltip.
      */
-    reasonOf(target: TargetPosture): string {
+    private reasonOf(target: TargetPosture): string {
         this.i18n.translations();
         return gateReason(this.i18n, target.verdict.violations[0], target.observation);
     }
 
-    observationLabel(target: TargetPosture): string {
+    private observationLabel(target: TargetPosture): string {
         if (target.observation === 'never_scanned') return this.i18n.t('security.never_scanned_badge');
         if (target.observation === 'last_scan_failed') return this.i18n.t('security.last_scan_failed_badge');
         return this.i18n.t('security.scan_in_progress');
@@ -134,7 +150,7 @@ export class Security {
         });
     }
 
-    issueFilter(target: TargetPosture): Record<string, number> {
+    private issueFilter(target: TargetPosture): Record<string, number> {
         return target.kind === 'repository' ? { repository_id: target.targetId } : { container_id: target.targetId };
     }
 }

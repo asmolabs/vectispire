@@ -69,6 +69,14 @@ describe('the notification channels screen', () => {
                 tag.textContent.trim()
             );
             expect(states).toEqual(['notifications.channel_configured', 'notifications.channel_inactive']);
+            // Each card wears its channel's icon.
+            const icons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.text-xl')].map(
+                (icon) => icon.className
+            );
+            expect(icons).toEqual([
+                expect.stringContaining('pi-slack') as string,
+                expect.stringContaining('pi-microsoft') as string
+            ]);
         });
 
         it('offers a test only on a configured channel', () => {

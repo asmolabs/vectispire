@@ -202,7 +202,8 @@ export class OwaspGridComponent {
 
     submit(): void {
         const line = this.editing();
-        if (!line || this.incomplete()) {
+        // Enter in a field submits the form whatever the button shows: the same checks, one at a time.
+        if (!line || this.incomplete() || this.busy()) {
             return;
         }
         this.busy.set(true);
@@ -289,6 +290,35 @@ export class OwaspGridComponent {
      */
     readonly lines = computed<OwaspCoverageLine[]>(() => this.grid()?.lines ?? []);
 
+    /**
+     * Each line with its state in words and colour, its reason, its link and what its declaration
+     * says, worked out once per grid, role or language — not by seven methods per row on every pass,
+     * one of them building the router a new object each time.
+     */
+    readonly rows = computed(() =>
+        this.lines().map((line) => ({
+            ...line,
+            stateLabel: this.labelOf(OWASP_STATE_KEYS, line.state),
+            colour: this.colourOf(line.state),
+            link: this.openParams(line),
+            reasonSentence: this.because(line),
+            declarable: this.declarable(line),
+            applicabilityLabel: line.declaration ? this.labelOf(DECLARED_KEYS, line.declaration.applicability) : '',
+            implementationLabel: line.declaration?.implementation
+                ? this.labelOf(GRID_IMPLEMENTATION_KEYS, line.declaration.implementation)
+                : ''
+        }))
+    );
+
+    /** The two counters' colours, once per grid ({@link alarming}). */
+    readonly tones = computed(() => {
+        const data = this.grid();
+        return {
+            withFindings: alarming(data?.withFindings ?? 0, 'danger'),
+            unmeasured: alarming(data?.unmeasured ?? 0, 'warn')
+        };
+    });
+
     constructor() {
         // Read again whenever the scope changes, and only then: the scope is the one input.
         effect(() => {
@@ -298,31 +328,13 @@ export class OwaspGridComponent {
     }
 
     /**
-     * A zero that is good news is painted green, not as an alarm.
-     *
-     * "0 covered but unmeasured" in orange was good news shown as a problem. A table where good
-     * news is orange teaches its reader to ignore orange.
-     */
-    alarming(count: number, tone: 'danger' | 'warn'): string {
-        if (count === 0) {
-            return 'text-emerald-700';
-        }
-        return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
-    }
-
-    /** The grey of "not covered" is not the green of "nothing found", and that is the whole point. */
-    stateLabel(state: string): string {
-        return this.labelOf(OWASP_STATE_KEYS, state);
-    }
-
-    /**
      * The line's reason in the reader's words, its values put where the language puts them.
      *
      * **The server's sentence whenever this client cannot say all of it**: no reason sent, a code it does
      * not know, or a gap it does not know. Half a sentence in French beside a figure the English one
      * explains would be a different claim, not a translation.
      */
-    because(line: OwaspCoverageLine): string {
+    private because(line: OwaspCoverageLine): string {
         const reason = line.reason;
         const key = keyFor(OWASP_REASON_KEYS, reason?.code);
         if (!reason || !key) {
@@ -350,19 +362,12 @@ export class OwaspGridComponent {
         });
     }
 
-    applicabilityLabel(applicability: string): string {
-        return this.labelOf(DECLARED_KEYS, applicability);
-    }
-
-    implementationLabel(implementation: string): string {
-        return this.labelOf(GRID_IMPLEMENTATION_KEYS, implementation);
-    }
-
     private labelOf<V extends string>(keys: Readonly<Record<V, string>>, value: string): string {
         const key = keyFor(keys, value);
         return key ? this.i18n.t(key) : value;
     }
 
+    /** The grey of "not covered" is not the green of "nothing found", and that is the whole point. */
     colourOf(state: OwaspState): string {
         switch (state) {
             case 'FINDINGS':
@@ -375,4 +380,17 @@ export class OwaspGridComponent {
                 return 'text-emerald-700';
         }
     }
+}
+
+/**
+ * A zero that is good news is painted green, not as an alarm.
+ *
+ * "0 covered but unmeasured" in orange was good news shown as a problem. A table where good
+ * news is orange teaches its reader to ignore orange.
+ */
+function alarming(count: number, tone: 'danger' | 'warn'): string {
+    if (count === 0) {
+        return 'text-emerald-700';
+    }
+    return tone === 'danger' ? 'text-red-700' : 'text-orange-700';
 }
