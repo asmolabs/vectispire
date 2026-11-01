@@ -3,14 +3,19 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.domain.users.AccountGesture;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.internal.AccountAdminService;
 import com.asmolabs.vectispire.core.access.internal.GrantTargets;
+import com.asmolabs.vectispire.core.access.persistence.AccountRequestEntity;
+import com.asmolabs.vectispire.core.access.persistence.AccountRequestRepository;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
@@ -18,6 +23,7 @@ import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,6 +36,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * An administrator managing other people's accounts: the guard rails, the audit trail, and what
@@ -43,6 +51,19 @@ import org.springframework.stereotype.Service;
  *
  * <p>Every refusal is an {@link InvalidInputException} carrying text meant for the screen, and
  * every missing account a {@link NotFoundException} — the 400 and the 404 the handler maps.
+ *
+ * <p><b>Under four-eyes, a change that makes an approver waits for a second administrator</b> (#126,
+ * option 2): creating an account with a role that {@link Role#approves() approves}, giving such a role,
+ * and resetting the password of an account that holds one are filed as an account request rather than
+ * applied, and {@link AccountRequestService} applies them once another administrator approves. Every
+ * other gesture — activation, targets, a role that approves nothing — applies at once, as it always did:
+ * taking a privilege away must stay easy. The request is checked as the change would be when it is filed,
+ * so the requester hears a refusal now rather than the approver later, and again with the approver as the
+ * acting account when it is applied.
+ *
+ * <p><b>Who administered whom is recorded beside the change</b> ({@link ApproverIndependence}), in the
+ * transaction that writes it: creating an account, resetting its password and changing its role each
+ * leave a row naming the administrator, which an approval under four-eyes reads.
  */
 @Service
 public class AccountAdministrationService {
@@ -58,6 +79,10 @@ public class AccountAdministrationService {
     private final Clock clock;
     private final GrantTargets grantTargets;
     private final GrantableTargets targets;
+    private final AccountRequestRepository requests;
+    private final ApproverIndependence independence;
+    private final SettingsService settings;
+    private final TransactionTemplate transaction;
 
     public AccountAdministrationService(
             UserRepository users,
@@ -67,7 +92,11 @@ public class AccountAdministrationService {
             AuditLogService audit,
             Clock clock,
             GrantTargets grantTargets,
-            GrantableTargets targets) {
+            GrantableTargets targets,
+            AccountRequestRepository requests,
+            ApproverIndependence independence,
+            SettingsService settings,
+            PlatformTransactionManager transactionManager) {
         this.users = users;
         this.sessions = sessions;
         this.assignments = assignments;
@@ -76,6 +105,10 @@ public class AccountAdministrationService {
         this.clock = clock;
         this.grantTargets = grantTargets;
         this.targets = targets;
+        this.requests = requests;
+        this.independence = independence;
+        this.settings = settings;
+        this.transaction = new TransactionTemplate(transactionManager);
     }
 
     /** An account and how many live sessions it holds. */
@@ -93,6 +126,33 @@ public class AccountAdministrationService {
 
     /** Every field optional: absent means "leave it as it is". */
     public record AccountChange(String role, Boolean isActive, String password) {}
+
+    /**
+     * What became of a creation or a change: applied, or filed for a second administrator.
+     *
+     * <p>A type with two cases rather than an account that may or may not have changed: a caller that
+     * reads an account from a request still waiting would show a change nobody has made.
+     */
+    public sealed interface Outcome {
+
+        /** Applied: the account as it now stands. */
+        record Applied(AccountView account) implements Outcome {}
+
+        /** Filed under four-eyes; nothing has changed yet. */
+        record Queued(AccountRequestView request) implements Outcome {}
+    }
+
+    /** A change written, and the audit entries to record once its transaction has committed. */
+    record Written(AccountView account, List<AuditLogService.Record> entries) {}
+
+    /** A role request whose wire name is {@code create}. */
+    static final String CREATE = "create";
+
+    /** A role or password request on an existing account. */
+    static final String CHANGE = "change";
+
+    static final String PENDING = "pending";
+
 
     /**
      * The accounts on one page of the administration list, and how many there are on every page.
@@ -118,33 +178,77 @@ public class AccountAdministrationService {
     }
 
     /**
+     * Creates an account — or, under four-eyes, files the creation of one with an approving role for a second
+     * administrator.
+     *
      * @param actingAccountId the account creating it, or null for a caller that is not one — who
      *     may grant the platform governor role depends on it
      */
-    public AccountView create(NewAccount request, Long actingAccountId, RequestActor actor) {
+    public Outcome create(NewAccount request, Long actingAccountId, RequestActor actor) {
         String username = trim(request.username());
         String password = request.password() == null ? "" : request.password();
         String role = trim(request.role()).isEmpty() ? Role.USER.name() : trim(request.role()).toUpperCase(Locale.ROOT);
 
         refuseIfInvalid(AccountRules.validateUsername(username));
         refuseIfInvalid(AccountRules.validatePassword(password));
-        if (Role.of(role).isEmpty()) {
-            throw new InvalidInputException("Unknown role: " + role + ".");
-        }
-        refuseGovernorAdministration(actingAccountId, Optional.empty(), Role.of(role));
-        if (users.findByUsername(username).isPresent()) {
-            throw new InvalidInputException("The username \"" + username + "\" is already taken.");
+        NewAccount normalized = new NewAccount(username, null, role, request.email(), request.displayName());
+        refuseInvalidCreation(normalized, actingAccountId);
+
+        if (needsSecondAdministrator(actingAccountId, Role.of(role).orElseThrow())) {
+            AccountRequestEntity filed = new AccountRequestEntity();
+            filed.setKind(CREATE);
+            filed.setUsername(username);
+            filed.setEmail(BoundedText.optional(request.email(), BOUNDED_COLUMN, "The e-mail address"));
+            filed.setDisplayName(BoundedText.optional(request.displayName(), BOUNDED_COLUMN, "The display name"));
+            filed.setRequestedRole(role);
+            filed.setPasswordHash(PasswordHasher.hash(password));
+            return file(filed, actingAccountId, actor,
+                    "Account creation requested: " + username + " (" + role + ")");
         }
 
+        String hash = PasswordHasher.hash(password);
+        String alone = appliedAlone(actingAccountId, Role.of(role).orElseThrow());
+        Written written = transaction.execute(status -> writeCreation(
+                normalized, hash, actingAccountId, actingAccountId == null ? List.of() : List.of(actingAccountId), alone, actor));
+        written.entries().forEach(audit::record);
+        return new Outcome.Applied(written.account());
+    }
+
+    /**
+     * The rules a creation is held to when it is asked for and again when it is applied — with the
+     * approver as the acting account then, since who may grant the governor role depends on who grants it.
+     *
+     * @param request trimmed, its role upper-cased; its password is checked by the caller, which may hold a hash
+     */
+    void refuseInvalidCreation(NewAccount request, Long actingAccountId) {
+        refuseIfInvalid(AccountRules.validateUsername(request.username()));
+        if (Role.of(request.role()).isEmpty()) {
+            throw new InvalidInputException("Unknown role: " + request.role() + ".");
+        }
+        refuseGovernorAdministration(actingAccountId, Optional.empty(), Role.of(request.role()));
+        if (users.findByUsername(request.username()).isPresent()) {
+            throw new InvalidInputException("The username \"" + request.username() + "\" is already taken.");
+        }
+    }
+
+    /**
+     * Writes a new account and who made it; in the caller's transaction.
+     *
+     * @param administrators every account behind the creation, for {@link ApproverIndependence}
+     * @param provenance appended to the audit sentence: empty, or who asked for and approved it
+     */
+    Written writeCreation(NewAccount request, String passwordHash, Long actingAccountId, List<Long> administrators,
+            String provenance, RequestActor actor) {
+        refuseInvalidCreation(request, actingAccountId);
         Instant createdAt = clock.instant();
         UserEntity user = new UserEntity();
-        user.setUsername(username);
+        user.setUsername(request.username());
         // Bounded like every column a form writes: past 255 the database refused the row at the
         // write, and the administrator got a 500 for a pasted signature block.
         user.setEmail(BoundedText.optional(request.email(), BOUNDED_COLUMN, "The e-mail address"));
         user.setDisplayName(BoundedText.optional(request.displayName(), BOUNDED_COLUMN, "The display name"));
-        user.setPassword(PasswordHasher.hash(password));
-        user.setRole(role);
+        user.setPassword(passwordHash);
+        user.setRole(request.role());
         user.setIsActive(true);
         // The password set here is known to the administrator who typed it: it is a pass, not
         // the account's secret.
@@ -153,25 +257,30 @@ public class AccountAdministrationService {
         user.setUpdatedAt(createdAt);
 
         UserEntity saved = users.save(user);
-        record(actor, saved.getId(), "Account created: " + username + " (" + role + ")");
-        return new AccountView(UserView.of(saved), 0);
+        independence.recorded(saved.getId(), null, administrators, List.of(AccountGesture.CREATED), createdAt);
+        return new Written(new AccountView(UserView.of(saved), 0), List.of(entry(
+                actor, saved.getId(), "Account created: " + request.username() + " (" + request.role() + ")" + provenance)));
     }
 
     /**
-     * Role, activation and password reset.
+     * Role, activation and password reset — or, under four-eyes, the role or the password filed for a second
+     * administrator when the change makes an approver.
      *
      * <p>The three carry the same guard rails, so there is one entry point rather than three to
      * keep in step.
+     *
+     * <p><b>Activation is never held back.</b> A change filed for approval that also activates or
+     * deactivates the account applies that part at once: deactivating is how an administrator stops an
+     * account, and a stop that waits for a second person is no stop.
      *
      * @param actingAccountId the account making the change, or null for a caller that is not one —
      *     used to recognise a change to one's own account. Apart from the audit identity, because
      *     only this service needs it
      */
-    public AccountView update(long id, AccountChange change, Long actingAccountId, RequestActor actor) {
+    public Outcome update(long id, AccountChange change, Long actingAccountId, RequestActor actor) {
         UserEntity user = requireAccount(id);
 
         String role = change.role() == null ? user.getRole() : trim(change.role()).toUpperCase(Locale.ROOT);
-        boolean isActive = change.isActive() == null ? user.getIsActive() : change.isActive();
         String password = change.password();
 
         if (Role.of(role).isEmpty()) {
@@ -181,6 +290,65 @@ public class AccountAdministrationService {
             refuseIfInvalid(AccountRules.validatePassword(password));
         }
 
+        boolean roleChanges = !role.equals(user.getRole());
+        // A reset waits for the pending change to be decided first: applied at once beside a pending raise, it
+        // would hand whoever typed the password the role the raise grants, under an approval that did not show
+        // it. Lowering the role stays possible, and makes the pending raise stale.
+        if (password != null && requests.existsByStatusAndAccountId(PENDING, id)) {
+            throw new ConflictException("A change to " + user.getUsername()
+                    + " is already waiting for approval: have it approved or rejected first.");
+        }
+        boolean makesAnApprover = (roleChanges && Role.of(role).orElseThrow().approves())
+                || (password != null && (approves(user.getRole()) || approves(role)));
+        if (!makesAnApprover || !needsSecondAdministrator(actingAccountId, Role.of(role).orElseThrow())) {
+            String alone = makesAnApprover ? appliedAlone(actingAccountId, Role.of(role).orElseThrow()) : "";
+            Written written = transaction.execute(status -> writeChange(
+                    id, change.role() == null ? null : role, change.isActive(),
+                    password == null ? null : PasswordHasher.hash(password),
+                    actingAccountId, actingAccountId == null ? List.of() : List.of(actingAccountId), alone, actor));
+            written.entries().forEach(audit::record);
+            return new Outcome.Applied(written.account());
+        }
+
+        // Checked now, with the requester acting, so that a change the rules refuse is refused to the person
+        // asking rather than filed and refused to the approver; checked again when it is applied.
+        refuseInvalidChange(user, role, change.isActive() == null ? user.getIsActive() : change.isActive(), actingAccountId);
+        UserEntity requester = requireAccount(actingAccountId);
+        if (roleChanges && Role.of(role).orElseThrow().approves()) {
+            // Refused now rather than at the approval: the requester who created this account or typed its
+            // password may know it, and the raise would hand them an approver (lower, reset, raise).
+            independence.requirePasswordUnknown(id, user.getUsername(), requester.getId(), requester.getUsername());
+        }
+        // Refused before the activation below is applied, so a refusal leaves nothing half done; the filing
+        // checks again under the account's lock.
+        if (requests.existsByStatusAndAccountId(PENDING, id)) {
+            throw new ConflictException("A change to " + user.getUsername()
+                    + " is already waiting for approval: have it approved or rejected first.");
+        }
+        if (change.isActive() != null && change.isActive() != user.getIsActive()) {
+            update(id, new AccountChange(null, change.isActive(), null), actingAccountId, actor);
+        }
+        AccountRequestEntity filed = new AccountRequestEntity();
+        filed.setKind(CHANGE);
+        filed.setAccountId(id);
+        filed.setUsername(user.getUsername());
+        filed.setHeldRole(user.getRole());
+        filed.setRequestedRole(roleChanges ? role : null);
+        filed.setPasswordHash(password == null ? null : PasswordHasher.hash(password));
+        List<String> asked = new ArrayList<>();
+        if (roleChanges) {
+            asked.add("role " + user.getRole() + " → " + role);
+        }
+        if (password != null) {
+            asked.add("password reset");
+        }
+        return file(filed, actingAccountId, actor,
+                "Account change requested for " + user.getUsername() + ": " + String.join(", ", asked));
+    }
+
+    /** The guard rails of {@link #update}, with whoever is acting — the requester, then the approver. */
+    void refuseInvalidChange(UserEntity user, String role, boolean isActive, Long actingAccountId) {
+        long id = user.getId();
         // Checked on every change and not only on a role change: resetting a governor's password,
         // or deactivating it, is administering it just as much.
         refuseGovernorAdministration(actingAccountId, Role.of(user.getRole()), Role.of(role));
@@ -191,30 +359,48 @@ public class AccountAdministrationService {
                 isActive,
                 (int) countOtherActiveAdmins(id))));
         refuseIfInvalid(AccountRules.refuseOwnRoleChange(isSelf(actingAccountId, id), user.getRole(), role));
+    }
+
+    /**
+     * Writes a change and who made it; in the caller's transaction.
+     *
+     * @param role the role to set, or null to keep it
+     * @param isActive the activation to set, or null to keep it
+     * @param passwordHash the hash of the password to set, or null to keep it
+     * @param administrators every account behind the change, for {@link ApproverIndependence}
+     * @param provenance appended to the audit sentence: empty, or who asked for and approved it
+     */
+    Written writeChange(long id, String role, Boolean isActive, String passwordHash, Long actingAccountId,
+            List<Long> administrators, String provenance, RequestActor actor) {
+        UserEntity user = requireAccount(id);
+        String nextRole = role == null ? user.getRole() : role;
+        boolean nextActive = isActive == null ? user.getIsActive() : isActive;
+        refuseInvalidChange(user, nextRole, nextActive, actingAccountId);
 
         List<String> changes = new ArrayList<>();
         String previousRole = user.getRole();
-        if (!role.equals(user.getRole())) {
-            changes.add("role " + user.getRole() + " → " + role);
+        if (!nextRole.equals(user.getRole())) {
+            changes.add("role " + user.getRole() + " → " + nextRole);
         }
-        if (isActive != user.getIsActive()) {
-            changes.add(isActive ? "reactivated" : "deactivated");
+        if (nextActive != user.getIsActive()) {
+            changes.add(nextActive ? "reactivated" : "deactivated");
         }
-        if (password != null) {
+        if (passwordHash != null) {
             changes.add("password reset");
         }
 
-        if (change.role() != null && user.getScimLoweredFrom() != null) {
+        if (role != null && user.getScimLoweredFrom() != null) {
             // An administrator who sets the role has looked at the account: the directory's lowering no
             // longer holds its binding back (V93).
             changes.add("role confirmed after the directory lowered it from " + user.getScimLoweredFrom());
             user.setScimLoweredFrom(null);
         }
-        user.setRole(role);
-        user.setIsActive(isActive);
-        user.setUpdatedAt(clock.instant());
-        if (password != null) {
-            user.setPassword(PasswordHasher.hash(password));
+        Instant at = clock.instant();
+        user.setRole(nextRole);
+        user.setIsActive(nextActive);
+        user.setUpdatedAt(at);
+        if (passwordHash != null) {
+            user.setPassword(passwordHash);
             user.setMustChangePassword(true);
         }
         // **Three gestures close the sessions, not one.**
@@ -235,14 +421,14 @@ public class AccountAdministrationService {
         // to be two, which meant a failure between them left the password changed and the
         // session that the change was meant to close still open — the very outcome the
         // paragraph above describes as the defect being fixed.
-        boolean revoke = !isActive || password != null || !role.equals(previousRole);
+        boolean revoke = !nextActive || passwordHash != null || !nextRole.equals(previousRole);
         // **A reset takes the account's integration keys too.** A key acts for its account, so
         // one issued by whoever held the stolen credentials outlived the reset that was meant to
         // shut them out: the sessions closed, the pipeline key they minted kept working. Only on a
         // reset — deactivating already stops every key of the account, and a role change moves
         // what they may do with it.
         List<TargetGrants.RevokedKey> revokedKeys = List.of();
-        if (password != null) {
+        if (passwordHash != null) {
             revokedKeys = accounts.saveRevokingEverything(user);
             if (!revokedKeys.isEmpty()) {
                 int count = revokedKeys.size();
@@ -252,14 +438,24 @@ public class AccountAdministrationService {
             accounts.save(user, revoke);
         }
 
+        List<AccountGesture> made = new ArrayList<>();
+        if (passwordHash != null) {
+            made.add(AccountGesture.PASSWORD_RESET);
+        }
+        if (!nextRole.equals(previousRole)) {
+            made.add(AccountGesture.ROLE_CHANGED);
+        }
+        independence.recorded(id, previousRole, administrators, made, at);
+
+        List<AuditLogService.Record> entries = new ArrayList<>();
         if (!changes.isEmpty()) {
-            record(actor, id, "Account " + user.getUsername() + ": " + String.join(", ", changes));
+            entries.add(entry(actor, id, "Account " + user.getUsername() + ": " + String.join(", ", changes) + provenance));
         }
         // **One entry per key, under the key's id**, as a revocation by hand and one by a target's
         // deletion leave (`TargetDeletionAudit`). A count on the account's entry told nobody which
         // pipeline had just started answering 401, and the SIEM heard no `API_KEY_REVOKED` at all.
         for (TargetGrants.RevokedKey key : revokedKeys) {
-            audit.record(new AuditLogService.Record(
+            entries.add(new AuditLogService.Record(
                     AuditOperation.API_KEY_DELETED,
                     key.id().toString(),
                     "API key revoked with its account's password reset: " + key.name()
@@ -268,7 +464,82 @@ public class AccountAdministrationService {
                     actor.ipAddress(),
                     actor.userAgent()));
         }
-        return new AccountView(UserView.of(user), revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
+        return new Written(
+                new AccountView(UserView.of(user), revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L)), entries);
+    }
+
+    /**
+     * Whether a change that makes an approver waits for a second administrator.
+     *
+     * <p><b>Only under four-eyes</b>, which is the rule that a single person does not decide alone; with it
+     * off, nothing changes.
+     *
+     * <p><b>And only when a second administrator exists</b>, active or not. An installation's first
+     * administrator is created by its only one, the governor the bootstrap made; with nobody to approve, the
+     * request would wait for ever and the installation could never be staffed. Applied at once then, as before, and the
+     * audit entry says so — the same answer {@link TriageApprovers} gives four-eyes itself: a control that
+     * cannot be honoured is not one, it is a lock-out.
+     */
+    private boolean needsSecondAdministrator(Long actingAccountId, Role role) {
+        return actingAccountId != null
+                && role.approves()
+                && settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED)
+                && countOtherAdmins(actingAccountId) > 0;
+    }
+
+    /**
+     * Every other administrative account, <b>deactivated ones included</b>: counting the active ones only let an
+     * administrator deactivate the others, make an approver "alone", and reactivate them — each step applied at
+     * once. A deactivated administrator still waits to be reactivated by somebody, which the requester may do,
+     * and the request is then approved by the account reactivated, not by the requester.
+     */
+    private long countOtherAdmins(long excludedId) {
+        List<String> administrative = Role.administrative().stream().map(Enum::name).toList();
+        long now = users.countAdministratorsExcluding(administrative, excludedId);
+        // And one lowered recently: lowering the others to a role that approves nothing applies at once, and
+        // would otherwise leave the lowerer alone as surely as deactivating them did.
+        return now > 0 || independence.anotherAdministratorLoweredRecently(excludedId, administrative) ? Math.max(now, 1) : 0;
+    }
+
+    /**
+     * What the audit sentence adds when four-eyes would have held the change back and nobody else could
+     * approve it: the one case in which an administrator makes an approver alone, said where it is read.
+     */
+    private String appliedAlone(Long actingAccountId, Role role) {
+        return actingAccountId != null
+                && role.approves()
+                && settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED)
+                && countOtherAdmins(actingAccountId) == 0
+                ? " — four-eyes: applied without a second administrator, as there is no other"
+                : "";
+    }
+
+    /** Files a request, audited under its own id; nothing about the account changes. */
+    private Outcome file(AccountRequestEntity filed, Long actingAccountId, RequestActor actor, String description) {
+        UserEntity requester = requireAccount(actingAccountId);
+        filed.setStatus(PENDING);
+        filed.setRequestedById(requester.getId());
+        filed.setRequestedBy(requester.getUsername());
+        filed.setRequestedAt(clock.instant());
+        AccountRequestEntity saved = transaction.execute(status -> {
+            // One request waiting per account: under the account's row lock, so that two administrators filing
+            // at once are ordered and the second meets the first one's request. A creation has no row to lock;
+            // two of the same name are caught by the username's unique key when the second is approved.
+            if (filed.getAccountId() != null) {
+                users.lockById(filed.getAccountId());
+                if (requests.existsByStatusAndAccountId(PENDING, filed.getAccountId())) {
+                    throw new ConflictException("A change to " + filed.getUsername()
+                            + " is already waiting for approval: have it approved or rejected first.");
+                }
+            } else if (requests.existsByStatusAndKindAndUsername(PENDING, CREATE, filed.getUsername())) {
+                throw new ConflictException("An account named \"" + filed.getUsername()
+                        + "\" is already waiting for approval.");
+            }
+            return requests.save(filed);
+        });
+        audit.record(actor.entry(AuditOperation.ACCOUNT_REQUEST_FILED, String.valueOf(saved.getId()),
+                description + " — four-eyes: waiting for another administrator (account request #" + saved.getId() + ")"));
+        return new Outcome.Queued(AccountRequestView.of(saved));
     }
 
     /**
@@ -484,7 +755,7 @@ public class AccountAdministrationService {
         record(actor, id, "Account deleted: " + user.getUsername());
     }
 
-    private UserEntity requireAccount(long id) {
+    UserEntity requireAccount(long id) {
         return users.findById(id).orElseThrow(() -> new NotFoundException("Account not found."));
     }
 
@@ -514,13 +785,21 @@ public class AccountAdministrationService {
     }
 
     private void record(RequestActor actor, long id, String description) {
-        audit.record(new AuditLogService.Record(
+        audit.record(entry(actor, id, description));
+    }
+
+    private static AuditLogService.Record entry(RequestActor actor, long id, String description) {
+        return new AuditLogService.Record(
                 AuditOperation.USER_UPDATED,
                 String.valueOf(id),
                 description,
                 actor.username(),
                 actor.ipAddress(),
-                actor.userAgent()));
+                actor.userAgent());
+    }
+
+    private static boolean approves(String role) {
+        return Role.of(role).map(Role::approves).orElse(false);
     }
 
     private static boolean isAdministrative(String role) {

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
@@ -32,6 +33,9 @@ import org.springframework.http.MediaType;
  */
 @DisplayName("integration API keys")
 class ApiKeyIntegrationRoutesTest extends ApiTestBase {
+
+    @Autowired
+    private com.asmolabs.vectispire.core.settings.SettingsService settings;
 
     @Autowired
     private GitRepositoryRepository repositories;
@@ -184,6 +188,9 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
     void aResetTakesTheKeysWithIt() throws Exception {
         // The incident-response gesture: the sessions closed, and a key minted with the stolen
         // credentials used to keep working for its account.
+        // An administrator's reset, applied at once: four-eyes off, as under it the reset of an account
+        // that approves waits for a second administrator (`AccountRequestsRoutesTest`).
+        settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
         String ownerName = "compromised-" + System.nanoTime();
         String owned = issue(tokenFor(ownerName, Role.ADMIN, false), Map.of("name", "minted", "scopes", List.of("read")));
         String bystander = issue(asAdmin(), Map.of("name", "unrelated", "scopes", List.of("read")));
@@ -205,6 +212,9 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
     void aResetNamesEveryKeyItRevokes() throws Exception {
         // The account's entry said "2 API keys revoked" and nothing else: no entry under either key,
         // so neither whoever looked for the key that stopped working nor the SIEM heard of it.
+        // An administrator's reset, applied at once: four-eyes off, as under it the reset of an account
+        // that approves waits for a second administrator (`AccountRequestsRoutesTest`).
+        settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
         String ownerName = "reset-keys-" + System.nanoTime();
         String ownerToken = tokenFor(ownerName, Role.ADMIN, false);
         List<String> ids = List.of(keyId(ownerToken, "reset-first"), keyId(ownerToken, "reset-second"));

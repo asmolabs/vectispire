@@ -129,13 +129,28 @@ public enum Role {
      * <p><b>What it does not close: acting through an account it administers.</b> A governor is
      * administrative, and so administers accounts. It can create an account that triages, or reset
      * the password of one that does, and act under that name: "operates nothing" holds for its own
-     * account, not for those it can make. Any administrator can do the same, and four-eyes narrows it
-     * without closing it, since the second identity can be one the first created. Each step is in the
-     * audit log and a reset account must change its password at its next sign-in, so it is detected,
-     * not prevented — see the security view (02, "What the roles do not separate").
+     * account, not for those it can make. Any administrator can do the same. With four-eyes off it is
+     * detected, not prevented: each step is in the audit log, and a reset account must change its
+     * password at its next sign-in. With four-eyes on, making an approver takes a second administrator
+     * ({@link #approves()}), and an approver the requester administered recently is refused — what
+     * remains is listed in the security view (02, "What still remains").
      */
     public boolean governsPlatform() {
         return governsPlatform;
+    }
+
+    /**
+     * Has a say in a four-eyes decision: approves a triage, or administers accounts and so approves another
+     * administrator's account request.
+     *
+     * <p><b>Both, and not {@link #canApproveTriage} alone</b>, because under four-eyes an account change that
+     * makes an approver waits for a second administrator (#126, option 2): an account that administers is an
+     * approver of those, and the governor, who approves no triage, is one. Creating an account with such a
+     * role, giving such a role, and resetting the password of an account that holds one are what the queue
+     * holds back; the roles left out — an auditor, an ordinary user — approve nothing anybody asked.
+     */
+    public boolean approves() {
+        return canApproveTriage || administrative;
     }
 
     /**

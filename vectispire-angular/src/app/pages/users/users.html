@@ -9,6 +9,101 @@
 @if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
+@if (notice(); as message) {
+    <p-message id="account-request-filed" severity="info" [closable]="false" styleClass="mb-4 w-full">{{
+        message
+    }}</p-message>
+}
+@if (requestsError(); as message) {
+    <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<!--
+    Four-eyes holds these: the accounts table below still shows each account as it was, so what waits
+    is said above it. Hidden when nothing waits — an empty card on every visit is noise.
+-->
+@if (requests().length > 0) {
+    <p-card id="account-requests" styleClass="mb-4">
+        <h2 class="text-lg font-semibold mt-0 mb-1">{{ 'users.requests_title' | translate }}</h2>
+        <p class="text-muted-color mt-0 mb-3">{{ 'users.requests_subtitle' | translate }}</p>
+        <p-table [value]="requests()" dataKey="id" styleClass="p-datatable-sm">
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'users.requests_col_change' | translate }}</th>
+                    <th>{{ 'users.requests_col_by' | translate }}</th>
+                    <th>{{ 'users.requests_col_at' | translate }}</th>
+                    <th class="w-1"></th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-request>
+                <tr [attr.data-request]="request.id">
+                    <td>
+                        @if (request.kind === 'create') {
+                            <div>
+                                {{
+                                    'users.request_create'
+                                        | translate: { name: request.username, role: roleLabel(request.requestedRole) }
+                                }}
+                            </div>
+                        } @else {
+                            @if (request.requestedRole) {
+                                <div>
+                                    {{
+                                        'users.request_role'
+                                            | translate
+                                                : {
+                                                      name: request.username,
+                                                      held: roleLabel(request.heldRole),
+                                                      requested: roleLabel(request.requestedRole)
+                                                  }
+                                    }}
+                                </div>
+                            }
+                            @if (request.passwordReset) {
+                                <div>{{ 'users.request_password' | translate: { name: request.username } }}</div>
+                            }
+                        }
+                    </td>
+                    <td>
+                        {{ request.requestedBy ?? request.requestedById }}
+                        @if (isOwnRequest(request)) {
+                            <span class="text-muted-color text-sm">({{ 'users.you' | translate }})</span>
+                        }
+                    </td>
+                    <td>{{ request.requestedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td class="text-right whitespace-nowrap">
+                        @if (isOwnRequest(request)) {
+                            <p-button
+                                class="request-withdraw"
+                                [label]="'users.request_withdraw' | translate"
+                                severity="secondary"
+                                [text]="true"
+                                [disabled]="requestBusy() != null"
+                                (onClick)="rejectRequest(request)"
+                            />
+                        } @else {
+                            <p-button
+                                class="request-approve"
+                                [label]="'users.request_approve' | translate"
+                                [text]="true"
+                                [disabled]="requestBusy() != null"
+                                (onClick)="approveRequest(request)"
+                            />
+                            <p-button
+                                class="request-reject"
+                                [label]="'users.request_reject' | translate"
+                                severity="danger"
+                                [text]="true"
+                                [disabled]="requestBusy() != null"
+                                (onClick)="rejectRequest(request)"
+                            />
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    </p-card>
+}
 
 <p-card>
     <p-table [value]="users()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">

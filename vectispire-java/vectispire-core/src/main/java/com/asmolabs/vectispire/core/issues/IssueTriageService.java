@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.access.ApproverIndependence;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
@@ -53,11 +54,14 @@ public class IssueTriageService {
     private final IssueRepository issues;
     private final TriageEventRepository events;
     private final Clock clock;
+    private final ApproverIndependence independence;
 
-    public IssueTriageService(IssueRepository issues, TriageEventRepository events, Clock clock) {
+    public IssueTriageService(
+            IssueRepository issues, TriageEventRepository events, Clock clock, ApproverIndependence independence) {
         this.issues = issues;
         this.events = events;
         this.clock = clock;
+        this.independence = independence;
     }
 
     /**
@@ -291,6 +295,9 @@ public class IssueTriageService {
      * username, or the literal {@code unknown} {@code IssueDecisionService} substitutes, and two of those
      * compare equal — so the gap closes as the old rows are worked off rather than staying
      * open.
+     *
+     * @throws com.asmolabs.vectispire.core.access.ApproverNotIndependentException under four-eyes, when the
+     *     requester administered the approver's account within the window
      */
     private void requireASecondPairOfEyes(IssueEntity issue, Triage.Decision decision) {
         String requester = lastApprovalRequester(issue);
@@ -304,6 +311,10 @@ public class IssueTriageService {
                     "Four-eyes approval: this exemption was requested by " + requester
                             + ", so it has to be approved by somebody else.");
         }
+        // **Two names are not two people** when the requester made the second one (#126, option 1): an
+        // account the requester created, reset the password of or gave its role recently is refused as the
+        // approver, under four-eyes. With it off, nothing is refused here that was not before.
+        independence.require(requester, approver);
     }
 
     /** The actor of the most recent request that put this issue into the approval queue. */

@@ -167,14 +167,22 @@ abstract class ApiTestBase extends VectispireContextTest {
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
         UserEntity saved = users.save(user);
+        return sessionFor(saved.getId());
+    }
 
+    /**
+     * A live session for an account that already exists — one an administrator created or changed
+     * through the API, whose sessions that change closed.
+     */
+    protected String sessionFor(long userId) {
+        Instant now = clock.instant();
         // Minted exactly the way the application mints one — the hash in the row, the token
         // returned to the caller. A test that stored the token would pass while the production
         // path stored a hash, and would be testing a store that no longer exists.
         Sessions.IssuedToken minted = Sessions.issue();
         SessionEntity session = new SessionEntity();
         session.setTokenHash(minted.hash());
-        session.setUserId(saved.getId());
+        session.setUserId(userId);
         session.setCreatedAt(now);
         session.setLastSeenAt(now);
         session.setExpiresAt(now.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));

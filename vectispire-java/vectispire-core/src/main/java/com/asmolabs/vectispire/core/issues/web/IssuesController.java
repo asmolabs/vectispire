@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.ApproverNotIndependentException;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
@@ -173,7 +174,10 @@ public class IssuesController {
             + "triageRequestedStatus. Approving grants that status: another settling status answers 409 with the "
             + "type urn:vectispire:problem:" + TriageApprovalDiffersException.CAUSE + " and the member "
             + "requestedStatus — turn the request down with under_review or affected instead. The requester cannot "
-            + "approve their own request (400).";
+            + "approve their own request (400). Under four-eyes, nor can an account the requester created, reset the "
+            + "password of or changed the role of within the approver independence window (setting "
+            + "four_eyes_independence_days, 30 days unless set): 409 with the type urn:vectispire:problem:"
+            + ApproverNotIndependentException.CAUSE + " and the members gesture and windowDays.";
 
     /**
      * Records a triage decision.

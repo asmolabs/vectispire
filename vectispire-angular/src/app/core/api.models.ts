@@ -730,6 +730,31 @@ export type NewUser = Refine<Schema<'UserCreateRequest'>, { username: string; pa
 /** Every field is a field left alone when absent, so the schema already says it exactly. */
 export type UserPatch = Schema<'UserUpdateRequest'>;
 
+/**
+ * An account gesture filed for a second administrator under four-eyes: a creation, or a change of
+ * role or password to an account holding a role that acts. `heldRole` and `accountId` are null for
+ * a creation, `requestedRole` for a change that keeps the role; `requestedBy` is the requester's
+ * name as filed.
+ */
+export type AccountRequest = Refine<
+    Schema<'AccountRequestView'>,
+    {
+        id: number;
+        kind: 'create' | 'change';
+        accountId: number | null;
+        username: string;
+        email: string | null;
+        displayName: string | null;
+        heldRole: string | null;
+        requestedRole: string | null;
+        requestedById: number | null;
+        requestedBy: string | null;
+        requestedAt: string;
+    }
+>;
+
+export type AccountRequestList = Refine<Schema<'AccountRequestListing'>, { requests: AccountRequest[] }>;
+
 /** An API key. The cleartext value is not here: it exists once only, in the response to its
  *  creation. */
 export type ApiKeySummary = Refine<

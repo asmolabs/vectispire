@@ -35,7 +35,8 @@ class IssueTriageServiceTest {
     void wire() {
         issues = mock(IssueRepository.class);
         events = mock(com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository.class);
-        service = new IssueTriageService(issues, events, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new IssueTriageService(issues, events, Clock.fixed(NOW, ZoneOffset.UTC),
+                mock(com.asmolabs.vectispire.core.access.ApproverIndependence.class));
         when(issues.save(any())).thenAnswer(call -> call.getArgument(0));
         when(issues.saveAll(any())).thenAnswer(call -> call.getArgument(0));
         when(issues.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));

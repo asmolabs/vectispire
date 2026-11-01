@@ -81,7 +81,7 @@ class MigrationsTest {
                         "t_report_plugin", "t_report_plugin_manifest", "t_report_plugin_activation",
                         "t_forge_connection", "t_report_run", "t_report_export", "t_forge_discovery",
                         "t_forge_repository", "t_report_document", "t_forge_import_link", "t_forge_review_reading",
-                        "t_integration");
+                        "t_integration", "t_account_administration", "t_account_request");
     }
 
     @Test
@@ -106,7 +106,8 @@ class MigrationsTest {
                         "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
                         "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component",
                         "t_team_member", "t_team_target", "t_team_webhook", "t_issue_ticket",
-                        "t_mfa_challenge", "t_gate_verdict", "t_project")) {
+                        "t_mfa_challenge", "t_gate_verdict", "t_project",
+                        "t_account_administration", "t_account_request")) {
                     try (ResultSet rows = connection.getMetaData().getImportedKeys(connection.getCatalog(), null, table)) {
                         while (rows.next()) {
                             references.add(table + "." + rows.getString("FKCOLUMN_NAME")
@@ -141,8 +142,12 @@ class MigrationsTest {
                         "t_gate_verdict.repo_id -> t_repository",
                         "t_gate_verdict.container_id -> t_container",
                         "t_repository.project_id -> t_project",
-                        "t_project.solution_id -> t_solution")
-                .hasSize(27)
+                        "t_project.solution_id -> t_solution",
+                        "t_account_administration.account_id -> t_user",
+                        "t_account_administration.administrator_id -> t_user",
+                        "t_account_request.account_id -> t_user",
+                        "t_account_request.requested_by_id -> t_user")
+                .hasSize(31)
                 .doesNotHaveDuplicates();
     }
 

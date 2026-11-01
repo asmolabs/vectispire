@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
@@ -13,6 +14,7 @@ import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,9 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private Clock clock;
+
+    @Autowired
+    private SettingsService settings;
 
     @Test
     @DisplayName("an administrator cannot deactivate or demote their own account")
@@ -112,7 +117,7 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
         SessionEntity b = openSession(promoted);
         SessionEntity c = openSession(disabled);
 
-        var view = accounts.update(reset.getId(), change(null, null, "a-new-password-of-length"), null, ACTOR);
+        var view = applied(accounts.update(reset.getId(), change(null, null, "a-new-password-of-length"), null, ACTOR));
         accounts.update(promoted.getId(), change("AUDITOR", null, null), null, ACTOR);
         accounts.update(disabled.getId(), change(null, false, null), null, ACTOR);
 
@@ -133,7 +138,7 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
         UserEntity user = account("steady", Role.USER, true);
         SessionEntity open = openSession(user);
 
-        var view = accounts.update(user.getId(), change("user", true, null), null, ACTOR);
+        var view = applied(accounts.update(user.getId(), change("user", true, null), null, ACTOR));
 
         assertThat(sessions.findById(open.getTokenHash())).isPresent();
         assertThat(view.activeSessions()).isEqualTo(1);
@@ -170,7 +175,7 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already taken");
 
-        UserView created = accounts.create(newAccount("fresh", null), null, ACTOR).user();
+        UserView created = applied(accounts.create(newAccount("fresh", null), null, ACTOR)).user();
         assertThat(created.role()).isEqualTo(Role.USER.name());
         assertThat(created.mustChangePassword()).isTrue();
         assertThat(audit.findAllByOrderByTimestampAscIdAsc())
@@ -220,6 +225,8 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
         UserEntity governor = account("governor", Role.SUPERUSER, true);
         UserEntity admin = account("admin", Role.ADMIN, true);
         account("other-admin", Role.ADMIN, true);
+        // Four-eyes off: on, the role would wait for a second administrator (`AccountRequestsTest`).
+        settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
 
         accounts.update(admin.getId(), change("SUPERUSER", null, null), governor.getId(), ACTOR);
         assertThat(users.findById(admin.getId()).orElseThrow().getRole()).isEqualTo(Role.SUPERUSER.name());
@@ -228,6 +235,10 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
         assertThatThrownBy(() -> accounts.update(champion.getId(), change("CISO", null, null), champion.getId(), ACTOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("your own role");
+    }
+
+    private static AccountAdministrationService.AccountView applied(AccountAdministrationService.Outcome outcome) {
+        return ((AccountAdministrationService.Outcome.Applied) outcome).account();
     }
 
     private static AccountAdministrationService.AccountChange change(String role, Boolean isActive, String password) {

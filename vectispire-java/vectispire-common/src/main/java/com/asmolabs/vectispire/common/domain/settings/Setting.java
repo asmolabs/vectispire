@@ -503,6 +503,20 @@ public enum Setting {
             "true"),
 
     /**
+     * How long, under four-eyes, an administrator's gesture on an account keeps that account from approving
+     * the administrator's requests (#126, option 1). In the triage section, so the platform governor's to
+     * change: a window an administrator could shorten to nothing would be a check that administrator lifts.
+     */
+    FOUR_EYES_INDEPENDENCE_DAYS("four_eyes_independence_days", SettingType.INTEGER, Section.TRIAGE,
+            "Approver independence window (days)",
+            "With four-eyes on, an approval is refused when the person who asked for it created the approver's "
+                    + "account, reset its password or changed its role within this many days: the second pair of "
+                    + "eyes would otherwise be an account the first one made, or whose password it typed. Applies "
+                    + "to triage approvals and to account changes waiting for a second administrator. Zero "
+                    + "switches the check off; at most " + Setting.MAX_INDEPENDENCE_DAYS + ".",
+            "30"),
+
+    /**
      * Whether Vectispire answers the measured lines of a draft checklist itself (decision 0032, amendment
      * "the scans answer the lines they measure"). A rule, not a parameter — who may write an answer in a
      * document a person signs — so it sits in a governance section, the platform governor's to change,
@@ -583,6 +597,9 @@ public enum Setting {
          */
         ENCRYPTED
     }
+
+    /** Ten years: longer than any account's independence is worth waiting for. */
+    public static final int MAX_INDEPENDENCE_DAYS = 3650;
 
     private final String key;
     private final SettingType type;
@@ -729,7 +746,8 @@ public enum Setting {
      */
     public boolean governsSecurity() {
         return switch (this) {
-            case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, NOTIFICATION_ALLOW_PRIVATE_URL,
+            case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, FOUR_EYES_INDEPENDENCE_DAYS,
+                    NOTIFICATION_ALLOW_PRIVATE_URL,
                     SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_PROJECT, TICKET_USER,
                     TICKET_CA, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
                     WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
@@ -753,6 +771,12 @@ public enum Setting {
 
     /** Empty when the value is acceptable, otherwise the message to show. */
     public Optional<String> validate(String value) {
+        // Bounded above as well: a window of two billion days reaches past the first instant there is, and
+        // the approval reading it would fail with a 500 rather than refuse anything in words.
+        if (this == FOUR_EYES_INDEPENDENCE_DAYS && type.validate(value).isEmpty()
+                && Integer.parseInt(value.trim()) > MAX_INDEPENDENCE_DAYS) {
+            return Optional.of("at most " + MAX_INDEPENDENCE_DAYS + " days.");
+        }
         // **The tracker's address carries no credential**, as a forge connection's does not (`ForgeAddress`): a
         // user name or a token typed into it is a second, unencrypted copy of the token, stored in a column the
         // token's own route never reaches, and shown back on the settings screen.

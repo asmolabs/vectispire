@@ -19,6 +19,68 @@
           "type" : "object"
         } ]
       },
+      "AccountRequestListing" : {
+        "properties" : {
+          "requests" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AccountRequestView"
+            },
+            "type" : "array"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "total" ],
+        "type" : "object"
+      },
+      "AccountRequestView" : {
+        "properties" : {
+          "accountId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "heldRole" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "passwordReset" : {
+            "type" : "boolean"
+          },
+          "requestedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "requestedBy" : {
+            "type" : "string"
+          },
+          "requestedById" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "requestedRole" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "passwordReset" ],
+        "type" : "object"
+      },
       "ActivateRequest" : {
         "properties" : {
           "acceptLosing" : {
@@ -12299,6 +12361,93 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/v1/account-requests" : {
+      "get" : {
+        "operationId" : "listAccountRequests",
+        "parameters" : [ {
+          "description" : "Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed.",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccountRequestListing"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "account-requests-controller" ]
+      }
+    },
+    "/api/v1/account-requests/{id}/approve" : {
+      "post" : {
+        "operationId" : "approveAccountRequest",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserAdminSummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "account-requests-controller" ]
+      }
+    },
+    "/api/v1/account-requests/{id}/reject" : {
+      "post" : {
+        "operationId" : "rejectAccountRequest",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "account-requests-controller" ]
+      }
+    },
     "/api/v1/admin/agents" : {
       "get" : {
         "operationId" : "list_16",
@@ -16401,7 +16550,7 @@
     },
     "/api/v1/issues/triage" : {
       "post" : {
-        "description" : "Records the same triage decision on several issues, every one checked before the first is written: one refusal writes none. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400).",
+        "description" : "Records the same triage decision on several issues, every one checked before the first is written: one refusal writes none. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). Under four-eyes, nor can an account the requester created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set): 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays.",
         "operationId" : "triageMany",
         "requestBody" : {
           "content" : {
@@ -16497,7 +16646,7 @@
     },
     "/api/v1/issues/{id}/triage" : {
       "post" : {
-        "description" : "Records a triage decision on one issue. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400).",
+        "description" : "Records a triage decision on one issue. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). Under four-eyes, nor can an account the requester created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set): 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays.",
         "operationId" : "triage",
         "parameters" : [ {
           "in" : "path",
@@ -22706,7 +22855,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The account, created"
+          },
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccountRequestView"
+                }
+              }
+            },
+            "description" : "Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation or deactivation sent with it has been applied."
           }
         },
         "tags" : [ "users-controller" ]
@@ -22761,7 +22920,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The account, changed"
+          },
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccountRequestView"
+                }
+              }
+            },
+            "description" : "Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation or deactivation sent with it has been applied."
           }
         },
         "tags" : [ "users-controller" ]
