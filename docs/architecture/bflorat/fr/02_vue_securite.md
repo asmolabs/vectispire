@@ -50,9 +50,22 @@
   par quart d'heure —, par compte depuis tous les clients — cinquante — et par client tous comptes
   confondus — vingt. Le plafond bas est celui du compte *depuis un client* : partagé par tous les
   clients, il laissait quiconque connaissait un nom garder ce compte verrouillé, et le bon mot de
-  passe de son titulaire était refusé avec le reste. Verrouiller un titulaire demande désormais le
-  plafond global, depuis dix clients ou plus. Le budget du second facteur reste par compte : seul
-  celui qui détient le mot de passe peut le dépenser.
+  passe de son titulaire était refusé avec le reste. Le budget du second facteur reste par compte :
+  seul celui qui détient le mot de passe peut le dépenser.
+- **Le budget du compte tous clients confondus est souple, ce qui ferme le dernier verrouillage.** Le
+  plafond global était strict, et c'était le compromis restant : depuis dix clients ou plus, quiconque
+  connaissait un nom tenait son titulaire dehors. Au-delà désormais, une tentative depuis un client qui
+  ne s'est pas connecté au compte dans `VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION` (trente jours) reçoit
+  `429` `account-throttled` avec `Retry-After`, avant tout hachage et ses lignes reprises ; un client
+  connu continue, tenu à ses propres plafonds, de même qu'une tentative qui envoie le second facteur
+  avec le mot de passe — les deux vérifiés, et tout échec répondu par le même refus, si bien qu'un
+  devineur au-delà du budget n'apprend rien du mot de passe. Les clients connus sont dans
+  `t_sign_in_client` (V100), indexés par un condensé du compte et du seau client : l'exemption survit à
+  un redémarrage comme les compteurs. Un nom inconnu n'a aucun client connu et est refusé comme un
+  compte existant. Chaque refus est audité `LOGIN_BLOCKED` (`VECTI-SEC-007`) et le journal avertit une
+  fois par compte et par fenêtre. Le coût résiduel : qui partage la sortie réseau du titulaire partage
+  l'exemption, et rencontre à la place les plafonds propres à ce client. Les trois plafonds sont des
+  réglages `VECTISPIRE_SIGN_IN_*`, aux valeurs par défaut inchangées.
 - **Clés API d'intégration CI/CD** : Stockées uniquement sous forme de hash Argon2id (préfixées
   `vectispire_`) avec périmètres de droits (scopes) et date d'expiration.
 

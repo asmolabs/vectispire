@@ -7156,6 +7156,7 @@ export interface components {
             name?: string;
         };
         LoginRequest: {
+            mfa_code?: string;
             password?: string;
             username?: string;
         };

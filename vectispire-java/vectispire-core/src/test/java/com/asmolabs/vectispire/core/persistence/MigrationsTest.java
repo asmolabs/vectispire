@@ -64,7 +64,7 @@ class MigrationsTest {
                 .containsExactlyInAnyOrder(
                         "t_api_key", "t_agent", "t_audit_chain_head", "t_ssh_key", "t_container", "t_repository", "t_scan",
                         "t_ai_review_result", "t_audit_log", "t_issue", "t_finding", "t_gate_policy",
-                        "t_leader_lease", "t_login_attempt", "t_outbox_message", "t_processed_message",
+                        "t_leader_lease", "t_login_attempt", "t_sign_in_client", "t_outbox_message", "t_processed_message",
                         "t_user", "t_user_target", "t_session", "t_setting", "t_semgrep_rule_set",
                         "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target",
                         "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy",

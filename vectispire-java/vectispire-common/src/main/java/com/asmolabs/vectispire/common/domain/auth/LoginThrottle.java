@@ -29,6 +29,19 @@ import java.util.Locale;
  * owner out takes the global ceiling, ten times higher and from at least ten clients, which is
  * exactly the distributed guessing it exists to stop.
  *
+ * <p><b>And the global ceiling no longer locks the owner out either.</b> It did, the trade-off
+ * documented with it: fifty failures from ten addresses kept any account whose name was known
+ * refused, its owner's right password with the rest, while a guesser with a thousand addresses still
+ * met it as the only ceiling that counted. The account's budget across every client is now a
+ * <em>soft</em> limit: past it, an attempt from a client the account has not signed in from is
+ * answered 429 with {@code Retry-After} and the stable code {@code account-throttled}, before any
+ * hashing, as every refusal here is — and an attempt from a client that has signed in to the account
+ * within {@code VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION} ({@link #knownClientKey}), or one that carries
+ * the account's second factor with the password, goes on to be verified. The guesser spread across
+ * addresses keeps meeting the budget; the owner, from their usual place or with their phone, does not.
+ * Every ceiling but the second factor's is a setting ({@code SignInLimits}); the constants here are
+ * the shipped values.
+ *
  * <p>A shared workstation can legitimately watch several people mistype; an account cannot.
  *
  * <p><b>The window slides rather than being fixed.</b> A fixed window resets on the hour, which
@@ -179,6 +192,22 @@ public final class LoginThrottle {
      */
     private static String fromClient(String key, String clientId) {
         return "login:from-client:" + Digests.sha256Fields(key, ClientBuckets.of(clientId));
+    }
+
+    /**
+     * A client that has signed in to an account, which the account's budget across every client does
+     * not refuse — see the class note and {@code AuthService#login}.
+     *
+     * <p><b>"Client" is the counters' client: the address as the trusted proxies resolve it, or its
+     * /64</b> ({@link ClientBuckets}), and not a cookie the browser keeps. A cookie would be the
+     * caller's to send or not, and every other counter here is keyed on what the caller cannot choose;
+     * the cost is that somebody behind the same egress as the owner shares the owner's exemption, and
+     * meets only the ceilings of that one client — the five, and the twenty across accounts.
+     *
+     * <p>A digest, so the table that holds it does not also record where every account signs in from.
+     */
+    public static String knownClientKey(long accountId, String clientId) {
+        return Digests.sha256Fields("login:known-client", Long.toString(accountId), ClientBuckets.of(clientId));
     }
 
     /** Wrong second-factor codes, per account — see {@link #MAX_SECOND_FACTOR_FAILURES}. */

@@ -18,8 +18,14 @@ export class AuthApi {
 
     // No client_id: the server counts failures per resolved address, since a key the browser
     // chooses is one an attacker changes on every attempt.
-    login(username: string, password: string): Observable<LoginResponse> {
-        return this.http.post<LoginResponse>('/api/v1/auth/login', { username, password });
+    //
+    // `mfaCode` only once the server answered `account-throttled`: past the account's budget across
+    // clients, the second factor sent with the password is how its owner gets in from a new place.
+    login(username: string, password: string, mfaCode?: string): Observable<LoginResponse> {
+        return this.http.post<LoginResponse>(
+            '/api/v1/auth/login',
+            mfaCode ? { username, password, mfa_code: mfaCode } : { username, password }
+        );
     }
 
     changePassword(currentPassword: string, newPassword: string): Observable<{ mustChangePassword: boolean }> {

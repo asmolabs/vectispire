@@ -46,8 +46,20 @@
   of an hour — per account from every client — fifty — and per client across accounts — twenty.
   The low ceiling is the account's *from one client*: shared by every client, it let anyone who
   knew a name keep that account locked, and the owner's right password was refused with the rest.
-  Locking an owner out now takes the global ceiling, from ten clients or more. The second-factor
-  budget stays per account: only someone holding the password can spend it.
+  The second-factor budget stays per account: only someone holding the password can spend it.
+- **The account's budget across clients is soft, which closes the last lockout.** The global ceiling
+  was a hard one, and that was the trade-off left: from ten clients or more, anyone who knew a name
+  kept its owner out. Past it now, an attempt from a client that has not signed in to the account
+  within `VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION` (thirty days) is answered `429`
+  `account-throttled` with `Retry-After`, before any hashing and with its rows taken back; a known
+  client goes on, held to its own ceilings, and so does an attempt sending the second factor with the
+  password — both verified, and any failure answered as the same refusal, so a guesser past the budget
+  learns nothing from the password. The known clients live in `t_sign_in_client` (V100), keyed by a
+  digest of the account and the client bucket, so the exemption survives a restart as the counters do;
+  an unknown name has no known client and is refused as an existing account is. Each refusal is
+  audited `LOGIN_BLOCKED` (`VECTI-SEC-007`) and the log warns once per account per window. The
+  residual cost: whoever shares the owner's egress shares the exemption, and meets that client's own
+  ceilings instead. All three ceilings are `VECTISPIRE_SIGN_IN_*` settings, defaults unchanged.
 - **CI/CD Integration API Keys**: Stored strictly as Argon2id hashes (`vectispire_` prefix) with
   configurable permission scopes and expiration dates.
 

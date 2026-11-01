@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
 import com.asmolabs.vectispire.core.access.persistence.MfaChallengeRepository;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.SignInClientRepository;
 import java.time.Clock;
 import java.time.Duration;
 import org.slf4j.Logger;
@@ -15,11 +16,11 @@ import org.springframework.stereotype.Service;
  *
  * <p>It purged the gate's verdict register and the compliance captures too, through a port those
  * modules implemented; since step 5 each contributes its own periodic task, and this pass keeps the
- * four tables that are {@code access}'s (decision 0029).
+ * five tables that are {@code access}'s (decision 0029).
  *
  * <p><b>This is not a security control, and saying so matters.</b> An expired session is
  * already refused on read, an attempt outside the window is already not counted, and a closed rate
- * window is never read again. This pass makes nothing safer: it only stops four tables accumulating
+ * window is never read again. This pass makes nothing safer: it only stops five tables accumulating
  * rows nobody will ever read.
  *
  * <p>The practical consequence: it may fail, skip a turn, or not run at all with nothing bad
@@ -43,6 +44,8 @@ public class SessionCleanupService {
     private final LoginAttemptRepository attempts;
     private final MfaChallengeRepository challenges;
     private final RateWindows rateWindows;
+    private final SignInClientRepository knownClients;
+    private final SignInLimits limits;
     private final Clock clock;
 
     public SessionCleanupService(
@@ -50,11 +53,15 @@ public class SessionCleanupService {
             LoginAttemptRepository attempts,
             MfaChallengeRepository challenges,
             RateWindows rateWindows,
+            SignInClientRepository knownClients,
+            SignInLimits limits,
             Clock clock) {
         this.sessions = sessions;
         this.attempts = attempts;
         this.challenges = challenges;
         this.rateWindows = rateWindows;
+        this.knownClients = knownClients;
+        this.limits = limits;
         this.clock = clock;
     }
 
@@ -64,8 +71,12 @@ public class SessionCleanupService {
      *     pays for; on an instance nobody signs into, the rows would sit until one did
      * @param rateWindows the closed windows of the limits counted across instances — one row per
      *     address and window, so a flood from rotating addresses leaves as many
+     * @param knownClients the clients that have not signed in to their account for the retention
+     *     ({@code VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION}). Unlike the others, a row left here does
+     *     matter, a little: a client known past its retention is still not exempted, since the read
+     *     asks for the retention too — so this purge, as the rest, only bounds the table
      */
-    public record CleanupResult(int sessions, int attempts, int challenges, int rateWindows) {}
+    public record CleanupResult(int sessions, int attempts, int challenges, int rateWindows, int knownClients) {}
 
     /**
      * Never throws: see the class note.
@@ -76,7 +87,8 @@ public class SessionCleanupService {
      * itself, where the proxy would be bypassed and the annotation would mean nothing.
      */
     public CleanupResult prune() {
-        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges(), pruneRateWindows());
+        return new CleanupResult(
+                pruneSessions(), pruneAttempts(), pruneChallenges(), pruneRateWindows(), pruneKnownClients());
     }
 
     private int pruneRateWindows() {
@@ -102,6 +114,15 @@ public class SessionCleanupService {
             return challenges.deleteExpired(clock.instant());
         } catch (RuntimeException failed) {
             log.warn("MFA challenge purge skipped: {}", failed.getMessage());
+            return 0;
+        }
+    }
+
+    private int pruneKnownClients() {
+        try {
+            return knownClients.deleteBefore(clock.instant().minus(limits.knownClientRetention()));
+        } catch (RuntimeException failed) {
+            log.warn("Known sign-in client purge skipped: {}", failed.getMessage());
             return 0;
         }
     }

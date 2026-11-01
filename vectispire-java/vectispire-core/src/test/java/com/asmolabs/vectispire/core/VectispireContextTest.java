@@ -139,6 +139,9 @@ public abstract class VectispireContextTest {
             "t_team",
             "t_audit_log",
             "t_login_attempt",
+            // The clients each account has signed in from (V100). Left out, one test's sign-in made the
+            // next test's client known to an account of the same id, and exempt from its budget.
+            "t_sign_in_client",
             // The webhook's shared ceiling: left behind, one test's deliveries count against the
             // next's, all of them from the one address MockMvc gives.
             "t_rate_window",

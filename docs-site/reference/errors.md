@@ -57,6 +57,7 @@ to 1.0 (decision 0043 §6); `status`, `title`, `detail` and `type` are as they w
 | `content-too-large` | 413 | The body is over the route's ceiling. |
 | `unsafe-url` | 422 | A destination refused by the outbound policy. |
 | `rate-limited` | 429 | Too many attempts; wait `retryAfterSeconds`. |
+| `account-throttled` | 429 | A sign-in past the account's budget across every client, from a client that has not signed in to it: wait `retryAfterSeconds`, sign in from a usual place, or send the second factor with the password — see [your account](../administration/account.md#failures-from-many-places). |
 | `unexpected-failure` | 500 | A failure nobody wrote a sentence for; quote the `correlationId`. |
 | `unavailable` | 502–504 | Transient. |
 

@@ -82,6 +82,34 @@ it is refused like an unknown name, so sign in with the account's name as it was
 and the name's, not the address's: signing in to one's own account does not erase the failures the
 same address made against others.
 
+## Failures from many places
+
+Three budgets count password failures over a sliding quarter of an hour: **five** per account (and per
+name typed) from one address, **twenty** per address across every account, and **fifty** per account
+from every address together. Each is a [setting](../reference/configuration.md#authentication).
+
+The first two refuse with `429` and the code `rate-limited`. The third is the one a guess spread over
+many addresses meets, and it **does not lock you out**: anyone who knows your username could otherwise
+keep you out by failing fifty times from ten machines. Past it, a sign-in is refused with `429`, the
+code `account-throttled` and `Retry-After` only when it comes from an address that has not signed in to
+the account in the last thirty days (`VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION`). From your usual
+place you sign in as usual, held to that address's own five. From a new place:
+
+- **with a second factor**, type your code under the password — the sign-in screen shows the field
+  once it has been refused this way. The password and the code are checked together, and the answer is
+  a session or the same refusal, whichever of the two was wrong;
+- **without one**, wait for the time shown, or sign in from a device you have used before.
+
+The refusal comes before the password is checked, and says nothing about whether the account exists:
+an unknown name past its budget is refused the same way. Each refusal is in the
+[audit log](audit-log.md) as `LOGIN_BLOCKED` (signalled `VECTI-SEC-007`), and the server logs one
+warning per account and quarter of an hour while its budget is spent. If you see it on your account,
+somebody is guessing your password: make it a long one, and enrol a second factor.
+
+"Address" is the address the server resolves through the trusted proxies, its /64 in IPv6 — so somebody
+behind the same office egress as you shares your exemption, and meets that address's own ceilings
+instead.
+
 ## Related
 
 - [Single sign-on](sso.md) — delegating authentication, and the second factor, to a provider.

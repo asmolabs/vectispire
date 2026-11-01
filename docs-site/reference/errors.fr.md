@@ -59,6 +59,7 @@ vers la 1.0 (décision 0043 §6) ; `status`, `title`, `detail` et `type` sont re
 | `content-too-large` | 413 | Le corps dépasse le plafond de la route. |
 | `unsafe-url` | 422 | Une destination refusée par la politique sortante. |
 | `rate-limited` | 429 | Trop de tentatives ; attendez `retryAfterSeconds`. |
+| `account-throttled` | 429 | Une connexion au-delà du budget du compte, tous clients confondus, depuis un client qui ne s'y est jamais connecté : attendez `retryAfterSeconds`, connectez-vous depuis un endroit habituel, ou envoyez le second facteur avec le mot de passe — voir [votre compte](../administration/account.fr.md#echecs-venus-de-nombreux-endroits). |
 | `unexpected-failure` | 500 | Une défaillance pour laquelle personne n'a écrit de phrase ; citez le `correlationId`. |
 | `unavailable` | 502–504 | Passager. |
 

@@ -414,6 +414,13 @@ risque résiduel là où une correction serait une décision à part entière :
   répartis sur plusieurs machines. Qui connaît le nom d'un compte ne peut plus en tenir le titulaire
   verrouillé depuis une seule machine. Un succès n'efface que les compteurs de son propre client ; le
   budget du second facteur reste par compte.
+- **Le budget d'un compte, tous clients confondus, n'enferme plus son titulaire dehors.** Au-delà de
+  cinquante échecs par quart d'heure depuis partout, une connexion depuis une adresse qui ne s'est pas
+  connectée au compte depuis trente jours reçoit `429` avec le code `account-throttled` et `Retry-After`,
+  avant tout hachage ; l'adresse habituelle du titulaire, ou une connexion qui envoie le second facteur
+  avec le mot de passe (`mfa_code`), passe. Les adresses connues sont gardées en base (V100), chaque refus
+  est audité et le journal avertit une fois par compte et par quart d'heure ; chaque plafond est un
+  réglage `VECTISPIRE_SIGN_IN_*`.
 - **Une seule lecture de l'en-tête `Authorization`** pour l'authentification, les sessions et le plafond
   des jetons refusés, de sorte que chaque jeton porteur rencontre ce plafond et son entrée d'audit.
 - **Une URL de dépôt qui nomme le démon Docker, la base de données ou l'API du cluster de Vectispire lui-même

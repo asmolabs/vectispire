@@ -48,6 +48,7 @@ export const PROBLEM_KEYS = {
     'unsafe-url': 'problem.unsafe_url',
     unprocessable: 'problem.unprocessable',
     'rate-limited': 'problem.rate_limited',
+    'account-throttled': 'problem.account_throttled',
     'unexpected-failure': 'problem.unexpected_failure',
     unavailable: 'problem.unavailable'
 } as const;
@@ -58,6 +59,7 @@ export const PROBLEM_KEYS = {
  */
 const NEEDS: Partial<Record<keyof typeof PROBLEM_KEYS, keyof ProblemWords>> = {
     'rate-limited': 'retryAfterSeconds',
+    'account-throttled': 'retryAfterSeconds',
     'unexpected-failure': 'correlationId',
     'integration-disabled': 'integration',
     'integration-in-use': 'integration'

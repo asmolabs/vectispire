@@ -462,9 +462,14 @@ says so.
 the account — the governor's included — for whoever knew its name, and its owner's right password
 was refused with the rest. `LoginThrottle` counts each account from one client at five and from every
 client at fifty (`MAX_ATTEMPTS_PER_ACCOUNT`), a success clears this client's counters only, and which
-counters an attempt meets never depends on whether the account exists. A new throttle on a name the
-caller types asks the same two questions: who can exhaust it for somebody else, and does its key
-differ between an existing account and an absent one.
+counters an attempt meets never depends on whether the account exists. The fifty were a hard ceiling
+too, and so the same lockout from ten machines: they are a soft budget now, refusing (`account-throttled`)
+only a client the account has not signed in from (`t_sign_in_client`) and letting through a sign-in
+that sends the second factor with the password — and past it a right password alone is answered as a
+wrong one, rows kept and nothing cleared, or the refusal becomes a password oracle. A new throttle on a
+name the caller types asks the same three questions: who can exhaust it for somebody else, does its key
+differ between an existing account and an absent one, and does its answer differ between a right
+secret and a wrong one.
 
 **A list route pages through `ListWindow`, and the window comes after the visibility.** `limit` 1 to
 500 with a 400 beyond, never a silent clamp; `offset` zero or a multiple of `limit`, read only with a

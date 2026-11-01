@@ -579,6 +579,9 @@
     "error_sso_failed": "Single sign-on did not complete. The provider refused the exchange.",
     "error_sso_incomplete": "This sign-on could not be completed. Try again.",
     "error_mfa_invalid": "Invalid MFA verification code.",
+    "error_account_throttled_one": "This account is receiving many failed sign-ins from other places, and this device has not signed in to it before. Sign in from a device you usually use, enter your authentication code with your password, or try again in {{count}} minute.",
+    "error_account_throttled_other": "This account is receiving many failed sign-ins from other places, and this device has not signed in to it before. Sign in from a device you usually use, enter your authentication code with your password, or try again in {{count}} minutes.",
+    "account_throttled_code_label": "Authentication code (if enabled)",
     "error_too_many_attempts_one": "Too many attempts. Try again in {{count}} minute.",
     "error_too_many_attempts_other": "Too many attempts. Try again in {{count}} minutes.",
     "error_invalid_credentials": "Invalid credentials.",
@@ -4210,6 +4213,7 @@
     "unsafe_url": "{{detail}}",
     "unprocessable": "{{detail}}",
     "rate_limited": "{{detail}}",
+    "account_throttled": "{{detail}}",
     "unexpected_failure": "{{detail}}",
     "unavailable": "{{detail}}"
   }
