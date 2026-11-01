@@ -1031,7 +1031,31 @@ export type AgentSummary = Refine<
         version: string | null;
         contractVersion: string | null;
         lastSeenAt: string | null;
+        /**
+         * What its executors can run, as it last said. `null`: it never said — an agent older than the
+         * announcement, which claims as it always did — and not "nothing available"; `[]` is an agent
+         * with no executor at all.
+         */
+        executors: ExecutorState[] | null;
+        executorsReportedAt: string | null;
     }
+>;
+
+/** One executor of a worker: its kind, whether it can run anything now, and why not. */
+export type ExecutorState = Refine<
+    Schema<'ExecutorState'>,
+    {
+        kind: string;
+        targets: ('repository' | 'container')[];
+        /** Its own words for why it cannot run anything; `null` when it can. */
+        detail: string | null;
+    }
+>;
+
+/** The built-in worker, which is not a row of the agents table: whether it runs, and what its executor said. */
+export type BuiltInWorkerState = Refine<
+    Schema<'BuiltInWorkerState'>,
+    { executors: ExecutorState[]; checkedAt: string | null }
 >;
 
 export type RunningScanItem = Refine<
