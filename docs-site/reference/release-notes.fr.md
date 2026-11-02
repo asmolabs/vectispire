@@ -456,6 +456,14 @@ risque résiduel là où une correction serait une décision à part entière :
 - **L'étape des secrets ne lit le rapport de gitleaks que comme un fichier ordinaire**, jamais à travers
   un lien, et pas plus grand que le plafond de sortie des scanners ; au-delà, l'étape échoue au lieu de ne
   rien rapporter.
+- **Le dépôt analysé ne configure plus ses propres scanners.** Ses `.checkov.yaml` et `.checkov.yml`,
+  son `.gitleaksignore` et tout `.semgrepignore` sont retirés du clone de Vectispire avant qu'un scanner
+  ne tourne, où qu'ils se trouvent dans l'arbre : ils pouvaient tenir des anomalies hors d'un scan, et le
+  rapport propre les résolvait alors et passait la gate. Le dépôt lui-même n'est pas modifié, et le
+  retrait est journalisé ; une anomalie à écarter est une exception enregistrée dans Vectispire. **Le
+  retrait a lieu sur l'exécuteur : un agent d'une version antérieure honore encore ces fichiers tant qu'il
+  n'est pas mis à jour, mettez donc à jour les agents distants avec le plan de contrôle.** Les
+  commentaires de suppression en ligne (`nosemgrep`, `checkov:skip=`, `gitleaks:allow`) ne changent pas.
 - **Sur l'exécuteur Kubernetes, un scanner ne démarre qu'une fois son pod coupé du serveur d'API.** Une
   politique réseau peut atteindre un nouveau pod un instant après son démarrage ; chaque pod de scan
   vérifie désormais avant que son scanner ne tourne, et fait échouer l'étape si la coupure ne vient pas.
