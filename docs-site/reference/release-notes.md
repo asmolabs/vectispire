@@ -156,6 +156,14 @@ What follows is against 0.11.2.
 
 **Encryption key**
 
+- **The control plane does not start on an `ENCRYPTION_KEY` anyone could compute**: a template's
+  placeholder (`CHANGE_ME`, `change-me`… in any case) or a passphrase shorter than 20 characters. The
+  composition's `.env.example` shipped `CHANGE_ME` there, and Compose's `:?` refuses only an empty value;
+  the template now leaves its four secrets empty. A 32-byte base64 key and a passphrase of 20 characters
+  or more start as before. **If yours is refused, rotate rather than replace it**: the refused value goes
+  into `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS`, which is not checked, beside a key from
+  `openssl rand -base64 32` ([rotating `ENCRYPTION_KEY`](../administration/maintenance.md#rotating-the-encryption-key)).
+  Replacing it outright leaves every secret it sealed unreadable.
 - **A key rotation is finished when `/actuator/encryption` says so**, not when SSH keys, clone tokens and
   forge connections show no row on the old key. Under 0.11.2 the document signing key, the second factors
   and the SIEM's authorization header stayed on the old key, and removing it refused every enrolled second

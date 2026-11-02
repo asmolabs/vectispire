@@ -44,6 +44,7 @@ public class EncryptionService {
 
         EncryptionProperties properties = configured.resolved();
 
+        properties.key().filter(secret -> !secret.isBlank()).ifPresent(EncryptionService::refuseAWeakCurrentKey);
         Optional<EncryptionKey> primaryKey =
                 properties.key().filter(secret -> !secret.isBlank()).map(EncryptionKey::derive);
         List<EncryptionKey> keys = new ArrayList<>();
@@ -106,6 +107,29 @@ public class EncryptionService {
             }
             this.kms = local;
         }
+    }
+
+    /**
+     * Refuses to start on a current key anyone could compute: a template's placeholder, or a
+     * passphrase short enough to guess ({@link EncryptionKey#refusalAsCurrentKey}).
+     *
+     * <p><b>Why at start, and why not a warning.</b> The composition's template shipped {@code
+     * CHANGE_ME} here, and Compose's {@code :?} refuses only an empty value: an operator who copied
+     * the template, fixed the bootstrap password the application refused and restarted, sealed every
+     * deployment key and token under a key derivable from the public repository. A warning is read
+     * after the first secret is stored; a refusal is read before. The previous keys are not held to
+     * it: they are what a rotation moves away from, and refusing one would strand what it sealed.
+     */
+    private static void refuseAWeakCurrentKey(String secret) {
+        EncryptionKey.refusalAsCurrentKey(secret).ifPresent(reason -> {
+            throw new IllegalStateException("ENCRYPTION_KEY is refused: " + reason + ". Every secret Vectispire "
+                    + "stores is sealed under this key. Generate one with `openssl rand -base64 32`. If this "
+                    + "installation already stores secrets under the refused value, rotate rather than replace it: "
+                    + "set the generated key as ENCRYPTION_KEY (or ENCRYPTION_KEY_FILE), the refused value in "
+                    + "VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS (or VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE), restart, "
+                    + "and follow the key rotation procedure (docs/en/KEY_ROTATION.md) until /actuator/encryption "
+                    + "reports the rotation finished.");
+        });
     }
 
     /** Lets a screen report the misconfiguration <em>before</em> asking for a secret. */

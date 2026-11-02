@@ -4,6 +4,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.text.Normalizer;
 import java.util.Base64;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.util.Arrays;
@@ -63,7 +66,59 @@ public final class EncryptionKey {
      */
     private static final Pattern BASE64_KEY = Pattern.compile("^[A-Za-z0-9+/_-]{43,44}={0,2}$");
 
+    /**
+     * The shortest passphrase taken as the key new secrets are sealed under.
+     *
+     * <p>The salt is fixed and public (see the class comment), so a passphrase is worth what an
+     * attacker holding a copy of the database must guess, offline, at scrypt's cost — a hundred
+     * milliseconds a try on one core, far less on a farm. A word, a name with a year, a
+     * keyboard walk: each is under twenty characters and each falls to a dictionary. Twenty
+     * characters is the length below which nothing but a human choice fits — four diceware words
+     * are past it, {@code openssl rand -base64 24} is thirty-two, a generated key forty-four — so
+     * the bound refuses what a person types as a password and nothing a generator produces. It is
+     * a floor, not a strength meter: past it the passphrase is the operator's responsibility, as
+     * the documentation says, and the recommended form remains a generated key.
+     */
+    public static final int MIN_PASSPHRASE_LENGTH = 20;
+
+    /**
+     * The words a template puts where a secret goes, compared once case, separators and spacing
+     * are gone: {@code CHANGE_ME}, {@code change-me}, {@code ChangeMe!}, {@code <replace me>}.
+     * Contained, not equal, so that {@code CHANGE_ME_generate_with_openssl_rand} is caught too —
+     * past the length floor, and every bit as public.
+     */
+    private static final List<String> PLACEHOLDERS = List.of("changeme", "replaceme", "yourkeyhere", "putyourkeyhere");
+
     private final byte[] material;
+
+    /**
+     * Why {@code secret} must not be the key new secrets are sealed under, or empty when it may.
+     *
+     * <p><b>Not applied by {@link #derive}.</b> A previous key is the one an operator rotates
+     * away from, and refusing it would leave the values sealed under it unreadable — the very
+     * values the rotation exists to move. Only the current key is held to this, by whoever
+     * configures it.
+     *
+     * <p>The answer never quotes the secret: it ends up in a log and an exception message.
+     */
+    public static Optional<String> refusalAsCurrentKey(String secret) {
+        String trimmed = secret == null ? "" : secret.trim();
+        String letters = Normalizer.normalize(trimmed, Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^\\p{L}\\p{N}]", "");
+        if (PLACEHOLDERS.stream().anyMatch(letters::contains)) {
+            return Optional.of("it is a template's placeholder, published with the template");
+        }
+        if (decodeExactKey(trimmed) != null) {
+            return Optional.empty();
+        }
+        int length = trimmed.codePointCount(0, trimmed.length());
+        if (length < MIN_PASSPHRASE_LENGTH) {
+            return Optional.of("it is a passphrase of " + length + " characters, and one shorter than "
+                    + MIN_PASSPHRASE_LENGTH + " is a guess away for whoever holds a copy of the database");
+        }
+        return Optional.empty();
+    }
 
     private EncryptionKey(byte[] material) {
         this.material = material;

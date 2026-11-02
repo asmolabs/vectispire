@@ -50,6 +50,15 @@ cp .env.example .env      # then edit it — see below
 docker compose up -d
 ```
 
+`.env.example` leaves its four secrets empty — `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`,
+`ENCRYPTION_KEY` and `VECTISPIRE_BOOTSTRAP_PASSWORD` — and `docker compose up` stops until each holds
+a value. Generate them rather than typing them:
+
+```bash
+openssl rand -base64 32   # ENCRYPTION_KEY
+openssl rand -base64 24   # each of the three passwords
+```
+
 That brings up MySQL and the control plane on `http://localhost:3180`. To also start a
 dedicated remote agent:
 
@@ -158,6 +167,16 @@ Prefer `ENCRYPTION_KEY_FILE` over `ENCRYPTION_KEY` in production: a file is what
 or Kubernetes secret mounts, and it keeps the value out of `/proc/<pid>/environ`,
 `docker inspect` and your orchestrator's logs. Setting both is refused. A path that does
 not resolve stops the application rather than starting with no key.
+
+**A key anyone could compute stops the start.** Generate it with `openssl rand -base64 32`. A
+passphrase is accepted too, from 20 characters: it is stretched with scrypt under a salt that is the
+same for every installation, so a short one is a guess away for whoever holds a copy of the database.
+A template's placeholder (`CHANGE_ME`, `change-me`, `replace me`…, in any case and spelling) or a
+passphrase shorter than 20 characters is refused with a message saying which, and how to move away
+from it: an installation that already sealed secrets under such a value keeps them readable by
+setting it in `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` beside a new key, then
+[rotating](../administration/maintenance.md#rotating-the-encryption-key). The previous keys are not
+checked — they are what a rotation moves away from.
 
 See [Rotation and purge](../administration/maintenance.md) for changing it later.
 

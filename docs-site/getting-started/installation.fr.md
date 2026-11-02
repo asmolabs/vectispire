@@ -52,6 +52,15 @@ cp .env.example .env      # puis éditez-le — voir ci-dessous
 docker compose up -d
 ```
 
+`.env.example` laisse ses quatre secrets vides — `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`,
+`ENCRYPTION_KEY` et `VECTISPIRE_BOOTSTRAP_PASSWORD` — et `docker compose up` s'arrête tant que chacun
+n'a pas de valeur. Générez-les plutôt que de les taper :
+
+```bash
+openssl rand -base64 32   # ENCRYPTION_KEY
+openssl rand -base64 24   # chacun des trois mots de passe
+```
+
 Cela démarre MySQL et le plan de contrôle sur `http://localhost:3180`. Pour lancer aussi
 un agent distant dédié :
 
@@ -163,6 +172,17 @@ Préférez `ENCRYPTION_KEY_FILE` à `ENCRYPTION_KEY` en production : un fichier 
 secret Docker ou Kubernetes monte, et il garde la valeur hors de `/proc/<pid>/environ`, de
 `docker inspect` et des journaux de votre orchestrateur. Poser les deux est refusé. Un chemin
 qui ne résout pas arrête l'application plutôt que de la démarrer sans clé.
+
+**Une clé que n'importe qui pourrait calculer arrête le démarrage.** Générez-la avec
+`openssl rand -base64 32`. Une phrase de passe est acceptée aussi, à partir de 20 caractères : elle
+est étirée par scrypt sous un sel identique pour toutes les installations, si bien qu'une phrase courte
+est à portée de devinette pour quiconque détient une copie de la base. Le paramètre fictif d'un modèle
+(`CHANGE_ME`, `change-me`, `replace me`…, quelles que soient la casse et l'écriture) ou une phrase de
+moins de 20 caractères est refusé, avec un message qui dit lequel et comment en sortir : une
+installation qui a déjà scellé des secrets sous une telle valeur les garde lisibles en la posant dans
+`VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` à côté d'une nouvelle clé, puis en
+[faisant tourner la clé](../administration/maintenance.fr.md#faire-tourner-la-cle-de-chiffrement).
+Les clés précédentes ne sont pas contrôlées : ce sont elles qu'une rotation quitte.
 
 Voir [Rotation et purge](../administration/maintenance.md) pour la changer plus tard.
 

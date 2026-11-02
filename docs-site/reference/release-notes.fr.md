@@ -168,6 +168,15 @@ Ce qui suit est par rapport à la 0.11.2.
 
 **Clé de chiffrement**
 
+- **Le plan de contrôle ne démarre pas sur une `ENCRYPTION_KEY` que n'importe qui pourrait calculer** :
+  le paramètre fictif d'un modèle (`CHANGE_ME`, `change-me`…, quelle que soit la casse) ou une phrase de
+  passe de moins de 20 caractères. Le `.env.example` de la composition livrait `CHANGE_ME` à cet endroit,
+  et le `:?` de Compose ne refuse qu'une valeur vide ; le modèle laisse désormais ses quatre secrets
+  vides. Une clé base64 de 32 octets et une phrase de 20 caractères ou plus démarrent comme avant. **Si
+  la vôtre est refusée, faites-la tourner plutôt que de la remplacer** : la valeur refusée va dans
+  `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS`, qui n'est pas contrôlée, à côté d'une clé tirée de
+  `openssl rand -base64 32` ([faire tourner `ENCRYPTION_KEY`](../administration/maintenance.fr.md#faire-tourner-la-cle-de-chiffrement)).
+  La remplacer purement et simplement rend illisible tout secret qu'elle a scellé.
 - **Une rotation de clé est terminée quand `/actuator/encryption` le dit**, et non quand les clés SSH, les
   jetons de clonage et les connexions aux forges n'ont plus de ligne sur l'ancienne clé. Sous la 0.11.2,
   la clé de signature des documents, les seconds facteurs et l'en-tête d'autorisation du SIEM restaient
