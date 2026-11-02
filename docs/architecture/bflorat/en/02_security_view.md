@@ -55,7 +55,7 @@
   client goes on, held to its own ceilings, and so does an attempt sending the second factor with the
   password — both verified, and any failure answered as the same refusal, so a guesser past the budget
   learns nothing from the password, not even from the time the refusal takes: every refusal on that
-  path waits out the same one-second deadline. The known clients live in `t_sign_in_client` (V100), keyed by a
+  path waits out the same one-second deadline. The known clients live in `t_sign_in_client` (V101), keyed by a
   digest of the account and the client bucket, so the exemption survives a restart as the counters do;
   an unknown name has no known client and is refused as an existing account is. Each refusal is
   audited `LOGIN_BLOCKED` (`VECTI-SEC-007`) and the log warns once per account per window. The

@@ -61,7 +61,7 @@
   avec le mot de passe — les deux vérifiés, et tout échec répondu par le même refus, si bien qu'un
   devineur au-delà du budget n'apprend rien du mot de passe, pas même du temps que prend le refus :
   chaque refus de ce chemin attend la même échéance d'une seconde. Les clients connus sont dans
-  `t_sign_in_client` (V100), indexés par un condensé du compte et du seau client : l'exemption survit à
+  `t_sign_in_client` (V101), indexés par un condensé du compte et du seau client : l'exemption survit à
   un redémarrage comme les compteurs. Un nom inconnu n'a aucun client connu et est refusé comme un
   compte existant. Chaque refus est audité `LOGIN_BLOCKED` (`VECTI-SEC-007`) et le journal avertit une
   fois par compte et par fenêtre. Le coût résiduel : qui partage la sortie réseau du titulaire partage

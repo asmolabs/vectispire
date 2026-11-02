@@ -394,7 +394,7 @@ risk where a fix would be a decision of its own:
   quarter of an hour from everywhere, a sign-in from an address that has not signed in to the account in
   thirty days is answered `429` with the code `account-throttled` and `Retry-After`, before any hashing;
   the owner's usual address, or a sign-in sending the second factor with the password (`mfa_code`), gets
-  through. Known addresses are kept in the database (V100), each refusal is audited and the log warns
+  through. Known addresses are kept in the database (V101), each refusal is audited and the log warns
   once per account and quarter of an hour; every ceiling is a `VECTISPIRE_SIGN_IN_*` setting.
 - **One reading of the `Authorization` header** for authentication, sessions and the refused-token
   ceiling, so every bearer token meets the ceiling and its audit entry.
