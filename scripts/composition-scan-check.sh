@@ -34,7 +34,9 @@
 # finding (a Terraform bucket with none of its controls), the bundled SAST rule's finding
 # (`vectispire.python.eval-on-input` on an `eval` of input — the rules the jar ships, so the step
 # fetches nothing), an SBOM (a pinned requirement), and the matcher's match on that requirement.
-# Any failed step fails the check: none is expected any more.
+# Any failed step fails the check: none is expected any more. Beside them the tree carries the
+# `.checkov.yaml`, `.gitleaksignore` and `.semgrepignore` that would silence those three findings
+# (2026-11-02): the target does not configure its own audit, and the findings must survive them.
 #
 # **The matcher's database is a fixture, not the publisher's.** The real one is some 3 GB unpacked;
 # what this is about is whether the matcher, started through the composition, runs as the workspace's
@@ -219,6 +221,21 @@ printf 'GITHUB_TOKEN=%s\n' "$token" > "$work/fixture/src/deploy.env"
 printf 'resource "aws_s3_bucket" "b" {\n  bucket = "scan-check"\n}\n' > "$work/fixture/src/main.tf"
 printf '%s==1.0.0\n' "$PACKAGE" > "$work/fixture/src/requirements.txt"
 printf 'import sys\n\nprint(eval(sys.argv[1]))\n' > "$work/fixture/src/app.py"
+# A second Python file with nothing in it for the rules: the SAST engine always has a file left to
+# read, so an ignore file that spared it would pass the zero-files check as a clean tree.
+printf 'def add(a, b):\n    return a + b\n' > "$work/fixture/src/lib.py"
+# **And the scanners' own configuration files, each written to silence what was planted above.**
+# Measured on the pinned images: the IaC checker skips every check a `.checkov.yaml` lists, the
+# secrets scanner drops a fingerprint its `.gitleaksignore` lists (the path as the container sees it),
+# and the SAST engine reads no file a `.semgrepignore` names — each then reports a clean tree, which
+# resolves the backlog. The executor takes them out of the clone before any scanner runs; the
+# findings required below are what proves it. Not for the previous release's agent: one older than
+# that removal reads them, and the job that runs it decides the contract, not this.
+if [ -z "$EXPECT_AGENT_VERSION" ]; then
+  printf 'skip-check:\n  - CKV_*\n  - CKV2_*\n' > "$work/fixture/src/.checkov.yaml"
+  printf '/repo/source/deploy.env:github-pat:1\n' > "$work/fixture/src/.gitleaksignore"
+  printf 'app.py\n' > "$work/fixture/src/.semgrepignore"
+fi
 git -C "$work/fixture/src" init -q -b main
 git -C "$work/fixture/src" -c user.name=check -c user.email=check@example.invalid add .
 git -C "$work/fixture/src" -c user.name=check -c user.email=check@example.invalid commit -q -m fixture

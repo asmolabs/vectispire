@@ -19,6 +19,12 @@ database credentials.
 7. **Normalise** everything into `Finding` rows, enrich with EPSS and KEV, evaluate the
    license blocklist, check end-of-life, and reconcile against existing issues.
 
+The target does not configure its own audit: before any scanner runs, the files through which
+a repository could tell one what to skip — `.checkov.yaml`, `.checkov.yml`, `.gitleaksignore` and
+every `.semgrepignore` — are removed from Vectispire's clone of it, wherever they are. The
+repository itself is untouched; a team that wants a finding set aside records an exception in
+Vectispire, where it is reviewed and audited ([Exceptions](exceptions.md)).
+
 Steps 2 to 6 run in ephemeral containers with **the network disabled**, a read-only mount,
 `cap_drop: ALL` and `no-new-privileges`. Every image is pinned by digest.
 

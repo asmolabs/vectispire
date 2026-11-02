@@ -92,7 +92,9 @@ public final class SecretsScanner {
                                 // exit 0, empty report, empty list. And an empty list means
                                 // "analysed, found nothing", hence the silent resolution of every
                                 // secret this target ever had, triage included. The repository
-                                // closed its own findings.
+                                // closed its own findings. `--config` does not cover the
+                                // tree's `.gitleaksignore`, which is read beside it: that file
+                                // is taken out of the clone first (ScannerConfigurationFiles).
                                 "--config=" + ContainerPaths.rules("gitleaks", "gitleaks.toml"),
                                 // The tree is cloned at depth 1, so replaying history would find
                                 // almost nothing while costing the time to walk it.

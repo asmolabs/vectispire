@@ -65,6 +65,9 @@ the guard is `OutboundUrlGuard` → `PinnedHttpSender`. Every way out counts, no
 repository URL naming the daemon, the database or the cluster API was cloned from until
 `GitHostAllowlist` asked `ReservedEndpoints` too. Paths built from user data (`subPath`, ticket
 references pasted into URLs). Repository content parsed in the JVM: symlinks, size, regex cost.
+Repository content read by a scanner *as its own configuration* — an ignore file, a skip list, an
+extra checks directory — whatever the command line forces: `.checkov.yaml`, `.gitleaksignore` and
+`.semgrepignore` each silenced findings until `ScannerConfigurationFiles` took them out of the clone.
 Where a credential goes: a clone token bound to its host (`HostBoundCredentials`), no HTTP redirect
 followed by JGit or `PinnedHttpSender`, a sealed secret never accepted in clear once sealing was
 announced (downgrade). Unbounded request bodies, and anonymous routes whose every refusal writes a
