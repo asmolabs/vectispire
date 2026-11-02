@@ -11,10 +11,10 @@
 
 image:
   repository: ghcr.io/asmolabs/vectispire
-  tag: "0.11.1"
+  tag: "1.0.0-rc.1"
   # **By digest.** A tag can be moved; what was reviewed and what runs are then two images. The chart
   # refuses to render without one. `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<tag>`.
-  digest: "sha256:089974b81a297ed140e4f25d0f118d3c98dc183c600c12f1a6fc99a0a131f73e"
+  digest: "sha256:REPLACE-WITH-THE-RC1-CONTROL-PLANE-DIGEST"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -226,8 +226,8 @@ agents:
 
   image:
     repository: ghcr.io/asmolabs/vectispire-agent
-    tag: "0.11.1"
-    digest: "sha256:735c5c5f712de817b30af1a2c1ff6888552c371f5560f089a356424001270f76"
+    tag: "1.0.0-rc.1"
+    digest: "sha256:REPLACE-WITH-THE-RC1-AGENT-DIGEST"
     pullPolicy: IfNotPresent
 
   # **Required, and https://.** The control plane as the agent reaches it — through the Ingress. The agent

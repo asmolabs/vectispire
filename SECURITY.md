@@ -46,7 +46,8 @@ A line's end date is written below on the day its successor is released.
 
 | Version | Supported | Until |
 |---|---|---|
-| `0.11.x` | ✅ the latest minor: every fix | `0.12.0`'s release, then security fixes for three months after it |
+| `1.0.0-rc.N` | ⚠️ release candidate: a fix goes into the next candidate, not into a patch of this one | `1.0.0`'s release |
+| `0.11.x` | ✅ the latest minor: every fix | `1.0.0`'s release, then security fixes for three months after it |
 | `0.10.x` and earlier, the `0.11.0` release candidates included | ❌ — upgrade to `0.11.x` | ended 2026-10-25, with `0.11.0` |
 
 The three-month rule starts with `0.11`: `0.10.x` was out of support before it was written, and stays so.
