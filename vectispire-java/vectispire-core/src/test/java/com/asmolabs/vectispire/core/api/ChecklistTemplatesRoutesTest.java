@@ -912,6 +912,59 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
         }
     }
 
+    /**
+     * Under four-eyes, a version is not published or retired by an account one of its authors administered
+     * recently, nor by one that administered an author's (#126). The accounts are created through the users
+     * route, with four-eyes off for the creation, which would otherwise wait for a second administrator.
+     */
+    @Nested
+    @DisplayName("a publisher and an author who administered one another")
+    class Independence {
+
+        @Test
+        @DisplayName("an account the author created recently is refused as the publisher")
+        void anAccountTheAuthorCreated() throws Exception {
+            String maker = tokenFor("maker-" + System.nanoTime(), Role.ADMIN, false);
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+            long made = createdBy(maker, "made-" + System.nanoTime(), Role.CISO);
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+            importWorkbook(maker, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")
+                    .andExpect(status().isCreated());
+            int revision = read(confirm(maker, "release", 1, layout(9)).andExpect(status().isOk()))
+                    .at("/version/revision").asInt();
+
+            MvcResult refused = publish(signedInAs(made), "release", 1, revision).andExpect(status().isConflict())
+                    .andReturn();
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "approver-not-independent");
+            assertThat(json.readTree(refused.getResponse().getContentAsString()).path("gesture").asText())
+                    .isEqualTo("created");
+            assertThat(statusOf("release", 1)).as("a refusal publishes nothing").isEqualTo("draft");
+
+            publish(reviewer, "release", 1, revision).andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("an editor who created the author's account recently neither publishes nor retires the version")
+        void anEditorWhoCreatedTheAuthor() throws Exception {
+            String maker = tokenFor("maker-" + System.nanoTime(), Role.ADMIN, false);
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+            String made = signedInAs(createdBy(maker, "made-" + System.nanoTime(), Role.CISO));
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+            importWorkbook(made, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")
+                    .andExpect(status().isCreated());
+            int revision = read(confirm(made, "release", 1, layout(9)).andExpect(status().isOk()))
+                    .at("/version/revision").asInt();
+
+            assertThat(typeOf(publish(maker, "release", 1, revision).andExpect(status().isConflict()).andReturn()))
+                    .isEqualTo(PROBLEM + "approver-not-independent");
+            publish(reviewer, "release", 1, revision).andExpect(status().isOk());
+
+            assertThat(typeOf(mvc.perform(authenticated(post(BASE + "/release/versions/1/retire"), maker))
+                    .andExpect(status().isConflict()).andReturn())).isEqualTo(PROBLEM + "approver-not-independent");
+            assertThat(statusOf("release", 1)).isEqualTo("published");
+        }
+    }
+
     @Nested
     @DisplayName("reading")
     class Reading {

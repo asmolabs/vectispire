@@ -63,14 +63,21 @@ fois la fenêtre passée.
 
 La fenêtre est **Fenêtre d'indépendance de l'approbateur (jours)** dans **Réglages → Triage VEX et
 approbation**, 30 sauf réglage, et comme l'interrupteur lui-même seul le gouverneur de la plateforme la
-change ; `0` désactive le contrôle, et elle vaut 3650 au plus. Elle s'applique aux approbations de
-triage et aux
-[modifications de comptes qui attendent un second administrateur](users-and-teams.fr.md#changes-that-wait-for-a-second-administrator).
-Les gestes sont enregistrés à partir de la mise à jour en 1.0 : un geste antérieur ne figure qu'au
-journal d'audit. Pour une modification de compte, la question est posée dans les deux sens : un approbateur qui a créé
-le compte du demandeur, réinitialisé son mot de passe ou changé son rôle est refusé aussi, puisqu'un
-administrateur qu'on a créé pourrait être son propre second nom. Double validation désactivée, rien
-n'est contrôlé.
+change ; `0` désactive le contrôle, et elle vaut 3650 au plus. Elle s'applique à toutes les
+approbations qu'exige la double validation : les approbations de triage, les
+[modifications de comptes qui attendent un second administrateur](users-and-teams.fr.md#changes-that-wait-for-a-second-administrator),
+la validation d'une checklist de projet, la publication et le retrait d'une version de modèle de
+checklist, et l'approbation du manifeste d'un plugin de rapport. Pour les trois dernières, le demandeur
+est qui a écrit l'ouvrage — chaque auteur de la révision de checklist ou du brouillon de modèle, le
+compte qui a enregistré le manifeste. Les gestes sont enregistrés à partir de la mise à jour en 1.0 :
+un geste antérieur ne figure qu'au journal d'audit.
+
+Hors triage, la question est posée dans les deux sens : un approbateur qui a créé le compte du demandeur
+(ou d'un auteur), réinitialisé son mot de passe ou changé son rôle est refusé aussi, puisqu'un compte
+qu'on a créé pourrait être son propre second nom, écrivant l'ouvrage qu'on approuve ensuite. Un triage ne
+la pose que dans un sens, puisque son approbateur pourrait de toute façon clore le problème directement.
+Double validation désactivée, rien n'est contrôlé — sauf pour le manifeste d'un plugin de rapport,
+approuvé sous la règle sous laquelle il a été enregistré.
 
 ## Les modifications de comptes exigent deux administrateurs {#account-changes-take-two-administrators}
 

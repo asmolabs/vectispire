@@ -19,6 +19,9 @@
  * RowVisibility.requireEveryTargetOfProject} — the whole project, images included, or the 404 of an absent
  * one — and the requester's role is checked here too (write accounts and auditors, decision 0035 answer 4).
  * {@code AccountNames} turns the user names the rows record into display names, never an e-mail address.
+ * A manifest's approval asks {@code ApproverIndependence} whether the approver and the registrant
+ * administered one another's account recently (#126), the record of who administered whom being {@code
+ * access}'s.
  *
  * The registry's activations are refused by the same whole-project guard: a plugin switched on for a
  * project renders all of it; so are a project's report requests and runs. {@code AuthService} reads a run's

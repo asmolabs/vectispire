@@ -386,8 +386,9 @@ What follows is against 0.11.2.
 From a full review of `develop` before this release. Every finding is fixed, or documented as a residual
 risk where a fix would be a decision of its own:
 
-- **Four-eyes: a second identity is no longer one the requester made.** An approval — of a triage or of
-  an account change — is refused (`409`, `approver-not-independent`) when its requester created the
+- **Four-eyes: a second identity is no longer one the requester made.** An approval — of a triage, an
+  account change, a checklist sign-off, a checklist template version's publication or retirement, or a
+  report plugin's manifest — is refused (`409`, `approver-not-independent`) when its requester created the
   approver's account, reset its password or changed its role within the last 30 days
   (`four_eyes_independence_days`, the platform governor's). And creating an account with a role that
   approves, raising a role to one, or resetting the password of an account that holds one now waits for a

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.reportplugins.web;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
+import com.asmolabs.vectispire.core.access.ApproverNotIndependentException;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresPlatformGovernor;
@@ -106,7 +107,11 @@ public class ReportPluginsController {
     @Operation(summary = "Approve report plugin manifest", description = "Governance writers. Approves the plugin's "
             + "pending manifest digest: its runs use it from now on. With four-eyes on, 409 report-plugin-four-eyes "
             + "for the account that registered it; 409 report-plugin-not-pending for a digest not awaiting "
-            + "approval; 404 for a plugin or digest that does not exist.")
+            + "approval; 404 for a plugin or digest that does not exist. Nor by an account the registrant created, "
+            + "reset the password of or changed the role of within the approver independence window (setting "
+            + "four_eyes_independence_days, 30 days unless set), nor by one that did so to the registrant's: 409 with "
+            + "the type urn:vectispire:problem:" + ApproverNotIndependentException.CAUSE + " and the members gesture "
+            + "and windowDays.")
     @PostMapping("/{id}/manifests/{digest}/approval")
     @RequiresSecurityLead
     public ReportPluginView approve(

@@ -32,6 +32,20 @@ public final class ApproverNotIndependentException extends ConflictException {
                 + "made could be your own second name. Somebody else has to approve it.", gesture, windowDays);
     }
 
+    /** An author of the work being approved administered the approver. */
+    static ApproverNotIndependentException ofAuthor(String author, AccountGesture gesture, int windowDays) {
+        return new ApproverNotIndependentException(author + " " + done(gesture, "your account") + " within the last "
+                + windowDays + " days, so you cannot approve what " + author + " wrote: four-eyes needs an approver "
+                + author + " did not administer. Somebody else has to approve it.", gesture, windowDays);
+    }
+
+    /** The approver administered an author of the work, who may be the approver's own second name. */
+    static ApproverNotIndependentException ofApproverOfAuthor(String author, AccountGesture gesture, int windowDays) {
+        return new ApproverNotIndependentException("You " + done(gesture, author + "'s account") + " within the last "
+                + windowDays + " days, so you cannot approve what " + author + " wrote: an account you administered "
+                + "could be your own second name. Somebody else has to approve it.", gesture, windowDays);
+    }
+
     private ApproverNotIndependentException(String sentence, AccountGesture gesture, int windowDays) {
         super(sentence, CAUSE, Map.of("gesture", gesture.wireName(), "windowDays", windowDays));
     }

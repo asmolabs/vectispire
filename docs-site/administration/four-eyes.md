@@ -60,12 +60,20 @@ account once the window has passed.
 
 The window is **Approver independence window (days)** in **Settings → VEX triage and approval**,
 30 unless set, and like the switch itself only the platform governor changes it; `0` switches the
-check off, and it is at most 3650. It applies to triage approvals and to the
-[account changes waiting for a second administrator](users-and-teams.md#changes-that-wait-for-a-second-administrator).
-The gestures are recorded from the upgrade to 1.0 on: one made before it is in the audit log only.
-For an account change the question is asked both ways: an approver who created the requester's
-account, reset its password or changed its role is refused too, since an administrator one made could be
-one's own second name. With four-eyes off, nothing is checked.
+check off, and it is at most 3650. It applies to every approval four-eyes asks for: triage
+approvals, the
+[account changes waiting for a second administrator](users-and-teams.md#changes-that-wait-for-a-second-administrator),
+the sign-off of a project checklist, the publication and retirement of a checklist template version,
+and the approval of a report plugin's manifest. For the last three the requester is whoever wrote the
+work — every author of the checklist revision or the template draft, the account that registered the
+manifest. The gestures are recorded from the upgrade to 1.0 on: one made before it is in the audit log
+only.
+
+Except for a triage, the question is asked both ways: an approver who created the requester's (or an
+author's) account, reset its password or changed its role is refused too, since an account one made could
+be one's own second name, writing the work one then approves. A triage asks it one way only, because its
+approver could settle the issue directly anyway. With four-eyes off, nothing is checked — except for a
+report plugin's manifest, which is approved under the rule it was registered under.
 
 ## Account changes take two administrators
 

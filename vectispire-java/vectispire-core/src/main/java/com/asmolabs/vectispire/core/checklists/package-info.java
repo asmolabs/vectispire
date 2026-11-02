@@ -18,6 +18,9 @@
  * request — and the caller's {@code VisibilityService.Allowance}. The project checklists' service
  * refuses a project through {@code RowVisibility.requireWhollyVisibleProject}, the whole-project guard
  * (§8): {@code checklists} is not one of the modules that use {@code access} for their routes only.
+ * Under four-eyes, a sign-off, a publication and a retirement also ask {@code ApproverIndependence}
+ * whether the approver and an author administered one another's account recently (#126): the record of
+ * who administered whom is {@code access}'s, and the refusal its {@code ApproverNotIndependentException}.
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code RequestActors},
  * which every controller needs. A template is the organisation's and names no target, so its routes

@@ -24,6 +24,7 @@ import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.access.ApproverIndependence;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.checklists.ChecklistConflict.Cause;
@@ -117,6 +118,7 @@ public class ChecklistTemplateService {
     private final StoredForms forms;
     private final SettingsService settings;
     private final AuditLogService audit;
+    private final ApproverIndependence independence;
     private final TransactionTemplate transactions;
     private final Clock clock;
     private final long maxWorkbookBytes;
@@ -128,6 +130,7 @@ public class ChecklistTemplateService {
             StoredForms forms,
             SettingsService settings,
             AuditLogService audit,
+            ApproverIndependence independence,
             TransactionTemplate transactions,
             Clock clock,
             RequestBodyLimits limits) {
@@ -137,6 +140,7 @@ public class ChecklistTemplateService {
         this.forms = forms;
         this.settings = settings;
         this.audit = audit;
+        this.independence = independence;
         this.transactions = transactions;
         this.clock = clock;
         this.maxWorkbookBytes = limits.checklistTemplateImport().toBytes();
@@ -523,6 +527,8 @@ public class ChecklistTemplateService {
      *     {@code checklist-template-changed} (edited since the review), {@code checklist-four-eyes} — with
      *     four-eyes on, the publisher is one of its authors — or {@code checklist-template-unrenderable}, a
      *     workbook a sign-off could not be written into (409)
+     * @throws com.asmolabs.vectispire.core.access.ApproverNotIndependentException {@code approver-not-independent}
+     *     (409), with four-eyes on, when the publisher and an author administered one another's account recently
      */
     public ChecklistVersionView publish(String slug, int ordinal, Integer reviewedRevision, Editor editor) {
         if (reviewedRevision == null) {
@@ -621,9 +627,13 @@ public class ChecklistTemplateService {
     // ------------------------------------------------------------------ four-eyes
 
     /**
-     * Refuses an author of the version as the one publishing or retiring it, when four-eyes is on.
+     * Refuses an author of the version as the one publishing or retiring it, when four-eyes is on — and an
+     * account an author administered within the approver independence window, or one that administered an
+     * author's ({@link ApproverIndependence}): two accounts one person made are not two pairs of eyes.
      *
      * @return whether the rule applied, which the audit entry states
+     * @throws com.asmolabs.vectispire.core.access.ApproverNotIndependentException when the editor and an
+     *     author administered one another's account within the window
      */
     private boolean requireAnotherPerson(ChecklistTemplateEntity template, ChecklistTemplateVersionEntity version,
             Editor editor, String act) {
@@ -635,6 +645,9 @@ public class ChecklistTemplateService {
                     + template.getSlug() + "\" was written by " + authorNames(version) + ", so it has to be " + act
                     + " by somebody else.");
         }
+        independence.requireIndependentOfAuthors(forms.authors(version.getDraftAuthors()).stream()
+                .map(author -> new ApproverIndependence.Author(author.accountId(), author.username())).toList(),
+                editor.accountId(), true);
         return true;
     }
 
