@@ -1,9 +1,14 @@
 package com.asmolabs.vectispire.core.access.web.security;
 
+import com.asmolabs.vectispire.common.domain.auth.AddressLiterals;
 import com.asmolabs.vectispire.core.access.web.security.chain.LoginRateLimitFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
@@ -40,6 +45,8 @@ public class TrustedProxies {
      */
     public static final String CLIENT_ADDRESS = TrustedProxies.class.getName() + ".clientAddress";
 
+    private static final String FORWARDED_FOR = "X-Forwarded-For";
+
     private final List<IpAddressMatcher> matchers;
 
     public TrustedProxies(String configured) {
@@ -56,17 +63,21 @@ public class TrustedProxies {
         return matchers.isEmpty();
     }
 
+    /**
+     * Whether an address — a bare literal, or one with the port a balancer appended — is a proxy we
+     * run. A value that is not an address literal matches nothing, which is the answer.
+     */
     public boolean isTrusted(String address) {
-        if (address == null || address.isBlank()) {
-            return false;
-        }
+        return AddressLiterals.of(address).map(this::matches).orElse(false);
+    }
+
+    private boolean matches(String literal) {
         for (IpAddressMatcher matcher : matchers) {
             try {
-                if (matcher.matches(address)) {
+                if (matcher.matches(literal)) {
                     return true;
                 }
             } catch (IllegalArgumentException malformed) {
-                // A header value that is not an address matches nothing, which is the answer.
                 return false;
             }
         }
@@ -80,30 +91,71 @@ public class TrustedProxies {
      * single trusted hop that is the first: everything to its left was written by whoever called
      * the proxy. With several hops the leftmost untrusted entry is the honest answer, which is
      * what the walk below finds.
+     *
+     * <p><b>Every line of the header, in order.</b> {@code getHeader} answers the first line only,
+     * and a proxy may append its hop as a line of its own rather than to the existing one (HAProxy's
+     * {@code option forwardfor} does): the first line is then the one the client wrote, and its
+     * rightmost entry — read as the hop behind the trusted chain — was the client's choice. RFC 9110
+     * §5.3 makes several lines of a list header one list, joined in order, and so are they here.
+     *
+     * <p><b>A hop is read through {@link AddressLiterals}</b>: its port dropped, so one client is one
+     * address whatever source port the balancer reports.
+     *
+     * <p><b>A hop that is no address at all is not a client.</b> The first untrusted hop was written
+     * by the trusted proxy to its right; when that proxy wrote {@code unknown}, an obfuscated
+     * identifier or junk, nothing identifies the client. Taking the text as the client would give
+     * whatever produced it a bucket of its own per value; refusing it would refuse the request for
+     * the proxy's habit. The answer is the proxy that wrote it — a real address we trust, one bucket
+     * for everything it cannot name, which errs towards throttling too much rather than too little.
      */
     public String clientAddress(HttpServletRequest request) {
-        String peer = request.getRemoteAddr() == null ? "unknown" : request.getRemoteAddr();
+        // The container's peer is a bare literal, unless something before this filter rewrote it
+        // from a header (Tomcat's RemoteIpValve, which Spring Boot installs on its own on a detected
+        // cloud platform): then it may carry a port too.
+        String remote = request.getRemoteAddr() == null ? "unknown" : request.getRemoteAddr();
+        String peer = AddressLiterals.of(remote).orElse(remote);
 
         if (!isTrusted(peer)) {
             return peer;
         }
 
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded == null || forwarded.isBlank()) {
-            return peer;
-        }
-
-        String[] hops = forwarded.split(",");
-        for (int i = hops.length - 1; i >= 0; i--) {
-            String hop = hops[i].trim();
-            if (!hop.isEmpty() && !isTrusted(hop)) {
-                return hop;
+        List<String> hops = forwardedHops(request);
+        String nearestTrusted = peer;
+        for (int i = hops.size() - 1; i >= 0; i--) {
+            Optional<String> hop = AddressLiterals.of(hops.get(i));
+            if (hop.isEmpty()) {
+                return nearestTrusted;
             }
+            if (!matches(hop.get())) {
+                return hop.get();
+            }
+            nearestTrusted = hop.get();
         }
 
         // Every hop claims to be a trusted proxy. Nothing here identifies a client, so the peer
         // is what is left — and it is a real address rather than a claimed one.
         return peer;
+    }
+
+    /** Every {@code X-Forwarded-For} line, in the order received, split into its non-empty entries. */
+    private static List<String> forwardedHops(HttpServletRequest request) {
+        Enumeration<String> lines = request.getHeaders(FORWARDED_FOR);
+        if (lines == null) {
+            return List.of();
+        }
+        List<String> hops = new ArrayList<>();
+        for (String line : Collections.list(lines)) {
+            if (line == null) {
+                continue;
+            }
+            for (String entry : line.split(",")) {
+                String hop = entry.trim();
+                if (!hop.isEmpty()) {
+                    hops.add(hop);
+                }
+            }
+        }
+        return hops;
     }
 
     /**

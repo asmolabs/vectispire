@@ -17,17 +17,21 @@ public final class ClientBuckets {
 
     private ClientBuckets() {}
 
-    /** The bucket of an address; anything that is not an address literal is its own bucket. */
+    /**
+     * The bucket of an address, its port dropped ({@link AddressLiterals}); anything that is not an
+     * address literal is its own bucket. {@code TrustedProxies} hands nothing else since it reads hops
+     * through {@link AddressLiterals} too — what is left here is the container's {@code "unknown"}.
+     */
     public static String of(String address) {
         if (address == null || address.isBlank()) {
             return String.valueOf(address);
         }
-        InetAddress parsed;
-        try {
-            parsed = InetAddress.ofLiteral(address.trim().replaceAll("^\\[|]$", ""));
-        } catch (IllegalArgumentException notALiteral) {
+        java.util.Optional<String> literal = AddressLiterals.of(address);
+        if (literal.isEmpty()) {
             return address;
         }
+        // Parsed already: AddressLiterals answers only what `ofLiteral` accepts.
+        InetAddress parsed = InetAddress.ofLiteral(literal.get());
         // `::ffff:a.b.c.d` comes back as an Inet4Address: an IPv4 client, counted as one.
         if (!(parsed instanceof Inet6Address)) {
             return parsed.getHostAddress();

@@ -35,6 +35,12 @@ class LoginRateLimitFilterTest {
                 new TrustedProxies(configuredProxies), new SecurityLimits(configuredProxies, 0, null, 0, null, 0, null, 0));
     }
 
+    /** Every call reads a fresh enumeration, as a container hands one per {@code getHeaders}. */
+    private void forwardedFor(String... lines) {
+        when(request.getHeaders("X-Forwarded-For"))
+                .thenAnswer(invocation -> java.util.Collections.enumeration(java.util.List.of(lines)));
+    }
+
     @BeforeEach
     void setup() throws Exception {
         filter = shipped("");
@@ -148,9 +154,11 @@ class LoginRateLimitFilterTest {
         when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
         when(request.getMethod()).thenReturn("POST");
         when(request.getRemoteAddr()).thenReturn("203.0.113.7");
-        when(request.getHeader("X-Forwarded-For"))
-                .thenReturn("1.2.3.4", "1.2.3.5", "1.2.3.6", "1.2.3.7", "1.2.3.8",
-                        "1.2.3.9", "1.2.3.10", "1.2.3.11", "1.2.3.12", "1.2.3.13", "1.2.3.14");
+        java.util.Iterator<String> forged = java.util.List.of("1.2.3.4", "1.2.3.5", "1.2.3.6", "1.2.3.7", "1.2.3.8",
+                        "1.2.3.9", "1.2.3.10", "1.2.3.11", "1.2.3.12", "1.2.3.13", "1.2.3.14")
+                .iterator();
+        when(request.getHeaders("X-Forwarded-For"))
+                .thenAnswer(invocation -> java.util.Collections.enumeration(java.util.List.of(forged.next())));
 
         for (int i = 0; i < 10; i++) {
             filter.doFilterInternal(request, response, chain);
@@ -172,7 +180,7 @@ class LoginRateLimitFilterTest {
         when(request.getMethod()).thenReturn("POST");
         when(request.getRemoteAddr()).thenReturn("10.0.0.1");
 
-        when(request.getHeader("X-Forwarded-For")).thenReturn("198.51.100.4");
+        forwardedFor("198.51.100.4");
         for (int i = 0; i < 10; i++) {
             behindProxy.doFilterInternal(request, response, chain);
         }
@@ -180,14 +188,14 @@ class LoginRateLimitFilterTest {
         reset(chain);
 
         // The same proxy, a different client behind it: its own bucket, still full.
-        when(request.getHeader("X-Forwarded-For")).thenReturn("198.51.100.5");
+        forwardedFor("198.51.100.5");
         behindProxy.doFilterInternal(request, response, chain);
         verify(chain).doFilter(request, response);
 
         reset(chain);
 
         // And the exhausted one is still exhausted.
-        when(request.getHeader("X-Forwarded-For")).thenReturn("198.51.100.4");
+        forwardedFor("198.51.100.4");
         behindProxy.doFilterInternal(request, response, chain);
         verify(chain, never()).doFilter(request, response);
     }
@@ -203,14 +211,40 @@ class LoginRateLimitFilterTest {
 
         // The client prepends a value of its own; the real address is the rightmost untrusted
         // hop, appended by the proxy. Exhausting under one forged prefix must exhaust the other.
-        when(request.getHeader("X-Forwarded-For")).thenReturn("1.1.1.1, 198.51.100.9, 10.0.0.1");
+        forwardedFor("1.1.1.1, 198.51.100.9, 10.0.0.1");
         for (int i = 0; i < 10; i++) {
             behindProxy.doFilterInternal(request, response, chain);
         }
 
         reset(chain);
 
-        when(request.getHeader("X-Forwarded-For")).thenReturn("9.9.9.9, 198.51.100.9, 10.0.0.1");
+        forwardedFor("9.9.9.9, 198.51.100.9, 10.0.0.1");
+        behindProxy.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    /**
+     * A proxy appending its hop as a line of its own, and reporting the client's source port: the
+     * line the client wrote first and the port are both the client's to change at every request.
+     */
+    @Test
+    @DisplayName("neither a forged first header line nor a new source port buys a fresh bucket")
+    void forgedLinesAndPortsBuyNothing() throws Exception {
+        LoginRateLimitFilter behindProxy = shipped("10.0.0.0/8");
+
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRemoteAddr()).thenReturn("10.0.0.1");
+
+        for (int i = 0; i < 10; i++) {
+            forwardedFor("1.1.1." + i, "198.51.100.9:" + (40000 + i));
+            behindProxy.doFilterInternal(request, response, chain);
+        }
+
+        reset(chain);
+
+        forwardedFor("9.9.9.9", "198.51.100.9:50000");
         behindProxy.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
