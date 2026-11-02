@@ -30,6 +30,26 @@ signed, the SIEM's authorization header dropped — with nothing to say so.
 
 Several previous keys can be listed, comma-separated, which is what an interrupted rotation needs.
 
+### When the start refuses the current key
+
+The control plane does not start on an `ENCRYPTION_KEY` anyone could compute: a template's
+placeholder (`CHANGE_ME` and its spellings) or a passphrase shorter than 20 characters. The scrypt
+salt a passphrase is stretched with is the same for every installation, so such a key protects
+nothing from whoever holds a copy of the database. An installation that already started on one has
+sealed its secrets under it; that value is the **old key** of the procedure above, and previous keys
+are not held to the rule, precisely so that this rotation can read them:
+
+```bash
+ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS="<the refused value>" \
+...
+```
+
+Then follow `/actuator/encryption` below to the end, and remove the refused value. Until then,
+whatever it sealed is still readable by anyone holding a copy of the database and the value — so
+re-save the stores the report lists, and treat the deployment keys and tokens sealed under it as
+exposed if a copy of the database may have left your hands.
+
 ### Where the rotation stands: `/actuator/encryption`
 
 One report, to an administrator's session, lists every store Vectispire keeps sealed and how many

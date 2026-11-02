@@ -117,6 +117,64 @@ class EncryptionServiceTest {
         assertThat(service.isConfigured()).isTrue();
     }
 
+    @Test
+    @DisplayName("a template's placeholder as the current key stops the start, whatever its spelling")
+    void aPlaceholderKeyStopsTheStart() {
+        // The composition's template shipped CHANGE_ME, and Compose refuses only an empty value: an
+        // instance started on it sealed every secret under a key derivable from the public repository.
+        for (String placeholder : List.of("CHANGE_ME", "changeme", "change-me", " Change Me ", "<replace me>",
+                "CHANGE_ME_generate_with_openssl_rand_base64_32")) {
+            assertThatThrownBy(() -> service(placeholder, List.of()))
+                    .as(placeholder)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("ENCRYPTION_KEY is refused")
+                    .hasMessageContaining("placeholder")
+                    .hasMessageContaining("VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS");
+        }
+    }
+
+    @Test
+    @DisplayName("a passphrase shorter than twenty characters stops the start, and the message does not quote it")
+    void aShortPassphraseStopsTheStart() {
+        assertThatThrownBy(() -> service("Summer2026!", List.of()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("11 characters")
+                .hasMessageContaining("openssl rand -base64 32")
+                .hasMessageNotContaining("Summer2026!");
+        assertThatThrownBy(() -> service("a".repeat(EncryptionKey.MIN_PASSPHRASE_LENGTH - 1), List.of()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("a long passphrase and a generated key keep working, as they did")
+    void aStrongKeyStillStarts() {
+        String passphrase = "correct horse battery staple";
+        String written = service(passphrase, List.of()).encrypt("deployment key", CONTEXT);
+
+        assertThat(service(passphrase, List.of()).inspect(written, CONTEXT).state()).isEqualTo(SecretState.CURRENT);
+        assertThat(service("b".repeat(EncryptionKey.MIN_PASSPHRASE_LENGTH), List.of()).isConfigured()).isTrue();
+        assertThat(service(CURRENT, List.of()).isConfigured()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a refused key is still accepted as a previous one, so the rotation away from it can read what it sealed")
+    void aRefusedKeyStillOpensAsAPreviousKey() {
+        // What an installation started on the placeholder holds: values sealed under it. Refusing it
+        // among the previous keys would strand them; the rotation is how they leave it.
+        EncryptionService before = new EncryptionService(new EncryptionProperties(Optional.empty(), List.of("CHANGE_ME")));
+        String sealedUnderThePlaceholder = new com.asmolabs.vectispire.common.domain.crypto.SecretCipher()
+                .encrypt(EncryptionKey.derive("CHANGE_ME"), "deployment key", CONTEXT);
+
+        EncryptionService rotating = service(CURRENT, List.of("CHANGE_ME"));
+
+        assertThat(before.inspect(sealedUnderThePlaceholder, CONTEXT).plainText()).isEqualTo("deployment key");
+        assertThat(rotating.inspect(sealedUnderThePlaceholder, CONTEXT))
+                .returns("deployment key", d -> d.plainText())
+                .returns(SecretState.PREVIOUS_KEY, d -> d.state());
+        assertThat(rotating.sealOf(rotating.encrypt("deployment key", CONTEXT), CONTEXT))
+                .isEqualTo(EncryptionService.Seal.CURRENT);
+    }
+
     private static EncryptionProperties vault(Optional<String> endpoint, Optional<String> token) {
         return new EncryptionProperties(
                 Optional.of(CURRENT),

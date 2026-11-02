@@ -32,6 +32,27 @@ rien de signé, l'en-tête d'autorisation du SIEM abandonné — sans que rien n
 Plusieurs clés précédentes peuvent être listées, séparées par des virgules — c'est ce qu'exige une
 rotation interrompue.
 
+### Quand le démarrage refuse la clé courante
+
+Le plan de contrôle ne démarre pas sur une `ENCRYPTION_KEY` que n'importe qui pourrait calculer : le
+paramètre fictif d'un modèle (`CHANGE_ME` et ses écritures) ou une phrase de passe de moins de 20
+caractères. Le sel scrypt sous lequel une phrase de passe est étirée est le même pour toutes les
+installations : une telle clé ne protège rien contre quiconque détient une copie de la base. Une
+installation qui a déjà démarré sur l'une d'elles y a scellé ses secrets ; cette valeur est
+l'**ancienne clé** de la procédure ci-dessus, et les clés précédentes ne sont pas soumises à la règle,
+justement pour que cette rotation puisse les lire :
+
+```bash
+ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS="<la valeur refusée>" \
+...
+```
+
+Suivez ensuite `/actuator/encryption` ci-dessous jusqu'au bout, puis retirez la valeur refusée.
+Jusque-là, ce qu'elle a scellé reste lisible pour quiconque détient une copie de la base et la valeur :
+ré-enregistrez les stockages que le rapport liste, et tenez pour exposés les clés de déploiement et
+jetons scellés sous elle si une copie de la base a pu vous échapper.
+
 ### Où en est la rotation : `/actuator/encryption`
 
 Un seul rapport, pour une session d'administrateur, liste chaque stockage que Vectispire garde

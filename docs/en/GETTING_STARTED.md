@@ -113,8 +113,12 @@ password.
 You can launch the complete Vectispire stack (MySQL + Control Plane + Optional Remote Agent) in a single command:
 
 ```bash
-# 1. Copy and adjust environment variables
+# 1. Copy the template and fill in its four empty secrets: compose refuses to start without them,
+#    and the control plane refuses a placeholder or a passphrase under 20 characters as ENCRYPTION_KEY
 cp .env.example .env
+#    ENCRYPTION_KEY:                     openssl rand -base64 32
+#    MYSQL_PASSWORD, MYSQL_ROOT_PASSWORD,
+#    VECTISPIRE_BOOTSTRAP_PASSWORD:      openssl rand -base64 24
 
 # 2. Launch MySQL + Vectispire Control Plane on http://localhost:3180
 docker compose up -d

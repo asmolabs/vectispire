@@ -115,6 +115,11 @@ La pile complète (MySQL + plan de contrôle + agent distant optionnel) se lance
 ```bash
 # 1. Copier et ajuster les variables d'environnement
 cp .env.example .env
+#    Remplissez ses quatre secrets vides : compose refuse de démarrer sans eux, et le plan de
+#    contrôle refuse comme ENCRYPTION_KEY un paramètre fictif ou une phrase de moins de 20 caractères.
+#    ENCRYPTION_KEY :                    openssl rand -base64 32
+#    MYSQL_PASSWORD, MYSQL_ROOT_PASSWORD,
+#    VECTISPIRE_BOOTSTRAP_PASSWORD :     openssl rand -base64 24
 
 # 2. Lancer MySQL + le plan de contrôle Vectispire sur http://localhost:3180
 docker compose up -d
