@@ -53,6 +53,8 @@ verify: each names its key, and `GET /api/v1/crypto/public-keys/<keyId>.pub` ser
 `public-key.pub` now serves the new key.
 
 The record of published keys starts on the first start of 1.0.0: start once on it before rotating.
+It is sealed under `ENCRYPTION_KEY`, since every key in it verifies as Vectispire's: keep that key
+backed up, or the retired keys stop being published with it.
 A **compromised** key also goes into `VECTISPIRE_SIGNING_REVOKED_KEYS` (its id): it stays published
 as `REVOKED`, and nothing signed with it verifies. The full procedure, and how it meets an
 `ENCRYPTION_KEY` rotation, is in [`docs/en/KEY_ROTATION.md`](https://github.com/asmolabs/vectispire/blob/main/docs/en/KEY_ROTATION.md#rotating-the-document-signing-key).

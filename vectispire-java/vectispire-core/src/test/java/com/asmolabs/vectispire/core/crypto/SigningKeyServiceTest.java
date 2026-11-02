@@ -189,7 +189,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
         settingsService.storeInternalIfAbsent(SigningKeyService.STORED_KEY,
                 before.encrypt(CosignSigner.toPem(pair.getPrivate()), "internal:document_signing_key"));
         SigningKeyService rotated = new SigningKeyService("", "", settingsService, after);
-        assertThat(rotated.census()).singleElement().returns(1L, StoreCensus::previousKey);
+        assertThat(rotated.census()).first().returns(1L, StoreCensus::previousKey);
 
         // Loaded the way the first document after a restart loads it: inside a read-only transaction.
         TransactionTemplate readOnly = new TransactionTemplate(transactions);
@@ -199,7 +199,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
         String stored = settings.findById(SigningKeyService.STORED_KEY).orElseThrow().getValue();
         assertThat(after.sealOf(stored, "internal:document_signing_key")).isEqualTo(EncryptionService.Seal.CURRENT);
         assertThat(keyId).isEqualTo(CosignSigner.computeKeyId(pair.getPublic()));
-        assertThat(rotated.census()).singleElement().returns(0L, StoreCensus::previousKey).returns(1L, StoreCensus::current);
+        assertThat(rotated.census()).first().returns(0L, StoreCensus::previousKey).returns(1L, StoreCensus::current);
     }
 
     @Test
@@ -374,11 +374,9 @@ class SigningKeyServiceTest extends VectispireContextTest {
         KeyPair compromised = CosignSigner.generateKeyPair();
         String recordedId = CosignSigner.computeKeyId(recorded.getPublic());
         String compromisedId = CosignSigner.computeKeyId(compromised.getPublic());
-        settingsService.storeInternalIfAbsent(SigningKeyService.KNOWN_KEYS, String.join("\n",
-                recordedId + ";2026-10-01T00:00:00Z;-;"
-                        + java.util.Base64.getEncoder().encodeToString(recorded.getPublic().getEncoded()),
-                compromisedId + ";2026-09-01T00:00:00Z;2026-10-01T00:00:00Z;"
-                        + java.util.Base64.getEncoder().encodeToString(compromised.getPublic().getEncoded())));
+        sealRecord(encryption,
+                line(recorded, "2026-10-01T00:00:00Z", "-"),
+                line(compromised, "2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z"));
         settingsService.storeInternalIfAbsent(SigningKeyService.STORED_KEY, "v2:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
         SigningKeyService service = new SigningKeyService("", compromisedId, settingsService, encryption);
@@ -444,11 +442,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
         String claimed = CosignSigner.computeKeyId(CosignSigner.generateKeyPair().getPublic());
         String forgedLine = claimed + ";2026-10-01T00:00:00Z;2026-10-02T00:00:00Z;"
                 + java.util.Base64.getEncoder().encodeToString(forged.getPublic().getEncoded());
-        settingsService.storeInternalIfAbsent(SigningKeyService.KNOWN_KEYS, String.join("\n",
-                honestId + ";2026-09-01T00:00:00Z;2026-10-01T00:00:00Z;"
-                        + java.util.Base64.getEncoder().encodeToString(honest.getPublic().getEncoded()),
-                forgedLine,
-                "not a line at all"));
+        sealRecord(encryption, line(honest, "2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z"), forgedLine, "not a line at all");
         String signedByHonest = CosignSigner.sign(PAYLOAD, honest.getPrivate());
         String signedByForged = CosignSigner.sign(PAYLOAD, forged.getPrivate());
 
@@ -466,7 +460,155 @@ class SigningKeyServiceTest extends VectispireContextTest {
                 .containsExactly(service.getKeyId(), honestId);
         assertThat(service.verify(PAYLOAD, signedByHonest)).isTrue();
         // And the registration that rewrote the row kept the refused lines for whoever investigates.
-        assertThat(settingsService.internalValue(SigningKeyService.KNOWN_KEYS).orElseThrow())
-                .contains(forgedLine).contains("not a line at all");
+        assertThat(openRecord()).contains(forgedLine).contains("not a line at all");
+    }
+
+    @Test
+    @DisplayName("the record of published keys is sealed: a key written into it by anything else is not Vectispire's")
+    void aKeyWrittenIntoTheRecordIsNotVectispires() {
+        // A rotation, as an installation makes one: two keys recorded, the first retired.
+        SigningKeyService generated = new SigningKeyService("", "", settingsService, encryption);
+        String signedBefore = generated.sign(PAYLOAD);
+        KeyPair next = CosignSigner.generateKeyPair();
+        SigningKeyService running = new SigningKeyService(CosignSigner.toPem(next.getPrivate()), "", settingsService, encryption);
+        running.sign(PAYLOAD);
+        String sealed = settings.findById(SigningKeyService.SEALED_KNOWN_KEYS).orElseThrow().getValue();
+        assertThat(sealed).as("the public halves are not readable in the row").doesNotContain(generated.getKeyId());
+
+        // The record replaced by the same lines in the clear, with one more key: the one whose
+        // signature would then verify as Vectispire's.
+        KeyPair planted = CosignSigner.generateKeyPair();
+        String plantedId = CosignSigner.computeKeyId(planted.getPublic());
+        String clear = openRecord() + "\n" + line(planted, "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z");
+        settingsService.resealInternal(SigningKeyService.SEALED_KNOWN_KEYS, sealed, clear);
+        String forged = CosignSigner.sign(PAYLOAD, planted.getPrivate());
+
+        for (SigningKeyService instance : java.util.List.of(running,
+                new SigningKeyService(CosignSigner.toPem(next.getPrivate()), "", settingsService, encryption))) {
+            assertThat(instance.verify(PAYLOAD, forged)).isFalse();
+            assertThat(instance.verify(PAYLOAD, forged, CosignSigner.toPem(planted.getPublic())))
+                    .returns(false, SigningKeyService.Verification::vectispireKey);
+            assertThat(instance.publishedKey(plantedId)).isEmpty();
+            // Refused whole: the active key alone is published, by the instance that signs with it.
+            assertThat(instance.publishedKeys()).extracting(SigningKeyService.PublishedKey::keyId)
+                    .containsExactly(instance.getKeyId());
+            assertThat(instance.verify(PAYLOAD, signedBefore)).isFalse();
+        }
+        // And never overwritten: whoever investigates finds what was written.
+        assertThat(settings.findById(SigningKeyService.SEALED_KNOWN_KEYS).orElseThrow().getValue()).isEqualTo(clear);
+    }
+
+    @Test
+    @DisplayName("a record sealed for another row is refused: the seal names the row it was made for")
+    void aRecordSealedForAnotherRowIsRefused() {
+        // Under the right ENCRYPTION_KEY, but for the private key's row: a value the installation sealed,
+        // copied where it does not belong.
+        KeyPair planted = CosignSigner.generateKeyPair();
+        settingsService.storeInternalIfAbsent(SigningKeyService.SEALED_KNOWN_KEYS,
+                encryption.encrypt(line(planted, "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z"), "internal:document_signing_key"));
+
+        SigningKeyService service = new SigningKeyService(
+                CosignSigner.toPem(CosignSigner.generateKeyPair().getPrivate()), "", settingsService, encryption);
+
+        assertThat(service.verify(PAYLOAD, CosignSigner.sign(PAYLOAD, planted.getPrivate()))).isFalse();
+        assertThat(service.publishedKey(CosignSigner.computeKeyId(planted.getPublic()))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the unsealed record of a build before 1.0.0-rc.1 publishes nothing unless the operator names its keys")
+    void theUnsealedRecordIsNotTrusted() {
+        KeyPair honest = CosignSigner.generateKeyPair();
+        KeyPair planted = CosignSigner.generateKeyPair();
+        String honestId = CosignSigner.computeKeyId(honest.getPublic());
+        String plantedId = CosignSigner.computeKeyId(planted.getPublic());
+        String unsealed = String.join("\n",
+                line(honest, "2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z"),
+                line(planted, "2026-09-15T00:00:00Z", "2026-10-01T00:00:00Z"));
+        settingsService.storeInternalIfAbsent(SigningKeyService.KNOWN_KEYS, unsealed);
+        String pem = CosignSigner.toPem(CosignSigner.generateKeyPair().getPrivate());
+        String signedByHonest = CosignSigner.sign(PAYLOAD, honest.getPrivate());
+        String signedByPlanted = CosignSigner.sign(PAYLOAD, planted.getPrivate());
+
+        // No word from the operator: the row is anybody's who can write the database.
+        SigningKeyService unvouched = new SigningKeyService(pem, "", settingsService, encryption);
+        assertThat(unvouched.verify(PAYLOAD, signedByPlanted)).isFalse();
+        assertThat(unvouched.verify(PAYLOAD, signedByHonest)).isFalse();
+        assertThat(unvouched.publishedKeys()).extracting(SigningKeyService.PublishedKey::keyId)
+                .containsExactly(unvouched.getKeyId());
+
+        // The operator vouches for one key, by its id, in the configuration: it is sealed into the
+        // record at that start, the other is not.
+        SigningKeyService vouched = new SigningKeyService(pem, "", " " + honestId.toUpperCase() + " ", settingsService,
+                encryption, java.time.Clock.systemUTC());
+        assertThat(vouched.verify(PAYLOAD, signedByHonest, null))
+                .returns(true, SigningKeyService.Verification::valid)
+                .returns(SigningKeyService.KeyStatus.RETIRED, SigningKeyService.Verification::keyStatus);
+        assertThat(vouched.verify(PAYLOAD, signedByPlanted)).isFalse();
+        assertThat(vouched.publishedKey(plantedId)).isEmpty();
+
+        // Sealed, not remembered: the next start, without the setting, still publishes it.
+        SigningKeyService restarted = new SigningKeyService(pem, "", settingsService, encryption);
+        assertThat(restarted.publishedKeys()).extracting(SigningKeyService.PublishedKey::keyId)
+                .containsExactly(restarted.getKeyId(), honestId);
+        assertThat(restarted.verify(PAYLOAD, signedByHonest)).isTrue();
+        // The unsealed row is read, never rewritten: a build of that time still finds its own.
+        assertThat(settingsService.internalValue(SigningKeyService.KNOWN_KEYS)).contains(unsealed);
+    }
+
+    @Test
+    @DisplayName("an unsealed row written under a running instance is not adopted by it, whatever the setting says")
+    void aRunningInstanceAdoptsNothing() {
+        KeyPair planted = CosignSigner.generateKeyPair();
+        String plantedId = CosignSigner.computeKeyId(planted.getPublic());
+        SigningKeyService running = new SigningKeyService(CosignSigner.toPem(CosignSigner.generateKeyPair().getPrivate()),
+                "", plantedId, settingsService, encryption, java.time.Clock.systemUTC());
+        running.sign(PAYLOAD);
+
+        settingsService.storeInternalIfAbsent(SigningKeyService.KNOWN_KEYS,
+                line(planted, "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z"));
+
+        assertThat(running.verify(PAYLOAD, CosignSigner.sign(PAYLOAD, planted.getPrivate()))).isFalse();
+        assertThat(running.publishedKey(plantedId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the record sealed under a previous ENCRYPTION_KEY is re-sealed under the current one at start")
+    void theRecordIsResealedAfterARotation() {
+        EncryptionService before = new EncryptionService(new com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties(
+                java.util.Optional.of("record-rotation-old-passphrase-0123456789"), java.util.List.of()));
+        EncryptionService after = new EncryptionService(new com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties(
+                java.util.Optional.of("record-rotation-new-passphrase-0123456789"),
+                java.util.List.of("record-rotation-old-passphrase-0123456789")));
+        KeyPair retired = CosignSigner.generateKeyPair();
+        sealRecord(before, line(retired, "2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z"));
+        String pem = CosignSigner.toPem(CosignSigner.generateKeyPair().getPrivate());
+
+        SigningKeyService rotated = new SigningKeyService(pem, "", settingsService, after);
+
+        String stored = settings.findById(SigningKeyService.SEALED_KNOWN_KEYS).orElseThrow().getValue();
+        assertThat(after.sealOf(stored, SigningKeyService.KNOWN_KEYS_CONTEXT)).isEqualTo(EncryptionService.Seal.CURRENT);
+        assertThat(rotated.census()).filteredOn(c -> c.store().equals("Published document signing keys"))
+                .singleElement().returns(0L, StoreCensus::previousKey).returns(1L, StoreCensus::current);
+        // The previous key can go: the record no longer needs it.
+        EncryptionService afterTheRotation = new EncryptionService(new com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties(
+                java.util.Optional.of("record-rotation-new-passphrase-0123456789"), java.util.List.of()));
+        assertThat(new SigningKeyService(pem, "", settingsService, afterTheRotation)
+                .verify(PAYLOAD, CosignSigner.sign(PAYLOAD, retired.getPrivate()))).isTrue();
+    }
+
+    private static String line(KeyPair key, String activeFrom, String retiredAt) {
+        return CosignSigner.computeKeyId(key.getPublic()) + ";" + activeFrom + ";" + retiredAt + ";"
+                + java.util.Base64.getEncoder().encodeToString(key.getPublic().getEncoded());
+    }
+
+    /** The record as an installation seals it. */
+    private void sealRecord(EncryptionService under, String... lines) {
+        settingsService.storeInternalIfAbsent(SigningKeyService.SEALED_KNOWN_KEYS,
+                under.encrypt(String.join("\n", lines), SigningKeyService.KNOWN_KEYS_CONTEXT));
+    }
+
+    private String openRecord() {
+        return encryption.inspect(settings.findById(SigningKeyService.SEALED_KNOWN_KEYS).orElseThrow().getValue(),
+                SigningKeyService.KNOWN_KEYS_CONTEXT).plainText();
     }
 }

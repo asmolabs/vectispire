@@ -126,7 +126,8 @@ Vectispire generated on first use and keeps in `t_setting`, sealed under `ENCRYP
 ## What happens to the documents signed before
 
 **They remain verifiable.** Every public key this deployment has signed with is recorded — public
-halves only, in the clear, in `t_setting` (`internal.document_signing_keys`) — and published:
+halves only, in `t_setting` (`internal.document_signing_keys.sealed`), **sealed under
+`ENCRYPTION_KEY`** — and published:
 
 | Route (no account needed) | Answers |
 |---|---|
@@ -143,6 +144,22 @@ matched (`keyId`, `keyStatus`).
 **The record starts on the first start of a version that has it (1.0.0).** A key replaced before
 that is not in it. Start once on 1.0.0 with the key you have, check it is listed as `ACTIVE`, and
 only then rotate.
+
+**Why a list of public keys is sealed.** It holds nothing secret; what it decides is which keys are
+Vectispire's — every key in it verifies as Vectispire's, on `/api/v1/crypto/verify` and for anyone
+reading the list. The private key is sealed so that whoever can write the database cannot sign as
+Vectispire; a list anyone with that access could extend would give that back. So the record is
+sealed for its row, and a record that is not — in the clear, sealed for another row, or under a key
+no longer configured — is refused whole: nothing in it is published or verifies, only the active
+key is, and the row is left as it is for whoever investigates. The instance logs the refusal.
+
+**A build of `develop` from before 1.0.0-rc.1** kept the list in the clear, in
+`internal.document_signing_keys`. No release did. That row is never trusted: each start logs the
+key ids it lists that are not published. If this installation did sign with them, name them —
+and only them — in `vectispire.signing.adopt-unsealed-keys` (`VECTISPIRE_SIGNING_ADOPT_UNSEALED_KEYS`,
+comma-separated) and restart: they are sealed into the record at that start, published and verify
+from then on, and the setting can be removed. Check each id against what you published before
+naming it: the row is anybody's who could write the database. It is read, never rewritten.
 
 ## The rotation
 
@@ -217,10 +234,16 @@ is about.
 - **Rotating `ENCRYPTION_KEY`** re-seals the generated signing key at the next start, and
   `/actuator/encryption` counts it as *Document signing key*. The signing key itself does not
   change, and no consumer notices.
+- **Rotating `ENCRYPTION_KEY`** re-seals the record of published keys at the next start too, and
+  `/actuator/encryption` counts it as *Published document signing keys*.
 - **Losing `ENCRYPTION_KEY`** makes a generated signing key unreadable: signing is refused rather
-  than a new key improvised. Configure a new signing key: that is a rotation. The published keys are
-  not sealed, so the documents signed before stay verifiable even though the key that signed them
-  is lost.
-- **The record of public keys is not a secret** and is not in `/actuator/encryption`. It is in the
-  database, and so in every dump: a restore brings back the keys that were published when it was
-  taken.
+  than a new key improvised. Configure a new signing key: that is a rotation. **It also makes the
+  record of published keys unreadable**: only the active key is published, and documents signed with
+  a retired key stop verifying here — the copies of the keys your consumers fetched still verify
+  them. Restoring the key brings the record back; it is never overwritten meanwhile. Back
+  `ENCRYPTION_KEY` up.
+- **Without `ENCRYPTION_KEY` nothing is recorded**: a configured signing key signs and is published
+  as the active key, alone, and what it signed stops verifying once another key replaces it. Set
+  `ENCRYPTION_KEY` before the first rotation.
+- **The record is in the database**, and so in every dump: a restore brings back the keys that were
+  published when it was taken, readable with the `ENCRYPTION_KEY` of that time.

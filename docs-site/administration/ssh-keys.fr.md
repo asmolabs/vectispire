@@ -28,7 +28,7 @@ VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE=/run/secrets/vectispire-previous-keys
 Les clés précédentes ne sont essayées **qu'au déchiffrement**. Les valeurs migrent vers la
 nouvelle clé au fur et à mesure qu'elles sont réenregistrées, et cette page marque les clés de
 déploiement qui dépendent encore d'une ancienne. Les clés de déploiement ne sont qu'un stockage
-scellé parmi onze — les seconds facteurs, la clé de signature et les secrets d'intégration en sont
+scellé parmi douze — les seconds facteurs, la clé de signature et les secrets d'intégration en sont
 d'autres —, si bien que la rotation est terminée quand `/actuator/encryption` répond
 `"rotationFinished": true`, pas quand cette page seule ne marque plus rien.
 

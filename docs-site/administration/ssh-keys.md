@@ -27,7 +27,7 @@ VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE=/run/secrets/vectispire-previous-keys
 
 Previous keys are tried **for decryption only**. Values move to the new key as they are
 re-saved, and this page marks the deploy keys that still depend on an old one. The deploy keys
-are one sealed store among eleven — second factors, the signing key and the integration secrets
+are one sealed store among twelve — second factors, the signing key and the integration secrets
 are others — so the rotation is finished when `/actuator/encryption` answers
 `"rotationFinished": true`, not when this page alone shows nothing marked.
 

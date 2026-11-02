@@ -53,7 +53,8 @@ import org.springframework.stereotype.Service;
  *
  * <p><b>Rotation keeps the past verifiable.</b> A key is replaced by configuring another one and
  * restarting ({@code docs/en/KEY_ROTATION.md}). Every public half this deployment has signed with is
- * kept in a second internal row, {@value #KNOWN_KEYS}, and published beside the active one: a
+ * kept in a second internal row, {@value #SEALED_KNOWN_KEYS}, sealed under {@code ENCRYPTION_KEY} (see
+ * there for why a list of public keys is sealed), and published beside the active one: a
  * document signed before the rotation still verifies, here and against the key a consumer fetches by
  * its id. Before that row, replacing the key meant one of two things — the old documents stopped
  * verifying, or the old key had to be kept signing. A key listed in {@code
@@ -70,15 +71,41 @@ public class SigningKeyService implements SealedStore {
 
     /**
      * Every public half signed with, one line per key: {@code keyId;activeFrom;retiredAt;base64 DER},
-     * {@code -} for a time not known. Public keys only, so in the clear: nothing here needs {@code
-     * ENCRYPTION_KEY}, and a rotation of that key leaves the row alone.
+     * {@code -} for a time not known — sealed under {@code ENCRYPTION_KEY} with {@link
+     * #KNOWN_KEYS_CONTEXT} as its associated data.
+     *
+     * <p><b>Sealed for its authenticity, not its secrecy.</b> The keys are public; which keys are
+     * Vectispire's is not something a row may decide on its own. The list was kept in the clear, and
+     * every key in it verified as Vectispire's — on {@code /api/v1/crypto/verify} and against the list
+     * served to anyone — so whoever could write the database could have a key of their own published
+     * among Vectispire's. The private key is sealed precisely so that a write to the database gives no
+     * power to sign; a list nobody authenticates gave that power back by another door. Only a value
+     * this installation sealed, bound to this row, is read; anything else publishes nothing and
+     * verifies nothing.
+     */
+    static final String SEALED_KNOWN_KEYS = "internal.document_signing_keys.sealed";
+
+    /**
+     * The same list in the clear, as the builds of {@code develop} before 1.0.0-rc.1 kept it. No
+     * release wrote it (0.11.x kept no list at all), so it is <b>never trusted</b>: a key in it is
+     * published only once the operator names it in {@code vectispire.signing.adopt-unsealed-keys}, at
+     * a start, which seals it into {@link #SEALED_KNOWN_KEYS}. Adopting the row whole at the first
+     * start would have been simpler, and would have made "delete the sealed row, write this one and
+     * wait for a restart" a way back to the defect: the configuration is not the database's to write.
+     * The row is read, never written nor deleted, so that a build of that time started on the same
+     * database still finds its own record.
      */
     static final String KNOWN_KEYS = "internal.document_signing_keys";
 
     private static final String CONTEXT = "internal:document_signing_key";
 
+    /** Bound to the row: a value sealed for another row — the private key's, a token's — is not a list. */
+    static final String KNOWN_KEYS_CONTEXT = "internal:document_signing_keys";
+
     private final String configuredKey;
     private final Set<String> revokedKeyIds;
+    /** The keys of the unsealed record the operator vouched for, by id: see {@link #KNOWN_KEYS}. */
+    private final Set<String> adoptedKeyIds;
     private final SettingsService settings;
     private final EncryptionService encryption;
     private final Clock clock;
@@ -90,6 +117,14 @@ public class SigningKeyService implements SealedStore {
     private volatile boolean warnedUnavailable;
     /** The refused lines already warned about, so that an anonymous caller cannot fill the log with them. */
     private final Set<String> warnedLines = ConcurrentHashMap.newKeySet();
+    /** The stored record last refused whole and warned about; warned again only when it changes. */
+    private volatile String warnedRecord;
+    /**
+     * The record last opened, by the stored value it was opened from. The list is served to anyone:
+     * opening it at every request would be a decryption — a call to Vault, with Transit — whose rate an
+     * anonymous caller chooses. The same stored value opens to the same list.
+     */
+    private volatile Opened opened;
     /** Whether this instance has recorded its key as the active one; nothing is signed before it has. */
     private volatile boolean registered;
 
@@ -154,17 +189,26 @@ public class SigningKeyService implements SealedStore {
     public SigningKeyService(
             @Value("${vectispire.signing.key:}") String configuredKey,
             @Value("${vectispire.signing.revoked-keys:}") String revokedKeyIds,
+            @Value("${vectispire.signing.adopt-unsealed-keys:}") String adoptedKeyIds,
             SettingsService settings,
             EncryptionService encryption) {
-        this(configuredKey, revokedKeyIds, settings, encryption, Clock.systemUTC());
+        this(configuredKey, revokedKeyIds, adoptedKeyIds, settings, encryption, Clock.systemUTC());
+    }
+
+    SigningKeyService(String configuredKey, String revokedKeyIds, SettingsService settings, EncryptionService encryption) {
+        this(configuredKey, revokedKeyIds, "", settings, encryption, Clock.systemUTC());
     }
 
     SigningKeyService(String configuredKey, String revokedKeyIds, SettingsService settings, EncryptionService encryption,
             Clock clock) {
+        this(configuredKey, revokedKeyIds, "", settings, encryption, clock);
+    }
+
+    SigningKeyService(String configuredKey, String revokedKeyIds, String adoptedKeyIds, SettingsService settings,
+            EncryptionService encryption, Clock clock) {
         this.configuredKey = configuredKey == null ? "" : configuredKey.trim();
-        this.revokedKeyIds = revokedKeyIds == null ? Set.of() : Arrays.stream(revokedKeyIds.split(","))
-                .map(String::trim).filter(id -> !id.isEmpty()).map(String::toLowerCase)
-                .collect(Collectors.toUnmodifiableSet());
+        this.revokedKeyIds = ids(revokedKeyIds);
+        this.adoptedKeyIds = ids(adoptedKeyIds);
         this.settings = settings;
         this.encryption = encryption;
         this.clock = clock;
@@ -176,6 +220,110 @@ public class SigningKeyService implements SealedStore {
         } else if (!this.revokedKeyIds.isEmpty()) {
             refuseRevokedStoredKey();
         }
+        resealRecord();
+        adoptVouchedKeys();
+    }
+
+    private static Set<String> ids(String list) {
+        return list == null ? Set.of() : Arrays.stream(list.split(","))
+                .map(String::trim).filter(id -> !id.isEmpty()).map(String::toLowerCase)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * The record, re-sealed under the current {@code ENCRYPTION_KEY} when a previous one opened it — at
+     * start, as the private key is: it is rewritten only when a key is added or retired, so nothing else
+     * would move it before the previous key is removed, and the list would then be refused.
+     */
+    private void resealRecord() {
+        String stored = settings.internalValue(SEALED_KNOWN_KEYS).orElse("").trim();
+        if (stored.isEmpty()) {
+            return;
+        }
+        try {
+            SecretCipher.Decrypted record = encryption.inspect(stored, KNOWN_KEYS_CONTEXT);
+            if (record.state() == SecretCipher.SecretState.PREVIOUS_KEY && settings.resealInternal(
+                    SEALED_KNOWN_KEYS, stored, encryption.encrypt(record.plainText(), KNOWN_KEYS_CONTEXT))) {
+                log.info("Re-sealed the record of published document signing keys under the current ENCRYPTION_KEY.");
+            }
+        } catch (RuntimeException refused) {
+            log.warn("The record of published document signing keys could not be re-sealed now ({}); the next start "
+                    + "tries again.", refused.getMessage());
+        }
+    }
+
+    /**
+     * Seals into the record the keys of the unsealed record the operator named, and says which of its
+     * keys stay unpublished.
+     *
+     * <p>At start only, and only on the operator's word: the unsealed row is anybody's who can write the
+     * database, and an instance adopting a row planted under it would be the defect again. A key named
+     * but not in the row is said too, so that a mistyped id does not read as an adoption.
+     */
+    private void adoptVouchedKeys() {
+        Read unsealed = read(settings.internalValue(KNOWN_KEYS));
+        if (unsealed.keys().isEmpty() && adoptedKeyIds.isEmpty()) {
+            return;
+        }
+        Optional<String> stored = sealedRecord();
+        Optional<Read> sealed = openRecord(stored);
+        if (sealed.isEmpty()) {
+            log.warn("The unsealed record of published document signing keys ({}) is not adopted: the sealed record "
+                    + "cannot be opened, and is not overwritten.", KNOWN_KEYS);
+            return;
+        }
+        Set<String> present = sealed.get().keys().stream().map(Known::keyId).collect(Collectors.toSet());
+        List<Known> adopted = unsealed.keys().stream()
+                .filter(k -> adoptedKeyIds.contains(k.keyId()) && !present.contains(k.keyId())).toList();
+        List<String> ignored = unsealed.keys().stream().map(Known::keyId)
+                .filter(id -> !adoptedKeyIds.contains(id) && !present.contains(id)).toList();
+        List<String> missing = adoptedKeyIds.stream()
+                .filter(id -> !present.contains(id) && unsealed.keys().stream().noneMatch(k -> k.keyId().equals(id)))
+                .sorted().toList();
+        if (!ignored.isEmpty()) {
+            log.warn("The unsealed record of published document signing keys ({}) lists {} key(s) that are neither "
+                    + "published nor used to verify, since nothing authenticates that record: {}. If this installation "
+                    + "signed with them, list their ids in vectispire.signing.adopt-unsealed-keys and restart.",
+                    KNOWN_KEYS, ignored.size(), String.join(", ", ignored));
+        }
+        if (!missing.isEmpty()) {
+            log.warn("vectispire.signing.adopt-unsealed-keys names {} key(s) the unsealed record does not hold: {}.",
+                    missing.size(), String.join(", ", missing));
+        }
+        if (adopted.isEmpty()) {
+            return;
+        }
+        if (!encryption.isConfigured()) {
+            log.warn("The document signing keys named in vectispire.signing.adopt-unsealed-keys are not adopted: without "
+                    + "ENCRYPTION_KEY the record cannot be sealed.");
+            return;
+        }
+        List<String> lines = Stream.concat(
+                        Stream.concat(sealed.get().keys().stream(), adopted.stream()).map(Known::line),
+                        sealed.get().refused().stream())
+                .toList();
+        if (write(stored, String.join("\n", lines))) {
+            log.info("Adopted {} document signing key(s) from the unsealed record, as vectispire.signing.adopt-unsealed-keys "
+                    + "names them: {}. They are published, and verify, from now on.", adopted.size(),
+                    adopted.stream().map(Known::keyId).collect(Collectors.joining(", ")));
+        } else {
+            log.warn("The record of published document signing keys changed while the named keys were adopted; the next "
+                    + "start adopts them.");
+        }
+    }
+
+    private Optional<String> sealedRecord() {
+        return settings.internalValue(SEALED_KNOWN_KEYS).map(String::trim).filter(v -> !v.isEmpty());
+    }
+
+    /** Seals {@code lines} into the record, conditionally on {@code read} still being what is stored. */
+    private boolean write(Optional<String> read, String lines) {
+        String sealed = encryption.encrypt(lines, KNOWN_KEYS_CONTEXT);
+        return read.isEmpty()
+                ? settings.storeInternalIfAbsent(SEALED_KNOWN_KEYS, sealed)
+                // In a transaction of its own, like the re-seal: the first signature may be made
+                // inside a read-only transaction.
+                : settings.resealInternal(SEALED_KNOWN_KEYS, read.get(), sealed);
     }
 
     /**
@@ -250,8 +398,10 @@ public class SigningKeyService implements SealedStore {
      * answers the same.
      *
      * <p><b>Readable without the signing key.</b> The list is public halves only, and the revocation
-     * list is in it; an instance whose own key cannot be loaded — {@code ENCRYPTION_KEY} lost, say —
-     * still publishes what it recorded, where it used to answer 500 on every one of these routes.
+     * list is in it; an instance whose own key cannot be loaded — the stored key sealed under an
+     * {@code ENCRYPTION_KEY} no longer configured, say — still publishes what it recorded, where it
+     * used to answer 500 on every one of these routes. The record itself needs {@code ENCRYPTION_KEY}
+     * (see {@link #SEALED_KNOWN_KEYS}): with that key lost, only a configured active key is published.
      */
     public List<PublishedKey> publishedKeys() {
         // Before the read: loading the key records it, and the list must show what was recorded.
@@ -391,11 +541,56 @@ public class SigningKeyService implements SealedStore {
     }
 
     private List<Known> known() {
-        return read(settings.internalValue(KNOWN_KEYS)).keys();
+        return openRecord(sealedRecord()).map(Read::keys).orElse(List.of());
     }
 
     /** The record as read: the lines taken, and the ones refused, kept verbatim. */
     private record Read(List<Known> keys, List<String> refused) {}
+
+    /** A stored record and what it opened to. */
+    private record Opened(String stored, Optional<Read> read) {}
+
+    /**
+     * The sealed record, opened: empty when there is none, and absent when what is stored is not a
+     * value this installation sealed for this row — in the clear, sealed for another row, under a key
+     * no longer configured, or unreadable for want of {@code ENCRYPTION_KEY}.
+     *
+     * <p><b>Absent is not empty, and the record is refused whole.</b> A line of it cannot be refused
+     * on its own as the unsealed record's were: what authenticates a line is the seal around all of
+     * them. Refused, the record publishes nothing and verifies nothing — only the active key, from
+     * the instance itself — so documents signed with a retired key stop verifying and nothing starts
+     * to; and it is never overwritten, since restoring the key it was sealed under brings it back.
+     */
+    private Optional<Read> openRecord(Optional<String> stored) {
+        if (stored.isEmpty()) {
+            return Optional.of(new Read(List.of(), List.of()));
+        }
+        Opened last = opened;
+        if (last != null && last.stored().equals(stored.get())) {
+            return last.read();
+        }
+        SecretCipher.Decrypted record;
+        try {
+            record = EncryptionService.isCiphertext(stored.get()) ? encryption.inspect(stored.get(), KNOWN_KEYS_CONTEXT) : null;
+        } catch (RuntimeException unavailable) {
+            // Not remembered: a KMS that did not answer now may answer at the next request.
+            log.warn("The record of published document signing keys cannot be opened now ({}); only the active key is "
+                    + "published.", unavailable.getMessage());
+            return Optional.empty();
+        }
+        Optional<Read> read = record != null && record.state() != SecretCipher.SecretState.UNREADABLE
+                ? Optional.of(read(Optional.of(record.plainText())))
+                : Optional.empty();
+        if (read.isEmpty() && !stored.get().equals(warnedRecord)) {
+            warnedRecord = stored.get();
+            log.warn("The record of published document signing keys ({}) is refused: it is not a value sealed for it "
+                    + "under a configured ENCRYPTION_KEY. Nothing in it is published or used to verify, and it is not "
+                    + "overwritten. Restore the ENCRYPTION_KEY it was sealed under, or the row from a backup.",
+                    SEALED_KNOWN_KEYS);
+        }
+        opened = new Opened(stored.get(), read);
+        return read;
+    }
 
     /**
      * The record, a line refused when it does not hold together.
@@ -444,21 +639,33 @@ public class SigningKeyService implements SealedStore {
      */
     private void register(KeyMaterial active) {
         for (int attempt = 0; attempt < 5; attempt++) {
-            Optional<String> read = settings.internalValue(KNOWN_KEYS);
-            Read record = read(read);
+            Optional<String> read = sealedRecord();
+            Optional<Read> opened = openRecord(read);
+            if (opened.isEmpty()) {
+                // Never overwritten: the key it was sealed under may come back. The active key is
+                // published either way, by the instance that signs with it.
+                log.warn("The document signing key {} is not recorded among the published keys: the record cannot be "
+                        + "opened. It signs, and is published as the active key while it does.", active.keyId());
+                return;
+            }
+            Read record = opened.get();
             List<Known> before = record.keys();
             List<Known> after = reconcile(before, active);
             if (after.equals(before)) {
                 return;
             }
+            if (!encryption.isConfigured()) {
+                // A record nobody can authenticate is a record anybody can write: none is kept. A
+                // configured signing key without ENCRYPTION_KEY signs and is published as the active
+                // key alone, and what it signed stops verifying once another key replaces it.
+                log.warn("The document signing key {} is not recorded among the published keys: without ENCRYPTION_KEY "
+                        + "the record cannot be sealed. Set ENCRYPTION_KEY before rotating the signing key, or what "
+                        + "this one signed stops verifying.", active.keyId());
+                return;
+            }
             String value = Stream.concat(after.stream().map(Known::line), record.refused().stream())
                     .collect(Collectors.joining("\n"));
-            boolean written = read.isEmpty()
-                    ? settings.storeInternalIfAbsent(KNOWN_KEYS, value)
-                    // In a transaction of its own, like the re-seal: the first signature may be made
-                    // inside a read-only transaction.
-                    : settings.resealInternal(KNOWN_KEYS, read.get(), value);
-            if (written) {
+            if (write(read, value)) {
                 Known retired = before.stream().filter(k -> k.retiredAt() == null && !k.keyId().equals(active.keyId()))
                         .findFirst().orElse(null);
                 if (retired != null) {
@@ -579,9 +786,13 @@ public class SigningKeyService implements SealedStore {
     @Override
     public List<StoreCensus> census() {
         String stored = settings.internalValue(STORED_KEY).orElse("");
-        return List.of(new StoreCensus.Counter("Document signing key", "re-sealed by the next start")
-                .add(encryption.sealOf(stored, CONTEXT))
-                .done());
+        return List.of(
+                new StoreCensus.Counter("Document signing key", "re-sealed by the next start")
+                        .add(encryption.sealOf(stored, CONTEXT))
+                        .done(),
+                new StoreCensus.Counter("Published document signing keys", "re-sealed by the next start")
+                        .add(encryption.sealOf(settings.internalValue(SEALED_KNOWN_KEYS).orElse(""), KNOWN_KEYS_CONTEXT))
+                        .done());
     }
 
     private String decrypt(String stored) {

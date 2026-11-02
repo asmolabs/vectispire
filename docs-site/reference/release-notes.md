@@ -156,6 +156,15 @@ What follows is against 0.11.2.
 
 **Encryption key**
 
+- **The record of published signing keys is sealed under `ENCRYPTION_KEY`.** Every key in it verifies as
+  Vectispire's, so a key in it must be one this installation recorded: a record that is not sealed for
+  its row publishes nothing and verifies nothing but the active key. Rotating `ENCRYPTION_KEY` re-seals
+  it at the next start (`/actuator/encryption` counts it as *Published document signing keys*); losing
+  `ENCRYPTION_KEY` now loses it too, until the key is restored. Upgrading from 0.11.2 changes nothing
+  visible: 0.11.2 kept no record. Only an installation that ran a build of `develop` and rotated its
+  signing key there finds its retired keys unpublished, and a warning at start naming them: see
+  [rotation](https://github.com/asmolabs/vectispire/blob/main/docs/en/KEY_ROTATION.md#what-happens-to-the-documents-signed-before)
+  for `VECTISPIRE_SIGNING_ADOPT_UNSEALED_KEYS`.
 - **The control plane does not start on an `ENCRYPTION_KEY` anyone could compute**: a template's
   placeholder (`CHANGE_ME`, `change-me`… in any case) or a passphrase shorter than 20 characters. The
   composition's `.env.example` shipped `CHANGE_ME` there, and Compose's `:?` refuses only an empty value;
@@ -168,7 +177,7 @@ What follows is against 0.11.2.
   forge connections show no row on the old key. Under 0.11.2 the document signing key, the second factors
   and the SIEM's authorization header stayed on the old key, and removing it refused every enrolled second
   factor and stopped every signature. The signing key now re-seals itself at start and a second factor at
-  its owner's next check; the report, an administrator's session only, lists the eleven sealed stores and
+  its owner's next check; the report, an administrator's session only, lists the twelve sealed stores and
   answers `"rotationFinished": true` once nothing depends on a previous key. Every start logs the stores
   that still do. **If a rotation is in progress, keep the previous key until that report says it is
   finished** — the integration secrets move when they are set again
