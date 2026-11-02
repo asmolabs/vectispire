@@ -168,6 +168,17 @@ Ce qui suit est par rapport à la 0.11.2.
 
 **Clé de chiffrement**
 
+- **L'enregistrement des clés de signature publiées est scellé sous `ENCRYPTION_KEY`.** Chaque clé qu'il
+  contient vérifie comme celle de Vectispire ; une clé qui s'y trouve doit donc être une clé que cette
+  installation a enregistrée : un enregistrement qui n'est pas scellé pour sa ligne ne publie rien et ne
+  vérifie rien d'autre que la clé active. Faire tourner `ENCRYPTION_KEY` le rescelle au démarrage
+  suivant (`/actuator/encryption` le compte comme *Published document signing keys*) ; perdre
+  `ENCRYPTION_KEY` le perd désormais aussi, jusqu'à ce que la clé soit restaurée. Passer de la 0.11.2 ne
+  change rien de visible : la 0.11.2 ne tenait pas d'enregistrement. Seule une installation qui a fait
+  tourner un build de `develop` et y a remplacé sa clé de signature trouve ses clés retirées non
+  publiées, et un avertissement au démarrage qui les nomme : voir la
+  [rotation](https://github.com/asmolabs/vectispire/blob/main/docs/fr/KEY_ROTATION.fr.md)
+  pour `VECTISPIRE_SIGNING_ADOPT_UNSEALED_KEYS`.
 - **Le plan de contrôle ne démarre pas sur une `ENCRYPTION_KEY` que n'importe qui pourrait calculer** :
   le paramètre fictif d'un modèle (`CHANGE_ME`, `change-me`…, quelle que soit la casse) ou une phrase de
   passe de moins de 20 caractères. Le `.env.example` de la composition livrait `CHANGE_ME` à cet endroit,
@@ -183,7 +194,7 @@ Ce qui suit est par rapport à la 0.11.2.
   sur l'ancienne clé, et la retirer refusait chaque second facteur enrôlé et arrêtait chaque signature.
   La clé de signature se rescelle désormais d'elle-même au démarrage, et un second facteur à la
   vérification suivante de son titulaire ; le rapport, réservé à une session d'administrateur, liste les
-  onze magasins scellés et répond `"rotationFinished": true` quand plus rien ne dépend d'une clé
+  douze magasins scellés et répond `"rotationFinished": true` quand plus rien ne dépend d'une clé
   précédente. Chaque démarrage journalise ceux qui en dépendent encore. **Si une rotation est en cours,
   gardez la clé précédente jusqu'à ce que ce rapport la dise terminée** — les secrets des intégrations
   passent à la nouvelle clé quand on les règle de nouveau

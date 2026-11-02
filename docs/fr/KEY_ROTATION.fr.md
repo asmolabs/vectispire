@@ -132,8 +132,8 @@ scellée sous `ENCRYPTION_KEY`.
 ## Ce que deviennent les documents signés avant
 
 **Ils restent vérifiables.** Chaque clé publique avec laquelle ce déploiement a signé est
-enregistrée — les moitiés publiques seulement, en clair, dans `t_setting`
-(`internal.document_signing_keys`) — et publiée :
+enregistrée — les moitiés publiques seulement, dans `t_setting`
+(`internal.document_signing_keys.sealed`), **scellées sous `ENCRYPTION_KEY`** — et publiée :
 
 | Route (sans compte) | Répond |
 |---|---|
@@ -151,6 +151,26 @@ correspond (`keyId`, `keyStatus`).
 **L'enregistrement commence au premier démarrage d'une version qui l'a (1.0.0).** Une clé remplacée
 avant n'y figure pas. Démarrez une fois en 1.0.0 avec la clé que vous avez, vérifiez qu'elle est
 listée `ACTIVE`, et seulement ensuite faites la rotation.
+
+**Pourquoi une liste de clés publiques est scellée.** Elle ne contient rien de secret ; ce qu'elle
+décide, c'est quelles clés sont celles de Vectispire — chaque clé qu'elle contient vérifie comme
+celle de Vectispire, sur `/api/v1/crypto/verify` et pour quiconque lit la liste. La clé privée est
+scellée pour que qui peut écrire dans la base ne puisse pas signer au nom de Vectispire ; une liste
+que n'importe qui disposant de cet accès pourrait allonger rendrait ce pouvoir. L'enregistrement est
+donc scellé pour sa ligne, et un enregistrement qui ne l'est pas — en clair, scellé pour une autre
+ligne, ou sous une clé qui n'est plus configurée — est refusé en entier : rien de ce qu'il contient
+n'est publié ni ne vérifie, seule la clé active l'est, et la ligne est laissée telle quelle pour qui
+enquête. L'instance journalise le refus.
+
+**Un build de `develop` antérieur à la 1.0.0-rc.1** gardait la liste en clair, dans
+`internal.document_signing_keys`. Aucune release ne l'a fait. Cette ligne n'est jamais crue : chaque
+démarrage journalise les identifiants de clé qu'elle liste et qui ne sont pas publiés. Si cette
+installation a bien signé avec elles, nommez-les — elles seules — dans
+`vectispire.signing.adopt-unsealed-keys` (`VECTISPIRE_SIGNING_ADOPT_UNSEALED_KEYS`, séparés par des
+virgules) et redémarrez : elles sont scellées dans l'enregistrement à ce démarrage, publiées et
+vérifient dès lors, et le réglage peut être retiré. Vérifiez chaque identifiant contre ce que vous
+avez publié avant de le nommer : la ligne appartient à quiconque pouvait écrire dans la base. Elle
+est lue, jamais réécrite.
 
 ## La rotation
 
@@ -232,10 +252,16 @@ chacune dise de quoi il parle.
 - **Faire tourner `ENCRYPTION_KEY`** rescelle la clé de signature générée au démarrage suivant, et
   `/actuator/encryption` la compte comme *Document signing key*. La clé de signature elle-même ne
   change pas, et aucun destinataire ne le remarque.
+- **Faire tourner `ENCRYPTION_KEY`** rescelle aussi l'enregistrement des clés publiées au
+  démarrage suivant, et `/actuator/encryption` le compte comme *Published document signing keys*.
 - **Perdre `ENCRYPTION_KEY`** rend illisible une clé de signature générée : la signature est
   refusée plutôt qu'une nouvelle clé improvisée. Configurez une nouvelle clé de signature : c'est
-  une rotation. Les clés publiées ne sont pas scellées, donc les documents signés avant restent
-  vérifiables bien que la clé qui les a signés soit perdue.
-- **L'enregistrement des clés publiques n'est pas un secret** et n'est pas dans
-  `/actuator/encryption`. Il est dans la base, donc dans chaque sauvegarde : une restauration
-  ramène les clés publiées au moment où elle a été prise.
+  une rotation. **Cela rend aussi illisible l'enregistrement des clés publiées** : seule la clé
+  active est publiée, et les documents signés avec une clé retirée cessent de vérifier ici — les
+  copies des clés que vos destinataires ont récupérées les vérifient toujours. Restaurer la clé
+  ramène l'enregistrement ; il n'est jamais écrasé entre-temps. Sauvegardez `ENCRYPTION_KEY`.
+- **Sans `ENCRYPTION_KEY`, rien n'est enregistré** : une clé de signature configurée signe et est
+  publiée comme clé active, seule, et ce qu'elle a signé cesse de vérifier dès qu'une autre clé la
+  remplace. Posez `ENCRYPTION_KEY` avant la première rotation.
+- **L'enregistrement est dans la base**, donc dans chaque sauvegarde : une restauration ramène les
+  clés publiées au moment où elle a été prise, lisibles avec l'`ENCRYPTION_KEY` de ce moment.

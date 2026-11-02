@@ -34,6 +34,7 @@ class EncryptionCensusRoutesTest extends ApiTestBase {
                 "HTTPS clone tokens",
                 "Forge connection tokens",
                 "Document signing key",
+                "Published document signing keys",
                 "TOTP secrets",
                 "TOTP backup codes",
                 "Tracker access token",

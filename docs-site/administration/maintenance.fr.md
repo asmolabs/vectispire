@@ -56,7 +56,9 @@ vérifient toujours : chacun nomme sa clé, et `GET /api/v1/crypto/public-keys/<
 `public-key.pub` sert désormais la nouvelle clé.
 
 L'enregistrement des clés publiées commence au premier démarrage de la 1.0.0 : démarrez une fois
-dessus avant la rotation. Une clé **compromise** va aussi dans `VECTISPIRE_SIGNING_REVOKED_KEYS`
+dessus avant la rotation. L'enregistrement des clés publiées est scellé sous `ENCRYPTION_KEY`, puisque chaque clé qu'il
+contient vérifie comme celle de Vectispire : sauvegardez cette clé, ou les clés retirées cessent
+d'être publiées avec elle. Une clé **compromise** va aussi dans `VECTISPIRE_SIGNING_REVOKED_KEYS`
 (son identifiant) : elle reste publiée comme `REVOKED`, et rien de ce qu'elle a signé ne se vérifie.
 La procédure complète, et sa rencontre avec une rotation d'`ENCRYPTION_KEY`, est dans
 [`docs/fr/KEY_ROTATION.fr.md`](https://github.com/asmolabs/vectispire/blob/main/docs/fr/KEY_ROTATION.fr.md#faire-tourner-la-cle-de-signature-des-documents).
