@@ -10,7 +10,7 @@ import java.time.Instant;
 
 /**
  * One administrator's gesture on one account — created it, reset its password, changed its role — kept so
- * that an approval under four-eyes can ask whether the requester administered the approver (V99).
+ * that an approval under four-eyes can ask whether the requester administered the approver (V100).
  *
  * <p>Written in the transaction that applies the gesture, so that an account changed is never an account
  * whose administrator nobody recorded.

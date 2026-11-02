@@ -156,6 +156,16 @@
           "enabled" : {
             "type" : "boolean"
           },
+          "executors" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ExecutorState"
+            },
+            "type" : "array"
+          },
+          "executorsReportedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
           "hostname" : {
             "type" : "string"
           },
@@ -1238,6 +1248,28 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "BuiltInWorkerState" : {
+        "properties" : {
+          "checkedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "executors" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ExecutorState"
+            },
+            "type" : "array"
+          },
+          "runsScans" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "enabled", "runsScans" ],
         "type" : "object"
       },
       "BulkTriageRequest" : {
@@ -3985,6 +4017,59 @@
         "required" : [ "lapsed" ],
         "type" : "object"
       },
+      "Executor" : {
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "targets" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "available" ],
+        "type" : "object"
+      },
+      "ExecutorState" : {
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "targets" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "available" ],
+        "type" : "object"
+      },
+      "ExecutorsReport" : {
+        "properties" : {
+          "executors" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Executor"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "FailingTarget" : {
         "properties" : {
           "kind" : {
@@ -5335,6 +5420,12 @@
           },
           "contract_version" : {
             "type" : "string"
+          },
+          "executors" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Executor"
+            },
+            "type" : "array"
           },
           "hostname" : {
             "type" : "string"
@@ -7091,6 +7182,9 @@
           "branch" : {
             "type" : "string"
           },
+          "executorAvailable" : {
+            "type" : "boolean"
+          },
           "isRoutable" : {
             "type" : "boolean"
           },
@@ -7124,7 +7218,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "isRoutable", "positionInQueue", "waitDurationSeconds" ],
+        "required" : [ "executorAvailable", "isRoutable", "positionInQueue", "waitDurationSeconds" ],
         "type" : "object"
       },
       "PhysicalLocation" : {
@@ -12535,6 +12629,24 @@
         "tags" : [ "agents-admin-controller" ]
       }
     },
+    "/api/v1/admin/agents/built-in-worker" : {
+      "get" : {
+        "operationId" : "builtInWorker",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BuiltInWorkerState"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agents-admin-controller" ]
+      }
+    },
     "/api/v1/admin/agents/credentialed-backlog" : {
       "get" : {
         "operationId" : "credentialedBacklog",
@@ -12685,6 +12797,27 @@
           }
         },
         "tags" : [ "agents-admin-controller" ]
+      }
+    },
+    "/api/v1/agent/executors" : {
+      "put" : {
+        "operationId" : "reportExecutors",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ExecutorsReport"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "agents-controller" ]
       }
     },
     "/api/v1/agent/hello" : {

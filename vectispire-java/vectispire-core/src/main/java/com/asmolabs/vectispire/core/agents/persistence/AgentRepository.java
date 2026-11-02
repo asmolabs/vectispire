@@ -66,6 +66,12 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
      * {@code hello}, unsigned, and blank included, so the last announcement to arrive decided what
      * the control plane sealed for. The key is {@link #acceptSealingKey}'s alone now, and an
      * announcement that carries none, or one nobody signed, leaves the accepted key where it is.
+     *
+     * <p><b>The executors, though, are written whatever the hello carried</b> — null included: an agent replaced
+     * by an older one that announces none must claim as an unknown again, not under the state its predecessor
+     * left.
+     *
+     * @param executorsAt {@code at} when the hello carried executors, null when it did not
      */
     @Transactional
     @Modifying(clearAutomatically = true)
@@ -73,7 +79,8 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
             update AgentEntity a
                set a.lastSeenAt = :at, a.hostname = :hostname, a.platform = :platform,
                    a.version = :version, a.scannerEngine = :scannerEngine,
-                   a.capabilities = :capabilities, a.contractVersion = :contractVersion
+                   a.capabilities = :capabilities, a.contractVersion = :contractVersion,
+                   a.executors = :executors, a.executorsReportedAt = :executorsAt
              where a.id = :id""")
     int recordHeartbeat(
             @Param("id") UUID id,
@@ -83,7 +90,22 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
             @Param("version") String version,
             @Param("scannerEngine") String scannerEngine,
             @Param("capabilities") String capabilities,
-            @Param("contractVersion") String contractVersion);
+            @Param("contractVersion") String contractVersion,
+            @Param("executors") String executors,
+            @Param("executorsAt") Instant executorsAt);
+
+    /**
+     * Records what the agent's executors can run now, said after its hello because the answer changed.
+     *
+     * <p>A statement of its own and not a save of the row, as the heartbeat is: the column is not updatable by a
+     * save, so an administrator's change read before this report cannot put the old state back.
+     *
+     * @return 0 when the agent no longer exists
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update AgentEntity a set a.executors = :executors, a.executorsReportedAt = :at, a.lastSeenAt = :at where a.id = :id")
+    int recordExecutors(@Param("id") UUID id, @Param("executors") String executors, @Param("at") Instant at);
 
     /**
      * Records a sealing key whose signature the caller verified, <b>if it is newer</b> than the one

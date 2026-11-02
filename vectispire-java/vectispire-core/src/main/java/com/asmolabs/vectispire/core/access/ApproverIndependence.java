@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  * recently?
  *
  * <p><b>What it reads.</b> {@code t_account_administration}, written in the transaction of each gesture
- * (V99), and not the audit log, whose entries say which gesture in a sentence. A gesture made before the
+ * (V100), and not the audit log, whose entries say which gesture in a sentence. A gesture made before the
  * upgrade is not there: the window starts filling on the day 1.0 is installed.
  *
  * <p><b>With four-eyes off, nothing.</b> A single person may then settle anything, and refusing an approver

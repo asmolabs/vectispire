@@ -95,7 +95,7 @@ que la cible existe. `AuthorizationCoverageTest` attrape la route qui l'oublie.
   administrateurs** (1.0.0-rc.1, #126 option 2). Créer un compte doté d'un rôle qui approuve
   (`Role.approves()` : ADMIN, CISO, SECURITY_CHAMPION, et SUPERUSER, qui approuve les demandes de
   compte), élever un rôle vers l'un d'eux, et réinitialiser le mot de passe d'un compte qui en détient
-  un sont déposés dans `t_account_request` (V99) au lieu d'être appliqués : la route répond `202` avec
+  un sont déposés dans `t_account_request` (V100) au lieu d'être appliqués : la route répond `202` avec
   la demande, et `/api/v1/account-requests` la liste, l'approuve ou la refuse. Le demandeur ne peut pas
   l'approuver (`409`, `own-account-request`), personne n'approuve une modification de son propre
   compte, et la modification est vérifiée à nouveau avec l'approbateur comme acteur — un administrateur
@@ -114,7 +114,7 @@ que la cible existe. `AuthorizationCoverageTest` attrape la route qui l'oublie.
   administrateur actif ne peut pas être approuvée ; la réinitialisation du mot de passe d'un compte dont
   une modification attend attend qu'elle soit décidée.
 - **Sous double validation, un approbateur que le demandeur a administré récemment est refusé**
-  (1.0.0-rc.1, #126 option 1). `t_account_administration` (V99) enregistre, dans la transaction de
+  (1.0.0-rc.1, #126 option 1). `t_account_administration` (V100) enregistre, dans la transaction de
   chaque geste, quel administrateur a créé un compte, réinitialisé son mot de passe ou changé son rôle,
   et quand — le journal d'audit dit la même chose en phrases, sur lesquelles un contrôle ne peut pas
   s'appuyer. `ApproverIndependence` refuse une approbation de qualification ou de demande de compte dont

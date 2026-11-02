@@ -80,6 +80,19 @@ public class AgentEntity {
     private String contractVersion;
 
     /**
+     * What the agent's executors can run, as it last said — {@code WorkerExecutors}' stored form; null when it
+     * never said, which is "unknown", never "nothing". Written by {@code AgentRepository.recordHeartbeat} and
+     * {@code recordExecutors} alone, for the sealing key's reason: an administrator's change saved after a report
+     * would put back the state the agent had just replaced.
+     */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "executors", updatable = false)
+    private String executors;
+
+    @Column(name = "executors_reported_at", updatable = false)
+    private Instant executorsReportedAt;
+
+    /**
      * Written by {@code AgentRepository.acceptSealingKey} and {@code forgetSealingKey} alone, never
      * by saving the row: an administrator's change to the labels, read before the agent's
      * announcement and saved after it, would otherwise put back the key the agent just replaced —
@@ -212,6 +225,23 @@ public class AgentEntity {
 
     public void setCapabilities(String capabilities) {
         this.capabilities = capabilities;
+    }
+
+    public String getExecutors() {
+        return executors;
+    }
+
+    public Instant getExecutorsReportedAt() {
+        return executorsReportedAt;
+    }
+
+    /** Read by a save only when the row is inserted: see the field. */
+    public void setExecutors(String executors) {
+        this.executors = executors;
+    }
+
+    public void setExecutorsReportedAt(Instant executorsReportedAt) {
+        this.executorsReportedAt = executorsReportedAt;
     }
 
     public String getContractVersion() {

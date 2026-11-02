@@ -6,7 +6,8 @@ import { AgentsPage } from './agents-page';
 
 /**
  * What the screen says above the figures: a refusal, a change made, the labels nobody carries, the
- * credentialed scans nobody able to be handed the credential can take, and a failed activity read.
+ * credentialed scans nobody able to be handed the credential can take, a built-in worker whose executor does
+ * not answer, and a failed activity read.
  */
 @Component({
     selector: 'app-agent-notices',
@@ -27,4 +28,16 @@ export class AgentNotices {
     });
 
     readonly keptAgents = computed(() => (this.page.credentialedBacklog()?.keptAgents ?? []).join(', '));
+
+    /**
+     * Why the built-in worker claims nothing, in its executor's words — or `null` when it is not meant to run,
+     * or runs. A worker whose daemon stopped answering takes no scan by design; it is not a row of the table,
+     * so this is the one place the screen can say so.
+     */
+    readonly builtInDown = computed(() => {
+        const worker = this.page.builtInWorker();
+        if (!worker?.runsScans) return null;
+        const down = (worker.executors ?? []).find((executor) => !executor.available);
+        return down ? (down.detail ?? down.kind) : null;
+    });
 }

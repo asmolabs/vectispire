@@ -6,11 +6,12 @@ import { provideRouter } from '@angular/router';
 import type {
     AgentActivitySummary,
     AgentSummary,
+    BuiltInWorkerState,
     UnroutableLabel,
     UnservedCredentialedScans
 } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
-import { NO_CREDENTIALED_BACKLOG } from '@/app/core/testing/agents.fixtures';
+import { NO_BUILT_IN_WORKER, NO_CREDENTIALED_BACKLOG } from '@/app/core/testing/agents.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
 import { AgentsPage } from './agents-page';
@@ -22,9 +23,10 @@ export interface AgentsSeed {
     activity?: AgentActivitySummary;
     backlog?: UnservedCredentialedScans;
     unroutable?: UnroutableLabel[];
+    builtIn?: BuiltInWorkerState;
 }
 
-/** Answers the four reads a reload makes, as seeded. */
+/** Answers the five reads a reload makes, as seeded. */
 export function answerReload(http: HttpTestingController, seed: AgentsSeed = {}): void {
     for (const request of http.match((r) => r.method === 'GET')) {
         const url = request.request.url;
@@ -33,6 +35,7 @@ export function answerReload(http: HttpTestingController, seed: AgentsSeed = {})
             if (seed.activity) request.flush(seed.activity);
             else request.flush(null, { status: 500, statusText: 'unavailable' });
         } else if (url.endsWith('/credentialed-backlog')) request.flush(seed.backlog ?? NO_CREDENTIALED_BACKLOG);
+        else if (url.endsWith('/built-in-worker')) request.flush(seed.builtIn ?? NO_BUILT_IN_WORKER);
         else request.flush(seed.unroutable ?? []);
     }
 }

@@ -2871,7 +2871,8 @@ test.describe('documentation screenshots', () => {
                     positionInQueue: 1,
                     queuedAt: '2026-09-18T11:55:00Z',
                     waitDurationSeconds: 300,
-                    isRoutable: true
+                    isRoutable: true,
+                    executorAvailable: true
                 },
                 {
                     scanId: 43,
@@ -2883,7 +2884,8 @@ test.describe('documentation screenshots', () => {
                     positionInQueue: 2,
                     queuedAt: '2026-09-18T11:57:00Z',
                     waitDurationSeconds: 180,
-                    isRoutable: true
+                    isRoutable: true,
+                    executorAvailable: true
                 },
                 {
                     scanId: 44,
@@ -2895,7 +2897,8 @@ test.describe('documentation screenshots', () => {
                     positionInQueue: 3,
                     queuedAt: '2026-09-18T09:10:00Z',
                     waitDurationSeconds: 10_200,
-                    isRoutable: false
+                    isRoutable: false,
+                    executorAvailable: true
                 }
             ]
         });
@@ -2903,6 +2906,13 @@ test.describe('documentation screenshots', () => {
         // No scan waits for credentials an agent keeps: the unroutable notice above is this
         // page's one warning, and a second would bury it.
         await stub(page, '**/api/v1/admin/agents/credentialed-backlog', { scans: 0, labels: [], keptAgents: [] });
+        // The built-in worker answers: its daemon pinged, so no notice stands above the table.
+        await stub(page, '**/api/v1/admin/agents/built-in-worker', {
+            enabled: true,
+            runsScans: true,
+            executors: [{ kind: 'docker', available: true, targets: ['repository', 'container'] }],
+            checkedAt: '2026-09-18T11:59:45Z'
+        });
         // **`kind` and `credentialsMode` are lowercase wire names, not the enum constants.**
         // `AgentKind` and `CredentialsMode` both derive theirs with `name().toLowerCase()`, and
         // the template compares against the literal `'delegated'` — so `DELEGATED` here would
@@ -2925,7 +2935,9 @@ test.describe('documentation screenshots', () => {
                 contractVersion: '2',
                 lastSeenAt: '2026-09-18T11:59:30Z',
                 online: true,
-                runningScans: 0
+                runningScans: 0,
+                executors: [{ kind: 'docker', available: true, targets: ['repository', 'container'] }],
+                executorsReportedAt: '2026-09-18T11:59:30Z'
             },
             {
                 id: '3c8f1b27-5d40-4e96-a1b8-7f2e0c9d6a53',
@@ -2944,7 +2956,9 @@ test.describe('documentation screenshots', () => {
                 contractVersion: '2',
                 lastSeenAt: '2026-09-18T11:59:50Z',
                 online: true,
-                runningScans: 1
+                runningScans: 1,
+                executors: [{ kind: 'kubernetes', available: true, targets: ['repository'] }],
+                executorsReportedAt: '2026-09-18T09:00:00Z'
             },
             // **Enabled and silent, which is the case the screen exists to make visible.**
             // `AgentSummary` says it in as many words: an enabled agent that has been silent

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentKind;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.agents.WorkerExecutors;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
@@ -21,6 +22,7 @@ import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
@@ -143,7 +145,18 @@ public class AgentAdministrationService {
             Instant queuedAt,
             long waitDurationSeconds,
             boolean routable,
-            int positionInQueue) {}
+            int positionInQueue,
+            boolean executorAvailable) {}
+
+    /**
+     * The built-in worker as the agents screen shows it — it is not a row of the table.
+     *
+     * @param runsScans switched on <em>and</em> able to run a scan here: the one case in which it claims anything
+     * @param executors what its executor said at its last round; empty before the first, and when it has none
+     * @param checkedAt when that was; null with no answer yet
+     */
+    public record BuiltInWorkerState(
+            boolean enabled, boolean runsScans, List<WorkerExecutors.Executor> executors, Instant checkedAt) {}
 
     public record QueueFigures(
             int totalAgents,
@@ -166,16 +179,26 @@ public class AgentAdministrationService {
         Set<String> activeAgentLabels = new HashSet<>();
         int onlineCount = 0;
 
+        // Every worker that could take a scan now — online and enabled, or the built-in one when it runs — with the
+        // labels it serves and the kinds of target its executors run: a pending scan none of them can run waits
+        // for an executor, which is the reason the screen has to give.
+        List<Taker> takers = new ArrayList<>();
         for (AgentEntity a : allAgents) {
             agentNames.put(a.getId().toString(), a.getName());
             if (isOnline(a, asOf)) {
                 onlineCount++;
                 if (Boolean.TRUE.equals(a.getEnabled())) {
                     activeAgentLabels.addAll(AgentLabels.parse(a.getLabels()));
+                    takers.add(new Taker(
+                            Set.copyOf(AgentLabels.parse(a.getLabels())),
+                            WorkerExecutors.claimable(WorkerExecutors.read(a.getExecutors()).orElse(null))));
                 }
             }
         }
         activeAgentLabels.addAll(worker.labels());
+        if (worker.runs()) {
+            takers.add(new Taker(worker.labels(), worker.claimable()));
+        }
 
         Map<Long, String> repoNames = new HashMap<>();
         targets.repositories().forEach(r -> {
@@ -236,6 +259,12 @@ public class AgentAdministrationService {
                         ? Math.max(0, Duration.between(scan.createdAt(), asOf).toSeconds())
                         : 0;
 
+                WorkerExecutors.Target target = scan.repoId() != null
+                        ? WorkerExecutors.Target.REPOSITORY
+                        : WorkerExecutors.Target.CONTAINER;
+                boolean executorAvailable = takers.stream()
+                        .anyMatch(taker -> taker.serves(scan.requiredAgentLabel()) && taker.targets().contains(target));
+
                 pendingItems.add(new PendingScan(
                         scan.id(),
                         targetType,
@@ -246,7 +275,8 @@ public class AgentAdministrationService {
                         scan.createdAt(),
                         waitSec,
                         isRoutable,
-                        pendingPos++));
+                        pendingPos++,
+                        executorAvailable));
             }
         }
 
@@ -273,6 +303,25 @@ public class AgentAdministrationService {
                 avgDurationSec);
 
         return new Activity(runningItems, pendingItems, figures);
+    }
+
+    /** A worker that could take a scan: the labels it serves, and the kinds of target its executors run now. */
+    private record Taker(Set<String> labels, Set<WorkerExecutors.Target> targets) {
+
+        /** A scan that requires no label goes to anyone; one that does, to a worker carrying it. */
+        boolean serves(String requiredLabel) {
+            return requiredLabel == null || requiredLabel.isBlank() || labels.contains(requiredLabel);
+        }
+    }
+
+    /** The built-in worker's state, for the agents screen — see {@link BuiltInWorkerState}. */
+    public BuiltInWorkerState builtInWorker() {
+        Optional<ScanDispatcher.ExecutorCheck> check = worker.executors();
+        return new BuiltInWorkerState(
+                worker.enabled(),
+                worker.runs(),
+                check.map(c -> c.executors().executors()).orElse(List.of()),
+                check.map(ScanDispatcher.ExecutorCheck::checkedAt).orElse(null));
     }
 
     public List<Listed> list() {
@@ -558,8 +607,9 @@ public class AgentAdministrationService {
     /**
      * Seen recently, not "enabled". An enabled agent that has been silent for an hour is the case
      * that matters: the queue fills, nobody drains it, and nothing else on the screen would say so.
+     * The agents' gauge counts by this rule too, so the screen and the scrape cannot disagree.
      */
-    private boolean isOnline(AgentEntity agent, Instant asOf) {
+    static boolean isOnline(AgentEntity agent, Instant asOf) {
         return agent.getLastSeenAt() != null
                 && Duration.between(agent.getLastSeenAt(), asOf).compareTo(ONLINE_TTL) < 0;
     }

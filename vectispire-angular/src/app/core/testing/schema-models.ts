@@ -45,6 +45,7 @@ export interface SchemaModels {
     Block: Models.OwaspBlock;
     Bucket: Models.Tally;
     Builder: Models.AttestationBuilder;
+    BuiltInWorkerState: Models.BuiltInWorkerState;
     BulkTriageRequest: Models.BulkTriageRequest;
     BySeverityView: Models.RemediationBySeverity;
     CataloguePreview: Models.CataloguePreview;
@@ -106,6 +107,7 @@ export interface SchemaModels {
     EpssFleetSummary: Models.EpssFleetSummary;
     EpssPrioritizedIssue: Models.EpssPrioritizedIssue;
     ExceptionEntry: Models.ExceptionEntry;
+    ExecutorState: Models.ExecutorState;
     FailingTarget: Models.FailingTarget;
     FindingView: Models.ScanFinding;
     FindingsSummary: Models.AttestationFindings;

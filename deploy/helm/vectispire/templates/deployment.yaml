@@ -210,6 +210,16 @@ spec:
               {{- end }}
               {{- end }}
               {{- end }}
+              {{- with .Values.secrets.metricsScrapeToken }}
+              {{- if .secretName }}
+              # Named after the property, as the mail password is.
+              - secret:
+                  name: {{ .secretName }}
+                  items:
+                    - key: {{ .key }}
+                      path: vectispire.metrics.scrape-token
+              {{- end }}
+              {{- end }}
               {{- with .Values.secrets.previousEncryptionKeys }}
               {{- if .secretName }}
               - secret:

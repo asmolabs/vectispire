@@ -56,7 +56,17 @@
                         <span class="text-muted-color">{{ pend.waitDurationSeconds | duration }}</span>
                     </td>
                     <td class="text-right">
-                        @if (pend.isRoutable) {
+                        @if (pend.isRoutable && pend.executorAvailable === false) {
+                            <!-- A worker would take it, and none of them has an executor that runs it now: the
+                                 executors column of the agents table says why. -->
+                            <p-tag
+                                [value]="'agents.status_no_executor' | translate"
+                                severity="warn"
+                                icon="pi pi-power-off"
+                                [title]="'agents.status_no_executor_hint' | translate"
+                                data-testid="no-executor"
+                            />
+                        } @else if (pend.isRoutable) {
                             <p-tag
                                 [value]="'agents.status_routable' | translate"
                                 severity="success"

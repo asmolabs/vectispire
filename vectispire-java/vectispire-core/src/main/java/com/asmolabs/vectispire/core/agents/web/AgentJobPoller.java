@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.agents.AgentMetrics;
 import com.asmolabs.vectispire.core.agents.AgentProtocolService;
+import com.asmolabs.vectispire.core.scanning.CredentialWithheldException;
 import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
@@ -81,9 +82,11 @@ public class AgentJobPoller {
         // polls is alive whether or not the queue has anything for it.
         protocol.heardFrom(agent);
 
-        Optional<ScanDispatcher.AgentTask> immediate = dispatcher.claimForAgent(agent);
+        Optional<ScanDispatcher.AgentTask> immediate = claim(agent);
         if (immediate.isPresent() || bounded.isZero()) {
             metrics.agentPolled(immediate.isPresent());
+            // Set on a result nobody has read yet: this one cannot be refused.
+            immediate.ifPresent(task -> metrics.agentClaimed(AgentMetrics.Claim.DELIVERED));
             result.setResult(immediate.map(task -> job(task, limit)).orElseGet(() -> noJob(limit)));
             return result;
         }
@@ -106,7 +109,7 @@ public class AgentJobPoller {
                         return;
                     }
                     try {
-                        Optional<ScanDispatcher.AgentTask> task = dispatcher.claimForAgent(agent);
+                        Optional<ScanDispatcher.AgentTask> task = claim(agent);
                         if (task.isPresent()) {
                             metrics.agentPolled(true);
                             // **The return value is the delivery receipt.** Between the check above
@@ -114,7 +117,10 @@ public class AgentJobPoller {
                             // then claimed by an agent that never received it, and sat there until
                             // the lease lapsed. False means nobody will read this answer — so the
                             // scan goes straight back to the queue.
-                            if (!result.setResult(job(task.get(), limit))) {
+                            if (result.setResult(job(task.get(), limit))) {
+                                metrics.agentClaimed(AgentMetrics.Claim.DELIVERED);
+                            } else {
+                                metrics.agentClaimed(AgentMetrics.Claim.UNDELIVERED);
                                 dispatcher.returnUndelivered(task.get().scanId(), agent);
                             }
                         } else if (Instant.now(scheduler.getClock()).isAfter(deadline)) {
@@ -131,6 +137,16 @@ public class AgentJobPoller {
                     }
                 },
                 Instant.now(scheduler.getClock()).plus(POLL_INTERVAL));
+    }
+
+    /** The dispatcher's claim, with a refusal for want of a sealing key counted on its way to the 412. */
+    private Optional<ScanDispatcher.AgentTask> claim(AgentView agent) {
+        try {
+            return dispatcher.claimForAgent(agent);
+        } catch (CredentialWithheldException withheld) {
+            metrics.agentClaimed(AgentMetrics.Claim.WITHHELD);
+            throw withheld;
+        }
     }
 
     /**

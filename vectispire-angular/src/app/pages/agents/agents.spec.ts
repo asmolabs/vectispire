@@ -51,7 +51,9 @@ describe('the agents screen, on concurrent scans', () => {
         platform: 'linux/amd64',
         version: '0.9.0',
         contractVersion: '1',
-        lastSeenAt: '2026-09-26T05:00:00Z'
+        lastSeenAt: '2026-09-26T05:00:00Z',
+        executors: null,
+        executorsReportedAt: null
     });
 
     beforeEach(async () => {
@@ -109,6 +111,7 @@ describe('the agents screen, on concurrent scans', () => {
             queuedAt: '2026-09-26T05:01:00Z',
             requiredLabel: null,
             isRoutable: true,
+            executorAvailable: true,
             positionInQueue: 1,
             waitDurationSeconds: 12
         });
@@ -224,7 +227,9 @@ describe('the agents screen, on forgetting a sealing key', () => {
         platform: 'linux/amd64',
         version: '0.9.0',
         contractVersion: '1',
-        lastSeenAt: '2026-09-26T05:00:00Z'
+        lastSeenAt: '2026-09-26T05:00:00Z',
+        executors: null,
+        executorsReportedAt: null
     });
 
     async function open(role: string, agent: typeof SEALING): Promise<void> {

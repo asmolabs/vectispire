@@ -22,13 +22,34 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
  *
  * <p>An administrator's own session is what the operations screens run as, and the one credential
  * that is none of those: not a key, not a SCIM token, not a session owing a new password.
+ *
+ * <p><b>{@code /actuator/prometheus} also takes the scrape token</b> ({@link ScrapeTokenProperties}),
+ * because a Prometheus server holds no session. The token is recognised on that path and no other, and
+ * its principal carries one authority, which no other rule of the chain accepts: it reads the
+ * Prometheus page and nothing else — not {@code /actuator/metrics}, which lists the same meters, nor
+ * {@code /actuator/encryption}. Anonymous is refused there as everywhere under {@code /actuator} but the
+ * health probe.
  */
 final class ActuatorAccess {
+
+    /** The one path the scrape token opens, matched exactly — by the chain and by the filter that recognises the token. */
+    static final String PROMETHEUS = "/actuator/prometheus";
 
     private ActuatorAccess() {}
 
     static AuthorizationManager<RequestAuthorizationContext> administratorSession() {
         return (authentication, context) -> new AuthorizationDecision(isAdministratorSession(authentication.get()));
+    }
+
+    static AuthorizationManager<RequestAuthorizationContext> administratorSessionOrScraper() {
+        return (authentication, context) -> new AuthorizationDecision(
+                isAdministratorSession(authentication.get()) || isScraper(authentication.get()));
+    }
+
+    static boolean isScraper(Authentication authentication) {
+        return authentication instanceof VectispirePrincipal principal
+                && principal.getAuthorities().stream()
+                        .anyMatch(granted -> VectispirePrincipal.METRICS_SCRAPE_SCOPE.equals(granted.getAuthority()));
     }
 
     static boolean isAdministratorSession(Authentication authentication) {

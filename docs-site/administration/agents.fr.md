@@ -185,6 +185,34 @@ lui-même — son runner a échoué avant qu'un résultat existe — est classé
 mêmes délais et porte une raison nettoyée de la même façon : l'exécutant qui a pris une analyse ne
 change pas son sort.
 
+### Quand l'exécuteur d'un agent ne peut rien lancer {#executor-availability}
+
+**Un worker ne reçoit une analyse que si l'un de ses exécuteurs peut la lancer maintenant.** L'agent
+interroge son exécuteur avant de demander du travail — au plus toutes les quinze secondes — et le dit au
+plan de contrôle dans son `hello`, puis à chaque changement de réponse (`PUT /api/v1/agent/executors`) :
+
+| Exécuteur | Interrogé comment | Analyses |
+|---|---|---|
+| `docker` | un ping du démon qu'il atteint | dépôts et images |
+| `kubernetes` | les pods de l'espace de noms des analyses listés, et la création d'un pod essayée à blanc — refusée seulement quand le Role n'a pas `create` | dépôts (les images demandent l'étape de copie de la décision 0045 §8) |
+
+Un agent dont l'exécuteur ne répond pas ne prend rien, et continue de demander : il reste en ligne ; un
+agent Kubernetes ne reçoit jamais d'analyse d'image. L'analyse attend un worker capable de la lancer,
+sans tentative consommée — là où elle était prise, échouait à son premier conteneur et consommait une
+tentative à chaque prise jusqu'à échouer définitivement, pour une panne qui était celle du worker. **Le
+worker intégré interroge son démon Docker de la même façon avant chaque tour**, et ne prend rien tant
+qu'il ne répond pas.
+
+**Un agent de la version précédente n'annonce rien, et prend comme il l'a toujours fait** — toute
+analyse, quel que soit son exécuteur. Absent veut dire « inconnu », jamais « rien de disponible ». De
+même pour un agent ramené à cette version : son `hello` efface ce que le plus récent avait déclaré. Un
+agent plus récent face à un plan de contrôle plus ancien reçoit un 404 pour sa déclaration et continue.
+
+La réponse de l'agent est celle qu'aurait portée l'échec d'une analyse : *The Docker daemon did not
+answer a ping: …*, *The Kubernetes API refused to create a pod in scans: … cannot create resource
+"pods" …*. Elle est nettoyée comme un rapport d'échec, et affichée sur la page — voir
+[Lire la page](#reading-the-page).
+
 ## Modes d'identifiants {#credentials-modes}
 
 | Mode | Ce que le contrôleur envoie | Quand |
@@ -243,7 +271,7 @@ Donc, pour chaque agent `delegated` :
    sa demande reçoit un **412** qui nomme l'étape manquante, et son journal le dit à chaque nouvel
    essai ; rien n'est envoyé. Si aucun autre exécuteur ne peut les prendre, elles attendent que cet
    agent soit corrigé. Le plan de contrôle le dit aussi : la jauge
-   `vectispire.scans.credential.unserved` (sous `/actuator/metrics`) compte les analyses en attente
+   `vectispire.scans.credential.unserved` (sous `/actuator/metrics`, et `vectispire_scans_credential_unserved` sur `/actuator/prometheus` — voir [Supervision](monitoring.md)) compte les analyses en attente
    de dépôts portant un identifiant qu'aucun exécuteur capable de le recevoir ne sert — un agent
    `local` activé, un agent `delegated` à la clé vérifiée, ou le worker intégré quand il tourne — et
    son journal avertit, au plus toutes les quinze minutes et de nouveau quand le nombre augmente, en
@@ -333,7 +361,7 @@ Posez **Agent requis** sur le dépôt ou l'image. Servez-vous-en pour les cibles
 un seul segment — pas comme outil de répartition de charge, puisqu'une cible épinglée cesse
 d'être analysée quand cet unique agent est indisponible.
 
-## Lire la page
+## Lire la page {#reading-the-page}
 
 Chaque agent affiche ses analyses en cours face à sa limite — voir
 [Mener plusieurs analyses en parallèle](#running-several-scans-at-once) — et la dernière fois qu'il s'est
@@ -341,5 +369,16 @@ manifesté : son `hello`, chaque demande de travail — servie ou non — et cha
 pendant une analyse, écrit au plus toutes les quinze secondes. Deux minutes sans rien de cela, et il
 apparaît hors ligne. Un agent qui **ne s'est jamais annoncé** n'a pas atteint le plan de contrôle du
 tout : vérifiez l'URL, le jeton, et que le HTTPS sortant est autorisé.
+
+**La colonne Exécuteurs** dit ce que chaque agent a déclaré en dernier : chaque exécuteur, disponible ou
+non, les types de cible qu'il analyse et — quand il ne peut rien lancer — sa propre raison. *Non
+déclarés* désigne un agent de la version précédente, qui reçoit n'importe quelle analyse. Dans la file,
+une analyse qu'un worker prendrait mais qu'aucun ne peut lancer maintenant affiche **Aucun exécuteur**
+plutôt que *Prêt pour attribution*, et un worker intégré dont le démon ne répond pas est signalé
+au-dessus des chiffres, avec la réponse du démon
+([Quand l'exécuteur d'un agent ne peut rien lancer](#executor-availability)). Le même état est dans
+l'API : `executors` et `executorsReportedAt` sur `GET /api/v1/admin/agents`, `executorAvailable` sur
+chaque analyse en attente de `/activity`, et `GET /api/v1/admin/agents/built-in-worker` pour le worker
+de cette instance.
 
 ![Les agents enregistrés : l'agent intégré sur clés locales, un agent distant scellé et attestant ses résultats, et un troisième délégué en clair, non signé et silencieux depuis 10:41.](../assets/screens/fr/agents.png)

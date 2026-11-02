@@ -4,6 +4,7 @@ import { AgentsApi } from '../../core/api/agents.api';
 import type {
     AgentActivitySummary,
     AgentSummary,
+    BuiltInWorkerState,
     RunningScanItem,
     UnroutableLabel,
     UnservedCredentialedScans
@@ -49,6 +50,8 @@ export class AgentsPage {
     readonly activity = signal<AgentActivitySummary | null>(null);
     readonly unroutable = signal<UnroutableLabel[]>([]);
     readonly credentialedBacklog = signal<UnservedCredentialedScans | null>(null);
+    /** `null` until read, and when the read failed: the notice it feeds then says nothing rather than something wrong. */
+    readonly builtInWorker = signal<BuiltInWorkerState | null>(null);
     readonly loading = signal(true);
     readonly saving = signal(false);
     readonly busy = signal<string | null>(null);
@@ -139,6 +142,11 @@ export class AgentsPage {
         this.agentsApi.credentialedBacklog().subscribe({
             next: (backlog) => this.credentialedBacklog.set(backlog),
             error: () => this.credentialedBacklog.set(null)
+        });
+
+        this.agentsApi.builtInWorker().subscribe({
+            next: (worker) => this.builtInWorker.set(worker),
+            error: () => this.builtInWorker.set(null)
         });
 
         this.agentsApi.getAgentActivity().subscribe(this.activityObserver);

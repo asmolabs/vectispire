@@ -87,7 +87,7 @@ the target exists. `AuthorizationCoverageTest` catches a route that forgets.
 - **Under four-eyes, an account change that makes an approver takes two administrators** (1.0.0-rc.1,
   #126 option 2). Creating an account with a role that approves (`Role.approves()`: ADMIN, CISO,
   SECURITY_CHAMPION, and SUPERUSER, which approves account requests), raising a role to one, and
-  resetting the password of an account that holds one are filed in `t_account_request` (V99) instead of
+  resetting the password of an account that holds one are filed in `t_account_request` (V100) instead of
   applied: the route answers `202` with the request, and `/api/v1/account-requests` lists, approves and
   rejects it. The requester cannot approve it (`409`, `own-account-request`), nobody approves a change to
   their own account, and the change is checked again with the approver acting — an administrator cannot
@@ -104,7 +104,7 @@ the target exists. `AuthorizationCoverageTest` catches a route that forgets.
   longer an active administrator cannot be approved; a password reset of an account with a change pending
   waits for that change to be decided.
 - **Under four-eyes, an approver the requester administered recently is refused** (1.0.0-rc.1, #126
-  option 1). `t_account_administration` (V99) records, in the transaction of each gesture, which
+  option 1). `t_account_administration` (V100) records, in the transaction of each gesture, which
   administrator created an account, reset its password or changed its role, and when — the audit log
   says the same in sentences, which a guard cannot rely on. `ApproverIndependence` refuses a triage
   approval or an account-request approval whose requester did one of the three to the approver's

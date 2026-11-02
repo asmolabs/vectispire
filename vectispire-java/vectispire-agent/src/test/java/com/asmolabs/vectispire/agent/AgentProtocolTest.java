@@ -76,6 +76,46 @@ class AgentProtocolTest {
     }
 
     @Test
+    @DisplayName("the hello carries the executors when probed, and nothing when not — what an older agent sends")
+    @SuppressWarnings("unchecked")
+    void theHelloCarriesTheExecutors() {
+        answers(409, "{\"detail\":\"Update the agent.\"}");
+        com.asmolabs.vectispire.common.domain.agents.WorkerExecutors probed =
+                new com.asmolabs.vectispire.common.domain.agents.WorkerExecutors(java.util.List.of(
+                        new com.asmolabs.vectispire.common.domain.agents.WorkerExecutors.Executor(
+                                "kubernetes", true, java.util.List.of("repository"), null)));
+
+        assertThatThrownBy(() -> protocol.hello(new AgentProtocol.Description("host", "linux", "1.0", "kubernetes", probed)))
+                .isInstanceOf(AgentProtocol.ContractMismatchException.class);
+        assertThatThrownBy(() -> protocol.hello(new AgentProtocol.Description("host", "linux", "1.0", "docker")))
+                .isInstanceOf(AgentProtocol.ContractMismatchException.class);
+
+        ArgumentCaptor<Object> bodies = ArgumentCaptor.forClass(Object.class);
+        verify(http, times(2)).call(eq("/api/v1/agent/hello"), eq("POST"), bodies.capture(), any());
+        assertThat((java.util.Map<String, Object>) bodies.getAllValues().get(0)).containsEntry("executors", probed.executors());
+        assertThat((java.util.Map<String, Object>) bodies.getAllValues().get(1)).doesNotContainKey("executors");
+        // On the wire as the control plane reads it, field by field.
+        assertThat(JSON.valueToTree(bodies.getAllValues().get(0)).path("executors").get(0).toString())
+                .isEqualTo("{\"kind\":\"kubernetes\",\"available\":true,\"targets\":[\"repository\"],\"detail\":null}");
+    }
+
+    @Test
+    @DisplayName("an executors report: recorded, not supported by an older control plane, failed, or a refused key")
+    void anExecutorsReport() {
+        com.asmolabs.vectispire.common.domain.agents.WorkerExecutors none =
+                new com.asmolabs.vectispire.common.domain.agents.WorkerExecutors(java.util.List.of());
+        answers(204, "");
+        assertThat(protocol.reportExecutors(none)).isEqualTo(AgentProtocol.ExecutorReport.ACCEPTED);
+        verify(http).call(eq("/api/v1/agent/executors"), eq("PUT"), any(), any());
+        answers(404, "");
+        assertThat(protocol.reportExecutors(none)).isEqualTo(AgentProtocol.ExecutorReport.NOT_SUPPORTED);
+        answers(500, "");
+        assertThat(protocol.reportExecutors(none)).isEqualTo(AgentProtocol.ExecutorReport.FAILED);
+        answers(401, "");
+        assertThatThrownBy(() -> protocol.reportExecutors(none)).isInstanceOf(AgentProtocol.UnauthorizedException.class);
+    }
+
+    @Test
     void aRefusedKeyIsItsOwnErrorToo() {
         answers(401, "{\"detail\":\"API key refused.\"}");
 

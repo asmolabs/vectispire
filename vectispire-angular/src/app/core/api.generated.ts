@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/agents/built-in-worker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["builtInWorker"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/agents/credentialed-backlog": {
         parameters: {
             query?: never;
@@ -157,6 +173,22 @@ export interface paths {
         };
         get?: never;
         put: operations["pinSigningKey"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/executors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reportExecutors"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4788,6 +4820,9 @@ export interface components {
             credentialsMode?: string;
             description?: string;
             enabled: boolean;
+            executors?: components["schemas"]["ExecutorState"][];
+            /** Format: date-time */
+            executorsReportedAt?: string;
             hostname?: string;
             /** Format: uuid */
             id?: string;
@@ -5242,6 +5277,13 @@ export interface components {
         Builder: {
             id?: string;
             version?: string;
+        };
+        BuiltInWorkerState: {
+            /** Format: date-time */
+            checkedAt?: string;
+            enabled: boolean;
+            executors?: components["schemas"]["ExecutorState"][];
+            runsScans: boolean;
         };
         BulkTriageRequest: {
             comment?: string;
@@ -6299,6 +6341,21 @@ export interface components {
             target_kind?: string;
             target_name?: string;
         };
+        Executor: {
+            available: boolean;
+            detail?: string;
+            kind?: string;
+            targets?: string[];
+        };
+        ExecutorState: {
+            available: boolean;
+            detail?: string;
+            kind?: string;
+            targets?: string[];
+        };
+        ExecutorsReport: {
+            executors?: components["schemas"]["Executor"][];
+        };
         FailingTarget: {
             kind?: string;
             name?: string;
@@ -6796,6 +6853,7 @@ export interface components {
         HelloRequest: {
             capabilities?: string;
             contract_version?: string;
+            executors?: components["schemas"]["Executor"][];
             hostname?: string;
             platform?: string;
             scanner_engine?: string;
@@ -7548,6 +7606,7 @@ export interface components {
         };
         PendingScanItem: {
             branch?: string;
+            executorAvailable: boolean;
             isRoutable: boolean;
             /** Format: int32 */
             positionInQueue: number;
@@ -9663,6 +9722,26 @@ export interface operations {
             };
         };
     };
+    builtInWorker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BuiltInWorkerState"];
+                };
+            };
+        };
+    };
     credentialedBacklog: {
         parameters: {
             query?: never;
@@ -9794,6 +9873,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["PinnedSigningKey"];
                 };
+            };
+        };
+    };
+    reportExecutors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecutorsReport"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

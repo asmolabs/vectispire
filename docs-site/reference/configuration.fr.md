@@ -77,6 +77,8 @@ Dès qu'un compte existe, les deux sont ignorés.
 | `VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE` | `600` | Requêtes par minute par [clé d'API d'intégration](../administration/api-keys.md) ; au-delà, `429` avec `Retry-After`. Les sessions et les agents ne sont pas comptés. |
 | `VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW` | `300` | Livraisons acceptées par fenêtre et par adresse sur le [webhook entrant du tracker](../integrations/ticketing.md#inbound-webhook) ; au-delà, `429` avec `Retry-After`. À relever si un tracker derrière une sortie partagée fait des transitions en masse plus grandes. |
 | `VECTISPIRE_WEBHOOK_REQUEST_WINDOW` | `PT1M` | La fenêtre du réglage ci-dessus, en durée ISO-8601. |
+| `VECTISPIRE_METRICS_SCRAPE_TOKEN` | *aucun* | Le bearer avec lequel un serveur Prometheus lit `/actuator/prometheus`, d'au moins 32 caractères ; reconnu sur cette page et nulle part ailleurs. Sans lui, la page ne répond qu'à la session d'un administrateur — jamais à un appelant anonyme. Voir [Supervision](../administration/monitoring.md). |
+| `VECTISPIRE_METRICS_SCRAPE_TOKEN_FILE` | *aucun* | Le même jeton depuis un fichier, relu à chaque collecte ; il l'emporte sur la variable. **À préférer en production.** Un fichier illisible arrête l'application. |
 
 Les livraisons de webhook refusées sont auditées avec parcimonie : la première d'une adresse sur dix
 minutes, une fois encore si cette adresse en atteint vingt, et au plus cent entrées en dix minutes au

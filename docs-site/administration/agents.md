@@ -175,6 +175,33 @@ between them. A clone refused for good fails at its first attempt, with the reas
 runner failed before a result existed — is classified the same way, waits the same delays and carries
 a reason scrubbed the same way: which executor took a scan does not change its fate.
 
+### When an agent's executor cannot run anything {#executor-availability}
+
+**A worker is handed a scan only when one of its executors can run it now.** The agent asks its executor
+before it polls — at most every fifteen seconds — and tells the control plane in its `hello`, then again
+whenever the answer changes (`PUT /api/v1/agent/executors`):
+
+| Executor | Asked how | Scans |
+|---|---|---|
+| `docker` | a ping of the daemon it reaches | repositories and images |
+| `kubernetes` | the pods of the scans' namespace listed, and a pod's creation tried as a dry run — refused only when the Role lacks `create` | repositories (images need the copy step of decision 0045 §8) |
+
+An agent whose executor does not answer claims nothing, and keeps polling, so it still reads as online;
+a Kubernetes agent is never handed an image scan. The scan waits for a worker that can run it, with no
+attempt spent — where it used to be claimed, fail at its first container and spend an attempt per claim
+until it failed for good, for a fault that was the worker's. **The built-in worker asks its Docker daemon
+the same way before each round**, and claims nothing while it does not answer.
+
+**An agent of the previous release announces nothing, and claims as it always did** — every kind of
+scan, whatever its executor. Absent is "unknown", never "nothing available". The same holds for an agent
+rolled back to that release: its `hello` clears what the newer one had said. A newer agent meeting an
+older control plane gets a 404 for its report and carries on.
+
+The agent's answer is the same one a scan's failure would have carried: *The Docker daemon did not
+answer a ping: …*, *The Kubernetes API refused to create a pod in scans: … cannot create resource
+"pods" …*. It is scrubbed as a failure report is, and shown on the page — see
+[Reading the page](#reading-the-page).
+
 ## Credentials modes
 
 | Mode | What the controller sends | When |
@@ -228,7 +255,7 @@ So, for each `delegated` agent:
    those scans are all that is waiting for it, its poll is answered **412** with the step that is
    missing, and its log says so on every retry; nothing is sent. If no other executor can take
    them, they wait until this agent is fixed. The control plane says so too: the gauge
-   `vectispire.scans.credential.unserved` (under `/actuator/metrics`) counts the waiting scans of
+   `vectispire.scans.credential.unserved` (under `/actuator/metrics`, and `vectispire_scans_credential_unserved` on `/actuator/prometheus` — see [Monitoring](monitoring.md)) counts the waiting scans of
    repositories carrying a credential that no executor able to be handed it serves — an enabled
    `local` agent, a `delegated` one with a verified key, or the built-in worker when it runs — and
    its log warns, at most every fifteen minutes and again when the count grows, naming the labels
@@ -320,5 +347,14 @@ Each agent shows its running scans against its limit — see
 every fifteen seconds. Two minutes without any of them and it reads as offline. An agent that has
 **never announced** has not reached the control plane at all: check the URL, the token, and that
 outbound HTTPS is allowed.
+
+**The Executors column** says what each agent last reported: each executor, available or not, the kinds
+of target it scans, and — when it cannot run anything — its own reason. *Not reported* is an agent of the
+previous release, which is handed any scan. In the queue, a scan that a worker would take but that none
+can run now reads **No executor** rather than *Ready for Dispatch*, and a built-in worker whose daemon
+does not answer is named above the figures with the daemon's answer
+([When an agent's executor cannot run anything](#executor-availability)). The same state is in the API:
+`executors` and `executorsReportedAt` on `GET /api/v1/admin/agents`, `executorAvailable` on each waiting
+scan of `/activity`, and `GET /api/v1/admin/agents/built-in-worker` for this instance's own worker.
 
 ![The registered agents: the built-in one on local keys, a remote agent sealed and attesting its results, and a third delegated in the clear, unsigned and silent since 10:41.](../assets/screens/en/agents.png)

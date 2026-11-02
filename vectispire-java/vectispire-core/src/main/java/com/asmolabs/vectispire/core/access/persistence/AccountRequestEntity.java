@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * An account change filed under four-eyes, waiting for a second administrator or decided by one (V99).
+ * An account change filed under four-eyes, waiting for a second administrator or decided by one (V100).
  *
  * <p>{@code passwordHash} is the hash of the temporary password the requester typed: the approval sets it
  * as typed without anybody else seeing it, and the account must change it at its next sign-in. The view
