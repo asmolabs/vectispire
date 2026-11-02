@@ -601,6 +601,7 @@
     "error_too_many_attempts_one": "Trop de tentatives. Réessayer dans {{count}} minute.",
     "error_too_many_attempts_other": "Trop de tentatives. Réessayer dans {{count}} minutes.",
     "error_invalid_credentials": "Identifiants invalides.",
+    "error_server_busy": "Le serveur est occupé par d'autres connexions. Réessayer dans un instant.",
     "error_server_status": "Le serveur a répondu {{status}}. Réessayer, ou consulter ses journaux."
   },
   "blast_radius": {

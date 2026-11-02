@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.platform.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
+import com.asmolabs.vectispire.common.domain.crypto.DerivationsSaturated;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
@@ -26,7 +27,11 @@ import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -67,6 +72,14 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  */
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    /** One warning a minute while derivations are saturated: a refusal per request would flood the log. */
+    private static final long SATURATION_WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
+
+    private final AtomicLong lastSaturationWarning =
+            new AtomicLong(System.nanoTime() - SATURATION_WARNING_INTERVAL_NANOS - 1);
 
     /**
      * A malformed request: the caller can fix it and try again.
@@ -141,6 +154,29 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = problem(HttpStatus.TOO_MANY_REQUESTS, error.getMessage(), ProblemCode.RATE_LIMITED);
         problem.setProperty("retryAfterSeconds", seconds);
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(problem);
+    }
+
+    /**
+     * Every password derivation permit is taken ({@code DerivationGate}). 503 with {@code Retry-After},
+     * as the challenges' saturation answers: transient by construction, and nobody's mistake. The same
+     * sentence for every caller — it is decided before any password is compared, so it says nothing
+     * about the account.
+     */
+    @ExceptionHandler(DerivationsSaturated.class)
+    ResponseEntity<ProblemDetail> derivationsSaturated(DerivationsSaturated error) {
+        long seconds = Math.max(1, error.retryAfter().toSeconds());
+        long now = System.nanoTime();
+        long last = lastSaturationWarning.get();
+        if (now - last > SATURATION_WARNING_INTERVAL_NANOS && lastSaturationWarning.compareAndSet(last, now)) {
+            log.warn("Password derivations are saturated: requests that verify a password are being answered 503. "
+                    + "Many sign-ins at once — an attack spread over many addresses, or a bound "
+                    + "(vectispire.sign-in.derivations.concurrent) too small for this deployment.");
+        }
+        ProblemDetail problem = problem(HttpStatus.SERVICE_UNAVAILABLE, error.getMessage(), ProblemCode.UNAVAILABLE);
+        problem.setProperty("retryAfterSeconds", seconds);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
                 .body(problem);
     }

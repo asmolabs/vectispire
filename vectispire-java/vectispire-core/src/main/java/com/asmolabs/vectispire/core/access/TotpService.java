@@ -136,7 +136,7 @@ public class TotpService implements SealedStore {
                     SecurityEventType.SIGN_IN_THROTTLED));
             throw new PasswordLockedException(attempt.retryAfter());
         }
-        if (!PasswordHasher.verify(password, user.getPassword())) {
+        if (!auth.verifyReserved(password, user.getPassword(), attempt)) {
             // The reservation stays: it is this failure.
             audit.record(new AuditLogService.Record(
                     AuditOperation.LOGIN_FAILURE,

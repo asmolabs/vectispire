@@ -44,6 +44,8 @@ public final class PasswordHasher {
     private static final int SALT_BYTES = 16;
     private static final int HASH_BYTES = 32;
 
+    private static volatile DerivationGate gate = new DerivationGate(0, null);
+
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Base64.Encoder ENCODER = Base64.getEncoder().withoutPadding();
     private static final Base64.Decoder DECODER = Base64.getDecoder();
@@ -81,6 +83,9 @@ public final class PasswordHasher {
      * <p>Returns {@code false} for a malformed or absent hash rather than throwing. A row with a
      * corrupt hash must fail authentication, not take down the login endpoint — and an attacker
      * must not be able to tell the two apart.
+     *
+     * <p>Throws {@link DerivationsSaturated} when the {@link #gate() bound} gave no permit in time:
+     * that is not an answer about the password, and must not be read as {@code false}.
      */
     public static boolean verify(String password, String encoded) {
         if (password == null || encoded == null || encoded.isBlank()) {
@@ -131,7 +136,32 @@ public final class PasswordHasher {
         }
     }
 
+    /**
+     * The bound every derivation runs under — {@link DerivationGate}. Installed once at startup from
+     * the deployment's settings; until then, and in code that runs without them, the shipped one.
+     *
+     * <p><b>Here and not at the callers</b>: a sign-in, an API key, a password change and an account
+     * created all derive, and a bound each caller had to remember would be the one somebody forgot.
+     */
+    public static void bound(DerivationGate replacement) {
+        gate = java.util.Objects.requireNonNull(replacement);
+    }
+
+    /** The bound in force. */
+    public static DerivationGate gate() {
+        return gate;
+    }
+
+    /** What one derivation at the current cost holds while it runs, for sizing the bound. */
+    static long derivationBytes() {
+        return MEMORY_KIB * 1024L;
+    }
+
     private static byte[] derive(String password, byte[] salt, int memoryKib, int iterations, int parallelism) {
+        return gate.run(() -> deriveNow(password, salt, memoryKib, iterations, parallelism));
+    }
+
+    private static byte[] deriveNow(String password, byte[] salt, int memoryKib, int iterations, int parallelism) {
         Argon2Parameters parameters = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
                 .withVersion(Argon2Parameters.ARGON2_VERSION_13)
                 .withSalt(salt)

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.DerivationsSaturated;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -199,6 +200,24 @@ public class AuthService {
     public void release(Reservation reservation) {
         if (!reservation.rows().isEmpty()) {
             separately.executeWithoutResult(status -> attempts.deleteByIdIn(reservation.rows()));
+        }
+    }
+
+    /**
+     * A password checked under a {@link #reserve reservation} already made: {@code true} when it is the
+     * one {@code encoded} hashes. When no derivation permit came free in time ({@code DerivationGate}),
+     * nothing was compared, so the reservation is taken back before {@link DerivationsSaturated} goes on
+     * up as a 503 — counted, a person retrying through a busy minute would spend their own budget on
+     * checks that never happened and be locked out once it cleared. For the password asked of a
+     * signed-in account (a password change, an MFA enrolment); the sign-in does the same in
+     * {@link #login}.
+     */
+    public boolean verifyReserved(String password, String encoded, Reservation reservation) {
+        try {
+            return PasswordHasher.verify(password, encoded);
+        } catch (DerivationsSaturated saturated) {
+            release(reservation);
+            throw saturated;
         }
     }
 
@@ -420,8 +439,19 @@ public class AuthService {
         // already admitted this attempt, and a known name buys the same derivation at the same
         // rate. A deactivated account is verified against the same stand-in, for the same reason.
         Optional<UserEntity> active = user.filter(UserEntity::getIsActive);
-        boolean matches = PasswordHasher.verify(
-                request.password(), active.map(UserEntity::getPassword).orElseGet(AuthService::standInHash));
+        boolean matches;
+        try {
+            matches = PasswordHasher.verify(
+                    request.password(), active.map(UserEntity::getPassword).orElseGet(AuthService::standInHash));
+        } catch (DerivationsSaturated saturated) {
+            // **Busy is not a failure.** Every derivation permit is taken (DerivationGate): the
+            // password was never compared, so the attempt's rows are taken back — counted, a person
+            // retrying through a saturated minute would lock themselves out. The permit is asked for
+            // in the same place for every name, the stand-in's included, so the refusal says nothing
+            // about whether the account exists; it goes up as a 503 with Retry-After.
+            release(throttle);
+            throw saturated;
+        }
         boolean authenticated = active.isPresent() && matches;
 
         // Past the budget, a right password is not enough and is answered as a wrong one is — the rows

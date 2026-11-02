@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.access.web.security.chain;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.DerivationsSaturated;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.core.access.ApiKeyAuthService;
 import com.asmolabs.vectispire.core.access.AuthService;
@@ -15,8 +16,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -58,13 +61,25 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-            Optional<VectispirePrincipal> principal = authenticate(header, pathWithinApplication(request));
-            if (principal.isEmpty() && header == null) {
-                // `X-API-Key`, the alias the OpenAPI document has always announced. A key only:
-                // a session token or the SCIM token presented there is not looked at.
-                principal = Optional.ofNullable(request.getHeader(API_KEY_HEADER))
-                        .filter(value -> !value.isBlank())
-                        .flatMap(this::apiKeyPrincipal);
+            Optional<VectispirePrincipal> principal;
+            try {
+                principal = authenticate(header, pathWithinApplication(request));
+                if (principal.isEmpty() && header == null) {
+                    // `X-API-Key`, the alias the OpenAPI document has always announced. A key only:
+                    // a session token or the SCIM token presented there is not looked at.
+                    principal = Optional.ofNullable(request.getHeader(API_KEY_HEADER))
+                            .filter(value -> !value.isBlank())
+                            .flatMap(this::apiKeyPrincipal);
+                }
+            } catch (DerivationsSaturated saturated) {
+                // An API key is verified as a password is, under the same bound (DerivationGate). Out
+                // here no exception handler maps it: thrown on, it would be the container's 500. Not
+                // anonymous either — the key was not refused, it was not looked at.
+                long seconds = Math.max(1, saturated.retryAfter().toSeconds());
+                response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(seconds));
+                ProblemResponses.write(request, response, HttpStatus.SERVICE_UNAVAILABLE, saturated.getMessage(),
+                        Map.of("retryAfterSeconds", seconds));
+                return;
             }
             principal.ifPresent(found -> SecurityContextHolder.getContext().setAuthentication(found));
         }
