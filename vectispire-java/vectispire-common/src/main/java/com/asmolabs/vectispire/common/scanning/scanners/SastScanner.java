@@ -100,7 +100,9 @@ public final class SastScanner {
                                 // honours the analysed tree's `.gitignore` by default — and that
                                 // tree is a clone of the scanned repository, hence written by
                                 // whoever is being audited. A committed `*` excluded everything,
-                                // and the step returned an empty success.
+                                // and the step returned an empty success. Its own
+                                // `.semgrepignore` has no such switch: the files are taken
+                                // out of the clone before this runs (ScannerConfigurationFiles).
                                 "--no-git-ignore",
                                 "--json",
                                 "--metrics=off",
@@ -187,7 +189,10 @@ public final class SastScanner {
         //
         // File selection is influenceable from the repository: the tool honours its own ignore
         // file and, by default, `.gitignore` — and the tree is always a git clone. A committed
-        // `*` was enough to switch the step off while it looked like a success.
+        // `*` was enough to switch the step off while it looked like a success. Both are closed
+        // upstream now (`--no-git-ignore`, and every `.semgrepignore` taken out of the clone by
+        // ScannerConfigurationFiles); this stays for whatever selection is found next, and it
+        // only ever saw the extreme case — an ignore file that spared one harmless file passed.
         if (scanned == 0) {
             return true;
         }

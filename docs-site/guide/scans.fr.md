@@ -21,6 +21,12 @@ distant qui ne détient aucun identifiant de base de données.
    de blocage de licences, contrôler la fin de support, et réconcilier avec les issues
    existantes.
 
+La cible ne configure pas son propre audit : avant qu'un analyseur ne tourne, les fichiers par
+lesquels un dépôt pourrait lui dire quoi ignorer — `.checkov.yaml`, `.checkov.yml`,
+`.gitleaksignore` et tout `.semgrepignore` — sont retirés du clone qu'en fait Vectispire, où qu'ils
+se trouvent. Le dépôt lui-même n'est pas modifié ; une équipe qui veut écarter une anomalie
+enregistre une exception dans Vectispire, où elle est revue et auditée ([Exceptions](exceptions.md)).
+
 Les étapes 2 à 6 s'exécutent dans des conteneurs éphémères avec **le réseau désactivé**, un
 montage en lecture seule, `cap_drop: ALL` et `no-new-privileges`. Chaque image est épinglée par
 empreinte.
