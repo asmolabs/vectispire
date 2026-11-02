@@ -29,6 +29,10 @@ decides who the caller is.
   takes effect on the next request.
 * **Usage**: Angular web console and interactive user sessions.
 * **Acquisition**: Via `POST /api/v1/auth/login` (with MFA / TOTP step verification via `POST /api/v1/auth/mfa/verify`).
+* **When the server is busy**: `POST /api/v1/auth/login` — and any route that checks a password or an API
+  key — answers `503` with `code: unavailable`, a `Retry-After` header and `retryAfterSeconds` when too many
+  passwords are being checked at once (`VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT`). It is the same answer for
+  every name, nothing was compared, and the attempt counts against no budget: retry after the delay.
 
 ### 2. Scanner Agent Key
 * **Header**: `Authorization: Bearer <agent_key>` — an API key with the `agent` scope, which is

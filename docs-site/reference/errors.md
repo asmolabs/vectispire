@@ -83,7 +83,7 @@ refused, the ceiling of a `content-too-large` — the translated sentence quotes
 | **422** | A destination refused by the outbound policy. |
 | **429** | Too many attempts from this address or with this key. Wait `retryAfterSeconds`. |
 | **500** | A failure nobody wrote a sentence for. The detail says only that it happened and quotes a `correlationId`; the full error is in the control plane's log under that reference. |
-| **503** | Transient: too many sign-ins awaiting their second factor. Try again in a few minutes. |
+| **503** | Transient: too many sign-ins awaiting their second factor — try again in a few minutes — or too many passwords being checked at once, with `Retry-After` and `retryAfterSeconds` — try again after that delay. Either answers alike whatever the name, and neither counts as a failed attempt. |
 
 ## 409 causes
 

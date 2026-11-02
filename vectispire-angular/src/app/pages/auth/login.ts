@@ -232,6 +232,11 @@ export class Login {
                     this.error.set(
                         this.i18n.t('auth.error_account_throttled', { count: Math.ceil((retryAfter ?? 60) / 60) })
                     );
+                } else if (response.status === 503) {
+                    // Busy, not refused: every password check is taken, or every challenge slot. It
+                    // carries a retry delay too, and read as the throttle's it told a person who had
+                    // tried once that they had tried too often.
+                    this.error.set(this.i18n.t('auth.error_server_busy'));
                 } else if (retryAfter) {
                     this.error.set(this.i18n.t('auth.error_too_many_attempts', { count: Math.ceil(retryAfter / 60) }));
                 } else if (response.status === 401) {

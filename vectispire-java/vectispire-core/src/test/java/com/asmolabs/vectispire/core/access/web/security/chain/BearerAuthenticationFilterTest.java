@@ -130,6 +130,29 @@ class BearerAuthenticationFilterTest {
         verify(auth, never()).resolve(any());
     }
 
+    /**
+     * An API key is verified by an Argon2id derivation under the same bound as a password. Thrown on
+     * out of the filter, the saturation was nobody's to map: the container's 500.
+     */
+    @Test
+    @DisplayName("a key that could not be verified for saturation is answered 503 with Retry-After, and goes no further")
+    void saturatedKeyVerificationIsBusy() throws Exception {
+        when(apiKeys.resolve("vs_key")).thenThrow(
+                new com.asmolabs.vectispire.common.domain.crypto.DerivationsSaturated(java.time.Duration.ofSeconds(2)));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/issues");
+        request.addHeader("Authorization", "Bearer vs_key");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(response.getHeader("Retry-After")).isEqualTo("2");
+        assertThat(response.getContentAsString()).contains("\"code\":\"unavailable\"", "\"retryAfterSeconds\":2");
+        assertThat(chain.getRequest()).isNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
     private Authentication authenticate(String header) throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/issues");
         request.addHeader("Authorization", header);

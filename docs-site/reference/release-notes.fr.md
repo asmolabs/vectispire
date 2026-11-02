@@ -218,6 +218,10 @@ Ce qui suit est par rapport à la 0.11.2.
 
 ### Changements visibles par une intégration {#changements-visibles-par-une-integration-100-rc1}
 
+- **Une route qui vérifie un mot de passe ou une clé d'API peut répondre `503` `unavailable` avec
+  `Retry-After`** et `retryAfterSeconds` quand trop de mots de passe sont vérifiés à la fois —
+  `POST /api/v1/auth/login` en premier (additif). Réessayer après le délai ; rien n'a été comparé, et la
+  tentative n'entame aucun budget.
 - **SCIM : un `externalId` qu'un autre compte détient est un 409 `uniqueness`**, sur
   `POST /scim/v2/Users` et sur un `PUT` qui lie un compte non lié, sans rien écrire — ce qu'un annuaire lit
   comme « déjà provisionné ». C'était un 500. Un membre de `PATCH` de groupe dont la `value` est un objet
@@ -454,6 +458,14 @@ risque résiduel là où une correction serait une décision à part entière :
   pour qu'un client soit une adresse quel que soit son port source ; et une valeur qui n'est pas une
   adresse vaut pour le proxy de confiance qui l'a écrite. Rien à configurer : le même
   `VECTISPIRE_TRUSTED_PROXIES` décide qui croire.
+- **Les vérifications de mot de passe sont bornées, tous appelants confondus.** Chaque connexion,
+  changement de mot de passe et vérification de clé d'API exécute une dérivation Argon2id de 19 Mio, et les
+  plafonds de connexion comptent par adresse et par compte, pas au total. Au plus
+  `VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT` tournent à la fois — par défaut une par processeur, au moins
+  deux, dans un quart du tas ; au-delà, une vérification attend jusqu'à
+  `VECTISPIRE_SIGN_IN_DERIVATIONS_QUEUE_WAIT` (deux secondes), puis la requête reçoit `503` `unavailable`
+  avec `Retry-After`. La réponse est la même pour tout nom, n'entame aucun budget, et l'écran de connexion
+  dit que le serveur est occupé. Le journal avertit une fois par minute tant que cela dure.
 - **Une seule lecture de l'en-tête `Authorization`** pour l'authentification, les sessions et le plafond
   des jetons refusés, de sorte que chaque jeton porteur rencontre ce plafond et son entrée d'audit.
 - **Une URL de dépôt qui nomme le démon Docker, la base de données ou l'API du cluster de Vectispire lui-même

@@ -581,7 +581,7 @@ public class AuthenticationFlowService {
                     SecurityEventType.SIGN_IN_THROTTLED));
             return new PasswordChange.Throttled(attempt.retryAfter());
         }
-        if (!PasswordHasher.verify(currentPassword, user.getPassword())) {
+        if (!auth.verifyReserved(currentPassword, user.getPassword(), attempt)) {
             // The reservation stays: it is this failure.
             audit.record(new AuditLogService.Record(
                     AuditOperation.LOGIN_FAILURE,

@@ -216,6 +216,14 @@ vectispire:
     failures-per-account: ${VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT:50}
     failures-per-client: ${VECTISPIRE_SIGN_IN_FAILURES_PER_CLIENT:20}
     known-client-retention: ${VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION:P30D}
+    # **Password derivations at once, across every caller.** Each holds 19 MiB while it runs, and the
+    # ceilings above count per address and per account, not in total. Past the bound a derivation
+    # waits up to `queue-wait` for its turn, then the request is answered 503 with Retry-After. Zero sizes it
+    # from the machine: one per processor, at least two, at most what a quarter of the heap holds.
+    # The reasoning is on `DerivationGate`.
+    derivations:
+      concurrent: ${VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT:0}
+      queue-wait: ${VECTISPIRE_SIGN_IN_DERIVATIONS_QUEUE_WAIT:PT2S}
 
   # **Every request body**, which no container setting bounds: Tomcat's and Spring's limits apply to
   # forms and multipart only. `default` holds for every route not named below; a named route takes

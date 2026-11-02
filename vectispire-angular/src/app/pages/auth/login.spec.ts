@@ -147,14 +147,26 @@ describe('the sign-in screen', () => {
         expect(fixture.componentInstance.error()).toContain('Server unreachable');
     });
 
+    it('says the server is busy on a 503, not that the person tried too often', () => {
+        attempt();
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            { code: 'unavailable', retryAfterSeconds: 2 },
+            { status: 503, statusText: 'Service Unavailable' }
+        );
+
+        expect(fixture.componentInstance.error()).toContain('busy');
+        expect(fixture.componentInstance.error()).not.toContain('Too many attempts');
+        expect(fixture.componentInstance.error()).not.toContain('Invalid credentials');
+    });
+
     it('names an unexpected status instead of guessing at it', () => {
         attempt();
         http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
             {},
-            { status: 503, statusText: 'Service Unavailable' }
+            { status: 502, statusText: 'Bad Gateway' }
         );
 
-        expect(fixture.componentInstance.error()).toContain('503');
+        expect(fixture.componentInstance.error()).toContain('502');
         expect(fixture.componentInstance.error()).not.toContain('Invalid credentials');
     });
 

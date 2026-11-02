@@ -29,6 +29,11 @@ nature qui décide de qui est l'appelant.
   et sa révocation prend effet dès la requête suivante.
 * **Utilisation** : Interface Web Angular, sessions d'utilisateurs interactives.
 * **Obtention** : Via `POST /api/v1/auth/login` (avec support éventuel du 2FA/TOTP via `POST /api/v1/auth/mfa/verify`).
+* **Quand le serveur est occupé** : `POST /api/v1/auth/login` — et toute route qui vérifie un mot de passe
+  ou une clé d'API — répond `503` avec `code: unavailable`, un en-tête `Retry-After` et `retryAfterSeconds`
+  quand trop de mots de passe sont vérifiés à la fois (`VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT`). La
+  réponse est la même pour tout nom, rien n'a été comparé et la tentative n'entame aucun budget : réessayer
+  après le délai.
 
 ### 2. Clé d'Agent de Scan
 * **En-tête** : `Authorization: Bearer <agent_key>` — une clé d'API de portée `agent`, ce que

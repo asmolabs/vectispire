@@ -85,7 +85,7 @@ pour un code qu'elle ne connaît pas. Là où `detail` porte le fait qui compte 
 | **422** | Une destination refusée par la politique de sortie. |
 | **429** | Trop de tentatives depuis cette adresse ou avec cette clé. Attendez `retryAfterSeconds`. |
 | **500** | Une défaillance pour laquelle personne n'a écrit de phrase. Le détail dit seulement qu'elle s'est produite et cite un `correlationId` ; l'erreur complète est dans le journal du plan de contrôle, sous cette référence. |
-| **503** | Passager : trop de connexions attendent leur second facteur. Réessayez dans quelques minutes. |
+| **503** | Passager : trop de connexions attendent leur second facteur — réessayez dans quelques minutes — ou trop de mots de passe sont vérifiés à la fois, avec `Retry-After` et `retryAfterSeconds` — réessayez après ce délai. L'un comme l'autre répond pareil quel que soit le nom, et aucun ne compte comme une tentative échouée. |
 
 ## Causes d'un 409
 

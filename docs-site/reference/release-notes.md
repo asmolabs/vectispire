@@ -200,6 +200,10 @@ What follows is against 0.11.2.
 
 ### Changes an integration can see {#changes-an-integration-can-see-100-rc1}
 
+- **A route that checks a password or an API key may answer `503` `unavailable` with `Retry-After`**
+  and `retryAfterSeconds` when too many passwords are being checked at once — `POST /api/v1/auth/login`
+  first among them (additive). Retry after the delay; nothing was compared, and the attempt counts against
+  no budget.
 - **SCIM: an `externalId` another account holds is a 409 `uniqueness`**, on `POST /scim/v2/Users` and on a
   `PUT` that binds an unbound account, with nothing written — what a directory reads as "already
   provisioned". It used to be a 500. A group `PATCH` member whose `value` is an object or an array names
@@ -412,6 +416,13 @@ risk where a fix would be a decision of its own:
   write it) is dropped, so a client is one address whatever its source port; and a value that is no
   address at all stands for the trusted proxy that wrote it. Nothing to configure: the same
   `VECTISPIRE_TRUSTED_PROXIES` decides whom to believe.
+- **Password checks are bounded across every caller.** Each sign-in, password change and API key check
+  runs an Argon2id derivation of 19 MiB, and the sign-in ceilings count per address and per account, not
+  in total. At most `VECTISPIRE_SIGN_IN_DERIVATIONS_CONCURRENT` run at once — by default one per
+  processor, at least two, within a quarter of the heap; past it a check waits up to
+  `VECTISPIRE_SIGN_IN_DERIVATIONS_QUEUE_WAIT` (two seconds), then the request is answered `503`
+  `unavailable` with `Retry-After`. The answer is the same for every name, counts against no budget, and
+  the sign-in screen says the server is busy. The log warns once a minute while it lasts.
 - **One reading of the `Authorization` header** for authentication, sessions and the refused-token
   ceiling, so every bearer token meets the ceiling and its audit entry.
 - **A repository URL naming Vectispire's own Docker daemon, database or cluster API is refused**, when it

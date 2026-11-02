@@ -601,6 +601,7 @@
     "error_too_many_attempts_one": "Too many attempts. Try again in {{count}} minute.",
     "error_too_many_attempts_other": "Too many attempts. Try again in {{count}} minutes.",
     "error_invalid_credentials": "Invalid credentials.",
+    "error_server_busy": "The server is busy with other sign-ins. Try again in a moment.",
     "error_server_status": "The server answered {{status}}. Try again, or check its logs."
   },
   "blast_radius": {
