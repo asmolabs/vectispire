@@ -439,6 +439,9 @@
       "user_updated": "Compte modifié",
       "user_password_reset": "Mot de passe réinitialisé",
       "user_deleted": "Compte supprimé",
+      "account_request_filed": "Modification de compte soumise à approbation",
+      "account_request_approved": "Modification de compte approuvée",
+      "account_request_rejected": "Modification de compte refusée",
       "api_key_created": "Clé d'API créée",
       "api_key_deleted": "Clé d'API révoquée",
       "issue_triaged": "Problème trié",
@@ -2498,6 +2501,10 @@
       "triage_four_eyes_required": {
         "label": "Exiger une double validation (quatre yeux) pour le triage VEX",
         "help": "Activé, marquer une issue NOT_AFFECTED, WILL_NOT_FIX ou FIXED par un utilisateur sans droit d'approbation RSSI ou administrateur crée une demande PENDING_APPROVAL. Désactivé, tout utilisateur autorisé peut trancher directement le triage."
+      },
+      "four_eyes_independence_days": {
+        "label": "Fenêtre d'indépendance de l'approbateur (jours)",
+        "help": "Double validation activée, une approbation est refusée quand la personne qui l'a demandée a créé le compte de l'approbateur, réinitialisé son mot de passe ou changé son rôle depuis moins de ce nombre de jours : la seconde paire d'yeux serait sinon un compte que la première a fabriqué, ou dont elle a saisi le mot de passe. S'applique aux approbations de triage et aux modifications de comptes qui attendent un second administrateur. Zéro désactive le contrôle ; 3650 au plus."
       }
     },
     "last_sync": "Dernière lecture du catalogue KEV",
@@ -3007,7 +3014,22 @@
     "reset": "Réinitialiser",
     "delete_header": "Supprimer ce compte ?",
     "delete_consequence": "et ses sessions seront supprimées. C'est définitif.",
-    "target_project": "Projet"
+    "target_project": "Projet",
+    "request_filed": "La modification attend l'approbation d'un autre administrateur : la double validation est active, et rien n'a encore changé.",
+    "requests_title": "Modifications de comptes en attente",
+    "requests_subtitle": "La double validation est active : ces modifications attendent qu'un second administrateur, qui ne les a pas demandées, les approuve. Les comptes ci-dessous sont montrés tels qu'ils sont.",
+    "requests_col_change": "Modification",
+    "requests_col_by": "Demandée par",
+    "requests_col_at": "Demandée le",
+    "request_create": "Création de {{name}} avec le rôle {{role}}",
+    "request_role": "{{name}} : rôle {{held}} → {{requested}}",
+    "request_password": "{{name}} : réinitialisation du mot de passe",
+    "request_approve": "Approuver",
+    "request_reject": "Refuser",
+    "request_withdraw": "Retirer",
+    "requests_error_load": "Impossible de charger les modifications de comptes en attente.",
+    "requests_error_approve": "La modification n'a pas pu être approuvée.",
+    "requests_error_reject": "La modification n'a pas pu être refusée."
   },
   "git_tokens": {
     "title": "Jetons HTTPS",

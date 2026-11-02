@@ -4,6 +4,54 @@
  */
 
 export interface paths {
+    "/api/v1/account-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAccountRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account-requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["approveAccountRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account-requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rejectAccountRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/agents": {
         parameters: {
             query?: never;
@@ -2033,7 +2081,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Records the same triage decision on several issues, every one checked before the first is written: one refusal writes none. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). */
+        /** @description Records the same triage decision on several issues, every one checked before the first is written: one refusal writes none. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). Under four-eyes, nor can an account the requester created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set): 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays. */
         post: operations["triageMany"];
         delete?: never;
         options?: never;
@@ -2082,7 +2130,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Records a triage decision on one issue. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). */
+        /** @description Records a triage decision on one issue. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). Under four-eyes, nor can an account the requester created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set): 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays. */
         post: operations["triage"];
         delete?: never;
         options?: never;
@@ -4723,6 +4771,29 @@ export interface components {
             pluginId?: string;
             reason?: string;
         });
+        AccountRequestListing: {
+            requests?: components["schemas"]["AccountRequestView"][];
+            /** Format: int64 */
+            total: number;
+        };
+        AccountRequestView: {
+            /** Format: int64 */
+            accountId?: number;
+            displayName?: string;
+            email?: string;
+            heldRole?: string;
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
+            passwordReset: boolean;
+            /** Format: date-time */
+            requestedAt?: string;
+            requestedBy?: string;
+            /** Format: int64 */
+            requestedById?: number;
+            requestedRole?: string;
+            username?: string;
+        };
         ActivateRequest: {
             /** Format: int64 */
             acceptLosing?: number;
@@ -9515,6 +9586,73 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAccountRequests: {
+        parameters: {
+            query?: {
+                /** @description Rows per page, 1 to 500; 400 beyond. Absent, with no offset, the whole list is answered, as before paging existed. */
+                limit?: number;
+                /** @description Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one. */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccountRequestListing"];
+                };
+            };
+        };
+    };
+    approveAccountRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAdminSummary"];
+                };
+            };
+        };
+    };
+    rejectAccountRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_16: {
         parameters: {
             query?: {
@@ -16744,13 +16882,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
+            /** @description The account, created */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "*/*": components["schemas"]["UserAdminSummary"];
+                };
+            };
+            /** @description Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation or deactivation sent with it has been applied. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccountRequestView"];
                 };
             };
         };
@@ -16790,13 +16937,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
+            /** @description The account, changed */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "*/*": components["schemas"]["UserAdminSummary"];
+                };
+            };
+            /** @description Four-eyes: the change makes an approver and waits for another administrator's approval. Nothing has changed yet; the body is the request, decided under /api/v1/account-requests. An activation or deactivation sent with it has been applied. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccountRequestView"];
                 };
             };
         };

@@ -2583,10 +2583,46 @@ test.describe('documentation screenshots', () => {
             ],
             total: 3
         });
+        // Four-eyes on: what an administrator filed and a second one has to approve leads the page —
+        // a creation with a role that approves, and a raise to one.
+        await stub(page, '**/api/v1/account-requests*', {
+            requests: [
+                {
+                    id: 7,
+                    kind: 'create',
+                    accountId: null,
+                    username: 'l.bernard',
+                    email: 'l.bernard@example.invalid',
+                    displayName: 'Léa Bernard',
+                    heldRole: null,
+                    requestedRole: 'SECURITY_CHAMPION',
+                    passwordReset: true,
+                    requestedById: 1,
+                    requestedBy: 'admin',
+                    requestedAt: '2026-10-30T09:12:00Z'
+                },
+                {
+                    id: 8,
+                    kind: 'change',
+                    accountId: 3,
+                    username: 'n.faure',
+                    email: null,
+                    displayName: null,
+                    heldRole: 'AUDITOR',
+                    requestedRole: 'CISO',
+                    passwordReset: false,
+                    requestedById: 1,
+                    requestedBy: 'admin',
+                    requestedAt: '2026-10-31T16:40:00Z'
+                }
+            ],
+            total: 2
+        });
         await enterApp(page, locale);
         await openScreen(page, '/users');
 
         await expect(page.getByText('c.moreau').first()).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('#account-requests [data-request="7"]')).toBeVisible();
         await shoot(page, 'users', locale);
     });
 

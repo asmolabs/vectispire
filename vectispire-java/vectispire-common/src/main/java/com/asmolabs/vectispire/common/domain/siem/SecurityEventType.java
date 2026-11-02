@@ -357,7 +357,8 @@ public enum SecurityEventType {
             return Optional.empty();
         }
         return switch (operation) {
-            case USER_CREATED, USER_UPDATED, USER_DELETED, USER_PASSWORD_RESET, PASSWORD_CHANGED ->
+            case USER_CREATED, USER_UPDATED, USER_DELETED, USER_PASSWORD_RESET, PASSWORD_CHANGED,
+                    ACCOUNT_REQUEST_FILED, ACCOUNT_REQUEST_APPROVED, ACCOUNT_REQUEST_REJECTED ->
                     Optional.of(ACCOUNT_CHANGED);
             // Filing or moving a repository or an image moves it in or out of every project grant at
             // once (decision 0023): who may see it changes, with no grant row touched.

@@ -4,6 +4,8 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
+import com.asmolabs.vectispire.core.access.AccountAdministrationService.Outcome;
+import com.asmolabs.vectispire.core.access.AccountRequestView;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -12,11 +14,14 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -109,12 +114,21 @@ public class UsersController {
         return new UserListing(summaries, principal.user().map(UserView::id).orElse(null), listed.total());
     }
 
+    /**
+     * Creates an account — or, under four-eyes, files the creation of one whose role approves (an
+     * administrator, a CISO, a security champion, the governor) for a second administrator: 202 and the
+     * request, which {@code /api/v1/account-requests} lists and decides.
+     */
     @PostMapping
-    public UserAdminSummary create(
+    @ApiResponse(responseCode = "200", description = "The account, created",
+            content = @Content(schema = @Schema(implementation = UserAdminSummary.class)))
+    @ApiResponse(responseCode = "202", description = FILED,
+            content = @Content(schema = @Schema(implementation = AccountRequestView.class)))
+    public ResponseEntity<Object> create(
             @RequestBody UserCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
-        return summaryOf(accounts.create(
+        return answer(accounts.create(
                 new AccountAdministrationService.NewAccount(
                         body.username(), body.password(), body.role(), body.email(), body.displayName()),
                 actingAccountId(principal),
@@ -123,15 +137,21 @@ public class UsersController {
 
     /**
      * Role, activation and password reset — and which of them close the account's sessions,
-     * which is decided in {@link AccountAdministrationService#update}.
+     * which is decided in {@link AccountAdministrationService#update}. Under four-eyes, a role raised to
+     * one that approves, or a password reset of an account holding one, is filed for a second
+     * administrator: 202 and the request.
      */
     @PatchMapping("/{id}")
-    public UserAdminSummary update(
+    @ApiResponse(responseCode = "200", description = "The account, changed",
+            content = @Content(schema = @Schema(implementation = UserAdminSummary.class)))
+    @ApiResponse(responseCode = "202", description = FILED,
+            content = @Content(schema = @Schema(implementation = AccountRequestView.class)))
+    public ResponseEntity<Object> update(
             @PathVariable long id,
             @RequestBody UserUpdateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
-        return summaryOf(accounts.update(
+        return answer(accounts.update(
                 id,
                 new AccountAdministrationService.AccountChange(body.role(), body.isActive(), body.password()),
                 actingAccountId(principal),
@@ -210,6 +230,19 @@ public class UsersController {
         accounts.delete(id, actingAccountId(principal), RequestActors.of(principal, request));
     }
 
+    /** What a 202 of the create and update routes says. */
+    private static final String FILED = "Four-eyes: the change makes an approver and waits for another "
+            + "administrator's approval. Nothing has changed yet; the body is the request, decided under "
+            + "/api/v1/account-requests. An activation or deactivation sent with it has been applied.";
+
+    /** An applied change answers the account, a filed one the request. */
+    private static ResponseEntity<Object> answer(Outcome outcome) {
+        return switch (outcome) {
+            case Outcome.Applied applied -> ResponseEntity.ok(summaryOf(applied.account()));
+            case Outcome.Queued queued -> ResponseEntity.accepted().body(queued.request());
+        };
+    }
+
     /** What the administrator granting may see: a grant is refused as absent outside it. */
     private Visibility granter(VectispirePrincipal principal) {
         return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
@@ -219,7 +252,7 @@ public class UsersController {
         return principal.user().map(UserView::id).orElse(null);
     }
 
-    private static UserAdminSummary summaryOf(AccountView view) {
+    static UserAdminSummary summaryOf(AccountView view) {
         UserView user = view.user();
         return new UserAdminSummary(
                 user.id(),

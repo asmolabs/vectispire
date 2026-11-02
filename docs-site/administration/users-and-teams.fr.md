@@ -68,6 +68,59 @@ est enrôlé). Retirer un facteur demande sinon un code actuel, ce qui manque ju
 
 La route est `DELETE /api/v1/users/{id}/second-factor`, pour les administrateurs.
 
+### Les modifications qui attendent un second administrateur {#changes-that-wait-for-a-second-administrator}
+
+[Double validation](four-eyes.fr.md) activée, trois gestes qui feraient un approbateur sont **soumis
+à un autre administrateur** au lieu d'être appliqués :
+
+- créer un compte doté d'un rôle qui approuve — Champion sécurité, RSSI, Administrateur,
+  Super-administrateur ;
+- élever le rôle d'un compte vers l'un d'eux ;
+- réinitialiser le mot de passe d'un compte qui en détient un.
+
+L'écran indique que la modification attend, et la liste sous **Modifications de comptes en attente**
+en haut de la page, avec son demandeur et sa date. Un autre administrateur l'y approuve ou la refuse ;
+jusque-là, rien n'a changé sur le compte. Le demandeur peut refuser sa propre demande pour la retirer,
+mais **ne peut pas l'approuver**, et personne n'approuve une modification de son propre compte.
+L'approbation applique la modification comme son approbateur la ferait : un administrateur ne peut
+pas approuver la création d'un super-administrateur, et une demande dont le compte a changé de rôle
+entre-temps est refusée comme périmée. Le mot de passe temporaire saisi avec la demande n'est conservé
+que sous forme d'empreinte jusqu'à ce que l'approbation le pose, et le compte doit le changer à sa
+connexion suivante, comme après toute réinitialisation.
+
+Activer, désactiver, attribuer des cibles et donner un rôle qui n'approuve rien — Utilisateur,
+Auditeur — s'appliquent aussitôt, comme avant : retirer un privilège doit rester facile. Une
+désactivation envoyée avec une modification soumise s'applique aussitôt elle aussi.
+
+**Face à un identifiant volé** : la réinitialisation d'un compte qui approuve attend comme les autres,
+donc **désactivez d'abord le compte**. La désactivation ferme ses sessions et arrête ses clés d'API
+aussitôt, sans personne à attendre ; réactivez-le une fois la réinitialisation approuvée.
+
+**Un administrateur seul n'est pas bloqué.** Sans autre administrateur — une installation dont le
+seul compte est le super-administrateur d'amorçage — la modification s'applique aussitôt, et son entrée
+d'audit dit qu'aucun second administrateur n'était là. Un administrateur désactivé compte toujours,
+de même qu'un compte récemment sorti d'un rôle d'administration : réactivez-en ou rétablissez-en un pour
+approuver. Tant qu'une modification d'un compte attend, son mot de passe ne peut pas être réinitialisé. Une demande dont le demandeur a été désactivé ou rétrogradé depuis ne
+peut plus être approuvée.
+
+**Rétablir un rôle après une réinitialisation n'appartient pas à un seul administrateur.** Une
+élévation vers un rôle qui approuve est refusée (`409`, `password-known-to-administrator`) quand son
+demandeur — ou, à l'approbation, son approbateur — a créé le compte ou réinitialisé son mot de passe
+dans la fenêtre : abaisser un rôle, réinitialiser le mot de passe puis rétablir le rôle leur donnerait
+sinon un approbateur, sans que la demande seule le montre. Un autre administrateur la dépose et
+l'approuve.
+
+L'annuaire (SCIM) peut encore accorder Champion sécurité, hors de cette file ; voir
+[SSO](sso.fr.md). Et un approbateur que le demandeur a
+créé, réinitialisé ou changé de rôle récemment est refusé, comme pour un triage — voir
+[Double validation](four-eyes.fr.md#an-approver-the-requester-administered).
+
+Chaque demande est inscrite comme `ACCOUNT_REQUEST_FILED`, puis `ACCOUNT_REQUEST_APPROVED` ou
+`ACCOUNT_REQUEST_REJECTED`, à côté de l'entrée `USER_UPDATED` de la modification elle-même, qui nomme
+les deux administrateurs. Les routes sont `GET /api/v1/account-requests`, et `POST
+/api/v1/account-requests/{id}/approve` et `/reject`, pour les administrateurs ; une modification
+soumise répond `202` avec la demande.
+
 ## Rôles
 
 Les rôles décident de ce qu'une personne peut **faire** ; les équipes décident de ce qu'elle peut

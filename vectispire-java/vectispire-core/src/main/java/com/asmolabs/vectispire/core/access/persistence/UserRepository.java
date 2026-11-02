@@ -39,6 +39,21 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     long countActiveAdministratorsExcluding(
             @Param("adminRoles") List<String> adminRoles, @Param("excluding") Long excluding);
 
+    /** How many administrators there are apart from this one, deactivated ones included. */
+    @Query("""
+            select count(u) from UserEntity u
+             where u.role in :adminRoles and u.id <> :excluding""")
+    long countAdministratorsExcluding(
+            @Param("adminRoles") List<String> adminRoles, @Param("excluding") Long excluding);
+
+    /**
+     * {@code select … for update} on one account, held until the caller's transaction ends: two administrators
+     * filing a change to it at once are ordered, and the second sees the first one's request.
+     */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where u.id = :id")
+    Optional<UserEntity> lockById(@Param("id") Long id);
+
     /**
      * How many active accounts hold a local password — the ones that sign in by it while no provider
      * is configured. A SCIM-provisioned account holds one nobody knows and is counted all the same:
