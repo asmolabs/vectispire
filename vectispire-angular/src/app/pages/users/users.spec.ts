@@ -48,6 +48,8 @@ describe('the accounts screen', () => {
         total: 2
     });
 
+    const NO_REQUESTS = asSchema('AccountRequestListing', { requests: [], total: 0 });
+
     const TARGETS = asSchema('Targets', {
         repositories: [{ id: 7, label: 'helios-portal' }],
         containers: [{ id: 3, label: 'registry/service:1.4' }]
@@ -111,6 +113,8 @@ describe('the accounts screen', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
         http.expectOne((call) => call.url === '/api/v1/users').flush(LIST);
+        // Nothing waiting, so the cases that are not about four-eyes see the screen they always did.
+        http.expectOne((call) => call.url === '/api/v1/account-requests').flush(NO_REQUESTS);
 
         // The target list and the visibility mode, asked for by the constructor for the visibility
         // dialog. Emptied here so cases that are not about them stay readable — and the default is
@@ -505,6 +509,223 @@ describe('the accounts screen', () => {
             http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(ENROLLED);
 
             expect(fixture.componentInstance.secondFactorVisible()).toBe(false);
+        });
+    });
+    /**
+     * Four-eyes on account gestures. The server files a creation with a role that acts, a raise to one
+     * and a reset of such an account's password for a second administrator, answering 202 with the
+     * request and changing nothing — a screen that read that answer as a success closed its dialog on
+     * a change that had not happened.
+     */
+    describe('account changes waiting for a second administrator', () => {
+        /** One filed by another administrator (9), and one the current account (1) filed itself. */
+        const PENDING = asSchema('AccountRequestListing', {
+            requests: [
+                asSchema('AccountRequestView', {
+                    id: 41,
+                    kind: 'create',
+                    accountId: null,
+                    username: 'erin',
+                    email: null,
+                    displayName: null,
+                    heldRole: null,
+                    requestedRole: 'ADMIN',
+                    passwordReset: true,
+                    requestedById: 9,
+                    requestedBy: 'second-admin',
+                    requestedAt: '2026-10-30T09:15:00Z'
+                }),
+                asSchema('AccountRequestView', {
+                    id: 42,
+                    kind: 'change',
+                    accountId: 2,
+                    username: 'reader',
+                    email: null,
+                    displayName: null,
+                    heldRole: 'USER',
+                    requestedRole: 'CISO',
+                    passwordReset: true,
+                    requestedById: 1,
+                    requestedBy: 'admin',
+                    requestedAt: '2026-10-31T14:00:00Z'
+                })
+            ],
+            total: 2
+        });
+
+        const FILED = asSchema('AccountRequestView', {
+            id: 43,
+            kind: 'create',
+            accountId: null,
+            username: 'erin',
+            email: null,
+            displayName: null,
+            heldRole: null,
+            requestedRole: 'CISO',
+            passwordReset: true,
+            requestedById: 1,
+            requestedBy: 'admin',
+            requestedAt: '2026-11-01T08:00:00Z'
+        });
+
+        const row = (id: number) => document.querySelector<HTMLElement>(`#account-requests tr[data-request="${id}"]`);
+        const button = (id: number, kind: 'approve' | 'reject' | 'withdraw') =>
+            row(id)?.querySelector<HTMLButtonElement>(`.request-${kind} button`) ?? null;
+
+        /** Both lists read again, as after every decision: the accounts, then what still waits. */
+        function answerReload(requests = PENDING): void {
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(LIST);
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/account-requests').flush(requests);
+        }
+
+        async function showPending(): Promise<void> {
+            useEnglish();
+            fixture.autoDetectChanges();
+            fixture.componentInstance.reload();
+            answerReload();
+            await fixture.whenStable();
+        }
+
+        it('is not shown while nothing waits', async () => {
+            useEnglish();
+            fixture.autoDetectChanges();
+            await fixture.whenStable();
+
+            expect(document.querySelector('#account-requests')).toBeNull();
+        });
+
+        it('says what each request asks, who asked and when', async () => {
+            await showPending();
+
+            expect(row(41)?.textContent).toContain('Creation of erin with the role Administrator');
+            expect(row(41)?.textContent).toContain('second-admin');
+            expect(row(41)?.textContent).toContain('30/10/2026');
+            // A change asking a role and a password says both: approving it applies both.
+            expect(row(42)?.textContent).toContain('reader: role User → CISO / Security Lead');
+            expect(row(42)?.textContent).toContain('reader: password reset');
+        });
+
+        it("approves another administrator's request, then reads both lists again", async () => {
+            await showPending();
+
+            button(41, 'approve')!.click();
+            await fixture.whenStable();
+            http.expectOne(
+                (call) => call.method === 'POST' && call.url === '/api/v1/account-requests/41/approve'
+            ).flush(asSchema('UserAdminSummary', { ...LIST.users[1], id: 7, username: 'erin', role: 'ADMIN' }));
+            answerReload(asSchema('AccountRequestListing', { requests: [PENDING.requests[1]], total: 1 }));
+            await fixture.whenStable();
+
+            expect(row(41)).toBeNull();
+        });
+
+        it("rejects another administrator's request", async () => {
+            await showPending();
+
+            button(41, 'reject')!.click();
+            await fixture.whenStable();
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/account-requests/41/reject').flush(
+                null,
+                { status: 204, statusText: 'No Content' }
+            );
+            answerReload(asSchema('AccountRequestListing', { requests: [PENDING.requests[1]], total: 1 }));
+            await fixture.whenStable();
+
+            expect(row(41)).toBeNull();
+        });
+
+        it('offers no approval of one’s own request — only its withdrawal, which is a rejection', async () => {
+            await showPending();
+
+            // The server refuses a requester approving: a button that can only be refused reads as a fault.
+            expect(button(42, 'approve')).toBeNull();
+            expect(button(42, 'reject')).toBeNull();
+            expect(button(42, 'withdraw')?.textContent).toContain('Withdraw');
+            expect(button(41, 'withdraw')).toBeNull();
+
+            button(42, 'withdraw')!.click();
+            await fixture.whenStable();
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/account-requests/42/reject').flush(
+                null,
+                { status: 204, statusText: 'No Content' }
+            );
+            answerReload();
+        });
+
+        it("shows the server's refusal, in its words, and reads the requests again", async () => {
+            await showPending();
+
+            button(41, 'approve')!.click();
+            await fixture.whenStable();
+            http.expectOne((call) => call.url === '/api/v1/account-requests/41/approve').flush(
+                {
+                    type: 'about:blank',
+                    title: 'Conflict',
+                    status: 409,
+                    code: 'approver-not-independent',
+                    detail: 'second-admin reset your password four days ago: approve with another administrator.'
+                },
+                { status: 409, statusText: 'Conflict' }
+            );
+            answerReload();
+            await fixture.whenStable();
+
+            expect(document.body.textContent).toContain('reset your password four days ago');
+        });
+
+        it('says a creation was filed rather than made, and does not read the 202 as a success', async () => {
+            useEnglish();
+            fixture.autoDetectChanges();
+            const page = fixture.componentInstance;
+            page.openForm();
+            page.form = { username: 'erin', displayName: '', role: 'CISO', password: 'a long passphrase' };
+            page.submit();
+
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/users').flush(FILED, {
+                status: 202,
+                statusText: 'Accepted'
+            });
+            answerReload(asSchema('AccountRequestListing', { requests: [FILED], total: 1 }));
+            await fixture.whenStable();
+
+            expect(page.formVisible()).toBe(false);
+            expect(document.querySelector('#account-request-filed')?.textContent).toContain(
+                "waits for another administrator's approval"
+            );
+            expect(row(43)?.textContent).toContain('Creation of erin with the role CISO / Security Lead');
+        });
+
+        it('says nothing waits when the server applied the change (200)', () => {
+            const page = fixture.componentInstance;
+            page.changeRole(LIST.users[1], 'AUDITOR');
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/2').flush(
+                asSchema('UserAdminSummary', { ...LIST.users[1], role: 'AUDITOR' })
+            );
+            answerReload(NO_REQUESTS);
+
+            expect(page.notice()).toBeNull();
+        });
+
+        it('says a role raise or a reset was filed when the server answers 202', () => {
+            const page = fixture.componentInstance;
+            page.changeRole(LIST.users[1], 'CISO');
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/2').flush(
+                PENDING.requests[1],
+                { status: 202, statusText: 'Accepted' }
+            );
+            answerReload();
+            expect(page.notice()).toBe('users.request_filed');
+
+            page.openReset(LIST.users[1]);
+            page.resetPassword = 'another long passphrase';
+            page.confirmReset();
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/2').flush(
+                PENDING.requests[1],
+                { status: 202, statusText: 'Accepted' }
+            );
+            answerReload();
+            expect(page.resetVisible()).toBe(false);
+            expect(page.notice()).toBe('users.request_filed');
         });
     });
 });

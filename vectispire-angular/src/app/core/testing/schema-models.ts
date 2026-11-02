@@ -18,6 +18,8 @@ import type * as Models from '../api.models';
  * claims from its first fixture. A schema the client does not model is checked at run time only.
  */
 export interface SchemaModels {
+    AccountRequestListing: Models.AccountRequestList;
+    AccountRequestView: Models.AccountRequest;
     AgentActivitySummary: Models.AgentActivitySummary;
     AgentCreateRequest: Models.NewAgent;
     AgentSummary: Models.AgentSummary;

@@ -94,12 +94,46 @@ the target exists. `AuthorizationCoverageTest` catches a route that forgets.
   every administrator administer accounts. With four-eyes off, one of them can create an account
   holding a role that triages and settles — a CISO, a security champion — or reset the password of an
   existing one, sign in as it with the temporary password, and act under its name; the governor's
-  "operates nothing" holds for its own account, not for the ones it can create. Four-eyes on narrows
-  this without closing it: the second identity an approval needs can be one the requester's
-  administrator made. What remains is detection, not prevention — each step is in the audit log
-  (`USER_CREATED`, `USER_UPDATED` for a role change or a password reset, then the triage under the
-  other name), and a reset account must change its password at its next sign-in. Read the account
-  administration entries beside the triage approvals when reviewing a dismissal.
+  "operates nothing" holds for its own account, not for the ones it can create. That is detection, not
+  prevention — each step is in the audit log, and a reset account must change its password at its next
+  sign-in — and with four-eyes off it stays so: a single person may then settle anything directly.
+- **Under four-eyes, an account change that makes an approver takes two administrators** (1.0.0-rc.1,
+  #126 option 2). Creating an account with a role that approves (`Role.approves()`: ADMIN, CISO,
+  SECURITY_CHAMPION, and SUPERUSER, which approves account requests), raising a role to one, and
+  resetting the password of an account that holds one are filed in `t_account_request` (V100) instead of
+  applied: the route answers `202` with the request, and `/api/v1/account-requests` lists, approves and
+  rejects it. The requester cannot approve it (`409`, `own-account-request`), nobody approves a change to
+  their own account, and the change is checked again with the approver acting — an administrator cannot
+  approve the creation of a governor. The temporary password is stored only as its hash until the
+  approval sets it. Activation, deactivation, target grants and roles that approve nothing still apply
+  at once: taking a privilege away must stay easy. **An administrator alone is not locked out**: with no
+  other administrator — deactivated ones count, and so does one lowered out of an administrative role
+  within the window (at least 30 days), so deactivating or lowering the others does not make one alone —
+  the change applies at once, and its audit entry says so; otherwise a fresh installation, whose only
+  account is the governor, could never be staffed. Two orderings are closed as well: a raise to an
+  approving role is refused (`409`, `password-known-to-administrator`) when its requester or its
+  approver created the account or reset its password within the window — lower, reset, raise would
+  otherwise hand them an approver the request does not reveal — and a request whose requester is no
+  longer an active administrator cannot be approved; a password reset of an account with a change pending
+  waits for that change to be decided.
+- **Under four-eyes, an approver the requester administered recently is refused** (1.0.0-rc.1, #126
+  option 1). `t_account_administration` (V100) records, in the transaction of each gesture, which
+  administrator created an account, reset its password or changed its role, and when — the audit log
+  says the same in sentences, which a guard cannot rely on. `ApproverIndependence` refuses a triage
+  approval or an account-request approval whose requester did one of the three to the approver's
+  account within `four_eyes_independence_days` (30 by default; a governor-only setting, `0` switches it
+  off, at most 3650): `409`, code `approver-not-independent`, with the members `gesture` and
+  `windowDays`. Both administrators behind an approved account request count as having administered it.
+  For an account request the question is asked both ways — an administrator the approver made could be
+  the approver's own second name; for a triage only the requester's way, since an approver settles
+  directly and refusing it would refuse every administrator who staffed the team they review.
+- **What still remains.** The window starts filling at the upgrade: gestures made before it are in the
+  audit log only. After the window, an account an administrator made can approve that administrator's
+  requests; an administrator who deletes every other administrator acts alone, which the audit log and
+  the SIEM show (`USER_DELETED`); two creations of one username filed at once both wait, and the second
+  approved fails on the username's unique key; and the directory (SCIM) can still grant SECURITY_CHAMPION, a role that approves,
+  outside both checks. Read the account administration entries (`ACCOUNT_REQUEST_*`, `USER_UPDATED`)
+  beside the triage approvals when reviewing a dismissal.
 - **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256
   hash-chained audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
 - **USER / SECURITY_CHAMPION**: Posture dashboard inspection and vulnerability triage. A

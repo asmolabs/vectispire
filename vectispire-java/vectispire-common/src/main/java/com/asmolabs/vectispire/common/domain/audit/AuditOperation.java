@@ -24,6 +24,19 @@ public enum AuditOperation {
     USER_UPDATED,
     USER_PASSWORD_RESET,
     USER_DELETED,
+
+    /**
+     * Under four-eyes, an account change that makes an approver was filed for a second administrator rather
+     * than applied: an account created with an approving role, a role raised to one, the password of an
+     * account holding one reset (#126, option 2). Under the request's id.
+     */
+    ACCOUNT_REQUEST_FILED,
+
+    /** A second administrator approved an account request; the change itself is the {@code USER_UPDATED} beside it. */
+    ACCOUNT_REQUEST_APPROVED,
+
+    /** An administrator turned an account request down, or its requester withdrew it: nothing was applied. */
+    ACCOUNT_REQUEST_REJECTED,
     API_KEY_CREATED,
     API_KEY_DELETED,
     SETTING_UPDATED,

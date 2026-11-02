@@ -203,5 +203,20 @@ class SettingTest {
             assertThat(SettingType.TEXT.validate("anything at all")).isEmpty();
             assertThat(SettingType.TEXT.validate("")).isEmpty();
         }
+
+        @Test
+        @DisplayName("the approver independence window is the governor's, and bounded above")
+        void theIndependenceWindowIsBounded() {
+            // Two billion days reach before the first instant there is: the approval would fail with a
+            // 500 rather than refuse in words.
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("0")).isEmpty();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("3650")).isEmpty();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("3651")).isPresent();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("2147483647")).isPresent();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.validate("-1")).isPresent();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.defaultValue()).isEqualTo("30");
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.governorOnly()).isTrue();
+            assertThat(Setting.FOUR_EYES_INDEPENDENCE_DAYS.governsSecurity()).isTrue();
+        }
     }
 }

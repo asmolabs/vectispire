@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import type { Observable } from 'rxjs';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -12,10 +13,11 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { AccountsApi } from '../../core/api/accounts.api';
+import { AccountChange, AccountsApi } from '../../core/api/accounts.api';
 import { SettingsApi } from '../../core/api/settings.api';
 import { SolutionsApi } from '../../core/api/solutions.api';
 import type {
+    AccountRequest,
     ApiKeyTargets,
     SolutionTree,
     TargetGrant,
@@ -94,6 +96,33 @@ export class Users {
     readonly secondFactorVisible = signal(false);
     readonly pendingSecondFactor = signal<UserSummary | null>(null);
     readonly isEmpty = computed(() => this.users().length === 0);
+
+    /**
+     * The account gestures four-eyes holds for a second administrator. Shown above the accounts,
+     * because the list below still shows each account as it was: a role change that waits reads, on
+     * the row, as a change that did not happen.
+     */
+    readonly requests = signal<AccountRequest[]>([]);
+    /**
+     * Each request with its roles named and whether it is the caller's own, worked out per list, language or
+     * reader — as `rows` is for the accounts — rather than by method calls on every pass.
+     */
+    readonly requestRows = computed(() =>
+        this.requests().map((request) => ({
+            ...request,
+            own: this.isOwnRequest(request),
+            heldLabel: this.roleLabel(request.heldRole),
+            requestedLabel: this.roleLabel(request.requestedRole)
+        }))
+    );
+    readonly requestsError = signal<string | null>(null);
+    /** The request being approved or rejected: one decision at a time on each. */
+    readonly requestBusy = signal<number | null>(null);
+    /**
+     * Said after a gesture the server filed rather than applied (202). Without it the dialog closed
+     * as on a success and the list came back unchanged, which reads as a change silently lost.
+     */
+    readonly notice = signal<string | null>(null);
 
     form = { username: '', displayName: '', role: 'USER', password: '' };
     resetPassword = '';
@@ -235,6 +264,7 @@ export class Users {
      * nothing. It only shows by clicking.
      */
     reload(preserveError = false): void {
+        this.reloadRequests();
         this.loading.set(true);
         this.accountsApi.users().subscribe({
             next: (result) => {
@@ -251,6 +281,69 @@ export class Users {
         });
     }
 
+    /** Kept apart from the accounts: a failure here must not hide the list the screen is about. */
+    private reloadRequests(): void {
+        this.accountsApi.accountRequests().subscribe({
+            next: (result) => {
+                this.requests.set(result.requests ?? []);
+                this.requestsError.set(null);
+            },
+            error: (response) => this.requestsError.set(messageOf(response, this.i18n.t('users.requests_error_load')))
+        });
+    }
+
+    /** The role's label, or the value as sent when the client does not know it. */
+    private roleLabel(role: string | null): string {
+        if (role == null) return '';
+        return this.roles().find((option) => option.value === role)?.label ?? role;
+    }
+
+    /** One's own request is withdrawn, never approved: the server refuses that, and a second pair of eyes is the point. */
+    private isOwnRequest(request: AccountRequest): boolean {
+        const me = this.currentUserId();
+        return me != null && request.requestedById === me;
+    }
+
+    approveRequest(request: AccountRequest): void {
+        this.decide(request, this.accountsApi.approveAccountRequest(request.id), 'users.requests_error_approve');
+    }
+
+    rejectRequest(request: AccountRequest): void {
+        this.decide(request, this.accountsApi.rejectAccountRequest(request.id), 'users.requests_error_reject');
+    }
+
+    /**
+     * Both lists are read again whatever the answer: an approval changes an account, and a refusal
+     * (already decided, stale, an approver not independent of the requester) usually means the
+     * request on screen is not the one the server holds.
+     */
+    private decide(
+        request: AccountRequest,
+        call: Observable<unknown>,
+        fallback: 'users.requests_error_approve' | 'users.requests_error_reject'
+    ): void {
+        if (this.requestBusy() != null) return;
+        this.requestBusy.set(request.id);
+        this.error.set(null);
+        this.notice.set(null);
+        call.subscribe({
+            next: () => {
+                this.requestBusy.set(null);
+                this.reload();
+            },
+            error: (response) => {
+                this.requestBusy.set(null);
+                this.error.set(messageOf(response, this.i18n.t(fallback)));
+                this.reload(true);
+            }
+        });
+    }
+
+    /** Says so when the server filed the gesture for a second administrator rather than applying it. */
+    private announce(change: AccountChange): void {
+        this.notice.set(change.applied ? null : this.i18n.t('users.request_filed'));
+    }
+
     changeRole(user: UserSummary, role: string): void {
         if (role === user.role) return;
         this.patch(user, { role });
@@ -263,8 +356,10 @@ export class Users {
     private patch(user: UserSummary, body: { role?: string; is_active?: boolean; password?: string }): void {
         this.busy.set(user.id);
         this.error.set(null);
+        this.notice.set(null);
         this.accountsApi.updateUser(user.id, body).subscribe({
-            next: () => {
+            next: (change) => {
+                this.announce(change);
                 this.busy.set(null);
                 this.reload();
             },
@@ -291,6 +386,7 @@ export class Users {
         // Enter in a field submits the form too: one request at a time.
         if (this.saving()) return;
         this.saving.set(true);
+        this.notice.set(null);
         this.accountsApi
             .createUser({
                 username: this.form.username.trim(),
@@ -299,7 +395,8 @@ export class Users {
                 display_name: this.form.displayName.trim() || undefined
             })
             .subscribe({
-                next: () => {
+                next: (change) => {
+                    this.announce(change);
                     this.saving.set(false);
                     this.formVisible.set(false);
                     this.reload();
@@ -322,8 +419,10 @@ export class Users {
         const user = this.pendingReset();
         if (!user) return;
         this.saving.set(true);
+        this.notice.set(null);
         this.accountsApi.updateUser(user.id, { password: this.resetPassword }).subscribe({
-            next: () => {
+            next: (change) => {
+                this.announce(change);
                 this.saving.set(false);
                 this.resetVisible.set(false);
                 this.reload();

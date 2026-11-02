@@ -102,12 +102,51 @@ que la cible existe. `AuthorizationCoverageTest` attrape la route qui l'oublie.
   créer un compte doté d'un rôle qui qualifie et clôt — un RSSI, un champion sécurité — ou
   réinitialiser le mot de passe d'un compte existant, s'y connecter avec le mot de passe temporaire,
   et agir sous son nom ; le « n'opère rien » du super-administrateur vaut pour son propre compte, pas
-  pour ceux qu'il peut créer. La double validation activée réduit cela sans le fermer : la seconde
-  identité qu'exige une approbation peut être un compte créé par l'administrateur du demandeur. Reste
-  la détection, pas la prévention — chaque étape figure au journal d'audit (`USER_CREATED`,
-  `USER_UPDATED` pour un changement de rôle ou une réinitialisation, puis la qualification sous
-  l'autre nom), et un compte réinitialisé doit changer son mot de passe à sa connexion suivante.
-  Lisez les entrées d'administration des comptes à côté des approbations de qualification quand vous
+  pour ceux qu'il peut créer. C'est de la détection, pas de la prévention — chaque étape figure au
+  journal d'audit, et un compte réinitialisé doit changer son mot de passe à sa connexion suivante —
+  et double validation désactivée, cela le reste : une seule personne peut alors tout clore seule.
+- **Sous double validation, une modification de compte qui fait un approbateur exige deux
+  administrateurs** (1.0.0-rc.1, #126 option 2). Créer un compte doté d'un rôle qui approuve
+  (`Role.approves()` : ADMIN, CISO, SECURITY_CHAMPION, et SUPERUSER, qui approuve les demandes de
+  compte), élever un rôle vers l'un d'eux, et réinitialiser le mot de passe d'un compte qui en détient
+  un sont déposés dans `t_account_request` (V100) au lieu d'être appliqués : la route répond `202` avec
+  la demande, et `/api/v1/account-requests` la liste, l'approuve ou la refuse. Le demandeur ne peut pas
+  l'approuver (`409`, `own-account-request`), personne n'approuve une modification de son propre
+  compte, et la modification est vérifiée à nouveau avec l'approbateur comme acteur — un administrateur
+  ne peut pas approuver la création d'un super-administrateur. Le mot de passe temporaire n'est conservé
+  que sous forme d'empreinte jusqu'à ce que l'approbation le pose. L'activation, la désactivation, les
+  attributions de cibles et les rôles qui n'approuvent rien s'appliquent toujours aussitôt : retirer un
+  privilège doit rester facile. **Un administrateur seul n'est pas bloqué** : sans autre administrateur
+  — les comptes désactivés comptent, et aussi un compte sorti d'un rôle d'administration dans la fenêtre
+  (30 jours au moins), si bien que désactiver ou rétrograder les autres ne rend pas seul — la
+  modification s'applique aussitôt et son entrée d'audit le dit ; sinon une installation neuve, dont le
+  seul compte est le super-administrateur, ne pourrait jamais être dotée. Deux enchaînements sont
+  fermés aussi : une élévation vers un rôle qui approuve est refusée (`409`,
+  `password-known-to-administrator`) quand son demandeur ou son approbateur a créé le compte ou
+  réinitialisé son mot de passe dans la fenêtre — abaisser, réinitialiser, élever leur donnerait sinon
+  un approbateur que la demande ne révèle pas — et une demande dont le demandeur n'est plus un
+  administrateur actif ne peut pas être approuvée ; la réinitialisation du mot de passe d'un compte dont
+  une modification attend attend qu'elle soit décidée.
+- **Sous double validation, un approbateur que le demandeur a administré récemment est refusé**
+  (1.0.0-rc.1, #126 option 1). `t_account_administration` (V100) enregistre, dans la transaction de
+  chaque geste, quel administrateur a créé un compte, réinitialisé son mot de passe ou changé son rôle,
+  et quand — le journal d'audit dit la même chose en phrases, sur lesquelles un contrôle ne peut pas
+  s'appuyer. `ApproverIndependence` refuse une approbation de qualification ou de demande de compte dont
+  le demandeur a fait l'un des trois au compte de l'approbateur depuis moins de
+  `four_eyes_independence_days` jours (30 par défaut ; un paramètre du seul super-administrateur, `0`
+  désactive le contrôle, 3650 au plus) : `409`, code `approver-not-independent`, avec les membres
+  `gesture` et `windowDays`. Les deux administrateurs d'une demande de compte approuvée comptent comme
+  l'ayant administré. Pour une demande de compte, la question est posée dans les deux sens — un
+  administrateur que l'approbateur a créé pourrait être son propre second nom ; pour un triage, dans le
+  sens du demandeur seulement, puisqu'un approbateur clôt directement et que le refuser refuserait tout
+  administrateur ayant doté l'équipe qu'il relit.
+- **Ce qui reste.** La fenêtre commence à se remplir à la mise à jour : les gestes antérieurs ne
+  figurent qu'au journal d'audit. Passé la fenêtre, un compte qu'un administrateur a créé peut approuver
+  ses demandes ; un administrateur qui supprime tous les autres administrateurs agit seul, ce que
+  montrent le journal d'audit et le SIEM (`USER_DELETED`) ; deux créations d'un même nom déposées en même
+  temps attendent toutes deux, et la seconde approuvée échoue sur la clé unique du nom ; et l'annuaire (SCIM) peut encore accorder
+  SECURITY_CHAMPION, un rôle qui approuve, hors des deux contrôles. Lisez les entrées d'administration
+  des comptes (`ACCOUNT_REQUEST_*`, `USER_UPDATED`) à côté des approbations de qualification quand vous
   examinez une dérogation.
 - **Audit des Modifications** : Tout changement de l'option de double validation est immédiatement
   consigné dans le journal d'audit chaîné par empreintes SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur

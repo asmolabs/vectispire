@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpResponse } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
 import {
+    AccountRequest,
+    AccountRequestList,
     ApiKeySummary,
     ApiKeyTargets,
     IssuedApiKey,
@@ -15,6 +17,20 @@ import {
     UserPatch,
     UserSummary
 } from '../api.models';
+
+/**
+ * What an account gesture came to. Under four-eyes, creating an account with a role that acts, raising
+ * a role to one, or resetting such an account's password is filed for a second administrator: the
+ * server answers 202 with the request and has changed nothing yet. Told apart here, by status, so a
+ * screen cannot read a filed request as an applied change — the body alone would let it.
+ */
+export type AccountChange = { applied: true; user: UserSummary } | { applied: false; request: AccountRequest };
+
+function outcome(response: HttpResponse<UserSummary | AccountRequest>): AccountChange {
+    return response.status === 202
+        ? { applied: false, request: response.body as AccountRequest }
+        : { applied: true, user: response.body as UserSummary };
+}
 
 /**
  * Who can call and what they see: users, teams, API keys, and the targets each is granted.
@@ -33,12 +49,31 @@ export class AccountsApi {
         return this.http.get<UserList>('/api/v1/users');
     }
 
-    createUser(user: NewUser): Observable<UserSummary> {
-        return this.http.post<UserSummary>('/api/v1/users', user);
+    createUser(user: NewUser): Observable<AccountChange> {
+        return this.http
+            .post<UserSummary | AccountRequest>('/api/v1/users', user, { observe: 'response' })
+            .pipe(map(outcome));
     }
 
-    updateUser(id: number, patch: UserPatch): Observable<UserSummary> {
-        return this.http.patch<UserSummary>(`/api/v1/users/${id}`, patch);
+    updateUser(id: number, patch: UserPatch): Observable<AccountChange> {
+        return this.http
+            .patch<UserSummary | AccountRequest>(`/api/v1/users/${id}`, patch, { observe: 'response' })
+            .pipe(map(outcome));
+    }
+
+    /** The account gestures waiting for a second administrator, the caller's own included. */
+    accountRequests(): Observable<AccountRequestList> {
+        return this.http.get<AccountRequestList>('/api/v1/account-requests');
+    }
+
+    /** Applies a request another administrator filed, and answers the account as it stands afterwards. */
+    approveAccountRequest(id: number): Observable<UserSummary> {
+        return this.http.post<UserSummary>(`/api/v1/account-requests/${id}/approve`, null);
+    }
+
+    /** Drops a request — a refusal, or a withdrawal when the caller filed it. */
+    rejectAccountRequest(id: number): Observable<void> {
+        return this.http.post<void>(`/api/v1/account-requests/${id}/reject`, null);
     }
 
     /** Clears another account's second factor and closes its sessions — never one's own. */

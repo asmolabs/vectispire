@@ -424,6 +424,16 @@ Ce qui suit est par rapport à la 0.11.2.
 D'une revue complète de `develop` avant cette version. Chaque constat est corrigé, ou documenté comme
 risque résiduel là où une correction serait une décision à part entière :
 
+- **Double validation : la seconde identité n'est plus une que le demandeur a fabriquée.** Une
+  approbation — d'un triage ou d'une modification de compte — est refusée (`409`,
+  `approver-not-independent`) quand son demandeur a créé le compte de l'approbateur, réinitialisé son mot
+  de passe ou changé son rôle dans les 30 derniers jours (`four_eyes_independence_days`, réservé au
+  gouverneur de la plateforme). Et créer un compte doté d'un rôle qui approuve, élever un rôle vers l'un
+  d'eux ou réinitialiser le mot de passe d'un compte qui en détient un attend désormais un second
+  administrateur : `POST` et `PATCH /api/v1/users` répondent `202` avec la demande, que
+  `/api/v1/account-requests` liste, approuve et refuse, et que l'écran des utilisateurs affiche. Un
+  administrateur seul l'applique toujours aussitôt. Double validation désactivée, rien ne change
+  ([Double validation](../administration/four-eyes.fr.md#an-approver-the-requester-administered)).
 - **Le verrouillage de connexion est par client.** Le plafond de cinq échecs compte les échecs d'un compte
   depuis un client, à côté d'un plafond de cinquante depuis tous les clients ensemble, contre les essais
   répartis sur plusieurs machines. Qui connaît le nom d'un compte ne peut plus en tenir le titulaire

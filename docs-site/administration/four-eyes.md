@@ -47,6 +47,34 @@ audit entry as the only trace. Removing the right to approve would not have clos
 service settles everyone's decision when the setting is off. What closes it is that **no role
 holds both halves**: the one that can lift the rule cannot act under it.
 
+## An approver the requester administered
+
+Two names are not two people when the requester made the second one. With four-eyes on, an approval
+is **refused when its requester, within the last 30 days, created the approver's account, reset its
+password or changed its role** — an administrator who later asks for an exemption as an ordinary
+account cannot have it approved by the account they just made, or whose password they typed. The
+refusal is a `409` with the code `approver-not-independent`
+(`urn:vectispire:problem:approver-not-independent`) and the members `gesture` (`created`,
+`password_reset` or `role_changed`) and `windowDays`. Somebody else approves instead, or the same
+account once the window has passed.
+
+The window is **Approver independence window (days)** in **Settings → VEX triage and approval**,
+30 unless set, and like the switch itself only the platform governor changes it; `0` switches the
+check off, and it is at most 3650. It applies to triage approvals and to the
+[account changes waiting for a second administrator](users-and-teams.md#changes-that-wait-for-a-second-administrator).
+The gestures are recorded from the upgrade to 1.0 on: one made before it is in the audit log only.
+For an account change the question is asked both ways: an approver who created the requester's
+account, reset its password or changed its role is refused too, since an administrator one made could be
+one's own second name. With four-eyes off, nothing is checked.
+
+## Account changes take two administrators
+
+With four-eyes on, creating an account with a role that approves, raising a role to one, and
+resetting the password of an account that holds one wait for a second administrator, who approves or
+rejects them on the Users screen —
+[Users and teams](users-and-teams.md#changes-that-wait-for-a-second-administrator) describes the
+queue. Without it, one administrator could make the second identity an approval needs.
+
 ## Switching it on requires that a second person exist
 
 If no active account can approve, the server refuses to enable it. Without that guard, switching
