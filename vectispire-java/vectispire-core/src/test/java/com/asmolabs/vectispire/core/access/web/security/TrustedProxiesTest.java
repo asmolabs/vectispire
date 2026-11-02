@@ -5,6 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -78,10 +80,14 @@ class TrustedProxiesTest {
     @DisplayName("X-Forwarded-For, which decides who is rate-limited")
     class ForwardedFor {
 
-        private static HttpServletRequest withForwardedFor(String peer, String forwarded) {
+        /** One argument per header line, as a container hands them to {@code getHeaders}. */
+        private static HttpServletRequest withForwardedFor(String peer, String... lines) {
             HttpServletRequest request = mock(HttpServletRequest.class);
             when(request.getRemoteAddr()).thenReturn(peer);
-            when(request.getHeader("X-Forwarded-For")).thenReturn(forwarded);
+            // The first line alone, where a reader of `getHeader` would look.
+            when(request.getHeader("X-Forwarded-For")).thenReturn(lines.length == 0 ? null : lines[0]);
+            when(request.getHeaders("X-Forwarded-For"))
+                    .thenAnswer(invocation -> Collections.enumeration(List.of(lines)));
             return request;
         }
 
@@ -101,6 +107,69 @@ class TrustedProxiesTest {
 
             assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "198.51.100.7, 10.0.0.2")))
                     .isEqualTo("198.51.100.7");
+        }
+
+        /**
+         * A proxy that appends its hop as a line of its own (HAProxy's {@code option forwardfor})
+         * leaves the client's line first. Read alone, its last entry was taken for the hop behind the
+         * trusted chain — chosen by the client, a fresh bucket per request.
+         */
+        @Test
+        @DisplayName("every header line is read, in order, so a line the client wrote first chooses nothing")
+        void everyLineInOrder() {
+            TrustedProxies proxies = new TrustedProxies("10.0.0.0/8");
+
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "1.2.3.4", "198.51.100.7")))
+                    .isEqualTo("198.51.100.7");
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "1.2.3.4, 5.6.7.8", "198.51.100.7, 10.0.0.2")))
+                    .isEqualTo("198.51.100.7");
+        }
+
+        @Test
+        @DisplayName("an IPv4 hop with a port is the address, and a trusted one with a port is still trusted")
+        void ipv4WithAPort() {
+            TrustedProxies proxies = new TrustedProxies("10.0.0.0/8");
+
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "198.51.100.7:51234")))
+                    .isEqualTo("198.51.100.7");
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "198.51.100.7:51234, 10.0.0.2:443")))
+                    .isEqualTo("198.51.100.7");
+        }
+
+        @Test
+        @DisplayName("a bracketed IPv6 hop with a port is the address")
+        void bracketedIpv6WithAPort() {
+            TrustedProxies proxies = new TrustedProxies("10.0.0.0/8, fd00::/8");
+
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "[2001:db8::7]:51234")))
+                    .isEqualTo("2001:db8::7");
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "[2001:db8::7]:51234, [fd00::2]:443")))
+                    .isEqualTo("2001:db8::7");
+        }
+
+        @Test
+        @DisplayName("a bare IPv6 hop keeps every group: its colons are not a port")
+        void bareIpv6() {
+            TrustedProxies proxies = new TrustedProxies("10.0.0.0/8");
+
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "2001:db8::7")))
+                    .isEqualTo("2001:db8::7");
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "2001:db8:0:0:1:2:3:8080")))
+                    .isEqualTo("2001:db8:0:0:1:2:3:8080");
+            // Its last group reads like a port, and what is left of it like an address: still one address.
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "2001:db8::1:8080")))
+                    .isEqualTo("2001:db8::1:8080");
+        }
+
+        @Test
+        @DisplayName("a hop that is no address is not a client: the trusted proxy that wrote it stands for it")
+        void notAnAddressFallsBackToTheNearestTrustedHop() {
+            TrustedProxies proxies = new TrustedProxies("10.0.0.0/8");
+
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "unknown")))
+                    .isEqualTo("10.0.0.1");
+            assertThat(proxies.clientAddress(withForwardedFor("10.0.0.1", "198.51.100.7, _hidden, 10.0.0.2")))
+                    .isEqualTo("10.0.0.2");
         }
 
         @Test
@@ -128,5 +197,6 @@ class TrustedProxiesTest {
         TrustedProxies proxies = new TrustedProxies("10.0.0.0/8");
 
         assertThat(proxies.isTrusted("not-an-address")).isFalse();
+        assertThat(proxies.isTrusted("10.1.2.3:abc")).isFalse();
     }
 }

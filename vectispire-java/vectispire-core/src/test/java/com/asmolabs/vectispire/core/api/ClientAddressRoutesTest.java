@@ -47,6 +47,23 @@ class ClientAddressRoutesTest extends ApiTestBase {
                 .containsOnly(CLIENT);
     }
 
+    /**
+     * Through the servlet container's own header list: a proxy that appends its hop as a second line,
+     * with the client's source port, after a line the client wrote itself.
+     */
+    @Test
+    @DisplayName("a second header line and a port are read as the proxy wrote them, not as the client did")
+    void theProxysLineNamesTheClient() throws Exception {
+        mvc.perform(authenticated(get("/api/v1/users"), asReader())
+                        .header("X-Forwarded-For", "198.51.100.66", CLIENT + ":51234"))
+                .andExpect(status().isForbidden());
+
+        assertThat(auditLog.findAll())
+                .filteredOn(entry -> AuditOperation.ACCESS_DENIED.wireName().equals(entry.getOperationType()))
+                .extracting(AuditLogEntity::getIpAddress)
+                .containsOnly(CLIENT);
+    }
+
     @Test
     @DisplayName("a refusal the chain audits is recorded with the client's address")
     void aRefusalNamesTheClient() throws Exception {

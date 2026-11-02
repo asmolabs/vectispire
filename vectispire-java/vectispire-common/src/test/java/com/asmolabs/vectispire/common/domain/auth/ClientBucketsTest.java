@@ -26,6 +26,16 @@ class ClientBucketsTest {
         assertThat(ClientBuckets.of("unknown")).isEqualTo("unknown");
     }
 
+    /** A balancer reporting the source port made every connection of one client a client of its own. */
+    @Test
+    @DisplayName("the port a balancer appends is not part of the client")
+    void portsAreDropped() {
+        assertThat(ClientBuckets.of("192.0.2.10:51234"))
+                .isEqualTo(ClientBuckets.of("192.0.2.10:51235"))
+                .isEqualTo("192.0.2.10");
+        assertThat(ClientBuckets.of("[2001:db8:1:2::1]:51234")).isEqualTo(ClientBuckets.of("2001:db8:1:2::1"));
+    }
+
     @Test
     @DisplayName("the login client counter is keyed on the bucket")
     void theLoginCounterFollows() {

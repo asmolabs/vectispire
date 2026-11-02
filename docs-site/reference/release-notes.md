@@ -405,6 +405,13 @@ risk where a fix would be a decision of its own:
   the owner's usual address, or a sign-in sending the second factor with the password (`mfa_code`), gets
   through. Known addresses are kept in the database (V101), each refusal is audited and the log warns
   once per account and quarter of an hour; every ceiling is a `VECTISPIRE_SIGN_IN_*` setting.
+- **Behind a proxy, the client is read from every `X-Forwarded-For` line.** Only the first line was read,
+  so behind a proxy that appends its hop as a line of its own (HAProxy's `option forwardfor`) the client
+  the throttles counted and the audit log named was not the one the proxy saw. Every line is now read, in
+  order; a port after an address (`203.0.113.7:51234`, `[2001:db8::7]:51234`, as some cloud gateways
+  write it) is dropped, so a client is one address whatever its source port; and a value that is no
+  address at all stands for the trusted proxy that wrote it. Nothing to configure: the same
+  `VECTISPIRE_TRUSTED_PROXIES` decides whom to believe.
 - **One reading of the `Authorization` header** for authentication, sessions and the refused-token
   ceiling, so every bearer token meets the ceiling and its audit entry.
 - **A repository URL naming Vectispire's own Docker daemon, database or cluster API is refused**, when it

@@ -446,6 +446,14 @@ risque résiduel là où une correction serait une décision à part entière :
   avec le mot de passe (`mfa_code`), passe. Les adresses connues sont gardées en base (V101), chaque refus
   est audité et le journal avertit une fois par compte et par quart d'heure ; chaque plafond est un
   réglage `VECTISPIRE_SIGN_IN_*`.
+- **Derrière un proxy, le client est lu dans toutes les lignes de `X-Forwarded-For`.** Seule la première
+  ligne était lue : derrière un proxy qui ajoute son passage sur une ligne à lui (`option forwardfor` de
+  HAProxy), le client que comptaient les limiteurs et que nommait le journal d'audit n'était pas celui
+  qu'avait vu le proxy. Toutes les lignes sont désormais lues, dans l'ordre ; un port après une adresse
+  (`203.0.113.7:51234`, `[2001:db8::7]:51234`, comme l'écrivent certaines passerelles cloud) est retiré,
+  pour qu'un client soit une adresse quel que soit son port source ; et une valeur qui n'est pas une
+  adresse vaut pour le proxy de confiance qui l'a écrite. Rien à configurer : le même
+  `VECTISPIRE_TRUSTED_PROXIES` décide qui croire.
 - **Une seule lecture de l'en-tête `Authorization`** pour l'authentification, les sessions et le plafond
   des jetons refusés, de sorte que chaque jeton porteur rencontre ce plafond et son entrée d'audit.
 - **Une URL de dépôt qui nomme le démon Docker, la base de données ou l'API du cluster de Vectispire lui-même
