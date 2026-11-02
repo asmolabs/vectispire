@@ -112,6 +112,29 @@ describe('the sign-in screen', () => {
         expect(fixture.componentInstance.error()).toBe('Too many attempts. Try again in 2 minutes.');
     });
 
+    it("reads the account's spent budget as its own refusal, and sends the code with the password next time", () => {
+        attempt();
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            { code: 'account-throttled', retryAfterSeconds: 600 },
+            { status: 429, statusText: 'Too Many Requests' }
+        );
+
+        const page = fixture.componentInstance;
+        expect(page.accountThrottled()).toBe(true);
+        expect(page.error()).toContain('this device has not signed in to it before');
+        expect(page.error()).toContain('10 minutes');
+
+        page.mfaCode = ' 123456 ';
+        page.submit();
+        const retry = http.expectOne((call) => call.url === '/api/v1/auth/login');
+        expect(retry.request.body).toEqual({
+            username: 'admin',
+            password: 'whatever',
+            mfa_code: '123456'
+        } satisfies Schema<'LoginRequest'>);
+        retry.flush({}, { status: 401, statusText: 'Unauthorized' });
+    });
+
     it('does not blame the password when the server is unreachable', () => {
         attempt();
         http.expectOne((call) => call.url === '/api/v1/auth/login').error(new ProgressEvent('error'), {

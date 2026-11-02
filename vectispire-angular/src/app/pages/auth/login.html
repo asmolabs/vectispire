@@ -102,6 +102,25 @@
                             (keyup.enter)="submit()"
                         />
 
+                        @if (accountThrottled()) {
+                            <label
+                                for="throttledCode"
+                                class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2"
+                                >{{ 'auth.account_throttled_code_label' | translate }}</label
+                            >
+                            <input
+                                pInputText
+                                id="throttledCode"
+                                name="throttledCode"
+                                type="text"
+                                autocomplete="one-time-code"
+                                class="w-full mb-4"
+                                placeholder="123456"
+                                [(ngModel)]="mfaCode"
+                                (keyup.enter)="submit()"
+                            />
+                        }
+
                         @if (error()) {
                             <p-message severity="error" styleClass="w-full mb-4">{{ error() }}</p-message>
                         }

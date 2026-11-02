@@ -114,7 +114,12 @@ public class AuthenticationFlowService {
      * @param ipAddress the client's resolved address, which is also the throttle's second counter
      *     — see {@link AuthService.LoginRequest}
      */
-    public record Attempt(String username, String password, String userAgent, String ipAddress) {}
+    public record Attempt(String username, String password, String userAgent, String ipAddress, String secondFactorCode) {
+
+        public Attempt(String username, String password, String userAgent, String ipAddress) {
+            this(username, password, userAgent, ipAddress, null);
+        }
+    }
 
     /** What a password exchange came to. */
     public sealed interface SignIn {
@@ -122,6 +127,12 @@ public class AuthenticationFlowService {
         record PasswordDisabled() implements SignIn {}
 
         record Throttled(Duration retryAfter) implements SignIn {}
+
+        /**
+         * The account's budget across every client is spent and this client is not one it signs in
+         * from — see {@link AuthService.Outcome.AccountThrottled}.
+         */
+        record AccountThrottled(Duration retryAfter) implements SignIn {}
 
         record Refused() implements SignIn {}
 
@@ -149,11 +160,16 @@ public class AuthenticationFlowService {
             return new SignIn.PasswordDisabled();
         }
 
-        AuthService.LoginResult result = auth.login(new AuthService.LoginRequest(
-                attempt.username(),
-                attempt.password(),
-                attempt.userAgent(),
-                attempt.ipAddress()));
+        String code = attempt.secondFactorCode();
+        AuthService.LoginResult result = auth.login(
+                new AuthService.LoginRequest(
+                        attempt.username(),
+                        attempt.password(),
+                        attempt.userAgent(),
+                        attempt.ipAddress()),
+                code == null || code.isBlank()
+                        ? Optional.empty()
+                        : Optional.of(account -> codeSentWithPassword(account, code, attempt)));
 
         audit.record(new AuditLogService.Record(
                 result.audit().operation(),
@@ -168,6 +184,7 @@ public class AuthenticationFlowService {
 
         return switch (result.outcome()) {
             case AuthService.Outcome.Blocked blocked -> new SignIn.Throttled(blocked.retryAfter());
+            case AuthService.Outcome.AccountThrottled spent -> new SignIn.AccountThrottled(spent.retryAfter());
             case AuthService.Outcome.Invalid ignored -> new SignIn.Refused();
             case AuthService.Outcome.SecondFactorRequired owed -> {
                 // A locked second factor issues no challenge.
@@ -186,6 +203,34 @@ public class AuthenticationFlowService {
             }
             case AuthService.Outcome.Success success -> new SignIn.SignedIn(success.issued(), UserView.of(success.user()));
         };
+    }
+
+    /**
+     * A code sent with the password past the account's spent budget — {@link AuthService#login} asks
+     * only once the password is right. Against the account's budget of wrong codes, as a challenge's
+     * code is, and audited the same way; the caller answers the same refusal whatever went wrong.
+     */
+    private boolean codeSentWithPassword(UserEntity account, String code, Attempt attempt) {
+        AuthService.Reservation reserved = auth.reserveSecondFactor(account.getId());
+        if (!reserved.admitted()) {
+            return false;
+        }
+        if (totp.verify(account, code)) {
+            auth.release(reserved);
+            auth.clearSecondFactorFailures(account.getId());
+            return true;
+        }
+        boolean locked = !auth.secondFactorLockout(account.getId()).isZero();
+        AuditLogService.Record failure = new AuditLogService.Record(
+                AuditOperation.LOGIN_FAILURE,
+                account.getUsername(),
+                "Invalid MFA verification code sent with the password"
+                        + (locked ? "; second factor locked for this account" : ""),
+                account.getUsername(),
+                attempt.ipAddress(),
+                attempt.userAgent());
+        audit.record(locked ? failure.signalling(SecurityEventType.MFA_FAILURE_CEILING) : failure);
+        return false;
     }
 
     /** What presenting a second-factor code came to. */

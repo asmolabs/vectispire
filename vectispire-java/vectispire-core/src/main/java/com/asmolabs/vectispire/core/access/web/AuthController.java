@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.access.web.security.chain.OidcConfiguration;
+import com.asmolabs.vectispire.common.domain.errors.ProblemCode;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -73,8 +74,16 @@ public class AuthController {
     /**
      * No {@code client_id}: the throttle's second counter is the caller's address, resolved here,
      * because a key the caller supplies is one it can change — see {@link AuthService.LoginRequest}.
+     *
+     * @param mfaCode optional: the second factor, sent with the password when a sign-in was answered
+     *     {@code account-throttled}. Read only then — see {@link AuthService#login}.
      */
-    public record LoginRequest(String username, String password) {}
+    public record LoginRequest(String username, String password, @JsonProperty("mfa_code") String mfaCode) {
+
+        public LoginRequest(String username, String password) {
+            this(username, password, null);
+        }
+    }
 
     public record LoginResponse(
             String token,
@@ -96,12 +105,18 @@ public class AuthController {
                 text(body == null ? null : body.username()),
                 text(body == null ? null : body.password()),
                 request.getHeader("User-Agent"),
-                proxies.clientAddress(request)));
+                proxies.clientAddress(request),
+                body == null ? null : body.mfaCode()));
 
         return switch (outcome) {
             case SignIn.PasswordDisabled ignored -> throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "Password sign-in is disabled here. Use single sign-on.");
             case SignIn.Throttled throttled -> throw throttled(throttled.retryAfter());
+            case SignIn.AccountThrottled spent -> {
+                ResponseStatusException refusal = throttled(spent.retryAfter());
+                refusal.getBody().setProperty(ProblemCode.MEMBER, ProblemCode.ACCOUNT_THROTTLED);
+                throw refusal;
+            }
             case SignIn.Refused ignored ->
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials.");
             // 503 rather than 500: the condition is transient by construction, and five minutes

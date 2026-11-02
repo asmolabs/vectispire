@@ -46,7 +46,9 @@ class AuthServiceTest {
         users = mock(UserRepository.class);
         sessions = mock(SessionRepository.class);
         attempts = mock(LoginAttemptRepository.class);
-        service = new AuthService(users, sessions, attempts, Sessions.Policy.DEFAULT, Clock.fixed(NOW, ZoneOffset.UTC),
+        service = new AuthService(users, sessions, attempts,
+                mock(com.asmolabs.vectispire.core.access.persistence.SignInClientRepository.class), SignInLimits.DEFAULTS,
+                Sessions.Policy.DEFAULT, Clock.fixed(NOW, ZoneOffset.UTC),
                 org.springframework.transaction.support.TransactionOperations.withoutTransaction());
 
         recorded.clear();

@@ -87,6 +87,40 @@ réussie remet à zéro le compteur du compte et celui du nom, pas celui de
 l'adresse : se connecter à son propre compte n'efface pas les échecs que la même adresse a accumulés
 contre d'autres.
 
+## Échecs venus de nombreux endroits
+
+Trois budgets comptent les échecs de mot de passe sur un quart d'heure glissant : **cinq** par compte
+(et par nom saisi) depuis une adresse, **vingt** par adresse tous comptes confondus, et **cinquante**
+par compte depuis toutes les adresses ensemble. Chacun est un [réglage](../reference/configuration.fr.md#authentification).
+
+Les deux premiers refusent avec `429` et le code `rate-limited`. Le troisième est celui que rencontre
+une tentative répartie sur de nombreuses adresses, et il **ne vous enferme pas dehors** : quiconque
+connaît votre nom d'utilisateur pourrait sinon vous tenir dehors en échouant cinquante fois depuis dix
+machines. Au-delà, une connexion est refusée avec `429`, le code `account-throttled` et `Retry-After`
+seulement si elle vient d'une adresse qui ne s'est pas connectée au compte dans les trente derniers
+jours (`VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION`). Depuis votre endroit habituel, vous vous connectez
+comme d'habitude, tenu aux cinq échecs de cette adresse. Depuis un nouvel endroit :
+
+- **avec un second facteur**, saisissez votre code sous le mot de passe — l'écran de connexion affiche
+  le champ dès qu'il a été refusé ainsi. Le mot de passe et le code sont vérifiés ensemble, et la
+  réponse est une session ou le même refus, quel que soit celui des deux qui était faux ;
+- **sans second facteur**, attendez le délai indiqué, ou connectez-vous depuis un appareil déjà utilisé.
+
+Le refus vient avant la vérification du mot de passe, et ne dit rien de l'existence du compte : un nom
+inconnu au-delà de son budget est refusé de la même façon. Chaque refus figure au
+[journal d'audit](audit-log.fr.md) comme `LOGIN_BLOCKED` (signalé `VECTI-SEC-007`), et le serveur
+journalise un avertissement par compte et par quart d'heure tant que son budget est épuisé. Si vous le
+voyez sur votre compte, quelqu'un devine votre mot de passe : prenez-en un long, et enrôlez un second
+facteur.
+
+« Adresse » est l'adresse que le serveur résout à travers les proxys de confiance, son /64 en IPv6 —
+quelqu'un derrière la même sortie réseau que vous, au bureau, partage donc votre exemption, et
+rencontre à la place les plafonds propres à cette adresse. Un compte qui ne s'est jamais connecté — ou
+pas depuis trente jours, ou dont l'adresse du titulaire a changé — n'a pas d'endroit habituel, et sans
+second facteur attend comme tout le monde tant que le budget est épuisé. Une adresse connue le reste
+après un changement ou une réinitialisation du mot de passe jusqu'au terme de ses trente jours ; elle
+reste tenue à ses propres cinq échecs.
+
 ## À lire aussi
 
 - [Authentification unique](sso.fr.md) — déléguer l'authentification, et le second facteur, à un fournisseur.

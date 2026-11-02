@@ -48,6 +48,14 @@ export class Login {
     readonly mfaRequired = signal(false);
     readonly mfaToken = signal<string | null>(null);
 
+    /**
+     * The server answered `account-throttled`: the account's budget across every client is spent —
+     * somebody elsewhere is guessing its password — and this browser's address has not signed in to it
+     * before. Waiting works; so does the second factor, sent with the password, which is why the field
+     * appears. Said plainly rather than as "too many attempts": the person here made none.
+     */
+    readonly accountThrottled = signal(false);
+
     /** Null until the server has said which ways in this deployment accepts. */
     readonly methods = signal<SignInMethods | null>(null);
 
@@ -200,7 +208,8 @@ export class Login {
         this.loading.set(true);
         this.error.set(null);
 
-        this.authApi.login(this.username, this.password).subscribe({
+        const code = this.accountThrottled() ? this.mfaCode.trim() : '';
+        this.authApi.login(this.username, this.password, code || undefined).subscribe({
             next: (response) => {
                 if (response.mfa_required) {
                     this.loading.set(false);
@@ -214,10 +223,16 @@ export class Login {
                     this.enter(response.user);
                 }
             },
-            error: (response: { status: number; error?: { retryAfterSeconds?: number } }) => {
+            error: (response: { status: number; error?: { retryAfterSeconds?: number; code?: string } }) => {
                 this.loading.set(false);
                 const retryAfter = response.error?.retryAfterSeconds;
-                if (retryAfter) {
+                if (response.error?.code === 'account-throttled') {
+                    this.accountThrottled.set(true);
+                    this.mfaCode = '';
+                    this.error.set(
+                        this.i18n.t('auth.error_account_throttled', { count: Math.ceil((retryAfter ?? 60) / 60) })
+                    );
+                } else if (retryAfter) {
                     this.error.set(this.i18n.t('auth.error_too_many_attempts', { count: Math.ceil(retryAfter / 60) }));
                 } else if (response.status === 401) {
                     this.error.set(this.i18n.t('auth.error_invalid_credentials'));

@@ -595,6 +595,9 @@
     "error_sso_failed": "L'authentification unique n'a pas abouti. Le fournisseur a refusé l'échange.",
     "error_sso_incomplete": "Cette connexion n'a pas pu être finalisée. Réessayer.",
     "error_mfa_invalid": "Code de vérification MFA invalide.",
+    "error_account_throttled_one": "Ce compte reçoit de nombreuses connexions échouées depuis d'autres endroits, et cet appareil ne s'y est jamais connecté. Connectez-vous depuis un appareil habituel, saisissez votre code d'authentification avec votre mot de passe, ou réessayez dans {{count}} minute.",
+    "error_account_throttled_other": "Ce compte reçoit de nombreuses connexions échouées depuis d'autres endroits, et cet appareil ne s'y est jamais connecté. Connectez-vous depuis un appareil habituel, saisissez votre code d'authentification avec votre mot de passe, ou réessayez dans {{count}} minutes.",
+    "account_throttled_code_label": "Code d'authentification (s'il est activé)",
     "error_too_many_attempts_one": "Trop de tentatives. Réessayer dans {{count}} minute.",
     "error_too_many_attempts_other": "Trop de tentatives. Réessayer dans {{count}} minutes.",
     "error_invalid_credentials": "Identifiants invalides.",
@@ -4465,6 +4468,7 @@
     "unsafe_url": "Destination refusée par la politique des appels sortants — le serveur précise : {{detail}}",
     "unprocessable": "Requête impossible à traiter — le serveur précise : {{detail}}",
     "rate_limited": "Trop de tentatives. Réessayez dans {{retryAfterSeconds}} secondes.",
+    "account_throttled": "Ce compte reçoit trop de connexions échouées depuis d'autres endroits. Connectez-vous depuis un appareil habituel, avec votre code d'authentification, ou réessayez dans {{retryAfterSeconds}} secondes.",
     "unexpected_failure": "Échec inattendu. Référence à transmettre à votre administrateur : {{correlationId}}",
     "unavailable": "Service momentanément indisponible : réessayez dans quelques minutes."
   }

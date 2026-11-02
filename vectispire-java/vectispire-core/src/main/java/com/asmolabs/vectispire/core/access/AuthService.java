@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -12,6 +13,8 @@ import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.SignInClientEntity;
+import com.asmolabs.vectispire.core.access.persistence.SignInClientRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import java.time.Clock;
@@ -25,6 +28,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,8 +59,18 @@ public class AuthService {
     private final UserRepository users;
     private final SessionRepository sessions;
     private final LoginAttemptRepository attempts;
+    private final SignInClientRepository knownClients;
+    private final SignInLimits limits;
     private final Sessions.Policy policy;
     private final Clock clock;
+
+    /**
+     * When each spent budget was last warned about, so a guess spread over a thousand addresses is one
+     * warning a window in the log rather than one per refusal — each refusal still has its audit entry.
+     * In memory, and bounded: a restart, or an attacker cycling through names, costs a warning repeated,
+     * never one lost.
+     */
+    private final Map<String, Instant> warned = new ConcurrentHashMap<>();
 
     /** Each step of a {@link #reserve reservation} commits on its own — see there. */
     private final TransactionOperations separately;
@@ -66,10 +80,12 @@ public class AuthService {
             UserRepository users,
             SessionRepository sessions,
             LoginAttemptRepository attempts,
+            SignInClientRepository knownClients,
+            SignInLimits limits,
             Sessions.Policy policy,
             Clock clock,
             PlatformTransactionManager transactions) {
-        this(users, sessions, attempts, policy, clock, requiresNew(transactions));
+        this(users, sessions, attempts, knownClients, limits, policy, clock, requiresNew(transactions));
     }
 
     /** With the boundary supplied — {@link TransactionOperations#withoutTransaction()} for a unit test. */
@@ -77,12 +93,16 @@ public class AuthService {
             UserRepository users,
             SessionRepository sessions,
             LoginAttemptRepository attempts,
+            SignInClientRepository knownClients,
+            SignInLimits limits,
             Sessions.Policy policy,
             Clock clock,
             TransactionOperations separately) {
         this.users = users;
         this.sessions = sessions;
         this.attempts = attempts;
+        this.knownClients = knownClients;
+        this.limits = limits;
         this.policy = policy;
         this.clock = clock;
         this.separately = separately;
@@ -113,8 +133,15 @@ public class AuthService {
      *
      * @param rows this attempt's own rows, which a success or a refusal removes
      * @param retryAfter zero when admitted
+     * @param budgetRetryAfter the soft ceilings' verdict, which {@link #retryAfter} leaves out: zero
+     *     when the account's budget across clients is not spent. What it refuses is the caller's to
+     *     decide — see {@link #login}.
      */
-    public record Reservation(Set<UUID> rows, Duration retryAfter) {
+    public record Reservation(Set<UUID> rows, Duration retryAfter, Duration budgetRetryAfter) {
+
+        public Reservation(Set<UUID> rows, Duration retryAfter) {
+            this(rows, retryAfter, Duration.ZERO);
+        }
 
         public boolean admitted() {
             return retryAfter.isZero();
@@ -129,6 +156,14 @@ public class AuthService {
      * concurrent attempt counts is a row that attempt does not see, which is the race itself.
      */
     public Reservation reserve(Map<String, Integer> ceilings) {
+        return reserve(ceilings, Set.of());
+    }
+
+    /**
+     * The same, with some ceilings soft: their verdict is {@link Reservation#budgetRetryAfter} and not
+     * a refusal, and their rows are written and counted like any other.
+     */
+    public Reservation reserve(Map<String, Integer> ceilings, Set<String> soft) {
         Instant now = clock.instant();
         List<LoginAttemptEntity> mine = separately.execute(status -> {
             List<LoginAttemptEntity> written = new ArrayList<>();
@@ -138,6 +173,7 @@ public class AuthService {
         Set<UUID> own = mine.stream().map(LoginAttemptEntity::getId).filter(Objects::nonNull).collect(Collectors.toSet());
 
         Duration wait = Duration.ZERO;
+        Duration budget = Duration.ZERO;
         for (Map.Entry<String, Integer> ceiling : ceilings.entrySet()) {
             List<Instant> others = separately.execute(status -> attempts
                     .findByCounterKeyAndOccurredAtAfter(ceiling.getKey(), now.minus(LoginThrottle.WINDOW)).stream()
@@ -145,12 +181,14 @@ public class AuthService {
                     .map(LoginAttemptEntity::getOccurredAt)
                     .toList());
             Duration retryAfter = LoginThrottle.decide(others, ceiling.getValue(), now).retryAfter();
-            if (retryAfter.compareTo(wait) > 0) {
+            if (soft.contains(ceiling.getKey())) {
+                budget = retryAfter.compareTo(budget) > 0 ? retryAfter : budget;
+            } else if (retryAfter.compareTo(wait) > 0) {
                 wait = retryAfter;
             }
         }
 
-        Reservation reservation = new Reservation(own, wait);
+        Reservation reservation = new Reservation(own, wait, budget);
         if (!reservation.admitted()) {
             release(reservation);
         }
@@ -179,9 +217,20 @@ public class AuthService {
      * oracle with no ceiling.
      */
     public Reservation reservePassword(long accountId, String ipAddress) {
-        return reserve(Map.of(
-                LoginThrottle.accountKey(accountId, ipAddress), LoginThrottle.MAX_ATTEMPTS_PER_USER,
-                LoginThrottle.accountKey(accountId), LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT));
+        String everywhere = LoginThrottle.accountKey(accountId);
+        Reservation reservation = reserve(
+                Map.of(
+                        LoginThrottle.accountKey(accountId, ipAddress), limits.failuresPerAccountFromClient(),
+                        everywhere, limits.failuresPerAccount()),
+                Set.of(everywhere));
+        // The account's budget across clients is soft here as at sign-in, by the same rule: a session
+        // is no exemption of its own — it may be a stolen one, used from anywhere — but the client the
+        // owner signs in from is.
+        if (reservation.admitted() && !reservation.budgetRetryAfter().isZero() && !isKnownClient(accountId, ipAddress)) {
+            release(reservation);
+            return new Reservation(Set.of(), reservation.budgetRetryAfter());
+        }
+        return reservation;
     }
 
     /**
@@ -201,6 +250,18 @@ public class AuthService {
      *     accepted for a ceiling that exists.
      */
     public record LoginRequest(String username, String password, String userAgent, String ipAddress) {}
+
+    /**
+     * The second factor sent with the password, which carries a sign-in past the account's spent
+     * budget across clients — see {@link #login}. Supplied by {@code AuthenticationFlowService}, which
+     * owns the codes; asked only once the password is right, so only someone who holds it spends the
+     * account's budget of wrong codes, as on a challenge.
+     */
+    @FunctionalInterface
+    public interface SecondFactor {
+        /** Whether the code is the account's, counting a wrong one against its budget of codes. */
+        boolean verifies(UserEntity account);
+    }
 
     /** A login's outcome, and what the caller must write to the audit log. */
     public sealed interface Outcome {
@@ -224,6 +285,13 @@ public class AuthService {
         record SecondFactorRequired(UserEntity user) implements Outcome {}
 
         record Blocked(Duration retryAfter) implements Outcome {}
+
+        /**
+         * Refused by the account's budget across every client — {@code account-throttled}, and not the
+         * same code as {@link Blocked}: the remedy is not to wait but to sign in from a usual place, or
+         * with the second factor. It says nothing about the password, which may not have been tried.
+         */
+        record AccountThrottled(Duration retryAfter) implements Outcome {}
     }
 
     /**
@@ -249,7 +317,17 @@ public class AuthService {
      * session, a rehash, clearing the counters — is a repository call that commits by itself.
      */
     public LoginResult login(LoginRequest request) {
+        return login(request, Optional.empty());
+    }
+
+    /**
+     * @param secondFactor the code sent with the password, if any. Read only when the account's budget
+     *     across clients is spent and this client is not known to the account; otherwise the code is
+     *     asked for afterwards, by the challenge, as it always was.
+     */
+    public LoginResult login(LoginRequest request, Optional<SecondFactor> secondFactor) {
         Instant now = clock.instant();
+        long started = System.nanoTime();
         // Looked up before the throttle, which costs a query and no hashing. The account is
         // what the counter protects, and the username the caller typed is not the account: the
         // lookup follows the database's collation, which on MySQL ignores case and accents, so
@@ -276,19 +354,39 @@ public class AuthService {
         // machines. See LoginThrottle.
         String ipAddress = String.valueOf(request.ipAddress());
         String clientKey = LoginThrottle.clientKey(ipAddress);
+        //
+        // **The ceiling from everywhere is a budget, not a lock.** It was a hard ceiling, and the
+        // owner's right password was refused with the guesser's once fifty failures had come from
+        // anywhere: whoever knew a name and had ten addresses kept that account shut. It is soft now
+        // (`soft` below), and what it refuses is decided after the reservation:
+        //
+        //  - a client known to the account — one that signed in to it within the retention, see
+        //    LoginThrottle#knownClientKey — goes on to the password, held to this client's own
+        //    ceilings only. The owner at their usual place is not stopped by a guess made elsewhere.
+        //  - any other client is answered `account-throttled`, before any hashing, its rows taken
+        //    back so the refusal extends nothing — unless it sent the second factor with the password.
+        //    Then both are verified and the answer is a session, or the same refusal whatever was
+        //    wrong: a guesser past the budget learns nothing from the password, right or wrong, and
+        //    the owner with their phone gets in from anywhere.
+        //
+        // Which is uniform across names: an unknown name has no known client, so past the budget its
+        // attempt meets the same refusal an existing account's does from a new place.
         Map<String, Integer> ceilings = new LinkedHashMap<>();
         Set<String> fromThisClient = new java.util.HashSet<>();
+        Set<String> everywhere = new java.util.HashSet<>();
         user.ifPresent(found -> {
-            ceilings.put(LoginThrottle.accountKey(found.getId(), ipAddress), LoginThrottle.MAX_ATTEMPTS_PER_USER);
-            ceilings.put(LoginThrottle.accountKey(found.getId()), LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT);
+            ceilings.put(LoginThrottle.accountKey(found.getId(), ipAddress), limits.failuresPerAccountFromClient());
+            ceilings.put(LoginThrottle.accountKey(found.getId()), limits.failuresPerAccount());
             fromThisClient.add(LoginThrottle.accountKey(found.getId(), ipAddress));
+            everywhere.add(LoginThrottle.accountKey(found.getId()));
         });
-        ceilings.put(LoginThrottle.userKey(request.username(), ipAddress), LoginThrottle.MAX_ATTEMPTS_PER_USER);
-        ceilings.put(LoginThrottle.userKey(request.username()), LoginThrottle.MAX_ATTEMPTS_PER_ACCOUNT);
+        ceilings.put(LoginThrottle.userKey(request.username(), ipAddress), limits.failuresPerAccountFromClient());
+        ceilings.put(LoginThrottle.userKey(request.username()), limits.failuresPerAccount());
         fromThisClient.add(LoginThrottle.userKey(request.username(), ipAddress));
-        ceilings.put(clientKey, LoginThrottle.MAX_ATTEMPTS_PER_CLIENT);
+        everywhere.add(LoginThrottle.userKey(request.username()));
+        ceilings.put(clientKey, limits.failuresPerClient());
 
-        Reservation throttle = reserve(ceilings);
+        Reservation throttle = reserve(ceilings, everywhere);
 
         if (!throttle.admitted()) {
             // Refused before any hashing: that is the point of checking first.
@@ -304,6 +402,16 @@ public class AuthService {
                             .signalling(SecurityEventType.SIGN_IN_THROTTLED));
         }
 
+        // Asked for an unknown name too, of a key no account holds: the question is a query, and asked
+        // only when the account exists it would time the answer to "does it exist", repeatable at no
+        // cost since the refusal below takes every row back.
+        boolean overBudget = !throttle.budgetRetryAfter().isZero()
+                && !isKnownClient(user.map(UserEntity::getId), request.username(), ipAddress);
+        if (overBudget && secondFactor.isEmpty()) {
+            release(throttle);
+            return accountThrottled(request, user, throttle.budgetRetryAfter());
+        }
+
         // **One key derivation whatever the name, so the answer's timing says nothing.** The hash
         // used to be verified only when an account was found, on the grounds that a derivation for
         // every unknown name was a denial-of-service lever: an unknown name answered in
@@ -315,6 +423,23 @@ public class AuthService {
         boolean matches = PasswordHasher.verify(
                 request.password(), active.map(UserEntity::getPassword).orElseGet(AuthService::standInHash));
         boolean authenticated = active.isPresent() && matches;
+
+        // Past the budget, a right password is not enough and is answered as a wrong one is — the rows
+        // stay, nothing is cleared — or the refusal would say which passwords were right. Only the code
+        // the owner sent with it, verified now that the password is known to be theirs, opens the way.
+        //
+        // **And it is answered at a deadline, not as soon as it is known.** The answer is the same
+        // refusal whatever was wrong, but not the work behind it: a right password goes on to reserve,
+        // check and audit the code — database round trips a wrong one never makes — and a guesser
+        // timing the refusal from address after address would learn which candidate was right
+        // (security review of this change). Every refusal on this path waits out the same deadline
+        // from the start of the attempt, well past what the derivation and the code take together.
+        if (overBudget && !(authenticated
+                && user.orElseThrow().getMfaEnabled()
+                && secondFactor.orElseThrow().verifies(user.orElseThrow()))) {
+            awaitDeadline(started, PAST_BUDGET_DEADLINE);
+            return accountThrottled(request, user, throttle.budgetRetryAfter());
+        }
 
         if (!authenticated) {
             // The reservation's rows stay: they are this failure.
@@ -343,7 +468,9 @@ public class AuthService {
 
         UserEntity found = user.orElseThrow();
         rehashIfStale(found, request.password());
-        if (found.getMfaEnabled()) {
+        // Past the budget the code has just been verified: asking for it again would be a challenge
+        // the owner already answered.
+        if (found.getMfaEnabled() && !overBudget) {
             // **No session yet.** One was opened here for every account and discarded by the
             // caller when a code was owed: a row per password exchange that nobody could present,
             // living its full lifetime in the sessions table. The session is opened when the code
@@ -358,7 +485,109 @@ public class AuthService {
         return new LoginResult(
                 new Outcome.Success(session, found),
                 AuditLogService.Record.of(
-                        AuditOperation.LOGIN_SUCCESS, found.getUsername(), "Login succeeded", found.getUsername()));
+                        AuditOperation.LOGIN_SUCCESS,
+                        found.getUsername(),
+                        overBudget
+                                ? "Login succeeded with password and second factor, past the account's spent budget"
+                                : "Login succeeded",
+                        found.getUsername()));
+    }
+
+    /**
+     * A refusal by the account's budget across clients: its audit entry, signalled as every throttle's
+     * is, and a warning in the log once a window per budget — the operator's first sign that an
+     * account is being guessed at from many places, which no single address's ceiling shows.
+     */
+    private LoginResult accountThrottled(LoginRequest request, Optional<UserEntity> user, Duration retryAfter) {
+        String budget = user.map(found -> LoginThrottle.accountKey(found.getId()))
+                .orElseGet(() -> LoginThrottle.userKey(request.username()));
+        Instant now = clock.instant();
+        Instant last = warned.get(budget);
+        if (last == null || !last.plus(LoginThrottle.WINDOW).isAfter(now)) {
+            if (warned.size() >= 10_000) {
+                warned.clear();
+            }
+            warned.put(budget, now);
+            // The account's id, or no name at all: the typed name is the caller's text, and an unknown
+            // one has no business in the operator's log beyond the audit entry that already holds it.
+            log.warn("Sign-in budget across clients spent for {}: attempts from clients that have not signed in to it "
+                            + "are refused for {}s. Several addresses are guessing its password.",
+                    user.map(found -> "account " + found.getId()).orElse("a name no account holds"),
+                    retryAfter.toSeconds());
+        }
+        return new LoginResult(
+                new Outcome.AccountThrottled(retryAfter),
+                AuditLogService.Record.of(
+                                AuditOperation.LOGIN_BLOCKED,
+                                request.username(),
+                                "Attempt refused: the account's sign-in budget across clients is spent ("
+                                        + retryAfter.toSeconds() + "s to wait)",
+                                request.username())
+                        .signalling(SecurityEventType.SIGN_IN_THROTTLED));
+    }
+
+    /** Whether this client has signed in to the account within the retention — see {@link #login}. */
+    private boolean isKnownClient(long accountId, String ipAddress) {
+        return isKnownClient(Optional.of(accountId), null, ipAddress);
+    }
+
+    /** The same, asked of a key nobody holds when no account answers to the name — see {@link #login}. */
+    private boolean isKnownClient(Optional<Long> accountId, String username, String ipAddress) {
+        if (ipAddress == null) {
+            return false;
+        }
+        String key = accountId
+                .map(id -> LoginThrottle.knownClientKey(id, ipAddress))
+                .orElseGet(() -> Digests.sha256Fields("login:no-account", String.valueOf(username), ipAddress));
+        boolean known = Boolean.TRUE.equals(separately.execute(status -> knownClients.existsByClientKeyAndLastSignedInAtAfter(
+                key, clock.instant().minus(limits.knownClientRetention()))));
+        return accountId.isPresent() && known;
+    }
+
+    /**
+     * How long a refusal past the account's budget, with a code sent, takes — see {@link #login}. A
+     * second: an Argon2id derivation at the shipped cost and the code's few queries take a fraction of
+     * it, and the attempt is one a guesser had to pay an address's ceilings for.
+     */
+    static final Duration PAST_BUDGET_DEADLINE = Duration.ofSeconds(1);
+
+    private static void awaitDeadline(long startedNanos, Duration deadline) {
+        long remaining = deadline.toNanos() - (System.nanoTime() - startedNanos);
+        if (remaining <= 0) {
+            log.warn("A refusal past an account's sign-in budget took longer than its {} ms deadline: raise it, or its timing "
+                    + "may tell a right password from a wrong one.", deadline.toMillis());
+            return;
+        }
+        try {
+            java.util.concurrent.TimeUnit.NANOSECONDS.sleep(remaining);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Remembers the client a session was opened for, in a transaction of its own and never failing the
+     * sign-in: a sign-in that succeeded is not refused over the record that makes the next one easier,
+     * and a concurrent sign-in inserting the same key first is the same record.
+     */
+    private void rememberClient(long accountId, String ipAddress, Instant now) {
+        if (ipAddress == null) {
+            return;
+        }
+        String key = LoginThrottle.knownClientKey(accountId, ipAddress);
+        try {
+            separately.executeWithoutResult(status -> {
+                if (knownClients.touch(key, now) == 0) {
+                    SignInClientEntity known = new SignInClientEntity();
+                    known.setClientKey(key);
+                    known.setAccountId(accountId);
+                    known.setLastSignedInAt(now);
+                    knownClients.save(known);
+                }
+            });
+        } catch (RuntimeException couldNotRecord) {
+            log.debug("Could not record the client of account {}: {}", accountId, couldNotRecord.getMessage());
+        }
     }
 
     /**
@@ -541,7 +770,9 @@ public class AuthService {
         session.setExpiresAt(now.plus(policy.absoluteLifetime()));
         session.setUserAgent(clip(request.userAgent()));
         session.setIpAddress(request.ipAddress());
-        return new IssuedSession(SessionView.of(sessions.save(session)), minted.token());
+        IssuedSession issued = new IssuedSession(SessionView.of(sessions.save(session)), minted.token());
+        rememberClient(userId, request.ipAddress(), now);
+        return issued;
     }
 
     /**

@@ -204,6 +204,19 @@ vectispire:
     webhook-requests-per-window: ${VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW:300}
     webhook-request-window: ${VECTISPIRE_WEBHOOK_REQUEST_WINDOW:PT1M}
 
+  # **The password throttle's ceilings**, counted in the database over a sliding quarter of an hour
+  # (`LoginThrottle`, `SignInLimits`). Per account from one client: the owner's mistypes. Per client
+  # across accounts: one password tried on many names. Per account from every client: a guess spread over
+  # many addresses — a budget and not a lock, since anyone who knows a name could otherwise keep its owner
+  # out. Past it, a client that has not signed in to the account within the retention is answered 429
+  # `account-throttled`; one that has, or one sending the second factor with the password, is not.
+  # Zero, negative or unset reads as the value shown.
+  sign-in:
+    failures-per-account-from-client: ${VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT_FROM_CLIENT:5}
+    failures-per-account: ${VECTISPIRE_SIGN_IN_FAILURES_PER_ACCOUNT:50}
+    failures-per-client: ${VECTISPIRE_SIGN_IN_FAILURES_PER_CLIENT:20}
+    known-client-retention: ${VECTISPIRE_SIGN_IN_KNOWN_CLIENT_RETENTION:P30D}
+
   # **Every request body**, which no container setting bounds: Tomcat's and Spring's limits apply to
   # forms and multipart only. `default` holds for every route not named below; a named route takes
   # its own value instead, larger or smaller. Past these, 413. The reasoning for each value is on

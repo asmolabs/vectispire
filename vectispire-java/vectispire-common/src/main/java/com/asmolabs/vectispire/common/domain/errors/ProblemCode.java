@@ -49,6 +49,12 @@ public final class ProblemCode {
     public static final String UNSAFE_URL = "unsafe-url";
     public static final String UNPROCESSABLE = "unprocessable";
     public static final String RATE_LIMITED = "rate-limited";
+    /**
+     * A sign-in refused by the account's budget across every client, not by this client's own: the
+     * account is being guessed at from many places. Its owner gets in from a client that has signed in
+     * to it before, or by sending the second factor with the password ({@code AuthService#login}).
+     */
+    public static final String ACCOUNT_THROTTLED = "account-throttled";
     public static final String UNEXPECTED_FAILURE = "unexpected-failure";
     public static final String UNAVAILABLE = "unavailable";
 

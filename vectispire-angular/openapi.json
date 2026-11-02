@@ -6336,6 +6336,9 @@
       },
       "LoginRequest" : {
         "properties" : {
+          "mfa_code" : {
+            "type" : "string"
+          },
           "password" : {
             "type" : "string"
           },
