@@ -131,15 +131,21 @@ que la cible existe. `AuthorizationCoverageTest` attrape la route qui l'oublie.
   (1.0.0-rc.1, #126 option 1). `t_account_administration` (V100) enregistre, dans la transaction de
   chaque geste, quel administrateur a créé un compte, réinitialisé son mot de passe ou changé son rôle,
   et quand — le journal d'audit dit la même chose en phrases, sur lesquelles un contrôle ne peut pas
-  s'appuyer. `ApproverIndependence` refuse une approbation de qualification ou de demande de compte dont
-  le demandeur a fait l'un des trois au compte de l'approbateur depuis moins de
+  s'appuyer. `ApproverIndependence` refuse toute approbation de double validation — une qualification,
+  une demande de compte, la validation d'une checklist, la publication ou le retrait d'une version de
+  modèle de checklist, l'approbation du manifeste d'un plugin de rapport — dont le demandeur (pour les
+  trois dernières, tout auteur de l'ouvrage, ou qui a enregistré le manifeste) a fait l'un des trois au
+  compte de l'approbateur depuis moins de
   `four_eyes_independence_days` jours (30 par défaut ; un paramètre du seul super-administrateur, `0`
   désactive le contrôle, 3650 au plus) : `409`, code `approver-not-independent`, avec les membres
   `gesture` et `windowDays`. Les deux administrateurs d'une demande de compte approuvée comptent comme
-  l'ayant administré. Pour une demande de compte, la question est posée dans les deux sens — un
-  administrateur que l'approbateur a créé pourrait être son propre second nom ; pour un triage, dans le
-  sens du demandeur seulement, puisqu'un approbateur clôt directement et que le refuser refuserait tout
-  administrateur ayant doté l'équipe qu'il relit.
+  l'ayant administré. Pour toute approbation sauf un triage, la question est posée dans les deux sens —
+  un compte que l'approbateur a créé pourrait être son propre second nom, écrivant ce que l'approbateur
+  approuve ensuite ; pour un triage, dans le sens du demandeur seulement, puisqu'un approbateur clôt
+  directement et que le refuser refuserait tout administrateur ayant doté l'équipe qu'il relit. Jusqu'à
+  1.0.0-rc.1, la validation des checklists, les versions de modèles et les plugins de rapport ne
+  comparaient que comptes et noms. Le manifeste en attente d'un plugin de rapport est contrôlé quoi que
+  dise la double validation au moment de l'approbation, sous la règle sous laquelle il a été enregistré.
 - **Ce qui reste.** La fenêtre commence à se remplir à la mise à jour : les gestes antérieurs ne
   figurent qu'au journal d'audit. Passé la fenêtre, un compte qu'un administrateur a créé peut approuver
   ses demandes ; un administrateur qui supprime tous les autres administrateurs agit seul, ce que

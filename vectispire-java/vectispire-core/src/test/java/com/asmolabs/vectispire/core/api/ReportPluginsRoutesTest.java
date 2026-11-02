@@ -299,6 +299,43 @@ class ReportPluginsRoutesTest extends ApiTestBase {
         }
     }
 
+    /**
+     * A pending manifest is not approved by an account its registrant administered recently, nor by one that
+     * administered the registrant's (#126) — under the rule it was registered under, whatever the setting says
+     * at the approval. The accounts are created through the users route, with four-eyes off for the creation.
+     */
+    @Nested
+    @DisplayName("an approver and a registrant who administered one another")
+    class Independence {
+
+        @Test
+        @DisplayName("an account the registrant created recently is refused, even with four-eyes lifted since")
+        void anAccountTheRegistrantCreated() throws Exception {
+            long made = createdBy(governor, "made-" + System.nanoTime(), Role.CISO);
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+            String digest = newest(body(register(governor, manifest(IMAGE_A)).andExpect(status().isCreated())));
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+
+            ResultActions refused = approve(signedInAs(made), digest);
+            assertConflict(refused, "approver-not-independent");
+            refused.andExpect(jsonPath("$.gesture").value("created")).andExpect(jsonPath("$.windowDays").value(30));
+            assertThat(entries(AuditOperation.REPORT_PLUGIN_APPROVED)).isEmpty();
+
+            approve(asCiso(), digest).andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("a governor who created the registrant's account recently is refused: it may be their second name")
+        void aGovernorWhoCreatedTheRegistrant() throws Exception {
+            String registrant = signedInAs(createdBy(governor, "made-governor-" + System.nanoTime(), Role.SUPERUSER));
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+            String digest = newest(body(register(registrant, manifest(IMAGE_A)).andExpect(status().isCreated())));
+
+            assertConflict(approve(governor, digest), "approver-not-independent");
+            approve(governor(), digest).andExpect(status().isOk());
+        }
+    }
+
     @Nested
     @DisplayName("four-eyes off")
     class FourEyesOff {

@@ -110,6 +110,47 @@ public class ApproverIndependence {
     }
 
     /**
+     * An account behind the work being approved — one who wrote a checklist's revision or a template's draft,
+     * or registered a report plugin's manifest — by its id and the name the work records.
+     */
+    public record Author(long accountId, String username) {}
+
+    /**
+     * Refuses an approval of work when, within the window, one of its authors administered the approver's
+     * account or the approver administered one of theirs: a checklist's sign-off, a template version's
+     * publication or retirement, a report plugin manifest's approval.
+     *
+     * <p><b>Both ways, unlike a triage.</b> A triage's approver may settle directly, so an approver who made the
+     * requester's account gains nothing by approving that request. None of these approvals has that shortcut:
+     * four-eyes refuses an author as the approver, so an approver who made an author's account could have
+     * written the work under that second name and approved it under their own — and the other way round, an
+     * author who made the approver's account could approve it under the name they made. Comparing accounts and
+     * names saw neither.
+     *
+     * @param underFourEyes whether four-eyes governs this approval — the setting now for most, the rule a report
+     *     plugin's manifest was registered under for that one; false checks nothing, as with four-eyes off
+     * @throws ApproverNotIndependentException when an author and the approver administered one another
+     */
+    @Transactional(readOnly = true)
+    public void requireIndependentOfAuthors(Collection<Author> authors, long approverId, boolean underFourEyes) {
+        if (!underFourEyes || windowDays() <= 0) {
+            return;
+        }
+        for (Author author : authors) {
+            if (author.accountId() == approverId) {
+                // The same account is the same person: the callers refuse it in their own words first.
+                continue;
+            }
+            newest(approverId, author.accountId()).ifPresent(gesture -> {
+                throw ApproverNotIndependentException.ofAuthor(author.username(), gesture, windowDays());
+            });
+            newest(author.accountId(), approverId).ifPresent(gesture -> {
+                throw ApproverNotIndependentException.ofApproverOfAuthor(author.username(), gesture, windowDays());
+            });
+        }
+    }
+
+    /**
      * Refuses a raise to a role that approves when this administrator created the account or reset its password
      * within the window: it may know the password, and the raise would hand it an approver.
      *

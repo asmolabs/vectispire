@@ -119,14 +119,19 @@ the target exists. `AuthorizationCoverageTest` catches a route that forgets.
 - **Under four-eyes, an approver the requester administered recently is refused** (1.0.0-rc.1, #126
   option 1). `t_account_administration` (V100) records, in the transaction of each gesture, which
   administrator created an account, reset its password or changed its role, and when — the audit log
-  says the same in sentences, which a guard cannot rely on. `ApproverIndependence` refuses a triage
-  approval or an account-request approval whose requester did one of the three to the approver's
-  account within `four_eyes_independence_days` (30 by default; a governor-only setting, `0` switches it
+  says the same in sentences, which a guard cannot rely on. `ApproverIndependence` refuses every
+  four-eyes approval — a triage, an account request, a checklist sign-off, a checklist template
+  version's publication or retirement, a report plugin manifest's approval — whose requester (for the
+  last three, any author of the work, or the manifest's registrant) did one of the three to the
+  approver's account within `four_eyes_independence_days` (30 by default; a governor-only setting, `0` switches it
   off, at most 3650): `409`, code `approver-not-independent`, with the members `gesture` and
   `windowDays`. Both administrators behind an approved account request count as having administered it.
-  For an account request the question is asked both ways — an administrator the approver made could be
-  the approver's own second name; for a triage only the requester's way, since an approver settles
-  directly and refusing it would refuse every administrator who staffed the team they review.
+  For every approval but a triage the question is asked both ways — an account the approver made could
+  be the approver's own second name, writing what the approver then approves; for a triage only the
+  requester's way, since an approver settles directly and refusing it would refuse every administrator
+  who staffed the team they review. Until 1.0.0-rc.1 the sign-off, the template versions and the report
+  plugins compared accounts and names only. A report plugin's pending manifest is checked whatever
+  four-eyes says at the approval, under the rule it was registered under.
 - **What still remains.** The window starts filling at the upgrade: gestures made before it are in the
   audit log only. After the window, an account an administrator made can approve that administrator's
   requests; an administrator who deletes every other administrator acts alone, which the audit log and

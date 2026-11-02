@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.ApproverIndependence;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -92,6 +93,7 @@ public class ReportPluginService {
     private final SolutionQueryService projects;
     private final SettingsService settings;
     private final AuditLogService audit;
+    private final ApproverIndependence independence;
     private final ObjectMapper json;
     private final Clock clock;
     private final TransactionTemplate transactions;
@@ -104,6 +106,7 @@ public class ReportPluginService {
             SolutionQueryService projects,
             SettingsService settings,
             AuditLogService audit,
+            ApproverIndependence independence,
             ObjectMapper json,
             Clock clock,
             PlatformTransactionManager transactions) {
@@ -114,6 +117,7 @@ public class ReportPluginService {
         this.projects = projects;
         this.settings = settings;
         this.audit = audit;
+        this.independence = independence;
         this.json = json;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactions);
@@ -263,11 +267,17 @@ public class ReportPluginService {
      * switched on then rendering its whole export with an image nobody else had looked at (decision 0035,
      * amended 2026-10-05).
      *
+     * <p><b>Nor by an account the registrant administered</b>, nor one that administered the registrant's,
+     * within the approver independence window ({@link ApproverIndependence}) — under the same rule: a pending
+     * digest was registered under four-eyes, so the check runs whatever the setting says now.
+     *
      * @param approver the signed-in account — one holding {@code canWriteGovernance}, and not the account that
      *     registered the digest
      * @throws NotFoundException a plugin or a digest of it that does not exist
      * @throws AccessDeniedException a role that does not write governance
      * @throws ReportPluginConflict {@code report-plugin-not-pending}, {@code report-plugin-four-eyes}
+     * @throws com.asmolabs.vectispire.core.access.ApproverNotIndependentException {@code
+     *     approver-not-independent}, the registrant and the approver administered one another's account
      */
     public ReportPluginView approve(String id, String digest, UserView approver, RequestActor actor) {
         if (!Role.of(approver.role()).map(Role::canWriteGovernance).orElse(false)) {
@@ -289,6 +299,11 @@ public class ReportPluginService {
                 throw new ReportPluginConflict(ReportPluginConflict.Cause.FOUR_EYES, "Four-eyes approval: manifest "
                         + digest + " of \"" + id + "\" was registered by " + row.getRegisteredBy()
                         + ", so it has to be approved by somebody else.");
+            }
+            if (approver.id() != null && row.getRegisteredById() != null) {
+                independence.requireIndependentOfAuthors(
+                        List.of(new ApproverIndependence.Author(row.getRegisteredById(), row.getRegisteredBy())),
+                        approver.id(), true);
             }
             row.setStatus(ReportPluginManifestStatus.APPROVED.wireName());
             row.setApprovedAt(now);

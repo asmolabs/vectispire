@@ -425,7 +425,9 @@ D'une revue complète de `develop` avant cette version. Chaque constat est corri
 risque résiduel là où une correction serait une décision à part entière :
 
 - **Double validation : la seconde identité n'est plus une que le demandeur a fabriquée.** Une
-  approbation — d'un triage ou d'une modification de compte — est refusée (`409`,
+  approbation — d'un triage, d'une modification de compte, de la validation d'une checklist, de la
+  publication ou du retrait d'une version de modèle de checklist, ou du manifeste d'un plugin de
+  rapport — est refusée (`409`,
   `approver-not-independent`) quand son demandeur a créé le compte de l'approbateur, réinitialisé son mot
   de passe ou changé son rôle dans les 30 derniers jours (`four_eyes_independence_days`, réservé au
   gouverneur de la plateforme). Et créer un compte doté d'un rôle qui approuve, élever un rôle vers l'un

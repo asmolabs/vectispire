@@ -912,6 +912,63 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
         }
     }
 
+    // ------------------------------------------------------------------ two accounts, one person
+
+    /**
+     * Under four-eyes, a revision is not signed off by an account one of its authors administered recently,
+     * nor by one that administered an author's (#126): two names one administrator made are not two people.
+     * Each account is created through the users route, so the record the check reads is the one production
+     * leaves.
+     */
+    @Nested
+    @DisplayName("a signer and an author who administered one another")
+    class Independence {
+
+        @Test
+        @DisplayName("an account an author created recently is refused as the signer, and the refusal audited")
+        void anAccountTheAuthorCreated() throws Exception {
+            Account maker = account(Role.ADMIN);
+            long madeId = createdBy(maker.token(), "made-" + System.nanoTime(), Role.CISO);
+            Account made = new Account(signedInAs(madeId), madeId, users.findById(madeId).orElseThrow().getUsername());
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+            open(maker, "release", 1, null).andExpect(status().isCreated());
+            answerAll(maker, 1, itemIds(read(maker, 1)));
+            submit(maker, 1, edition(1)).andExpect(status().isOk());
+
+            MvcResult refused = signOff(made, 1, edition(1)).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "approver-not-independent");
+            assertThat(json.readTree(refused.getResponse().getContentAsString()).path("gesture").asText())
+                    .isEqualTo("created");
+            assertThat(detailOf(refused)).contains(maker.name());
+            assertThat(read(developer, 1).at("/checklist/status").asText()).as("a refusal signs nothing off")
+                    .isEqualTo("submitted");
+            assertThat(entries("CHECKLIST_SIGN_OFF_REFUSED")).singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains("independence window"));
+
+            signOff(ciso, 1, edition(1)).andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("an approver who created an author's account recently is refused: it may be their second name")
+        void anApproverWhoCreatedTheAuthor() throws Exception {
+            Account maker = account(Role.ADMIN);
+            long madeId = createdBy(maker.token(), "made-" + System.nanoTime(), Role.USER);
+            Account made = new Account(signedInAs(madeId), madeId, users.findById(madeId).orElseThrow().getUsername());
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+            open(made, "release", 1, null).andExpect(status().isCreated());
+            answerAll(made, 1, itemIds(read(made, 1)));
+            submit(made, 1, edition(1)).andExpect(status().isOk());
+
+            MvcResult refused = signOff(maker, 1, edition(1)).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "approver-not-independent");
+            assertThat(detailOf(refused)).contains(made.name());
+
+            // With four-eyes off nothing is compared, as before.
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+            signOff(maker, 1, edition(1)).andExpect(status().isOk());
+        }
+    }
+
     // ------------------------------------------------------------------ a version no sign-off could fill in
 
     @Nested

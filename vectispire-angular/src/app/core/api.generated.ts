@@ -959,7 +959,7 @@ export interface paths {
         put?: never;
         /**
          * Publish checklist template version
-         * @description Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the caller while four-eyes is on), checklist-template-unrenderable (the workbook is filled in once with placeholder answers, as a sign-off fills it, and nothing of it is kept; a cell the layout writes carries a formula other cells depend on — the master of a shared formula, or an array formula — and the problem's cells member names each: cell, kind shared or array, range).
+         * @description Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the caller while four-eyes is on), checklist-template-unrenderable (the workbook is filled in once with placeholder answers, as a sign-off fills it, and nothing of it is kept; a cell the layout writes carries a formula other cells depend on — the master of a shared formula, or an array formula — and the problem's cells member names each: cell, kind shared or array, range). Under four-eyes, nor by an account an author created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set), nor by one that did so to an author's: 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays.
          */
         post: operations["publishVersion"];
         delete?: never;
@@ -979,7 +979,7 @@ export interface paths {
         put?: never;
         /**
          * Retire checklist template version
-         * @description Security lead only. A published version stops being offered for new checklists — with four-eyes approval on, not by one of its authors — and a draft is set aside. 409 checklist-template-retired, checklist-four-eyes, checklist-template-changed.
+         * @description Security lead only. A published version stops being offered for new checklists — with four-eyes approval on, not by one of its authors — and a draft is set aside. 409 checklist-template-retired, checklist-four-eyes, checklist-template-changed. Under four-eyes, nor by an account an author created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set), nor by one that did so to an author's: 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays.
          */
         post: operations["retireVersion"];
         delete?: never;
@@ -2975,7 +2975,7 @@ export interface paths {
         put?: never;
         /**
          * Sign off project checklist
-         * @description An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. The lines bound to a rule are measured again, and the sign-off is refused when one's outcome or reason is not what the submission stored; accepted, the measurements are frozen with it. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission), checklist-measurement-changed (a measurement changed since the submission) — their lines in the problem's lines member.
+         * @description An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. The lines bound to a rule are measured again, and the sign-off is refused when one's outcome or reason is not what the submission stored; accepted, the measurements are frozen with it. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission), checklist-measurement-changed (a measurement changed since the submission) — their lines in the problem's lines member. Under four-eyes, nor by an account an author created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set), nor by one that did so to an author's: 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays.
          */
         post: operations["signOff"];
         delete?: never;
@@ -3363,7 +3363,7 @@ export interface paths {
         put?: never;
         /**
          * Approve report plugin manifest
-         * @description Governance writers. Approves the plugin's pending manifest digest: its runs use it from now on. With four-eyes on, 409 report-plugin-four-eyes for the account that registered it; 409 report-plugin-not-pending for a digest not awaiting approval; 404 for a plugin or digest that does not exist.
+         * @description Governance writers. Approves the plugin's pending manifest digest: its runs use it from now on. With four-eyes on, 409 report-plugin-four-eyes for the account that registered it; 409 report-plugin-not-pending for a digest not awaiting approval; 404 for a plugin or digest that does not exist. Nor by an account the registrant created, reset the password of or changed the role of within the approver independence window (setting four_eyes_independence_days, 30 days unless set), nor by one that did so to the registrant's: 409 with the type urn:vectispire:problem:approver-not-independent and the members gesture and windowDays.
          */
         post: operations["approve"];
         delete?: never;

@@ -192,6 +192,34 @@ abstract class ApiTestBase extends VectispireContextTest {
     }
 
     /**
+     * An account an administrator creates through the users route, so the gesture leaves the record approver
+     * independence reads (#126) the way production leaves it — a row written by hand would test the table, not
+     * the route that fills it. Four-eyes must be off at the time, or the creation waits for a second
+     * administrator.
+     */
+    protected long createdBy(String administrator, String username, Role role) throws Exception {
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/users"),
+                        administrator)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(write(java.util.Map.of("username", username,
+                                "password", "a-temporary-password-of-length", "role", role.name()))))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        return users.findByUsername(username).orElseThrow().getId();
+    }
+
+    /**
+     * A session for an account created through the API, its password changed first: whoever holds the typed
+     * password makes the change before acting.
+     */
+    protected String signedInAs(long userId) {
+        UserEntity user = users.findById(userId).orElseThrow();
+        user.setMustChangePassword(false);
+        users.save(user);
+        return sessionFor(userId);
+    }
+
+    /**
      * The SCIM token the suite's configuration enables — the one credential {@code /scim} accepts,
      * whatever an administrator's session may do elsewhere.
      */

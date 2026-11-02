@@ -21,6 +21,8 @@ import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.ApproverIndependence;
+import com.asmolabs.vectispire.core.access.ApproverNotIndependentException;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -129,8 +131,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * carrying answers over is not writing (see {@code authorsOf}) — compared as two people,
  * the account and its name, like the template versions' publisher. The ADR names the submitter; an
  * answerer is as much the revision's author, and signing one's own answers is what four-eyes exists to
- * stop. The refusal is audited and signalled ({@code VECTI-SEC-026}), and so is a sign-off refused
- * because a proof stopped holding since the submission.
+ * stop. Nor is the signer an account one of the authors administered within the approver independence
+ * window, nor one that administered an author's ({@link ApproverIndependence}): two accounts one person
+ * made are not two pairs of eyes. The refusal is audited and signalled ({@code VECTI-SEC-026}), and so is
+ * a sign-off refused because a proof stopped holding since the submission.
  *
  * <h2>Measured lines (§6)</h2>
  *
@@ -202,6 +206,7 @@ public class ProjectChecklistService {
     private final TargetNaming naming;
     private final SettingsService settings;
     private final AuditLogService audit;
+    private final ApproverIndependence independence;
     private final TransactionTemplate transactions;
     private final Clock clock;
     private final long maxFileBytes;
@@ -223,6 +228,7 @@ public class ProjectChecklistService {
             TargetNaming naming,
             SettingsService settings,
             AuditLogService audit,
+            ApproverIndependence independence,
             TransactionTemplate transactions,
             Clock clock,
             RequestBodyLimits limits) {
@@ -242,6 +248,7 @@ public class ProjectChecklistService {
         this.naming = naming;
         this.settings = settings;
         this.audit = audit;
+        this.independence = independence;
         this.transactions = transactions;
         this.clock = clock;
         this.maxFileBytes = limits.checklistEvidence().toBytes();
@@ -1150,6 +1157,8 @@ public class ProjectChecklistService {
      *     checklist-four-eyes} when four-eyes is on and the signer wrote the revision, {@code
      *     checklist-incomplete} when a proof stopped holding since the submission, {@code
      *     checklist-measurement-changed} when a measurement did
+     * @throws ApproverNotIndependentException {@code approver-not-independent}, under four-eyes, when the signer
+     *     and an author administered one another's account within the window
      */
     public ChecklistView signOff(long projectId, int revision, VisibilityService.Allowance allowance, Integer seenEdition,
             Participant who) {
@@ -1178,6 +1187,18 @@ public class ProjectChecklistService {
             audit.record(who.actor().entry(AuditOperation.CHECKLIST_SIGN_OFF_REFUSED, resource(project, revision),
                     "Checklist of project \"" + project.name() + "\", revision " + revision + ": sign-off refused, "
                             + "four-eyes is on and the signer is one of its authors (" + names(authors) + ")."));
+            throw refused;
+        }
+        try {
+            independence.requireIndependentOfAuthors(
+                    authors.stream().map(author -> new ApproverIndependence.Author(author.accountId(), author.username()))
+                            .toList(),
+                    who.accountId(), fourEyes);
+        } catch (ApproverNotIndependentException refused) {
+            audit.record(who.actor().entry(AuditOperation.CHECKLIST_SIGN_OFF_REFUSED, resource(project, revision),
+                    "Checklist of project \"" + project.name() + "\", revision " + revision + ": sign-off refused, "
+                            + "four-eyes is on and the signer and one of its authors (" + names(authors)
+                            + ") administered one another's account within the independence window."));
             throw refused;
         }
         Instant now = clock.instant();

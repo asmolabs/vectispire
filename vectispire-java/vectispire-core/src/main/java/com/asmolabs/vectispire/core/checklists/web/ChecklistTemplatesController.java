@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.checklists.web;
 
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.core.access.ApproverNotIndependentException;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
@@ -245,6 +246,12 @@ public class ChecklistTemplatesController {
         return templates.derive(slug, ordinal, body == null ? null : body.label(), editor(principal, request));
     }
 
+    /** The approver independence rule (#126), which a publication and a retirement answer alike. */
+    private static final String INDEPENDENCE = " Under four-eyes, nor by an account an author created, reset the password of or changed the role of within "
+            + "the approver independence window (setting four_eyes_independence_days, 30 days unless set), nor by one "
+            + "that did so to an author's: 409 with the type urn:vectispire:problem:"
+            + ApproverNotIndependentException.CAUSE + " and the members gesture and windowDays.";
+
     @Operation(summary = "Publish checklist template version", description = "Security lead only, on a draft with a "
             + "confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. "
             + "400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, "
@@ -252,7 +259,7 @@ public class ChecklistTemplatesController {
             + "caller while four-eyes is on), checklist-template-unrenderable (the workbook is filled in once with "
             + "placeholder answers, as a sign-off fills it, and nothing of it is kept; a cell the layout writes "
             + "carries a formula other cells depend on — the master of a shared formula, or an array formula — "
-            + "and the problem's cells member names each: cell, kind shared or array, range).")
+            + "and the problem's cells member names each: cell, kind shared or array, range)." + INDEPENDENCE)
     // Declaring the 409 drops the 200 springdoc would infer, so it is declared too, as it was inferred.
     @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(mediaType = "*/*", schema = @Schema(implementation = ChecklistVersionView.class)))
@@ -274,7 +281,7 @@ public class ChecklistTemplatesController {
     @Operation(summary = "Retire checklist template version", description = "Security lead only. A published version "
             + "stops being offered for new checklists — with four-eyes approval on, not by one of its authors — and a "
             + "draft is set aside. 409 checklist-template-retired, "
-            + "checklist-four-eyes, checklist-template-changed.")
+            + "checklist-four-eyes, checklist-template-changed." + INDEPENDENCE)
     @PostMapping("/{slug}/versions/{ordinal}/retire")
     @RequiresSecurityLead
     public ChecklistVersionView retireVersion(

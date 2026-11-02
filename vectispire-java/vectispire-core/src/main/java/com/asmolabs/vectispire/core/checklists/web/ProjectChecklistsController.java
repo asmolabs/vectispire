@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.checklists.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.paging.ListWindow;
+import com.asmolabs.vectispire.core.access.ApproverNotIndependentException;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
@@ -445,13 +446,19 @@ public class ProjectChecklistsController {
                 body == null ? null : body.edition(), participant(principal, request));
     }
 
+    /** The approver independence rule (#126): a revision's authors are the ones it is compared with. */
+    private static final String INDEPENDENCE = " Under four-eyes, nor by an account an author created, reset the password of or changed the role of within "
+            + "the approver independence window (setting four_eyes_independence_days, 30 days unless set), nor by one "
+            + "that did so to an author's: 409 with the type urn:vectispire:problem:"
+            + ApproverNotIndependentException.CAUSE + " and the members gesture and windowDays.";
+
     @Operation(summary = "Sign off project checklist", description = "An approver — administrator, CISO, security "
             + "champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its "
             + "authors. The lines bound to a rule are measured again, and the sign-off is refused when one's outcome "
             + "or reason is not what the submission stored; accepted, the measurements are frozen with it. 403 for "
             + "another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete "
             + "(a proof lapsed since the submission), checklist-measurement-changed (a measurement changed since the "
-            + "submission) — their lines in the problem's lines member.")
+            + "submission) — their lines in the problem's lines member." + INDEPENDENCE)
     // Declaring the 409 drops the 200 springdoc would infer, so it is declared too, as it was inferred.
     @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(mediaType = "*/*", schema = @Schema(implementation = ChecklistView.class)))
