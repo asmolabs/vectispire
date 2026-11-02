@@ -449,6 +449,14 @@ risk where a fix would be a decision of its own:
   its socket proxy, as the configuration reference says.
 - **The secrets step reads gitleaks' report only as a regular file**, never through a link, and no larger
   than the scanner output ceiling; past it the step fails rather than reporting nothing.
+- **The scanned repository no longer configures its own scanners.** Its `.checkov.yaml` and
+  `.checkov.yml`, `.gitleaksignore` and every `.semgrepignore` are removed from Vectispire's clone
+  before any scanner runs, wherever they sit in the tree: they could keep findings out of a scan, and
+  the clean report then resolved them and passed the gate. The repository itself is untouched, and the
+  removal is logged; a finding to set aside is an exception recorded in Vectispire. **The removal runs on
+  the executor: an agent of an earlier release still honours these files until it is upgraded, so
+  upgrade remote agents with the control plane.** Inline suppression comments (`nosemgrep`,
+  `checkov:skip=`, `gitleaks:allow`) are unchanged.
 - **On the Kubernetes executor, a scanner starts only once its pod is cut off from the API server.** A
   network policy can reach a new pod a moment after it starts; each scan pod now checks before its scanner
   runs, and fails the step if the cut never comes. Where the policy drops rather than refuses, this costs
