@@ -159,6 +159,15 @@ the reading through the scan as well as the parser (`SecretsReportFateTest` foll
 to the issue's row), with a clean-report case beside it that does resolve, or the test cannot tell
 "kept" from "never looked".
 
+**The target does not configure its own audit.** A scanner that reads a file from the tree it
+analyses lets the audited repository decide what is found: `--config` kept `.gitleaks.toml` out and
+`--no-git-ignore` the `.gitignore`, but `.checkov.yaml`/`.checkov.yml`, `.gitleaksignore` and
+`.semgrepignore` have no flag and were each measured silencing a planted finding on the pinned image —
+a clean report, a resolved backlog, a passed gate. `ScannerConfigurationFiles` removes them from the
+clone before any scanner runs. A new scanner, or a new version of one, is read for the files it looks
+for in its target (its docs, then a planted file on the pinned image), and each joins that list and
+the composition check's fixture.
+
 **A plugin has four states, not two** (decision 0017). `PluginStep` is `produced` (ran; an empty
 list resolves *its* issues), `not_applicable` (none of its languages in the tree: resolves nothing,
 and is not a failure), `absent` (should have run and did not: resolves nothing, and is a failure) or

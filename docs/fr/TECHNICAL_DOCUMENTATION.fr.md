@@ -310,7 +310,14 @@ Les points que le diagramme ne montre pas :
 - **La configuration des analyseurs vient de Vectispire, jamais de la cible.** gitleaks se rabat
   sur le `.gitleaks.toml` du dépôt analysé quand aucun `--config` ne lui est donné, et Semgrep
   honore le `.gitignore` de l'arbre analysé sauf indication contraire — dans les deux cas, le dépôt
-  audité déciderait de ce qu'on cherche en lui.
+  audité déciderait de ce qu'on cherche en lui. Trois fichiers qu'aucune option ne neutralise sont
+  **retirés du clone avant qu'un analyseur ne tourne**, à toute profondeur et sans suivre de lien :
+  `.checkov.yaml` et `.checkov.yml` (contrôles ignorés, contrôles externes exécutés),
+  `.gitleaksignore` (empreintes écartées malgré `--config`) et tout `.semgrepignore` (fichiers exclus
+  malgré `--no-git-ignore`). Chacun a fait taire une anomalie plantée sur l'image épinglée, et le
+  rapport propre d'un analyseur réduit au silence résout le backlog. Le retrait a lieu dans
+  `ScanRunner`, donc sur le worker intégré comme sur les agents, et il est journalisé ; voir
+  [`ScannerConfigurationFiles`](../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ScannerConfigurationFiles.java).
 - **Les règles sont recopiées dans l'espace de travail de l'analyse.** Contre-intuitif mais
   obligatoire : les chemins de volume sont résolus par le *démon* Docker, donc un répertoire situé
   dans l'image de Vectispire est invisible pour le conteneur de scan voisin. Voir

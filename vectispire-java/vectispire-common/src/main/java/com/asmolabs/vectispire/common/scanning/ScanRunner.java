@@ -15,6 +15,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Running a scan: clone, launch the scanners, return the raw output.
@@ -27,9 +29,12 @@ import java.util.Optional;
  *
  * <p><b>Each step is independent of the others.</b> One scanner failing does not sink the scan:
  * its artifact stays absent, which ingestion reads as "not looked at" rather than "found
- * nothing". Only the clone is blocking — with no tree there is nothing to analyse.
+ * nothing". Only the clone is blocking — with no tree there is nothing to analyse — and the removal
+ * of the scanners' configuration files from it, without which every scanner reads the target's.
  */
 public final class ScanRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(ScanRunner.class);
 
     private final ContainerExecutor containers;
     private final DependencyScanner dependencies;
@@ -129,105 +134,126 @@ public final class ScanRunner {
 
     private ScanArtifacts runRepository(ScanTask task, ScanTask.Target.Repository repository, Instant started) {
         return Workspace.withWorkspace(workspace -> {
-            ScanArtifacts.Builder artifacts = ScanArtifacts.builder();
-
-            // Blocking, and the only step that is: with no tree there is nothing to analyse,
-            // and carrying on would produce empty lists that resolve the whole backlog.
+            // Blocking: with no tree there is nothing to analyse, and carrying on would produce
+            // empty lists that resolve the whole backlog.
             GitClone.clone(new GitClone.Request(
                     repository.url(), repository.branch(), workspace.source(),
                     repository.privateKey(), Duration.ofMinutes(5), hostKeys, withoutKey, repository.https()));
 
-            String subPath = normalizedSubPath(repository.subPath());
-            Path scanRoot = scanRoot(workspace.source(), subPath, repository.branch());
-
-            // **Not a step, and not wrapped in one.** Reading a manifest is a file read, not an
-            // analysis: it produces no finding, resolves no backlog, and its absence is an
-            // ordinary property of a repository rather than a scanner that failed. Wrapping it
-            // would put "no pom.xml" in the same list as "Semgrep timed out".
-            ProjectManifest.read(scanRoot).ifPresent(artifacts::project);
-
-            // Not a step either, for the same reason: counting file names is no analysis. Taken whole
-            // — no language "wanted", so the walk does not stop at the plugins' — because what it
-            // finds is kept on the scan for the screens (which languages a project is written in, face
-            // to a plugin's), and the plugins below are decided on the same census.
-            LanguageCensus.Census census = census(scanRoot, artifacts);
-
-            // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger).
-            //
-            // **A step like the others, no longer a swallowed exception.** A failure here was
-            // caught and ignored — and the scanner itself returned empty lists when it could not
-            // walk the tree, which the inventory reads as "this repository has no contracts" and
-            // records by replacing the ones it had (decision 0007). Absent now means absent.
-            step(artifacts, "api discovery", () -> {
-                var apiDiscovery = com.asmolabs.vectispire.common.scanning.scanners.ApiDiscoveryScanner.scan(scanRoot);
-                artifacts.apiEndpoints(apiDiscovery.endpoints());
-                artifacts.apiContracts(apiDiscovery.contracts());
-            });
-
-            if (task.runs(ScanTask.Step.DEPENDENCIES)) {
-                step(artifacts, "dependencies", () -> {
-                    JsonNode sbom = ran(
-                            dependencies.sbomOfDirectory(workspace, subPath),
-                            "the inventory of the tree's dependencies could not be taken.");
-                    artifacts.sbom(sbom);
-                    artifacts.dependencies(ran(
-                            dependencies.matchSbom(workspace, sbom.toString()),
-                            "the inventory was taken but could not be matched against known vulnerabilities."));
-                });
-            }
-
-            // **Placed before the scanners, not inside the SAST step.** The secrets scanner
-            // needs them too: its configuration has to come from here rather than from the
-            // analysed tree, and copying it only for the source analyser left the first one
-            // reading the target's own.
-            rules.placeBundled(workspace);
-
-            if (task.runs(ScanTask.Step.SECRETS)) {
-                step(artifacts, "secrets", () -> {
-                    // **Both, or neither — and never one presented as both.** The second scanner
-                    // used to run inside a `catch (Exception ignored)`, so its failure produced
-                    // the first scanner's results alone: a non-null list, which decision 0007
-                    // defines as "the step ran and found nothing" and which therefore *resolves*
-                    // this type's open issues. A leaked credential that only the second engine
-                    // detects was closed, silently, with no error recorded anywhere — in the one
-                    // finding type where a false resolution costs the most.
-                    //
-                    // `ran(…)` restores the rule the rest of this method already follows: an
-                    // analysis that did not happen leaves the artifact absent and the backlog
-                    // untouched, and the step carries the reason.
-                    // One engine, and decision 0015 explains why there is not a second: the
-                    // seam that existed accepted only gitleaks-compatible images, which the
-                    // primary image override already covers.
-                    artifacts.secrets(ran(
-                            secrets.scan(workspace, subPath),
-                            "the search for hardcoded secrets did not complete."));
-                });
-            }
-            if (task.runs(ScanTask.Step.IAC)) {
-                step(artifacts, "IaC", () -> artifacts.iac(ran(
-                        iac.scan(workspace, subPath),
-                        "the infrastructure manifest check did not complete.")));
-            }
-            if (task.runs(ScanTask.Step.SAST)) {
-                step(artifacts, "SAST", () -> {
-                    // **Inside the step, and before the scan.** A rule set that cannot be
-                    // obtained, or a configured directory that cannot be read, must fail SAST
-                    // alone — not the SBOM, not the secrets — and must leave its result absent
-                    // rather than let the analyser run with the bundled rules and report a
-                    // clean, shorter list.
-                    rules.placeRuleSet(
-                            workspace, task.rulesHash(), ruleSets, RulePlacement.environmentDirectory().orElse(null));
-                    artifacts.sast(ran(
-                            sast.scan(workspace, subPath),
-                            "the source analysis did not run, or covered too few files to be worth reading."));
-                });
-            }
-
-            // Last, and each on its own: see runPlugins.
-            runPlugins(task, workspace, scanRoot, census, artifacts);
-
-            return artifacts.build(Duration.between(started, clock.instant()));
+            return analyse(task, repository, workspace, started);
         });
+    }
+
+    /**
+     * Everything after the clone, on the tree in {@code workspace.source()}. Package-private so what
+     * the scanners find there is exercised without a clone.
+     */
+    ScanArtifacts analyse(ScanTask task, ScanTask.Target.Repository repository, Workspace workspace, Instant started) {
+        ScanArtifacts.Builder artifacts = ScanArtifacts.builder();
+
+        // **Before anything reads the tree.** checkov, gitleaks and semgrep each read a file of their
+        // own from the tree they analyse, and that file is the target's: it silenced the findings it
+        // chose, and the clean report resolved them — see ScannerConfigurationFiles. Outside any step,
+        // like the clone: a tree that cannot be cleared is not scanned at all, since every scanner
+        // would read it.
+        List<String> removed = ScannerConfigurationFiles.removeFrom(workspace.source());
+        if (!removed.isEmpty()) {
+            // A signal, not a finding: a finding of a new type would enter the backlog and the gate on
+            // a file that, once removed, changes nothing — and a type nobody triages yet.
+            log.info("The tree of {} carried scanner configuration files; removed before any scanner ran: {}",
+                    repository.url(), removed);
+        }
+
+        String subPath = normalizedSubPath(repository.subPath());
+        Path scanRoot = scanRoot(workspace.source(), subPath, repository.branch());
+
+        // **Not a step, and not wrapped in one.** Reading a manifest is a file read, not an
+        // analysis: it produces no finding, resolves no backlog, and its absence is an
+        // ordinary property of a repository rather than a scanner that failed. Wrapping it
+        // would put "no pom.xml" in the same list as "Semgrep timed out".
+        ProjectManifest.read(scanRoot).ifPresent(artifacts::project);
+
+        // Not a step either, for the same reason: counting file names is no analysis. Taken whole
+        // — no language "wanted", so the walk does not stop at the plugins' — because what it
+        // finds is kept on the scan for the screens (which languages a project is written in, face
+        // to a plugin's), and the plugins below are decided on the same census.
+        LanguageCensus.Census census = census(scanRoot, artifacts);
+
+        // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger).
+        //
+        // **A step like the others, no longer a swallowed exception.** A failure here was
+        // caught and ignored — and the scanner itself returned empty lists when it could not
+        // walk the tree, which the inventory reads as "this repository has no contracts" and
+        // records by replacing the ones it had (decision 0007). Absent now means absent.
+        step(artifacts, "api discovery", () -> {
+            var apiDiscovery = com.asmolabs.vectispire.common.scanning.scanners.ApiDiscoveryScanner.scan(scanRoot);
+            artifacts.apiEndpoints(apiDiscovery.endpoints());
+            artifacts.apiContracts(apiDiscovery.contracts());
+        });
+
+        if (task.runs(ScanTask.Step.DEPENDENCIES)) {
+            step(artifacts, "dependencies", () -> {
+                JsonNode sbom = ran(
+                        dependencies.sbomOfDirectory(workspace, subPath),
+                        "the inventory of the tree's dependencies could not be taken.");
+                artifacts.sbom(sbom);
+                artifacts.dependencies(ran(
+                        dependencies.matchSbom(workspace, sbom.toString()),
+                        "the inventory was taken but could not be matched against known vulnerabilities."));
+            });
+        }
+
+        // **Placed before the scanners, not inside the SAST step.** The secrets scanner
+        // needs them too: its configuration has to come from here rather than from the
+        // analysed tree, and copying it only for the source analyser left the first one
+        // reading the target's own.
+        rules.placeBundled(workspace);
+
+        if (task.runs(ScanTask.Step.SECRETS)) {
+            step(artifacts, "secrets", () -> {
+                // **Both, or neither — and never one presented as both.** The second scanner
+                // used to run inside a `catch (Exception ignored)`, so its failure produced
+                // the first scanner's results alone: a non-null list, which decision 0007
+                // defines as "the step ran and found nothing" and which therefore *resolves*
+                // this type's open issues. A leaked credential that only the second engine
+                // detects was closed, silently, with no error recorded anywhere — in the one
+                // finding type where a false resolution costs the most.
+                //
+                // `ran(…)` restores the rule the rest of this method already follows: an
+                // analysis that did not happen leaves the artifact absent and the backlog
+                // untouched, and the step carries the reason.
+                // One engine, and decision 0015 explains why there is not a second: the
+                // seam that existed accepted only gitleaks-compatible images, which the
+                // primary image override already covers.
+                artifacts.secrets(ran(
+                        secrets.scan(workspace, subPath),
+                        "the search for hardcoded secrets did not complete."));
+            });
+        }
+        if (task.runs(ScanTask.Step.IAC)) {
+            step(artifacts, "IaC", () -> artifacts.iac(ran(
+                    iac.scan(workspace, subPath),
+                    "the infrastructure manifest check did not complete.")));
+        }
+        if (task.runs(ScanTask.Step.SAST)) {
+            step(artifacts, "SAST", () -> {
+                // **Inside the step, and before the scan.** A rule set that cannot be
+                // obtained, or a configured directory that cannot be read, must fail SAST
+                // alone — not the SBOM, not the secrets — and must leave its result absent
+                // rather than let the analyser run with the bundled rules and report a
+                // clean, shorter list.
+                rules.placeRuleSet(
+                        workspace, task.rulesHash(), ruleSets, RulePlacement.environmentDirectory().orElse(null));
+                artifacts.sast(ran(
+                        sast.scan(workspace, subPath),
+                        "the source analysis did not run, or covered too few files to be worth reading."));
+            });
+        }
+
+        // Last, and each on its own: see runPlugins.
+        runPlugins(task, workspace, scanRoot, census, artifacts);
+
+        return artifacts.build(Duration.between(started, clock.instant()));
     }
 
     /**

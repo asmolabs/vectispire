@@ -46,6 +46,11 @@ public final class IacScanner {
                             // `--soft-fail`: it exits 1 when a control fails. That is the
                             // expected result, not a container failure — the same reason the
                             // secrets scanner neutralizes its own exit code.
+                            //
+                            // No `--config-file`: checkov merges the `.checkov.yaml` of the `-d`
+                            // directory with it rather than replacing it (measured on 3.3.9), so
+                            // the tree's own is taken out of the clone before this runs instead
+                            // (ScannerConfigurationFiles).
                             List.of("-d", ContainerPaths.source(subPath), "-o", "json", "--soft-fail", "--compact"),
                             List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
                             LABEL)
