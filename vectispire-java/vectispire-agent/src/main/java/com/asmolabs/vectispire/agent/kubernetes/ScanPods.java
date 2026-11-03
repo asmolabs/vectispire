@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.agent.kubernetes;
 
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.ScannerLimits;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -75,13 +76,36 @@ final class ScanPods {
     static final String CACHE = "/matcher-cache";
 
     /**
+     * What the scanner may write into the work volume: each writable mount's declared size, or the output
+     * ceiling for one that declares none — and the output ceiling at least, as before sizes were declared.
+     */
+    static long writable(ContainerRun request, ScannerLimits limits) {
+        long total = 0;
+        for (ContainerRun.Mount mount : request.mounts()) {
+            if (!mount.readOnly()) {
+                total += ceiling(mount, limits);
+            }
+        }
+        return Math.max(limits.outputBytes(), total);
+    }
+
+    /** How much a writable mount may hold, and so what its copy back accepts. */
+    static long ceiling(ContainerRun.Mount mount, ScannerLimits limits) {
+        return mount.writableBytes() > 0 ? mount.writableBytes() : limits.outputBytes();
+    }
+
+    /**
      * @param uid the numeric user the three containers run as — the workspace's owner, never root
      * @param mounts where each of the request's mounts comes from, in its order
      * @param workBytes what the copied mounts hold: the work volume's size is that, plus what the scanner may
-     *     write into a writable one and a margin — past it the pod is evicted, a failure (review of 2026-10-26, L3)
+     *     write into its writable ones ({@link #writable}) and a margin — past it the pod is evicted, a failure
+     *     (review of 2026-10-26, L3)
+     * @param transfers what copying the mounts in and back may take, on top of the start: the pod's deadline has
+     *     to outlast it, or a large mount is killed by the backstop while the agent still waits for it
      */
     static ObjectNode pod(String name, ContainerRun request, KubernetesExecutor.Settings settings, long uid, long gid,
-            List<MountSource> mounts, long workBytes, Duration timeout) {
+            List<MountSource> mounts, long workBytes, Duration timeout, Duration transfers) {
+        Duration lifetime = settings.startTimeout().plus(transfers).plus(timeout).plus(BACKSTOP);
         boolean cached = mounts.stream().anyMatch(MountSource::cached);
 
         ObjectNode pod = JSON.createObjectNode();
@@ -100,7 +124,7 @@ final class ScanPods {
         // The scan pod reaches nothing of the API: the agent's token stays in the agent's pod.
         spec.put("automountServiceAccountToken", false);
         spec.put("enableServiceLinks", false);
-        spec.put("activeDeadlineSeconds", settings.startTimeout().plus(timeout).plus(BACKSTOP).toSeconds());
+        spec.put("activeDeadlineSeconds", lifetime.toSeconds());
         spec.put("terminationGracePeriodSeconds", 0);
         ObjectNode podSecurity = spec.putObject("securityContext");
         podSecurity.put("runAsNonRoot", true);
@@ -118,7 +142,7 @@ final class ScanPods {
 
         ArrayNode volumes = spec.putArray("volumes");
         volumes.addObject().put("name", "work").putObject("emptyDir")
-                .put("sizeLimit", String.valueOf(workBytes + settings.limits().outputBytes() + 256L * 1024 * 1024));
+                .put("sizeLimit", String.valueOf(workBytes + writable(request, settings.limits()) + 256L * 1024 * 1024));
         volumes.addObject().put("name", "tools").putObject("emptyDir")
                 // The busybox, the standard output up to its ceiling and the error stream: past it the pod is
                 // evicted, a failure, never a truncation.
@@ -135,7 +159,13 @@ final class ScanPods {
         }
 
         ArrayNode init = spec.putArray("initContainers");
-        ObjectNode receive = container(init, RECEIVE, settings.helperImage(), uid, gid, 64);
+        // **The scanner's memory, not a helper's**: it writes every mount to disk, and the kernel charges the
+        // page cache of those writes to it. At 64 MiB it was OOMKilled a few seconds into the matcher's 3 GB
+        // database, and at 256 MiB a minute in (measured, k3s on Docker Desktop's kernel); the scanner's limit
+        // carried it in 21 s. It costs the pod nothing: an init container's request is counted against the
+        // containers' as a maximum, not added to them.
+        ObjectNode receive = container(init, RECEIVE, settings.helperImage(), uid, gid,
+                (int) Math.max(64, settings.limits().memory() / (1024 * 1024)));
         command(receive, "sh", "-c", "mkdir -p " + TOOLS + "/out && cp /bin/busybox " + BUSYBOX
                 + " && until [ -f " + RECEIVED + " ]; do sleep 0.2; done");
         mount(receive, "work", WORK, false, null);
@@ -189,7 +219,7 @@ final class ScanPods {
         }
 
         ObjectNode holder = container(containers, HOLDER, settings.helperImage(), uid, gid, 32);
-        command(holder, "sleep", String.valueOf(settings.startTimeout().plus(timeout).plus(BACKSTOP).toSeconds()));
+        command(holder, "sleep", String.valueOf(lifetime.toSeconds()));
         mount(holder, "work", WORK, true, null);
         mount(holder, "tools", TOOLS, true, null);
         if (request.output() != null) {

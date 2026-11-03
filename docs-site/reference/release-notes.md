@@ -481,6 +481,18 @@ risk where a fix would be a decision of its own:
 
 ### Fixed {#fixed-100-rc1}
 
+- **The Kubernetes executor now matches dependencies against the publisher's vulnerability database.**
+  The database is some 3 GB, and every step that moved it failed, so the dependency step of every scan
+  reported "absent":
+  - the download pod's volume was sized to the 256 MiB output ceiling, and the pod was evicted;
+  - the copy onto the matcher's cache volume ran in a receiving container of 64 MiB, which was OOMKilled;
+  - that copy, and every other one, was bounded by the five-minute start timeout, whatever its size.
+
+  Each writable mount now declares what it may hold, and the download declares 12 GiB. The receiving
+  container has the scanner's memory, at no cost in scheduling. A copy is given the start timeout plus its
+  size at 8 MiB/s. The Docker executor was not affected. `scripts/kubernetes-scan-check.sh` now moves a
+  gigabyte through the cache, since the database it plants for the check is a few kilobytes and so never
+  tested this path.
 - **A code finding whose rule declares a CWE but no OWASP category is placed by its CWE**, from OWASP's
   own lists of the CWEs each category of the 2021 edition maps. Most upstream rules declare only a CWE, so their
   findings entered no category and the category read "nothing found". An existing issue gets its

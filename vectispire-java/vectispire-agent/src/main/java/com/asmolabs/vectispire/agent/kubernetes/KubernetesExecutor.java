@@ -139,6 +139,12 @@ public final class KubernetesExecutor implements ContainerExecutor {
     static final Duration ISOLATION_SETTLES = Duration.ofSeconds(30);
     /** A metadata answer, a df: small. */
     private static final long SMALL = 64 * 1024;
+    /**
+     * The slowest a copy through the API server's exec stream is assumed to run. A transfer is given the start
+     * timeout plus its size at this rate: the matcher's 3 GB database took 21 s on a laptop's k3s, and a flat five
+     * minutes was what failed it once the receiving container slowed under memory pressure.
+     */
+    static final long TRANSFER_FLOOR_BYTES_PER_SECOND = 8L * 1024 * 1024;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final KubernetesApi api;
@@ -370,6 +376,15 @@ public final class KubernetesExecutor implements ContainerExecutor {
             }
             sources.add(new ScanPods.MountSource(false, name));
         }
+        long[] sizes = new long[request.mounts().size()];
+        long copied = 0;
+        long moved = 0;
+        for (int i = 0; i < sizes.length; i++) {
+            ContainerRun.Mount mount = request.mounts().get(i);
+            sizes[i] = bytes(Path.of(mount.source()));
+            copied += sources.get(i).cached() ? 0 : sizes[i];
+            moved += sizes[i] + (mount.readOnly() ? 0 : ScanPods.ceiling(mount, settings.limits()));
+        }
 
         String slug = ScanPods.labelValue(label).replaceAll("[^a-z0-9-]", "-");
         slug = slug.substring(0, Math.min(40, slug.length())).replaceAll("^-+|-+$", "");
@@ -378,7 +393,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
         String pod = "vs-" + slug + "-" + HexFormat.of().formatHex(suffix);
         try {
             api.createPod(settings.namespace(),
-                    ScanPods.pod(pod, request, settings, owner[0], owner[1], sources, copiedBytes(request, sources), timeout));
+                    ScanPods.pod(pod, request, settings, owner[0], owner[1], sources, copied, timeout, transferTime(moved)));
         } catch (KubernetesException refused) {
             throw ScannerFailureException.of(label, "Its pod could not be created: " + refused.getMessage());
         }
@@ -387,9 +402,9 @@ public final class KubernetesExecutor implements ContainerExecutor {
             for (int i = 0; i < request.mounts().size(); i++) {
                 Path source = Path.of(request.mounts().get(i).source());
                 if (sources.get(i).cached()) {
-                    seed(pod, source, label);
+                    seed(pod, source, sizes[i], label);
                 } else {
-                    copyIn(pod, i, source, label);
+                    copyIn(pod, i, source, sizes[i], label);
                 }
             }
             if (gated) {
@@ -437,7 +452,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
             for (int i = 0; i < request.mounts().size(); i++) {
                 ContainerRun.Mount mount = request.mounts().get(i);
                 if (!mount.readOnly()) {
-                    copyBack(pod, i, Path.of(mount.source()), label);
+                    copyBack(pod, i, Path.of(mount.source()), ScanPods.ceiling(mount, settings.limits()), label);
                 }
             }
             return new ContainerResult(stdout, stderr, exitCode, collected);
@@ -452,27 +467,30 @@ public final class KubernetesExecutor implements ContainerExecutor {
         }
     }
 
-    /** What the copied mounts hold, in bytes, links not followed: what the work volume receives. */
-    private static long copiedBytes(ContainerRun request, List<ScanPods.MountSource> sources) {
-        long total = 0;
-        for (int i = 0; i < request.mounts().size(); i++) {
-            if (sources.get(i).cached()) {
-                continue;
-            }
-            try (java.util.stream.Stream<Path> files = Files.walk(Path.of(request.mounts().get(i).source()))) {
-                total += files.filter(file -> Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS))
-                        .mapToLong(file -> {
-                            try {
-                                return Files.size(file);
-                            } catch (IOException unreadable) {
-                                return 0;
-                            }
-                        }).sum();
-            } catch (IOException unreadable) {
-                // Counted as nothing: the copy that follows reads the same tree and fails on it, by name.
-            }
+    /** What a mount holds, in bytes, links not followed: what its copy sends. */
+    private static long bytes(Path source) {
+        try (java.util.stream.Stream<Path> files = Files.walk(source)) {
+            return files.filter(file -> Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                    .mapToLong(file -> {
+                        try {
+                            return Files.size(file);
+                        } catch (IOException unreadable) {
+                            return 0;
+                        }
+                    }).sum();
+        } catch (IOException unreadable) {
+            // Counted as nothing: the copy that follows reads the same tree and fails on it, by name.
+            return 0;
         }
-        return total;
+    }
+
+    /** What moving {@code bytes} through the exec stream may take at the assumed floor. */
+    static Duration transferTime(long bytes) {
+        return Duration.ofSeconds(bytes / TRANSFER_FLOOR_BYTES_PER_SECOND);
+    }
+
+    private Duration transferTimeout(long bytes) {
+        return settings.startTimeout().plus(transferTime(bytes));
     }
 
     /** A read-only mount of one of the agent's database generations, with a cache to serve it from. */
@@ -496,7 +514,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
      * removed and copied again. Names are checked against what {@code VulnerabilityDatabase} writes before
      * they reach a shell.
      */
-    private void seed(String pod, Path generation, String label) {
+    private void seed(String pod, Path generation, long size, String label) {
         String name = generation.getFileName().toString();
         String root = ScanPods.CACHE + "/" + ScanPods.GENERATIONS;
         seeding.lock();
@@ -522,7 +540,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
                 try (InputStream reading = in) {
                     received = api.exec(settings.namespace(), pod, ScanPods.RECEIVE, List.of("sh", "-c",
                             "rm -rf " + root + "/" + name + " " + partial + " && mkdir -p " + partial + " && tar -x -C " + partial),
-                            reading, SMALL, settings.startTimeout());
+                            reading, SMALL, transferTimeout(size));
                 } catch (IOException closing) {
                     throw ScannerFailureException.of(label, "The matcher's database could not be sent: " + closing.getMessage());
                 }
@@ -632,7 +650,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
         throw ScannerFailureException.timedOut(label, timeout);
     }
 
-    private void copyIn(String pod, int index, Path source, String label) {
+    private void copyIn(String pod, int index, Path source, long size, String label) {
         PipedInputStream in = new PipedInputStream(1024 * 1024);
         AtomicReference<IOException> unreadable = new AtomicReference<>();
         Thread writer;
@@ -653,7 +671,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
         try (InputStream reading = in) {
             result = api.exec(settings.namespace(), pod, ScanPods.RECEIVE,
                     List.of("sh", "-c", "mkdir -p " + directory + " && tar -x -C " + directory), reading, SMALL,
-                    settings.startTimeout());
+                    transferTimeout(size));
         } catch (IOException closing) {
             throw ScannerFailureException.of(label, "Its workspace could not be sent: " + closing.getMessage());
         }
@@ -668,7 +686,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
     }
 
     /** What the scanner wrote into a writable mount, and nothing else: see {@link MountArchives}. */
-    private void copyBack(String pod, int index, Path destination, String label) {
+    private void copyBack(String pod, int index, Path destination, long ceiling, String label) {
         String directory = ScanPods.WORK + "/m" + index;
         // tar refuses an empty list, so nothing written sends nothing. **A name with a line break is refused
         // before the list is built**: the list is one name per line, and such a name would make the holder archive
@@ -682,10 +700,10 @@ public final class KubernetesExecutor implements ContainerExecutor {
             KubernetesApi.ExecResult result;
             try (OutputStream out = Files.newOutputStream(received)) {
                 result = api.exec(settings.namespace(), pod, ScanPods.HOLDER, List.of("sh", "-c", script), null, out,
-                        outputBytes(), settings.startTimeout());
+                        ceiling, transferTimeout(ceiling));
             }
             if (result.overCeiling()) {
-                throw ScannerFailureException.of(label, "It wrote more than " + outputBytes() + " bytes into its workspace.");
+                throw ScannerFailureException.of(label, "It wrote more than " + ceiling + " bytes into its workspace.");
             }
             if (result.exitCode() != 0) {
                 throw ScannerFailureException.of(label, "What it wrote could not be read back (exit "
@@ -693,7 +711,7 @@ public final class KubernetesExecutor implements ContainerExecutor {
             }
             if (Files.size(received) > 0) {
                 try (InputStream in = Files.newInputStream(received)) {
-                    MountArchives.extractWritten(in, destination, outputBytes());
+                    MountArchives.extractWritten(in, destination, ceiling);
                 }
             }
         } catch (IOException refused) {

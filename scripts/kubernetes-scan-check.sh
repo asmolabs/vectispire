@@ -135,8 +135,13 @@ generation="$(python3 -c 'import time; print(int(time.time() * 1000))')-$(openss
 docker run --rm --network none -u 1000:1000 -v "$work/db:/db" -v "$work/matcher:/in:ro" \
   -e "GRYPE_DB_CACHE_DIR=/db/vectispire-vulnerability-db/generations/$generation" \
   -e GRYPE_CHECK_FOR_APP_UPDATE=false "$GRYPE_IMAGE" db import /in/vulnerability.db > /dev/null
+# **And a gigabyte beside it, which the matcher never reads.** The one-advisory database is a few kilobytes, and
+# the publisher's is some 3 GB: at the fixture's size the copy onto the cache volume passed while every real
+# database was OOMKilled in the receiving container (64 MiB, the page cache of its writes charged to it) or
+# timed out after the start timeout. The filler is what makes this run move a database's weight.
 docker run --rm --network none -u 1000:1000 -v "$work/db:/db" --entrypoint sh "$BASE_IMAGE" -c '
   cd /db/vectispire-vulnerability-db && printf %s "$1" > current && date -u +%Y-%m-%dT%H:%M:%SZ > checked
+  head -c 1073741824 /dev/zero > "generations/$1/filler"
   tar -C /db -cf /db/matcher.tar vectispire-vulnerability-db' sh "$generation"
 
 # ── TLS for the Ingress, from an authority made for the run, and the agent's truststore holding it alone.
