@@ -51,15 +51,36 @@ public record ContainerRun(
         entrypoint = entrypoint == null ? null : List.copyOf(entrypoint);
     }
 
-    /** @param readOnly explicit, and true wherever it can be */
-    public record Mount(String source, String target, boolean readOnly) {
+    /**
+     * @param readOnly explicit, and true wherever it can be
+     * @param writableBytes for a writable mount, how much the tool may write into it; 0 for the executor's own
+     *     ceiling on a scanner's output. An executor that copies the mount in and back (Kubernetes) sizes the
+     *     pod's volume and the copy back by it; a bind mount carries no size, so the Docker executor cannot.
+     *     <b>The matcher's database download is the one mount that needs it</b>: some 3 GB, against an output
+     *     ceiling of 256 MiB, and its pod was evicted at the first download of every Kubernetes agent.
+     */
+    public record Mount(String source, String target, boolean readOnly, long writableBytes) {
+
+        public Mount {
+            if (writableBytes < 0 || readOnly && writableBytes != 0) {
+                throw new IllegalArgumentException("A read-only mount holds no writes, and a writable one a positive size.");
+            }
+        }
 
         public static Mount readOnly(String source, String target) {
-            return new Mount(source, target, true);
+            return new Mount(source, target, true, 0);
         }
 
         public static Mount writable(String source, String target) {
-            return new Mount(source, target, false);
+            return new Mount(source, target, false, 0);
+        }
+
+        /** A writable mount the tool may fill with up to {@code bytes}, past the executor's output ceiling. */
+        public static Mount writable(String source, String target, long bytes) {
+            if (bytes <= 0) {
+                throw new IllegalArgumentException("A writable mount's size is positive.");
+            }
+            return new Mount(source, target, false, bytes);
         }
 
         String toBind() {

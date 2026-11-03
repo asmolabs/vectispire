@@ -100,6 +100,23 @@ class KubernetesExecutorTest {
     }
 
     @Test
+    void aWritableMountBringsBackWhatItDeclares_pastTheOutputCeiling() throws IOException {
+        // The matcher's download is a writable mount of some 3 GB against a 256 MiB output ceiling; here 3 MiB
+        // against this executor's 1 MiB. Undeclared, the same write is refused.
+        Path declared = Files.createDirectories(directory.resolve("declared"));
+        ContainerResult result = executor.run(shell("head -c 3145728 /dev/zero > /db/database",
+                ContainerRun.Mount.writable(declared.toString(), "/db", 8L * 1024 * 1024)));
+        assertThat(result.exitCode()).as(result.stderr()).isZero();
+        assertThat(Files.size(declared.resolve("database"))).isEqualTo(3L * 1024 * 1024);
+
+        Path undeclared = Files.createDirectories(directory.resolve("undeclared"));
+        assertThatThrownBy(() -> executor.run(shell("head -c 3145728 /dev/zero > /db/database",
+                ContainerRun.Mount.writable(undeclared.toString(), "/db"))))
+                .isInstanceOf(ScannerFailureException.class)
+                .hasMessageContaining("more than 1048576 bytes into its workspace");
+    }
+
+    @Test
     void aWrittenNameWithALineBreakIsRefusedNotListed() throws IOException {
         // One name per line: a name with a break in it could make the holder archive a path the scanner chose (L4).
         Path tree = Files.createDirectories(directory.resolve("tree"));

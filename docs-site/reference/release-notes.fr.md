@@ -533,6 +533,21 @@ risque résiduel là où une correction serait une décision à part entière :
 
 ### Corrigé {#corrige-100-rc1}
 
+- **L'exécuteur Kubernetes compare enfin les dépendances à la base de vulnérabilités de l'éditeur.**
+  Cette base pèse environ 3 Go, et chaque étape qui la déplaçait échouait, si bien que l'étape des
+  dépendances de chaque scan était rendue « absente » :
+  - le volume du pod de téléchargement avait la taille du plafond de sortie, 256 Mio, et le pod était
+    évincé ;
+  - la copie vers le volume de cache du comparateur passait par un conteneur de réception de 64 Mio, qui
+    était tué faute de mémoire (OOMKilled) ;
+  - cette copie, comme toutes les autres, était bornée par le délai de démarrage de cinq minutes, quelle
+    que soit sa taille.
+
+  Chaque montage en écriture déclare désormais ce qu'il peut contenir, et le téléchargement déclare
+  12 Gio. Le conteneur de réception reçoit la mémoire du scanner, sans coût pour l'ordonnancement. Une
+  copie reçoit le délai de démarrage plus sa taille à 8 Mio/s. L'exécuteur Docker n'était pas concerné.
+  `scripts/kubernetes-scan-check.sh` fait maintenant passer un gigaoctet par le cache : la base qu'il
+  plante pour la vérification ne pèse que quelques kilo-octets, et ce chemin n'était donc jamais testé.
 - **Un constat de code dont la règle déclare une CWE mais aucune catégorie OWASP est placé par sa CWE**,
   d'après les listes d'OWASP des CWE que couvre chaque catégorie de l'édition 2021. La plupart des règles amont ne
   déclarent qu'une CWE : leurs constats n'entraient dans aucune catégorie, et la catégorie affichait

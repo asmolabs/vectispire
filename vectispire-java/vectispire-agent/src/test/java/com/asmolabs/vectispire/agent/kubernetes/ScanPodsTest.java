@@ -30,7 +30,8 @@ class ScanPodsTest {
 
     private static JsonNode pod(ContainerRun request, List<String> names) {
         return ScanPods.pod("vs-x", request, SETTINGS, 1000, 1001,
-                names.stream().map(name -> new ScanPods.MountSource(false, name)).toList(), 1024, Duration.ofMinutes(15));
+                names.stream().map(name -> new ScanPods.MountSource(false, name)).toList(), 1024, Duration.ofMinutes(15),
+                Duration.ZERO);
     }
 
     private static List<String> strings(JsonNode array) {
@@ -76,6 +77,41 @@ class ScanPodsTest {
         // The work volume holds what was copied, what the scanner may write, and a margin — no more.
         long expected = 1024 + SETTINGS.limits().outputBytes() + 256L * 1024 * 1024;
         assertThat(spec.path("volumes").get(0).path("emptyDir").path("sizeLimit").asText()).isEqualTo(String.valueOf(expected));
+    }
+
+    @Test
+    void aWritableMountsDeclaredSizeIsWhatTheWorkVolumeMakesRoomFor() {
+        long declared = 12L * 1024 * 1024 * 1024;
+        ContainerRun download = ContainerRun.of("anchore/grype@sha256:abc", List.of("db", "update"),
+                List.of(ContainerRun.Mount.writable("/db", "/cache", declared)), "grype (vulnerability database)");
+        JsonNode pod = pod(download, List.of(""));
+        assertThat(pod.path("spec").path("volumes").get(0).path("emptyDir").path("sizeLimit").asText())
+                .isEqualTo(String.valueOf(1024 + declared + 256L * 1024 * 1024));
+    }
+
+    @Test
+    void thePodOutlivesItsTransfers() {
+        Duration transfers = Duration.ofMinutes(25);
+        long without = pod(SYFT, List.of("")).path("spec").path("activeDeadlineSeconds").asLong();
+        long with = ScanPods.pod("vs-x", SYFT, SETTINGS, 1000, 1001, List.of(new ScanPods.MountSource(false, "")), 1024,
+                Duration.ofMinutes(15), transfers).path("spec").path("activeDeadlineSeconds").asLong();
+        assertThat(with - without).isEqualTo(transfers.toSeconds());
+    }
+
+    @Test
+    void theReceivingContainerHasTheScannersMemory() {
+        // It writes every mount to disk, and the page cache of those writes is charged to it: at 64 MiB it was
+        // OOMKilled seconds into the matcher's 3 GB database.
+        JsonNode receive = container(pod(SYFT, List.of("")), ScanPods.RECEIVE);
+        assertThat(receive.path("resources").path("limits").path("memory").asText()).isEqualTo("2048Mi");
+        assertThat(receive.path("resources").path("requests").path("memory").asText()).isEqualTo("2048Mi");
+    }
+
+    @Test
+    void aTransferIsGivenItsSizeAtTheFloorRate() {
+        assertThat(KubernetesExecutor.transferTime(0)).isZero();
+        assertThat(KubernetesExecutor.transferTime(3L * 1024 * 1024 * 1024))
+                .isEqualTo(Duration.ofSeconds(3L * 1024 / 8));
     }
 
     @Test
@@ -158,7 +194,7 @@ class ScanPodsTest {
                 ContainerRun.Mount.readOnly("/db/generations/1761400000000-abcd1234", "/cache")), "grype");
         JsonNode pod = ScanPods.pod("vs-x", grype, cached, 1000, 1001, List.of(
                 new ScanPods.MountSource(false, ""), new ScanPods.MountSource(true, "1761400000000-abcd1234")),
-                1024, Duration.ofMinutes(15));
+                1024, Duration.ofMinutes(15), Duration.ZERO);
 
         JsonNode database = container(pod, ScanPods.SCANNER).path("volumeMounts").get(1);
         assertThat(database.path("name").asText()).isEqualTo("matcher-cache");
@@ -178,7 +214,7 @@ class ScanPodsTest {
 
         // A run without a cached mount stays where the scheduler puts it, with no volume and no group change.
         JsonNode plain = ScanPods.pod("vs-y", SYFT, cached, 1000, 1001, List.of(new ScanPods.MountSource(false, "")),
-                1024, Duration.ofMinutes(15));
+                1024, Duration.ofMinutes(15), Duration.ZERO);
         assertThat(plain.path("spec").has("affinity")).isFalse();
         assertThat(plain.path("spec").path("securityContext").has("fsGroup")).isFalse();
     }
