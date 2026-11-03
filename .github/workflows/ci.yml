@@ -264,7 +264,8 @@ jobs:
       # Two exceptions, each written out rather than inferred. An alias (`image: *anchor`) is the
       # value of an anchor checked where it is defined — on an `image:` line above it in the same
       # file, or the alias is refused: an anchor set on an `x-` key would otherwise pass unread.
-      # Vectispire's own two images keep a release tag (`ghcr.io/asmolabs/vectispire[-agent]:X.Y.Z`):
+      # Vectispire's own two images keep a release tag (`ghcr.io/asmolabs/vectispire[-agent]:X.Y.Z`,
+      # or `X.Y.Z-rc.N` for a release candidate — refused until 1.0.0-rc.1's own pull request read it):
       # the file ships inside the release that builds them, and nothing rewrites a digest into it
       # (the comment above `control-plane` says why).
       # An interpolated image (`${…}`) is refused: none of these files uses one, and one would
@@ -311,7 +312,7 @@ jobs:
               digest = image; sub(/^[^@]*@sha256:/, "", digest)
               if (image ~ /\$/) {
                 why = "an interpolated image: whoever writes the .env would choose what is pulled"
-              } else if (image ~ /^ghcr\.io\/asmolabs\/vectispire(-agent)?:[0-9]+\.[0-9]+\.[0-9]+$/) {
+              } else if (image ~ /^ghcr\.io\/asmolabs\/vectispire(-agent)?:[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$/) {
                 own++; next
               } else if (image ~ /@sha256:[0-9a-f]+$/ && length(digest) == 64 && last ~ /:/) {
                 next
