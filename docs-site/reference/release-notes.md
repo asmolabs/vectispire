@@ -481,6 +481,13 @@ risk where a fix would be a decision of its own:
 
 ### Fixed {#fixed-100-rc1}
 
+- **A plugin kept in a private registry is verified on the Kubernetes executor.** cosign, verifying the
+  plugin's signature in a scan pod, read the registry anonymously, so every such plugin was refused as
+  `registry_authentication_required`, whoever had signed it. The Docker executor hands cosign its own pull
+  credentials. The chart now mounts a pull secret into the agent
+  (`agents.kubernetes.registryCredentials.secretName`), and the agent hands cosign that secret's entry
+  for the plugin's registry alone, for the run alone, redacted from what it says. A secret mounted without
+  a `config.json` stops the agent at start.
 - **The Kubernetes executor now matches dependencies against the publisher's vulnerability database.**
   The database is some 3 GB, and every step that moved it failed, so the dependency step of every scan
   reported "absent":

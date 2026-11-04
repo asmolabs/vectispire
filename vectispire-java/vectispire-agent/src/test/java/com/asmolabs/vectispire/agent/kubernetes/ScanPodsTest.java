@@ -153,6 +153,20 @@ class ScanPodsTest {
     }
 
     @Test
+    void aRegistryLoginMountIsNamedToTheToolByDockerConfig_andOnlyThen() {
+        ContainerRun cosign = ContainerRun.of("cosign@sha256:abc", List.of("verify"), List.of(
+                ContainerRun.Mount.readOnly("/w/registry-login-1", ContainerRunner.REGISTRY_LOGIN_MOUNT)), "x").withNetwork();
+        List<String> environment = new java.util.ArrayList<>();
+        container(pod(cosign, List.of("")), ScanPods.SCANNER).path("env")
+                .forEach(variable -> environment.add(variable.path("name").asText() + "=" + variable.path("value").asText()));
+        assertThat(environment).endsWith("DOCKER_CONFIG=" + ContainerRunner.REGISTRY_LOGIN_MOUNT);
+
+        List<String> without = new java.util.ArrayList<>();
+        container(pod(SYFT, List.of("")), ScanPods.SCANNER).path("env").forEach(variable -> without.add(variable.path("name").asText()));
+        assertThat(without).doesNotContain("DOCKER_CONFIG");
+    }
+
+    @Test
     void mountsAreSubdirectoriesOfTheWorkspaceWithTheirAccess() {
         ContainerRun request = ContainerRun.of("i@sha256:abc", List.of(), List.of(
                 ContainerRun.Mount.readOnly("/a", "/repo"),

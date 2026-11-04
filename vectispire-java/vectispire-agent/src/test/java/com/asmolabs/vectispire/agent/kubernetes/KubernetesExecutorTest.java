@@ -84,6 +84,38 @@ class KubernetesExecutorTest {
     }
 
     @Test
+    void aRegistryLoginReachesTheToolAsItsDockerConfig_redacted_andGoneAfter() throws IOException {
+        String auth = java.util.Base64.getEncoder().encodeToString("robot:s3cret-pull".getBytes(StandardCharsets.UTF_8)); // gitleaks:allow — invented
+        Path mounted = Files.createDirectories(directory.resolve("registry"));
+        Files.writeString(mounted.resolve("config.json"), "{\"auths\": {\"registry.acme.internal\": {\"auth\": \"" + auth
+                + "\"}, \"other.acme.internal\": {\"auth\": \"b3RoZXI6b3RoZXI=\"}}}");
+        KubernetesExecutor withSecret = new KubernetesExecutor(cluster.api(), new KubernetesExecutor.Settings(K3sCluster.NAMESPACE,
+                "test-agent", KubernetesExecutor.HELPER_IMAGE, "1000:1000", Duration.ofMinutes(3),
+                new ScannerLimits(256L * 1024 * 1024, 512, Duration.ofMinutes(2), 500_000_000L, 1024 * 1024), null)
+                .withRegistryCredentials(mounted));
+        Path workspace = Files.createDirectories(directory.resolve("workspace"));
+        String plugin = "registry.acme.internal/security/plugin@sha256:" + "d".repeat(64);
+
+        ContainerResult result = withSecret.run(shell("cat \"$DOCKER_CONFIG/config.json\"")
+                .withRegistryLoginFor(plugin, workspace));
+
+        // Read by the tool's own user, in its pod: the entry for the plugin's registry, and no other.
+        assertThat(result.exitCode()).as(result.stderr()).isZero();
+        assertThat(result.stdout()).contains("registry.acme.internal").contains("[redacted]")
+                .doesNotContain(auth).doesNotContain("other.acme.internal");
+        try (var left = Files.list(workspace)) {
+            assertThat(left).as("the login directory outlives the run").isEmpty();
+        }
+        assertThat(withSecret.registryAccessFor(plugin).credentialsHeld()).isTrue();
+        assertThat(withSecret.registryAccessFor("ghcr.io/acme/plugin@sha256:" + "e".repeat(64)).credentialsHeld()).isFalse();
+
+        // A registry the secret does not name: no login handed, the tool reads anonymously as before.
+        ContainerResult anonymous = withSecret.run(shell("test -z \"$DOCKER_CONFIG\"")
+                .withRegistryLoginFor("ghcr.io/acme/plugin@sha256:" + "e".repeat(64), workspace));
+        assertThat(anonymous.exitCode()).as(anonymous.stderr()).isZero();
+    }
+
+    @Test
     void whatTheScannerWritesIntoAWritableMountComesBack_andOnlyThat() throws IOException {
         Path tree = Files.createDirectories(directory.resolve("tree"));
         Files.writeString(tree.resolve("kept.txt"), "kept");

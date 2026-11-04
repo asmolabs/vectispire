@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.agent.kubernetes.KubernetesExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerExecutor;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.MountedPullCredentials;
 import com.asmolabs.vectispire.common.scanning.ScannerLimits;
 import com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -70,6 +71,17 @@ final class ExecutorChoice {
                 settings.matcherCacheClaim().isEmpty() ? null : new KubernetesExecutor.MatcherCache(
                         settings.matcherCacheClaim(), matcherDatabase.resolve(VulnerabilityDatabase.GENERATIONS),
                         settings.nodeName()));
+        if (!settings.registryCredentials().isEmpty()) {
+            Path credentials = Path.of(settings.registryCredentials());
+            // At start, not at the first plugin: a secret mounted under another key would otherwise read as
+            // "no credentials held" on the day a plugin is verified, the refusal blaming the registry.
+            if (!MountedPullCredentials.readable(credentials)) {
+                throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.registry-credentials "
+                        + "(VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS) names " + credentials + ", which holds no readable "
+                        + "config.json: mount the pull secret's .dockerconfigjson there as config.json. The agent does not start.");
+            }
+            checked = checked.withRegistryCredentials(credentials);
+        }
         // After the settings: a placement they refuse stops the start whatever the cluster's address.
         String target = settings.requireIsolation() ? probeTarget(settings, ClusterApiAddress::fromEnvironment) : null;
         if (target != null) {

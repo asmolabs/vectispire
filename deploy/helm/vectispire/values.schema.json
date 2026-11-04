@@ -267,6 +267,13 @@
             "scanCpuMillis": { "type": "integer", "minimum": 1 },
             "scanMemoryMiB": { "type": "integer", "minimum": 1 },
             "matcherCache": { "$ref": "#/definitions/claim" },
+            "registryCredentials": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "secretName": { "type": "string", "pattern": "^([a-z0-9]([-a-z0-9.]*[a-z0-9])?)?$" }
+              }
+            },
             "admissionPolicy": {
               "type": "object",
               "additionalProperties": false,

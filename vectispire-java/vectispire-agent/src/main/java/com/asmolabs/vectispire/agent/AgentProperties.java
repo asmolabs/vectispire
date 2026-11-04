@@ -102,6 +102,9 @@ public record AgentProperties(
      *     (decision 0045 §7); blank copies the database into each matcher pod
      * @param nodeName the node this agent runs on — the downward API's {@code spec.nodeName} — where every pod
      *     mounting the matcher's cache goes, since the claim attaches to one node
+     * @param registryCredentials a Docker configuration directory holding {@code config.json} — the pull secret
+     *     the chart mounts — whose entry for a plugin's registry cosign is handed to verify its signature; blank
+     *     reads every registry anonymously, which a private one refuses
      */
     public record Kubernetes(
             @DefaultValue("") String namespace,
@@ -115,7 +118,8 @@ public record AgentProperties(
             @DefaultValue("2000") int cpuMillis,
             @DefaultValue("2048") int memoryMiB,
             @DefaultValue("") String matcherCacheClaim,
-            @DefaultValue("") String nodeName) {
+            @DefaultValue("") String nodeName,
+            @DefaultValue("") String registryCredentials) {
 
         /** The one the binder uses — marked, because the convenience constructor below makes two (see the outer record's). */
         @ConstructorBinding
@@ -129,6 +133,7 @@ public record AgentProperties(
             probeTarget = probeTarget == null ? "" : probeTarget.trim();
             matcherCacheClaim = matcherCacheClaim == null ? "" : matcherCacheClaim.trim();
             nodeName = nodeName == null ? "" : nodeName.trim();
+            registryCredentials = registryCredentials == null ? "" : registryCredentials.trim();
             if (cpuMillis <= 0 || memoryMiB <= 0) {
                 throw new IllegalArgumentException("vectispire.agent.executor.kubernetes.cpu-millis and memory-mib are "
                         + "positive: a scan pod with no limit is not in the closed shape. The agent does not start.");
@@ -139,6 +144,14 @@ public record AgentProperties(
         public Kubernetes(String namespace, String name, String helperImage, String user, Duration startTimeout,
                 String placement) {
             this(namespace, name, helperImage, user, startTimeout, placement, true, "", 2000, 2048, "", "");
+        }
+
+        /** Without registry credentials: every registry a tool reads is read anonymously. */
+        public Kubernetes(String namespace, String name, String helperImage, String user, Duration startTimeout,
+                String placement, boolean requireIsolation, String probeTarget, int cpuMillis, int memoryMiB,
+                String matcherCacheClaim, String nodeName) {
+            this(namespace, name, helperImage, user, startTimeout, placement, requireIsolation, probeTarget, cpuMillis,
+                    memoryMiB, matcherCacheClaim, nodeName, "");
         }
     }
 

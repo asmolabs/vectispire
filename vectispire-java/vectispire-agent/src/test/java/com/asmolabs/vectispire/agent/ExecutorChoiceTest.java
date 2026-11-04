@@ -57,6 +57,18 @@ class ExecutorChoiceTest {
                 .hasMessageContaining("hostNetwork");
     }
 
+    @Test
+    void registryCredentialsWithoutTheirConfigurationStopTheStart_beforeAskingForTheCluster(@org.junit.jupiter.api.io.TempDir
+            java.nio.file.Path mounted) throws java.io.IOException {
+        // The Secret mounted with its key as the file name: `.dockerconfigjson`, not `config.json`.
+        java.nio.file.Files.writeString(mounted.resolve(".dockerconfigjson"), "{\"auths\":{}}");
+        AgentProperties.Executor executor = new AgentProperties.Executor("kubernetes", new AgentProperties.Kubernetes(
+                "scans", "agent", "", "1000:1000", Duration.ofMinutes(5), "", true, "", 2000, 2048, "", "", mounted.toString()));
+        assertThatThrownBy(() -> ExecutorChoice.choose(executor, json, NO_CLUSTER, java.nio.file.Path.of("db")))
+                .hasMessageContaining("VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS")
+                .hasMessageContaining("config.json");
+    }
+
     private static AgentProperties.Kubernetes probing(String target) {
         return new AgentProperties.Kubernetes("scans", "agent", "", "1000:1000", Duration.ofMinutes(5), "",
                 true, target, 2000, 2048, "", "");
