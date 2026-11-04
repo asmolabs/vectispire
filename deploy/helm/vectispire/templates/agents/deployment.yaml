@@ -117,6 +117,11 @@ spec:
             # The scan pods go where the agents go: the pool of their own the chart requires.
             - name: VECTISPIRE_KUBERNETES_PLACEMENT
               value: {{ include "vectispire.scanPlacement" . | quote }}
+            {{- if .Values.agents.kubernetes.registryCredentials.secretName }}
+            # The pull secret whose entry cosign is handed to read a plugin's private registry.
+            - name: VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS
+              value: /etc/vectispire/registry
+            {{- end }}
             {{- else }}
             # The daemon beside it, on a socket file both containers mount — never TCP: the dind
             # image's entrypoint would open 2375 to the whole cluster, without TLS or authentication.
@@ -170,6 +175,11 @@ spec:
             {{- if .Values.agents.trustStore.secretName }}
             - name: trust
               mountPath: /etc/vectispire/trust
+              readOnly: true
+            {{- end }}
+            {{- if and $pods .Values.agents.kubernetes.registryCredentials.secretName }}
+            - name: registry-credentials
+              mountPath: /etc/vectispire/registry
               readOnly: true
             {{- end }}
             # The JVM's temporary directory is the work directory; this is for whatever writes to /tmp by
@@ -262,6 +272,16 @@ spec:
             items:
               - key: {{ .Values.agents.trustStore.key }}
                 path: {{ .Values.agents.trustStore.key }}
+        {{- end }}
+        {{- if and $pods .Values.agents.kubernetes.registryCredentials.secretName }}
+        # A kubernetes.io/dockerconfigjson Secret, in the agents' namespace: read as a Docker configuration.
+        - name: registry-credentials
+          secret:
+            secretName: {{ .Values.agents.kubernetes.registryCredentials.secretName }}
+            defaultMode: 0440
+            items:
+              - key: .dockerconfigjson
+                path: config.json
         {{- end }}
         {{- if .Values.agents.knownHosts }}
         - name: known-hosts

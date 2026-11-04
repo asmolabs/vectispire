@@ -162,6 +162,15 @@ toujours pas lire la signature — l'exécuteur n'a pas d'identifiants pour lui,
 refusés — le plugin est **refusé** (`registry_authentication_required`) avec une raison qui dit
 lequel, et jamais présenté comme une image sans signature : rien n'a été lu.
 
+**Sur l'exécuteur Kubernetes, les identifiants sont un Secret que vous montez.** Le cluster tire
+lui-même les images, si bien que l'agent n'a pas de configuration Docker à lui. Nommez un Secret
+`kubernetes.io/dockerconfigjson` de l'espace de noms des agents dans
+`agents.kubernetes.registryCredentials.secretName`. L'agent remet à cosign l'entrée de ce Secret pour le
+seul registre du plugin, de la même façon et pour la même durée. Sans lui, cosign lit le registre de
+façon anonyme, et un registre privé refuse. L'image du plugin reste tirée par le cluster : donnez aux
+nœuds l'accès au registre, ou ajoutez un `imagePullSecrets` au compte de service `default` de l'espace
+de noms des scans.
+
 ### Faire tourner un plugin non signé
 
 Quand une image ne peut pas encore être signée — un outil interne dont la chaîne n'a pas d'étape de

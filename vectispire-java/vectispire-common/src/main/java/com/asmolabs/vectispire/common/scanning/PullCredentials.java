@@ -59,7 +59,7 @@ final class PullCredentials {
      * helper ({@code credsStore}, as Docker Desktop writes it) leaves an empty entry per registry, which
      * docker-java does not resolve; the pull sends nothing, and so does this.
      */
-    private static boolean usable(AuthConfig auth) {
+    static boolean usable(AuthConfig auth) {
         return (auth.getUsername() != null && auth.getPassword() != null)
                 || auth.getIdentitytoken() != null
                 || auth.getRegistrytoken() != null;

@@ -194,6 +194,10 @@ final class ScanPods {
             int equals = variable.indexOf('=');
             env.addObject().put("name", variable.substring(0, equals)).put("value", variable.substring(equals + 1));
         }
+        // Named by the mount itself, as the Docker executor names it beside its bind: one constant, both sides.
+        if (request.mounts().stream().anyMatch(mount -> ContainerRunner.REGISTRY_LOGIN_MOUNT.equals(mount.target()))) {
+            env.addObject().put("name", "DOCKER_CONFIG").put("value", ContainerRunner.REGISTRY_LOGIN_MOUNT);
+        }
         ObjectNode resources = scanner.putObject("resources");
         String memory = String.valueOf(settings.limits().memory());
         String cpu = Math.max(1, settings.limits().nanoCpus() / 1_000_000) + "m";

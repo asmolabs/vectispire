@@ -533,6 +533,13 @@ risque résiduel là où une correction serait une décision à part entière :
 
 ### Corrigé {#corrige-100-rc1}
 
+- **Un plugin gardé dans un registre privé est vérifié sur l'exécuteur Kubernetes.** cosign, qui vérifie
+  la signature du plugin dans un pod de scan, lisait le registre de façon anonyme, si bien que chacun de
+  ces plugins était refusé (`registry_authentication_required`), quel qu'en soit le signataire.
+  L'exécuteur Docker remet à cosign ses propres identifiants de tirage. Le chart monte désormais un secret
+  de tirage dans l'agent (`agents.kubernetes.registryCredentials.secretName`), et l'agent remet à cosign
+  l'entrée de ce secret pour le seul registre du plugin, le temps de l'exécution, masquée dans ce qu'il
+  dit. Un secret monté sans `config.json` arrête l'agent au démarrage.
 - **L'exécuteur Kubernetes compare enfin les dépendances à la base de vulnérabilités de l'éditeur.**
   Cette base pèse environ 3 Go, et chaque étape qui la déplaçait échouait, si bien que l'étape des
   dépendances de chaque scan était rendue « absente » :

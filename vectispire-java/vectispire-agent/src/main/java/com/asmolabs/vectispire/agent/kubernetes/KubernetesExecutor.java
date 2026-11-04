@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.CollectedOutput;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.ContainerResult;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner.OutputFile;
+import com.asmolabs.vectispire.common.scanning.MountedPullCredentials;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.ScannerLimits;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -60,9 +61,12 @@ public final class KubernetesExecutor implements ContainerExecutor {
      *     each into its pod like any mount
      * @param cutOffFrom the {@code address:port} every scan pod must be refused before its scanner starts — the
      *     isolation probe's target — or {@code null} where isolation is not required
+     * @param registryCredentials a Docker configuration directory — the pull secret the chart mounts — whose entry
+     *     for a registry a tool reading that registry is handed, cosign verifying a plugin's signature; {@code null}
+     *     where none is mounted, and the tool reads anonymously
      */
     public record Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
-            ScannerLimits limits, ObjectNode placement, MatcherCache cache, String cutOffFrom) {
+            ScannerLimits limits, ObjectNode placement, MatcherCache cache, String cutOffFrom, Path registryCredentials) {
 
         /** Without a matcher cache: every mount is copied. */
         public Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
@@ -76,9 +80,22 @@ public final class KubernetesExecutor implements ContainerExecutor {
             this(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, null);
         }
 
+        /** Without registry credentials: a tool reading a registry reads it anonymously. */
+        public Settings(String namespace, String agent, String helperImage, String defaultUser, Duration startTimeout,
+                ScannerLimits limits, ObjectNode placement, MatcherCache cache, String cutOffFrom) {
+            this(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, cutOffFrom, null);
+        }
+
         /** These settings, every scan pod refused {@code target} before its scanner starts. */
         public Settings cutOffFrom(String target) {
-            return new Settings(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, target);
+            return new Settings(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache, target,
+                    registryCredentials);
+        }
+
+        /** These settings, a registry's tool handed {@code configuration}'s entry for it. */
+        public Settings withRegistryCredentials(Path configuration) {
+            return new Settings(namespace, agent, helperImage, defaultUser, startTimeout, limits, placement, cache,
+                    cutOffFrom, configuration);
         }
 
         /** What placement may set: where the pod goes, never what it may do. */
@@ -313,12 +330,19 @@ public final class KubernetesExecutor implements ContainerExecutor {
     }
 
     /**
-     * None held: the cluster pulls the scanners' images with its own credentials, which the agent never
-     * sees, and a tool that reads a registry reads it anonymously.
+     * The cluster pulls the scanners' images with its own credentials, which the agent never sees; a tool that
+     * reads a registry is handed the mounted pull secret's entry for it ({@link Settings#registryCredentials}),
+     * and reads anonymously where there is none.
      */
     @Override
     public ContainerRunner.RegistryAccess registryAccessFor(String reference) {
-        return new ContainerRunner.RegistryAccess(ContainerRunner.registryOf(reference), false);
+        boolean held;
+        try {
+            held = MountedPullCredentials.of(settings.registryCredentials(), reference).isPresent();
+        } catch (IllegalStateException unreadable) {
+            held = false;
+        }
+        return new ContainerRunner.RegistryAccess(ContainerRunner.registryOf(reference), held);
     }
 
     /**
@@ -353,7 +377,51 @@ public final class KubernetesExecutor implements ContainerExecutor {
         return run(request, settings.cutOffFrom() != null);
     }
 
+    /**
+     * A run asking for a registry's login ({@link ContainerRun#withRegistryLoginFor}) is handed the mounted pull
+     * secret's entry for that registry, as the Docker executor hands its daemon's: one entry, in a directory of its
+     * own copied into the pod like a read-only mount, {@code DOCKER_CONFIG} naming it, removed after the run. Without
+     * it cosign read a private registry anonymously, and every plugin kept there was refused.
+     */
     private ContainerResult run(ContainerRun request, boolean gated) {
+        Optional<MountedPullCredentials> credentials = Optional.empty();
+        if (request.login() != null) {
+            try {
+                credentials = MountedPullCredentials.of(settings.registryCredentials(), request.login().reference());
+            } catch (IllegalStateException unreadable) {
+                throw ScannerFailureException.of(request.label(), unreadable.getMessage());
+            }
+        }
+        if (credentials.isEmpty()) {
+            return runPod(request, gated);
+        }
+        Path login = null;
+        try {
+            try {
+                login = credentials.get().writeUnder(request.login().directory());
+            } catch (IOException unwritable) {
+                // The exception's own message names a path, never the credentials.
+                throw ScannerFailureException.of(request.label(), "The registry credentials could not be handed to it: "
+                        + unwritable.getMessage());
+            }
+            List<ContainerRun.Mount> mounts = new ArrayList<>(request.mounts());
+            mounts.add(ContainerRun.Mount.readOnly(login.toString(), ContainerRunner.REGISTRY_LOGIN_MOUNT));
+            ContainerResult result = runPod(new ContainerRun(request.image(), request.command(), mounts, request.label(),
+                    request.network(), request.asRoot(), request.timeout(), request.user(), request.output(), request.login(),
+                    request.entrypoint()), gated);
+            return new ContainerResult(credentials.get().redact(result.stdout()), credentials.get().redact(result.stderr()),
+                    result.exitCode(), result.output());
+        } catch (ScannerFailureException failed) {
+            // A registry quoting what it was sent must not carry it to the scan's failures.
+            String redacted = credentials.get().redact(failed.getMessage());
+            throw redacted.equals(failed.getMessage()) ? failed : ScannerFailureException.of(request.label(), redacted);
+        } finally {
+            // After the pod, which held its copy: the credentials outlive the run by nothing.
+            MountedPullCredentials.erase(login);
+        }
+    }
+
+    private ContainerResult runPod(ContainerRun request, boolean gated) {
         String label = request.label();
         Duration timeout = request.timeout() == null ? settings.limits().timeout() : request.timeout();
         if (request.output() != null && request.user() == null) {

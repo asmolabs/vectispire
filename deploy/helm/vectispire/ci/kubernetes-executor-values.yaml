@@ -21,6 +21,9 @@ agents:
     apiServer:
       cidrs:
         - 10.0.0.10/32
+    # A private plugin registry's pull secret, for cosign: rendered here so kubeconform reads its mount.
+    registryCredentials:
+      secretName: plugin-registry
   controlPlaneUrl: https://vectispire.example.org
   token:
     secretName: vectispire-agent

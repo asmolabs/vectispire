@@ -156,6 +156,14 @@ be read — the executor holds no credentials for it, or the ones it holds are r
 **refused** (`registry_authentication_required`) with the reason saying which, never reported as an
 image without a signature: nothing was read.
 
+**On the Kubernetes executor, the credentials are a Secret you mount.** The cluster pulls the images
+itself, so the agent has no Docker configuration of its own. Name a `kubernetes.io/dockerconfigjson`
+Secret in the agents' namespace as `agents.kubernetes.registryCredentials.secretName`. The agent hands
+cosign that Secret's entry for the plugin's registry alone, in the same way and for the same length of
+time. Without it, cosign reads the registry anonymously, and a private one refuses. The plugin's image
+is still pulled by the cluster: give the nodes access to the registry, or add an `imagePullSecrets` to
+the `default` service account of the scans' namespace.
+
 ### Running an unsigned plugin
 
 When an image cannot be signed yet — an internal tool whose pipeline has no signing step — the

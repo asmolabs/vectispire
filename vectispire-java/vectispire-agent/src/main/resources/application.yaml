@@ -79,3 +79,6 @@ vectispire:
         # the node this agent runs on, where the pods mounting it go. Blank copies the database into each pod.
         matcher-cache-claim: ${VECTISPIRE_KUBERNETES_MATCHER_CACHE_CLAIM:}
         node-name: ${VECTISPIRE_KUBERNETES_NODE_NAME:}
+        # A Docker configuration directory (config.json, a pull secret's .dockerconfigjson): cosign is handed its
+        # entry for a plugin's registry to verify the signature. Blank reads every registry anonymously.
+        registry-credentials: ${VECTISPIRE_KUBERNETES_REGISTRY_CREDENTIALS:}
