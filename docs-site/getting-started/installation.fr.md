@@ -608,6 +608,14 @@ Le scanner de chaque pod de scan reçoit `agents.kubernetes.scanCpuMillis` (2000
 en demande comme en limite : dimensionnez le pool de nœuds des agents pour la concurrence de l'agent fois ces
 valeurs.
 
+!!! warning "Sur k3s, démarrez le serveur avec `--egress-selector-mode=disabled`"
+    L'agent transmet son entrée à chaque pod de scan par un exec. À travers le tunnel d'agent que k3s utilise
+    par défaut, un exec vers un pod d'un autre nœud que le serveur perd son entrée standard dès qu'un transfert
+    dépasse une centaine de Mo, et ne signale jamais sa fin. La base de vulnérabilités (quelque 3 Go)
+    n'atteint alors jamais le pod de rapprochement, et l'étape des dépendances de chaque scan échoue sur son
+    délai. Avec l'option, le serveur d'API joint chaque kubelet directement, ce qui demande que le port 10250
+    des nœuds soit joignable depuis le serveur.
+
 `scripts/kubernetes-scan-check.sh` installe cette forme dans k3s — un serveur et un nœud d'agents — et y
 fait passer un scan de bout en bout ; la CI de nuit l'exécute sur les images de chaque nuit.
 

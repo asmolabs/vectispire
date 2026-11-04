@@ -493,6 +493,9 @@ risk where a fix would be a decision of its own:
   size at 8 MiB/s. The Docker executor was not affected. `scripts/kubernetes-scan-check.sh` now moves a
   gigabyte through the cache, since the database it plants for the check is a few kilobytes and so never
   tested this path.
+  On k3s, the server must also run with `--egress-selector-mode=disabled`: through its default agent tunnel,
+  an exec to another node loses its standard input past about 100 MB and never ends, which the nightly hit
+  on that gigabyte. The installation guide says so, and the check starts its server that way.
 - **A code finding whose rule declares a CWE but no OWASP category is placed by its CWE**, from OWASP's
   own lists of the CWEs each category of the 2021 edition maps. Most upstream rules declare only a CWE, so their
   findings entered no category and the category read "nothing found". An existing issue gets its
