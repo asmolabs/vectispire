@@ -167,8 +167,13 @@ echo "── starting k3s, a server and an agents' node"
 docker rm -f "$NAME" "$AGENTS_NODE" > /dev/null 2>&1 || true
 docker network rm "$NAME" > /dev/null 2>&1 || true
 docker network create "$NAME" > /dev/null
+# **The agent tunnel off** (`--egress-selector-mode=disabled`): the API server reaches the agents' node's kubelet
+# directly. Through k3s's tunnel, an exec's stdin to a pod on that node was cut a few hundred kilobytes in once a
+# transfer passed some 100 MB — containerd logged `stdin closed` — and the exec never reported its end: the
+# matcher's database never reached its pod, and the step failed on its exec deadline (nightly 41664083661,
+# 2026-11-03; 3.3 GB went through in 168 s without the tunnel). An operator's k3s needs the same flag.
 docker run -d --privileged --name "$NAME" --hostname "$NAME" --network "$NAME" -p "127.0.0.1:$PORT:443" "$K3S_IMAGE" \
-  server --disable=metrics-server --tls-san=127.0.0.1 > /dev/null
+  server --disable=metrics-server --tls-san=127.0.0.1 --egress-selector-mode=disabled > /dev/null
 deadline=$(( $(date +%s) + 300 ))
 until docker exec "$NAME" test -s /var/lib/rancher/k3s/server/node-token 2> /dev/null; do
   [ "$(date +%s)" -lt "$deadline" ] || fail "the k3s server did not come up in 300s"

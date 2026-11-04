@@ -576,6 +576,13 @@ node since the volume attaches there. The claim is kept when the release is remo
 Each scan pod's scanner gets `agents.kubernetes.scanCpuMillis` (2000) and `scanMemoryMiB` (2048), as request
 and limit: size the agents' node pool for the agent's concurrency times these.
 
+!!! warning "On k3s, start the server with `--egress-selector-mode=disabled`"
+    The agent sends each scan pod its input over an exec. Through k3s's default agent tunnel, an exec to a pod
+    on another node than the server loses its standard input once a transfer passes about 100 MB, and never
+    reports its end. The vulnerability database (some 3 GB) then never reaches the matcher, and every scan's
+    dependency step fails on its deadline. With the flag, the API server reaches each kubelet directly, which
+    needs the nodes' port 10250 reachable from the server.
+
 `scripts/kubernetes-scan-check.sh` installs this shape in k3s — a server and an agents' node — and runs a
 scan through it end to end; the nightly runs it on every night's images.
 

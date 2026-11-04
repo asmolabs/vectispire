@@ -548,6 +548,10 @@ risque résiduel là où une correction serait une décision à part entière :
   copie reçoit le délai de démarrage plus sa taille à 8 Mio/s. L'exécuteur Docker n'était pas concerné.
   `scripts/kubernetes-scan-check.sh` fait maintenant passer un gigaoctet par le cache : la base qu'il
   plante pour la vérification ne pèse que quelques kilo-octets, et ce chemin n'était donc jamais testé.
+  Sur k3s, le serveur doit aussi tourner avec `--egress-selector-mode=disabled` : à travers son tunnel
+  d'agent par défaut, un exec vers un autre nœud perd son entrée standard au-delà d'une centaine de Mo et ne
+  se termine jamais, ce que la CI de nuit a rencontré sur ce gigaoctet. Le guide d'installation le dit, et la
+  vérification démarre son serveur ainsi.
 - **Un constat de code dont la règle déclare une CWE mais aucune catégorie OWASP est placé par sa CWE**,
   d'après les listes d'OWASP des CWE que couvre chaque catégorie de l'édition 2021. La plupart des règles amont ne
   déclarent qu'une CWE : leurs constats n'entraient dans aucune catégorie, et la catégorie affichait
