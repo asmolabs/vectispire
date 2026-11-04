@@ -90,6 +90,25 @@ jobs:
       # the agent proving its scan pods cut off before it scans, every scanner run as a pod and each
       # finding what was planted for it. The only run that starts the agent's image from the chart: on
       # its first one it found the agent's secrets mounted where the service account's token had to go.
+      # **Room for k3s.** The composition check leaves every scanner image it pulled in this runner's Docker,
+      # and k3s pulls them again into its two nodes' containerd, on the same disk, beside the matcher cache's
+      # gigabyte: on 2026-11-04 the kubelet saw its image filesystem at 94%, evicted MySQL, and the check
+      # failed with "MySQL did not start" (nightly 41805474366, an AWS runner; the Azure one the night before
+      # had the room). Everything but the two images the check installs goes, and so do the runner's toolchains
+      # this job never uses. `df` before and after says it ran.
+      - name: free the disk the Kubernetes check needs
+        run: |
+          df -h /
+          keep='vectispire:nightly vectispire-agent:nightly'
+          # By ID: the scanners are pulled by digest, listed as `<none>`, and `docker rmi name:<none>` removes nothing.
+          kept="$(for image in $keep; do docker image inspect --format '{{.Id}}' "$image"; done)"
+          docker image ls -q --no-trunc | sort -u | while read -r id; do
+            case "$kept" in *"$id"*) ;; *) docker rmi -f "$id" > /dev/null 2>&1 || true ;; esac
+          done
+          docker builder prune -af > /dev/null
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift
+          df -h /
+          for image in $keep; do docker image inspect "$image" > /dev/null || { echo "::error::$image was removed"; exit 1; }; done
       - name: the chart's Kubernetes shape scans, every scanner as a pod
         env:
           CONTROL_PLANE_IMAGE: vectispire:nightly
