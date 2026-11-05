@@ -41,6 +41,11 @@ n'y ont jamais figuré.
   Vérifié le 30 août 2026 : aucun des anciens commits n'y est présent, aucun objet de son historique
   ne correspond à un fichier de base ou de clé, et un scan gitleaks sur tout son historique n'a rien
   trouvé.
+- **L'ancien dépôt n'existe plus sur sa forge.** Vérifié le 5 novembre 2026 : connecté avec le compte
+  qui le possédait, la forge répond que le projet est introuvable. Son historique est parti avec lui,
+  commits antérieurs à la réécriture compris, et avec lui toute clé de déploiement enregistrée sur ce
+  projet. Vérifié le même jour : aucun commit d'aucune branche du dépôt actuel n'a jamais ajouté de
+  fichier de base.
 
 ## Ce qui a changé dans le projet
 
@@ -63,7 +68,8 @@ n'y ont jamais figuré.
 
 - Ce qui a été cloné depuis l'ancien dépôt avant la réécriture ne peut pas être rappelé. Seule la
   rotation le rend sans valeur.
-- L'achèvement de la purge de l'ancien dépôt par la forge n'est pas consigné ici ; il ne concerne que
-  l'ancien dépôt, dont l'actuel ne descend pas.
+- La clé de déploiement était enregistrée sur le dépôt qu'elle servait à cloner. Si c'était un autre
+  dépôt que l'ancien, la suppression de l'ancien projet ne l'y a pas révoquée ; ce n'est pas consigné
+  ici.
 - Une règle d'exclusion ou un scanner réduisent le risque de récidive ; aucun ne rend sûr un secret
   commité. Un secret arrivé dans un dépôt se révoque, il ne se nettoie pas.
