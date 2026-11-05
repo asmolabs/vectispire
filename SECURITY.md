@@ -46,7 +46,8 @@ A line's end date is written below on the day its successor is released.
 
 | Version | Supported | Until |
 |---|---|---|
-| `0.11.x` | ✅ the latest minor: every fix | `0.12.0`'s release, then security fixes for three months after it |
+| `1.0.0-rc.N` | ⚠️ release candidate: a fix goes into the next candidate, not into a patch of this one | `1.0.0`'s release |
+| `0.11.x` | ✅ the latest minor: every fix | `1.0.0`'s release, then security fixes for three months after it |
 | `0.10.x` and earlier, the `0.11.0` release candidates included | ❌ — upgrade to `0.11.x` | ended 2026-10-25, with `0.11.0` |
 
 The three-month rule starts with `0.11`: `0.10.x` was out of support before it was written, and stays so.
@@ -154,7 +155,8 @@ ligne est écrite ci-dessous le jour où sort celle qui lui succède.
 
 | Version | Suivie | Jusqu'à |
 |---|---|---|
-| `0.11.x` | ✅ la dernière mineure : tous les correctifs | la sortie de `0.12.0`, puis les correctifs de sécurité pendant trois mois après elle |
+| `1.0.0-rc.N` | ⚠️ version candidate : un correctif va dans la candidate suivante, pas dans un correctif de celle-ci | la sortie de `1.0.0` |
+| `0.11.x` | ✅ la dernière mineure : tous les correctifs | la sortie de `1.0.0`, puis les correctifs de sécurité pendant trois mois après elle |
 | `0.10.x` et antérieures, versions candidates de `0.11.0` comprises | ❌ — passez en `0.11.x` | terminée le 2026-10-25, avec `0.11.0` |
 
 La règle des trois mois commence avec `0.11` : `0.10.x` n'était plus suivie avant qu'elle soit écrite,
