@@ -37,6 +37,11 @@ were introduced after the exposure and were never in it.
 - **The current repository is a new one**, created on 27 August 2026, not a rename of the old one.
   Checked on 30 August 2026: none of the old commits is present in it, no object in its history
   matches a database or key file, and a gitleaks scan over its full history found nothing.
+- **The old repository no longer exists on its forge.** Checked on 5 November 2026: signed in as
+  the account that owned it, the forge answers that the project cannot be found. Its history went
+  with it, the commits from before the rewrite included, and so did every deploy key registered on
+  that project. Checked the same day: no commit on any branch of the current repository has ever
+  added a database file.
 
 ## What changed in the project
 
@@ -58,7 +63,8 @@ were introduced after the exposure and were never in it.
 
 - Whatever was cloned from the old repository before the rewrite cannot be recalled. Only the
   rotation makes it worthless.
-- Whether the forge completed the purge of the old repository is not recorded here; it concerns the
-  old repository only, which the current one does not descend from.
+- The deployment key was registered on the repository it was used to clone. Had that been another
+  repository than the old one, deleting the old project did not revoke it there; that is not
+  recorded here.
 - An ignore rule or a scanner reduces the chance of a repeat; none of them makes a
   committed secret safe. A secret that reached a repository is revoked, not cleaned.
