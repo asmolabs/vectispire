@@ -165,3 +165,21 @@ deb0030e9e3b97b11fdc989ef435c8da65ee4866:vectispire-rust/reference/targets/rules
 32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:153
 32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:298
 32b2d06363ff6e002705b3d2751029b2cd789185:vectispire-rust/reference/sign-in/java-answers.json:generic-api-key:303
+
+# The 1.0.0-rc.1 history reset (2026-11-09): main and develop restart from a root commit carrying
+# the tree they had, so every hit already pinned above under the commit that introduced it is found
+# again in that root commit, at its current line. The same thirteen values, each already read and
+# pinned file by file and rule by rule under its earlier commit — nothing new was judged here.
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:docs-site/integrations/ci-examples.fr.md:curl-auth-user:498
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:docs-site/integrations/ci-examples.fr.md:curl-auth-user:503
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:docs-site/integrations/ci-examples.md:curl-auth-user:485
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:docs-site/integrations/ci-examples.md:curl-auth-user:490
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:docs/en/COMPLIANCE_AND_REGULATORY.md:generic-api-key:239
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:docs/fr/COMPLIANCE_AND_REGULATORY.fr.md:generic-api-key:244
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-angular/src/app/pages/ssh-keys/ssh-keys.spec.ts:private-key:159
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-agent/src/test/java/com/asmolabs/vectispire/agent/AgentLoopTest.java:private-key:81
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-common/src/test/java/com/asmolabs/vectispire/common/domain/scans/FailureReasonTest.java:private-key:19
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-common/src/test/java/com/asmolabs/vectispire/common/domain/scans/FailureReasonTest.java:generic-api-key:28
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/ProjectExportRoutesTest.java:generic-api-key:83
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/SiemCollectorCaRoutesTest.java:private-key:137
+bb5cb76c1065fdaf7632cf58283a0fea6d603361:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/TicketWebhookLogTest.java:generic-api-key:24
