@@ -28,7 +28,9 @@ public record UserView(
         Instant createdAt,
         Instant updatedAt,
         boolean mustChangePassword,
-        boolean mfaEnabled) {
+        boolean mfaEnabled,
+        // Written by the SCIM directory, which then owns the e-mail address: see V102.
+        boolean scimManaged) {
 
     public static UserView of(UserEntity user) {
         return new UserView(
@@ -44,6 +46,7 @@ public record UserView(
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
                 user.getMustChangePassword(),
-                user.getMfaEnabled());
+                user.getMfaEnabled(),
+                user.getScimManaged());
     }
 }

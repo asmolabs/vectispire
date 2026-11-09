@@ -289,6 +289,9 @@ public class ScimProvisioningService {
         // account on the change-password screen, which asks for a current password nobody had.
         user.setPassword(PasswordHasher.hash(UUID.randomUUID().toString()));
         user.setMustChangePassword(false);
+        // The directory owns what it writes: an administrator's change to the address would last until
+        // its next write (V102).
+        user.setScimManaged(true);
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
@@ -334,6 +337,9 @@ public class ScimProvisioningService {
         }
         user.setIsActive(nowActive);
         user.setRole(role);
+        // Marked by any write, not only a creation: an account made in Vectispire and then claimed by the
+        // directory has its address replaced from now on all the same (V102).
+        user.setScimManaged(true);
         user.setUpdatedAt(clock.instant());
 
         UserEntity saved = users.save(user);
@@ -387,6 +393,9 @@ public class ScimProvisioningService {
                 applyPatch(user, op);
             }
         }
+        // A patch writes no address, but the directory that sends it knows the account, and its next
+        // replacement will (V102).
+        user.setScimManaged(true);
         user.setUpdatedAt(clock.instant());
         UserEntity saved = users.save(user);
 

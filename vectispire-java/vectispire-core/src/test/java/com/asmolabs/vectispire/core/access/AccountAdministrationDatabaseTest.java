@@ -242,7 +242,7 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
     }
 
     private static AccountAdministrationService.AccountChange change(String role, Boolean isActive, String password) {
-        return new AccountAdministrationService.AccountChange(role, isActive, password);
+        return new AccountAdministrationService.AccountChange(role, isActive, password, null);
     }
 
     private static AccountAdministrationService.NewAccount newAccount(String username, String role) {

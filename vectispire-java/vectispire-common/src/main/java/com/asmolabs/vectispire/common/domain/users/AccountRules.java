@@ -44,6 +44,31 @@ public final class AccountRules {
     }
 
     /**
+     * One {@code @}, something on each side, a dot in the domain, and nothing a mail header reads as a
+     * separator — whitespace and every separator or control character Unicode names (the zero-width ones
+     * included), and {@code < > ( ) [ ] , ; : "} and the backslash. Non-ASCII letters are accepted, since an
+     * internationalised address is one.
+     */
+    private static final String ADDRESS_PART = "[^\\s\\p{Z}\\p{C}@<>()\\[\\],;:\"\\\\]+";
+
+    private static final Pattern EMAIL = Pattern.compile(ADDRESS_PART + "@" + ADDRESS_PART + "\\." + ADDRESS_PART);
+
+    /**
+     * Whether a trimmed, present e-mail address reads as one; empty if it does, otherwise the message to show.
+     *
+     * <p><b>A shape, not a deliverability check.</b> The address is where a checklist's contact reminders are
+     * mailed (decision 0044), and the screen shows it when an account has no display name: "jdoe" or "jdoe at
+     * corp" typed in the field went nowhere, and nobody heard of it until the reminders did not arrive. Whether
+     * the mailbox exists only a send can say. The separators are refused because the address goes into a
+     * message's {@code To:}, where a comma or a line break is a second recipient.
+     */
+    public static Optional<String> validateEmail(String email) {
+        return email != null && EMAIL.matcher(email).matches()
+                ? Optional.empty()
+                : Optional.of("The e-mail address must read like name@example.org.");
+    }
+
+    /**
      * A minimum length, and nothing else.
      *
      * <p>No composition rule. Character-class requirements produce {@code Password1!} and

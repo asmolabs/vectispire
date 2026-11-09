@@ -20,6 +20,18 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
      */
     Optional<UserEntity> findByKeycloakId(String keycloakId);
 
+    /**
+     * Whether an account other than {@code id} holds this e-mail address, letter case aside.
+     *
+     * <p>Asked before a write so that a taken address is a sentence rather than the unique key's 500. Letter
+     * case aside because MySQL's collation compares the column that way, so its key refuses {@code A@x.org}
+     * beside {@code a@x.org}; on PostgreSQL the check is the stricter of the two, and a mailbox is not told
+     * apart by case anyway. Never a way to find an account: nothing signs in or links by its address.
+     *
+     * @param id the account being changed, or {@code -1} for a creation
+     */
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
+
 
     List<UserEntity> findAllByOrderByUsernameAsc();
 

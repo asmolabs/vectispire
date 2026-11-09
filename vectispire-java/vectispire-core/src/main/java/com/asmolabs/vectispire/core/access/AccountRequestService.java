@@ -152,7 +152,7 @@ public class AccountRequestService {
                             approver.getId(), approver.getUsername());
                 }
                 written = administration.writeChange(request.getAccountId(), request.getRequestedRole(), null,
-                        request.getPasswordHash(), approver.getId(), administrators, provenance, actor);
+                        request.getPasswordHash(), null, approver.getId(), administrators, provenance, actor);
             }
             request.setStatus(APPROVED);
             request.setDecidedBy(approver.getUsername());

@@ -81,6 +81,13 @@ public class UserEntity {
     @Column(name = "scim_lowered_from", length = 32)
     private String scimLoweredFrom;
 
+    /**
+     * Whether the SCIM directory writes this account — set by its provisioning, never cleared. What the
+     * directory replaces on every write (the e-mail address) is then refused to an administrator: see V102.
+     */
+    @Column(name = "scim_managed", nullable = false)
+    private boolean scimManaged;
+
     public Long getId() {
         return id;
     }
@@ -191,6 +198,14 @@ public class UserEntity {
 
     public void setScimLoweredFrom(String scimLoweredFrom) {
         this.scimLoweredFrom = scimLoweredFrom;
+    }
+
+    public boolean getScimManaged() {
+        return scimManaged;
+    }
+
+    public void setScimManaged(boolean scimManaged) {
+        this.scimManaged = scimManaged;
     }
 
     public boolean getMfaEnabled() {
