@@ -20,6 +20,36 @@ reason in `ci/openapi/accepted-breaks.txt`. The rule covers the interface's own
 calls: they use the same API. Before 1.0 a minor may still break, and says so under *Before you
 upgrade*.
 
+## 1.0.0-rc.2 — unreleased
+
+What follows is against 1.0.0-rc.1.
+
+### Before you upgrade {#before-you-upgrade-100-rc2}
+
+- **One migration, V102**, adds `t_user.scim_managed`, false for every existing account. An account the
+  SCIM directory provisioned before this release is marked by the directory's next write to it; until
+  then an administrator can still change its address, and the directory overwrites it then, as it always
+  did.
+
+### Changes an integration can see {#changes-an-integration-can-see-100-rc2}
+
+- **`PATCH /api/v1/users/{id}` takes `email`**, optional: absent or `null` leaves the address, blank
+  clears it. `409` with the code `managed-by-directory` refuses a change on an account the SCIM directory
+  writes.
+- **The account list carries `scimManaged`** on each account.
+- **`POST /api/v1/users` checks `email`** as the change does: an address that does not read as one, or
+  that another account holds, is a `400` with the reason. A malformed one was stored; a taken one was a
+  `500`.
+
+### New {#new-100-rc2}
+
+- **An administrator sets, changes or clears an account's e-mail address** — the address a checklist's
+  contact reminders are mailed to — from the envelope button on the account's row, and types it in the
+  creation form. Until now it was written only at a creation through the API, by the directory or by
+  single sign-on, so an account made on the **Users** screen could never receive a reminder. An account
+  the directory writes shows its address read-only. The change is recorded as `USER_UPDATED` without the
+  address. See [Users and teams](../administration/users-and-teams.md#the-e-mail-address).
+
 ## 1.0.0-rc.1 — 2026-11-09
 
 The release before 1.0, and a trial of it: what 1.0 will promise
