@@ -68,6 +68,32 @@ est enrôlé). Retirer un facteur demande sinon un code actuel, ce qui manque ju
 
 La route est `DELETE /api/v1/users/{id}/second-factor`, pour les administrateurs.
 
+
+### L'adresse e-mail {#the-e-mail-address}
+
+L'adresse e-mail d'un compte est celle où sont envoyés les rappels aux contacts d'une checklist. Elle
+se saisit, facultativement, dans le formulaire de création, et se définit, se change ou s'efface
+ensuite depuis le bouton enveloppe de la ligne du compte (depuis 1.0.0-rc.2).
+
+- **Contrôlée, pas vérifiée.** L'adresse doit avoir la forme `nom@example.org` — un seul `@`, un point
+  dans le domaine, ni espace, ni virgule, ni autre séparateur —, compter au plus 255 caractères et
+  n'appartenir à aucun autre compte, sans tenir compte de la casse ; sinon `400` avec la raison. Seul
+  un rappel envoyé dit si la boîte existe.
+- **Un champ vide l'efface.** Renvoyer l'adresse que le compte porte déjà ne change rien et n'écrit
+  rien au journal.
+- **Pas sur un compte que l'annuaire SCIM écrit.** L'annuaire remplace l'adresse à chaque
+  synchronisation : une adresse saisie ici ne durerait que jusqu'à la suivante. La fenêtre l'affiche
+  en lecture seule et le dit, et l'API répond `409` avec le code `managed-by-directory`. Modifiez-la
+  dans l'annuaire. Un compte est marqué comme celui de l'annuaire par sa première écriture de
+  provisionnement à partir de 1.0.0-rc.2 ; un compte provisionné avant l'est par la suivante.
+- **Elle n'accorde rien.** Rien ne connecte ni ne lie un compte par son adresse : sous double
+  validation, une adresse envoyée avec une modification qui attend l'approbation s'applique aussitôt,
+  comme une activation.
+- **Enregistrée** comme `USER_UPDATED` — *e-mail address set*, *changed* ou *cleared* — sans
+  l'adresse elle-même, et envoyée au SIEM comme modification de compte (`VECTI-SEC-010`).
+
+La route est `PATCH /api/v1/users/{id}` avec `email`, pour les administrateurs.
+
 ### Les modifications qui attendent un second administrateur {#changes-that-wait-for-a-second-administrator}
 
 [Double validation](four-eyes.fr.md) activée, trois gestes qui feraient un approbateur sont **soumis

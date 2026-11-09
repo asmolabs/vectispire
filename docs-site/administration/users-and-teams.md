@@ -62,6 +62,30 @@ Removing a factor otherwise needs a current code, which is exactly what such an 
 
 The route is `DELETE /api/v1/users/{id}/second-factor`, for administrators.
 
+### The e-mail address
+
+An account's e-mail address is where a checklist's contact reminders are mailed. It is typed in the
+creation form, optionally, and set, changed or cleared afterwards from the envelope button on the
+account's row (since 1.0.0-rc.2).
+
+- **Checked, not verified.** The address must read like `name@example.org` — one `@`, a dot in the
+  domain, no spaces, commas or other separators — be at most 255 characters, and be held by no other
+  account, letter case aside; otherwise `400` with the reason. Whether the mailbox exists only a sent
+  reminder can tell.
+- **An empty field clears it.** Resending the address the account holds changes nothing and records
+  nothing.
+- **Not on an account the SCIM directory writes.** The directory replaces the address at every
+  synchronisation, so an address typed here would last until the next one: the dialog shows it
+  read-only and says so, and the API answers `409` with the code `managed-by-directory`. Change it in
+  the directory. An account is marked as the directory's by its first provisioning write from
+  1.0.0-rc.2 on; one it provisioned before is marked by its next.
+- **It grants nothing.** Nothing signs in or links an account by its address, so under four-eyes an
+  address sent with a change that waits for approval applies at once, like an activation.
+- **Recorded** as `USER_UPDATED` — *e-mail address set*, *changed* or *cleared* — without the address
+  itself, and sent to the SIEM as an account change (`VECTI-SEC-010`).
+
+The route is `PATCH /api/v1/users/{id}` with `email`, for administrators.
+
 ### Changes that wait for a second administrator
 
 With [four-eyes approval](four-eyes.md) on, three gestures that would make an approver are **filed

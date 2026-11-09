@@ -21,6 +21,37 @@ figure avec sa raison dans `ci/openapi/accepted-breaks.txt`. La règle
 couvre les appels de l'interface elle-même : ils passent par la même API. Avant la 1.0, une mineure peut
 encore rompre, et le dit sous *Avant la mise à jour*.
 
+## 1.0.0-rc.2 — non publiée
+
+Ce qui suit se compare à 1.0.0-rc.1.
+
+### Avant la mise à jour {#avant-la-mise-a-jour-100-rc2}
+
+- **Une migration, V102**, ajoute `t_user.scim_managed`, à faux pour chaque compte existant. Un compte que
+  l'annuaire SCIM a provisionné avant cette version est marqué par la prochaine écriture de l'annuaire ;
+  d'ici là, un administrateur peut encore changer son adresse, et l'annuaire l'écrase alors, comme il l'a
+  toujours fait.
+
+### Changements visibles par une intégration {#changements-visibles-par-une-integration-100-rc2}
+
+- **`PATCH /api/v1/users/{id}` accepte `email`**, facultatif : absent ou `null` laisse l'adresse, vide
+  l'efface. `409` avec le code `managed-by-directory` refuse un changement sur un compte que l'annuaire
+  SCIM écrit.
+- **La liste des comptes porte `scimManaged`** sur chaque compte.
+- **`POST /api/v1/users` contrôle `email`** comme le changement : une adresse qui n'en a pas la forme, ou
+  qu'un autre compte porte, est un `400` avec la raison. Une adresse mal formée était enregistrée ; une
+  adresse déjà prise donnait un `500`.
+
+### Nouveautés {#nouveautes-100-rc2}
+
+- **Un administrateur définit, change ou efface l'adresse e-mail d'un compte** — celle où sont envoyés
+  les rappels aux contacts d'une checklist — depuis le bouton enveloppe de la ligne du compte, et la
+  saisit dans le formulaire de création. Jusqu'ici, seuls la création par l'API, l'annuaire ou
+  l'authentification unique l'écrivaient : un compte créé depuis l'écran **Utilisateurs** ne pouvait
+  recevoir aucun rappel. Un compte que l'annuaire écrit affiche son adresse en lecture seule. Le
+  changement est enregistré comme `USER_UPDATED`, sans l'adresse. Voir
+  [Utilisateurs et équipes](../administration/users-and-teams.md#the-e-mail-address).
+
 ## 1.0.0-rc.1 — 9 novembre 2026
 
 La version qui précède la 1.0, et son essai : ce que la 1.0 promettra
